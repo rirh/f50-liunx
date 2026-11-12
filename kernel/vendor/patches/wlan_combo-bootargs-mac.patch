@@ -3,7 +3,7 @@ Use the factory Wi-Fi MAC address that LK passes in /chosen/bootargs.
 The vendor driver takes wlan0's address from Android's /mnt/vendor/wifimac.txt (through the firmware's default
 MAC); under Linux there is none, so it fell back to a random 40:45:da address on every boot. LK puts the factory
 address in the bootargs as androidboot.wifimac=<12 hex digits>, which the mainline port already reads
-(upstream/modules/sprd_wlan_combo/common/iface.c); this is the same function for 5.4. wlan1 (the second station
+(kernel/mainline/modules/sprd_wlan_combo/common/iface.c); this is the same function for 5.4. wlan1 (the second station
 interface) keeps the old behaviour, as in mainline.
 
 --- a/common/iface.c

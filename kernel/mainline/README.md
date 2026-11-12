@@ -3,7 +3,7 @@
 Mainline **Linux 6.18.60** (the current longterm series) runs Ubuntu 24.04 and OpenWrt 25.12 on the ZTE F50 /
 MU300 (Unisoc UMS9620): all 8 CPUs (4×A55, 4×A76), eMMC, USB NCM + ACM, the 5 GHz hotspot, Bluetooth, the modem
 with mobile data (downlink and uplink), SMS, the VPN, the Mali GPU, thermal/cpufreq, the PMIC watchdog and
-reboot. `docs/FINDINGS.md` 31-31f has what it took and what is still open.
+reboot. `docs/research/FINDINGS.md` 31-31f has what it took and what is still open.
 
 On a device: `sudo mu300-update kernel 6.18` (or `7.3`, the stable release), and `sudo mu300-update kernel
 5.4` back; the installer offers all three. Every kernel's modules stay installed.
@@ -22,22 +22,22 @@ merged) describes the same GIC/UART/timer layout; this device is derived from th
   adds the UMS9620/UMP9620 variant to `spi-sprd-adi` (also matching the vendor compatible `sprd,qogirn6pro-adi`) and
   resets through the PMIC software reset, registered above the PSCI handler.
 * **Logs:** with a working reset the console survives in ramoops and Android shows it as
-  `/sys/fs/pstore/console-ramoops-0` (`tools/collect-logs.sh`).
+  `/sys/fs/pstore/console-ramoops-0` (`scripts/device/collect-logs.sh`).
 
 ## Build and test
 ```sh
 docker build -t mu300-mainline-build upstream/
 docker volume create mu300-mainline   # build.sh fetches linux-$KV (default 6.18.60) into it, signatures checked (keys/)
-docker run --rm -v mu300-mainline:/src -v "$PWD/upstream":/work mu300-mainline-build bash /work/build.sh
-docker run --rm -v mu300-mainline:/src -v "$PWD/upstream":/work mu300-mainline-build bash /work/build-modules.sh
-upstream/make-bundle.sh mu300-kernel-6.18.tar.gz        # Image for LK, generic ramdisk segment, modules
+docker run --rm -v mu300-mainline:/src -v "$PWD/kernel/mainline":/work mu300-mainline-build bash /work/build.sh
+docker run --rm -v mu300-mainline:/src -v "$PWD/kernel/mainline":/work mu300-mainline-build bash /work/build-modules.sh
+kernel/mainline/make-bundle.sh mu300-kernel-6.18.tar.gz        # Image for LK, generic ramdisk segment, modules
 # on the device: MU300_KERNEL_BUNDLE=/path/mu300-kernel-6.18.tar.gz mu300-update boot
 ```
 The build stops on a kernel tarball whose signatures do not check out (`verify-kernel-src.sh`: kernel.org's signed
 `sha256sums.asc` and the releaser's `tar.sign`, against the keys pinned in `keys/`, FINDINGS 161) and on anything
 that drifts silently: a patch that neither applies nor is applied, a config option
 Kconfig does not take (unless listed in `config-ignored.txt`), a port edit whose anchor moved, or a module whose
-vermagic does not match the kernel. `tools/make-release.sh` packages the same bundle as `mu300-kernel-6.18.tar.gz`.
+vermagic does not match the kernel. `scripts/release/make-release.sh` packages the same bundle as `mu300-kernel-6.18.tar.gz`.
 
 The config is allnoconfig plus `mu300-mainline.config`, and then `all-modules.py` (FINDINGS 163): every other
 tristate option the boards can use becomes a module - USB devices of every class, filesystems, netfilter, protocols,
@@ -54,7 +54,7 @@ root loads them with `modprobe NAME`.
 power supply, Type-C port, regulator, LED, ...) that mainline does not have under the same name, what stands for it
 (`ok` with the module or config symbol), or that it is `missing` (with its porting group and boards) or `na` (with
 the reason). `check-parity.py` enforces it: `build-modules.sh` and `make-bundle.sh` fail when an equivalent the file
-names, or a same-named 5.4 module, is not in the mainline build; `kernel/build-all.sh` records the 5.4 build in
+names, or a same-named 5.4 module, is not in the mainline build; `kernel/vendor/build-all.sh` records the 5.4 build in
 `parity/5.4-build.list` and fails on a 5.4 module or built-in the file does not cover; the Tests workflow
 (`tests/test_parity.py`) checks the file against those records, `parity/mainline.list` (what each mainline series
 has, `check-parity.py --mainline OUT --record`) and the boards' inventories (`parity/BOARD-KERNEL.inv`, from
@@ -71,7 +71,7 @@ stays in `vmlinux`, and `build-modules.sh` strips it from the vendor modules.
 
 The bring-up path of old (hand-built image, `init-bringup`, `boot/flash-trial.sh`) still works for experiments:
 ```sh
-python3 upstream/wrap-image.py upstream/out/Image upstream/out/Image.lk
+python3 kernel/mainline/wrap-image.py kernel/mainline/out/Image kernel/mainline/out/Image.lk
 boot/flash-trial.sh boot-mainline.img      # slot b only, falls back to Android
 ```
 
@@ -109,7 +109,7 @@ device that chose 7.2 to 7.3 with its next update (the image before is kept for 
 **7.3** (mainline, 2026-10-18; the stable release now) came from the release after v2026.10.19.2 on:
 `mu300-kernel-7.3.tar.gz`, `sudo mu300-update kernel 7.3`, choice 3 in the installer (4 until 7.2 was retired, and
 still taken); it is built next to 6.18: `OUTDIR=out-7.3 KV=7.3.1` for `build.sh` and `build-modules.sh`, and
-`MU300_UPSTREAM_OUT=upstream/out-7.3` for `make-bundle.sh`; `tools/make-release.sh` packs them all (its first
+`MU300_UPSTREAM_OUT=kernel/mainline/out-7.3` for `make-bundle.sh`; `scripts/release/make-release.sh` packs them all (its first
 release reported `7.3.0`).
 Every patch applies unchanged; what 7.3 changed is in FINDINGS 206: `PROC_SYSCTL` folded into `SYSCTL`
 (`config-ignored.txt`), the cfg80211 cookie of remain-on-channel and management frames handed to the driver by
@@ -237,7 +237,7 @@ Fixes needed on top of the port:
 - cpufreq: vendor `sprd_sip_svc` + `sprd-cpufreq-v2`; ATF does the DVFS, the kernel asks through SIP SMC calls
   (3 policies: 4 little / 3 mid / 1 big, schedutil). PSCI cpuidle (WFI, core sleep, cluster power-down);
   `modules/ums9620_lpintc` makes the interrupts the kernel enabled wake sources of the cluster power-down, which TF-A
-  left at its own list without USB, IPA and PCIe (docs/FINDINGS.md 218).
+  left at its own list without USB, IPA and PCIe (docs/research/FINDINGS.md 218).
   Idle temperature dropped from ~54 C to ~48 C.
 - The stock DT has trip points only on the vendor virtual zone (`soc-thmzone`: passive 70/85 C, critical 110 C,
   cooling maps to the three clusters), whose sensor driver mainline lacks: `modules/mu300_thermal` brings it back

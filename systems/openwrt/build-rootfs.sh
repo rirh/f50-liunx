@@ -1,19 +1,19 @@
 #!/bin/sh
 # Build the MU300 OpenWrt (or ImmortalWrt) rootfs tarball (runs on the host; needs Docker with arm64 support).
-#   openwrt/build-rootfs.sh OUT.tar.gz
-#   MU300_FLAVOUR=immortalwrt openwrt/build-rootfs.sh OUT.tar.gz
-#   MU300_SYSTEM=openwrt-luci openwrt/build-rootfs.sh OUT.tar.gz   (OpenWrt with the MU300 control panel and Aurora)
-# OUT is written into openwrt/ under its base name.
-# Inputs (same as rootfs/assemble.sh, all optional except modules):
+#   systems/openwrt/build-rootfs.sh OUT.tar.gz
+#   MU300_FLAVOUR=immortalwrt systems/openwrt/build-rootfs.sh OUT.tar.gz
+#   MU300_SYSTEM=openwrt-luci systems/openwrt/build-rootfs.sh OUT.tar.gz   (OpenWrt with the MU300 control panel and Aurora)
+# OUT is written into systems/openwrt/ under its base name.
+# Inputs (same as systems/base/assemble.sh, all optional except modules):
 #   out/modules/*.ko  out/modules.builtin*  firmware/  android-subset/  android-gpu-subset/
-#   tools/logdw/logdw  tools/bt-init/mu300-bt-init  tools/keys/mu300-keys  tools/gpu/cltest  busybox (static, full)
-#   tools/carry/mu300-carry (static: an update carries everything of the user's over with it)
-#   upstream/out/modules/*.ko (optional: out-of-tree WCN modules for the mainline 6.18 kernel)
+#   device-tools/logdw/logdw  device-tools/bt-init/mu300-bt-init  device-tools/keys/mu300-keys  device-tools/gpu/cltest  busybox (static, full)
+#   device-tools/carry/mu300-carry (static: an update carries everything of the user's over with it)
+#   kernel/mainline/out/modules/*.ko (optional: out-of-tree WCN modules for the mainline 6.18 kernel)
 # openwrt-luci only: MU300_LUCI_THEME_APK, a local copy of the pinned Aurora .apk (offline builds; else downloaded)
 # (MU300_SAE_APK_DIR, a hand-built hostapd for the U30 Air's firmware SAE offload, is gone: the offload is
-# disabled, docs/U30AIR-SAE.md, FINDINGS 80. The build refuses it rather than ignore it.)
+# disabled, docs/research/U30AIR-SAE.md, FINDINGS 80. The build refuses it rather than ignore it.)
 [ -z "${MU300_SAE_APK_DIR:-}" ] || {
-    echo "MU300_SAE_APK_DIR: the U30 Air SAE offload is disabled and its hostapd is not built into images (docs/U30AIR-SAE.md)" >&2
+    echo "MU300_SAE_APK_DIR: the U30 Air SAE offload is disabled and its hostapd is not built into images (docs/research/U30AIR-SAE.md)" >&2
     exit 1
 }
 set -eu
@@ -25,14 +25,14 @@ case $FLAVOUR in
     *) echo "unknown flavour '$FLAVOUR' (openwrt or immortalwrt)" >&2; exit 1 ;;
 esac
 # The hash comes from the release's sha256sums, and that file counts only with a valid usign signature by the
-# release's key, pinned in openwrt/keys/usign/ (OpenWrt's keyring, git.openwrt.org/keyring.git usign/<number>): the
+# release's key, pinned in systems/openwrt/keys/usign/ (OpenWrt's keyring, git.openwrt.org/keyring.git usign/<number>): the
 # 25.12 releases are signed by b5043e70f9a75cde (OpenWrt) and 467a35c14d7fbc5c (ImmortalWrt). Another release
 # series is signed by another key, which has to be pinned here first. Without the check, whoever could change the
 # download (a mirror, a proxy) could change sha256sums with it, and the tarball would match.
 case $FLAVOUR:$VER in
     openwrt:25.12.*)     USIGN_KEY=b5043e70f9a75cde ;;
     immortalwrt:25.12.*) USIGN_KEY=467a35c14d7fbc5c ;;
-    *) echo "no pinned usign key for $FLAVOUR $VER (openwrt/keys/usign, openwrt/build-rootfs.sh)" >&2; exit 1 ;;
+    *) echo "no pinned usign key for $FLAVOUR $VER (systems/openwrt/keys/usign, systems/openwrt/build-rootfs.sh)" >&2; exit 1 ;;
 esac
 SYSTEM=${MU300_SYSTEM:-openwrt}
 case $SYSTEM in
@@ -45,27 +45,27 @@ esac
 KREL=5.4.254-gb50db5b6224c
 # the default name: mu300-<system>-<version>-rootfs.tar.gz; ImmortalWrt keeps its own (it has only the plain system)
 if [ "$FLAVOUR" = immortalwrt ]; then OUT=${1:-mu300-immortalwrt-$VER-rootfs.tar.gz}; else OUT=${1:-mu300-$SYSTEM-$VER-rootfs.tar.gz}; fi
-TOP=$(cd "$(dirname "$0")/.." && pwd)
+TOP=$(cd "$(dirname "$0")/../.." && pwd)
 # build inputs (out/, firmware/, android-subset/, tools binaries, busybox) may live outside the checkout
 IN=${MU300_INPUTS:-$TOP}
 # Without its cellular protocol netifd has no wan and the image boots without mobile data. openwrt-luci also needs
 # the IPv6 relay monitor: its first boot selects relay mode (91-mu300-luci), and mu300cell.sh then runs it. Plain
 # OpenWrt never selects relay, and builds without it.
-CELL=$TOP/openwrt/overlay/lib/netifd/proto/mu300cell.sh
+CELL=$TOP/systems/openwrt/overlay/lib/netifd/proto/mu300cell.sh
 [ -s "$CELL" ] || { echo "required cellular protocol helper missing: $CELL" >&2; exit 1; }
 if [ "$SYSTEM" = openwrt-luci ]; then
-    [ -s "$TOP/openwrt/luci-overlay/lib/netifd/proto/mu300cell-v6.sh" ] || {
-        echo "required cellular protocol helper missing: openwrt/luci-overlay/lib/netifd/proto/mu300cell-v6.sh" >&2; exit 1;
+    [ -s "$TOP/systems/openwrt/luci-overlay/lib/netifd/proto/mu300cell-v6.sh" ] || {
+        echo "required cellular protocol helper missing: systems/openwrt/luci-overlay/lib/netifd/proto/mu300cell-v6.sh" >&2; exit 1;
     }
 fi
 # sipa_eth0 into fw4's software flowtable (applied below, the build fails when it no longer applies)
-FW4PATCH=$TOP/openwrt/patches/fw4-sipa-offload.patch
+FW4PATCH=$TOP/systems/openwrt/patches/fw4-sipa-offload.patch
 [ -s "$FW4PATCH" ] || { echo "missing $FW4PATCH" >&2; exit 1; }
 # fw4 reload/restart on the 5.4 kernel: its old flowtable goes first, in a transaction of its own (#95, FINDINGS 38)
-FW4FTPATCH=$TOP/openwrt/patches/fw4-old-kernel-flowtable.patch
+FW4FTPATCH=$TOP/systems/openwrt/patches/fw4-old-kernel-flowtable.patch
 [ -s "$FW4FTPATCH" ] || { echo "missing $FW4FTPATCH" >&2; exit 1; }
 # never an access point on a DFS channel: the SC2355 driver has no radar detection (FINDINGS 42)
-NODFSPATCH=$TOP/openwrt/patches/wifi-scripts-no-dfs.patch
+NODFSPATCH=$TOP/systems/openwrt/patches/wifi-scripts-no-dfs.patch
 [ -s "$NODFSPATCH" ] || { echo "missing $NODFSPATCH" >&2; exit 1; }
 # Docker (FINDINGS 130): in the image (MU300_DOCKER=1) or ready to install with apk (0, the default: the image carries
 # its settings and firewall zone only). In the image, its 190 MB are there twice while an update unpacks the new system
@@ -77,7 +77,7 @@ case ${MU300_DOCKER:-0} in
 esac
 # an access point is WPA2-PSK only: SAE (WPA3-Personal, its mixed and compatibility modes) is refused on the SC2355
 # (the U30 Air's firmware SAE offload is disabled, FINDINGS 80)
-WPA2PATCH=$TOP/openwrt/patches/wifi-scripts-wpa2-only.patch
+WPA2PATCH=$TOP/systems/openwrt/patches/wifi-scripts-wpa2-only.patch
 [ -s "$WPA2PATCH" ] || { echo "missing $WPA2PATCH" >&2; exit 1; }
 # the docker mounts of the panel system, as the positional parameters (OUT is read above): each path stays one
 # argument, spaces and all
@@ -103,40 +103,40 @@ if [ "$SYSTEM" = openwrt-luci ]; then
         echo "Aurora APK checksum mismatch: $THEME_APK" >&2; exit 1;
     }
     # The panel's catalogs in the image: Turkish and Simplified Chinese (the others are the lang extra,
-    # tools/make-extra.sh). A catalog without translations (English: the msgids are the English text) is no file at
-    # all. Named by LuCI's code for the language (openwrt/luci-languages.tsv: zh_Hans is zh-cn), or LuCI does not
+    # scripts/release/make-extra.sh). A catalog without translations (English: the msgids are the English text) is no file at
+    # all. Named by LuCI's code for the language (systems/openwrt/luci-languages.tsv: zh_Hans is zh-cn), or LuCI does not
     # load them.
     CAT=$(mktemp -d)
     for l in tr zh_Hans; do
-        code=$(awk -F '\t' -v d="$l" '$1 == d {print $2}' "$TOP/openwrt/luci-languages.tsv")
-        [ -n "$code" ] || { echo "no row for $l in openwrt/luci-languages.tsv" >&2; exit 1; }
-        python3 "$TOP/tools/po2lmo.py" "$TOP/openwrt/luci-app-mu300/po/$l/mu300.po" "$CAT/mu300.$code.lmo"
+        code=$(awk -F '\t' -v d="$l" '$1 == d {print $2}' "$TOP/systems/openwrt/luci-languages.tsv")
+        [ -n "$code" ] || { echo "no row for $l in systems/openwrt/luci-languages.tsv" >&2; exit 1; }
+        python3 "$TOP/scripts/i18n/po2lmo.py" "$TOP/systems/openwrt/luci-app-mu300/po/$l/mu300.po" "$CAT/mu300.$code.lmo"
     done
-    [ -s "$CAT/mu300.tr.lmo" ] || { echo "no Turkish catalog built from openwrt/luci-app-mu300/po/tr" >&2; exit 1; }
-    [ -s "$CAT/mu300.zh-cn.lmo" ] || { echo "no Chinese catalog built from openwrt/luci-app-mu300/po/zh_Hans" >&2; exit 1; }
-    set -- -v "$THEME_APK:/in/luci-theme-aurora.apk:ro" -v "$TOP/openwrt/luci-app-mu300:/in/luci-plugin:ro" \
-        -v "$TOP/openwrt/luci-overlay:/in/luci-overlay:ro" -v "$CAT:/in/catalogs:ro" \
-        -v "$TOP/openwrt/patches/luci-lexical-translator.sh:/in/luci-lexical-translator.sh:ro"
+    [ -s "$CAT/mu300.tr.lmo" ] || { echo "no Turkish catalog built from systems/openwrt/luci-app-mu300/po/tr" >&2; exit 1; }
+    [ -s "$CAT/mu300.zh-cn.lmo" ] || { echo "no Chinese catalog built from systems/openwrt/luci-app-mu300/po/zh_Hans" >&2; exit 1; }
+    set -- -v "$THEME_APK:/in/luci-theme-aurora.apk:ro" -v "$TOP/systems/openwrt/luci-app-mu300:/in/luci-plugin:ro" \
+        -v "$TOP/systems/openwrt/luci-overlay:/in/luci-overlay:ro" -v "$CAT:/in/catalogs:ro" \
+        -v "$TOP/systems/openwrt/patches/luci-lexical-translator.sh:/in/luci-lexical-translator.sh:ro"
 fi
 TARBALL=$FLAVOUR-$VER-armsr-armv8-rootfs.tar.gz
 URL=$BASEURL/$VER/targets/armsr/armv8
 
 cd "$TOP"
-if [ ! -f "openwrt/$TARBALL" ]; then
-    curl -fL -o "openwrt/$TARBALL" "$URL/$TARBALL"
+if [ ! -f "systems/openwrt/$TARBALL" ]; then
+    curl -fL -o "systems/openwrt/$TARBALL" "$URL/$TARBALL"
 fi
 # sha256sums (below) counts only with a valid usign signature by the release's key
 SUMS=$(mktemp -d)
 curl -fsL -o "$SUMS/sha256sums" "$URL/sha256sums" && curl -fsL -o "$SUMS/sha256sums.sig" "$URL/sha256sums.sig" ||
     { echo "cannot download $URL/sha256sums and its signature" >&2; rm -rf "$SUMS"; exit 1; }
-python3 "$TOP/tools/usign-verify.py" "$TOP/openwrt/keys/usign/$USIGN_KEY" "$SUMS/sha256sums.sig" "$SUMS/sha256sums" >/dev/null ||
+python3 "$TOP/scripts/release/usign-verify.py" "$TOP/systems/openwrt/keys/usign/$USIGN_KEY" "$SUMS/sha256sums.sig" "$SUMS/sha256sums" >/dev/null ||
     { echo "$URL/sha256sums: no valid signature by $FLAVOUR's key $USIGN_KEY" >&2; rm -rf "$SUMS"; exit 1; }
 want=$(sed -n "s/^\([0-9a-f]\{64\}\) \*$TARBALL$/\1/p" "$SUMS/sha256sums")
 rm -rf "$SUMS"
 [ -n "$want" ] || { echo "$TARBALL is not in the signed sha256sums" >&2; exit 1; }
-have=$(shasum -a 256 "openwrt/$TARBALL" 2>/dev/null || sha256sum "openwrt/$TARBALL")
+have=$(shasum -a 256 "systems/openwrt/$TARBALL" 2>/dev/null || sha256sum "systems/openwrt/$TARBALL")
 [ "${have%% *}" = "$want" ] || { echo "checksum mismatch for $TARBALL" >&2; exit 1; }
-docker import --platform linux/arm64 "openwrt/$TARBALL" mu300-$FLAVOUR-base:$VER >/dev/null
+docker import --platform linux/arm64 "systems/openwrt/$TARBALL" mu300-$FLAVOUR-base:$VER >/dev/null
 # OpenWrt ships an unsigned regulatory.db; this kernel requires the signed database (wens key), so take Debian/Ubuntu's
 REGDB=$(mktemp -d)
 docker run --rm --platform linux/arm64 -v "$REGDB":/o ubuntu:26.04 sh -c \
@@ -146,18 +146,18 @@ opt() { [ -e "$IN/$1" ] && echo "-v $IN/$1:/in/$2:ro" || true; }
 
 # The required input first, with a readable message: without it docker fails somewhere inside the build.
 ls "$IN/out/modules"/*.ko >/dev/null 2>&1 || {
-    echo "no kernel modules in $IN/out/modules - build them first (kernel/build-linux.sh), or point" >&2
+    echo "no kernel modules in $IN/out/modules - build them first (kernel/vendor/build-linux.sh), or point" >&2
     echo "MU300_INPUTS at the directory that has out/modules, firmware/ and android-subset/." >&2
     exit 1
 }
 # The optional ones decide whether the image can use the modem, Wi-Fi or the GPU at all. Missing ones
 # used to be skipped silently, which produces an image that boots and then does nothing useful.
-for o in firmware android-subset android-gpu-subset tools/logdw/logdw tools/bt-init/mu300-bt-init tools/keys/mu300-keys tools/adbd/adbd tools/carry/mu300-carry tools/gpu/cltest busybox upstream/out/modules; do
+for o in firmware android-subset android-gpu-subset device-tools/logdw/logdw device-tools/bt-init/mu300-bt-init device-tools/keys/mu300-keys device-tools/adbd/adbd device-tools/carry/mu300-carry device-tools/gpu/cltest busybox kernel/mainline/out/modules; do
     [ -e "$IN/$o" ] && echo "  + $o" || echo "  - $o   (missing: the image is built without it)"
 done
 # shellcheck disable=SC2046
 docker run --rm --platform linux/arm64 \
-  -v "$TOP/rootfs/overlay/opt/mu300":/in/opt-mu300:ro -v "$TOP/openwrt/overlay":/in/overlay:ro \
+  -v "$TOP/systems/base/overlay/opt/mu300":/in/opt-mu300:ro -v "$TOP/systems/openwrt/overlay":/in/overlay:ro \
   -v "$FW4PATCH":/in/fw4-sipa-offload.patch:ro \
   -v "$FW4FTPATCH":/in/fw4-old-kernel-flowtable.patch:ro \
   -v "$NODFSPATCH":/in/wifi-scripts-no-dfs.patch:ro \
@@ -165,8 +165,8 @@ docker run --rm --platform linux/arm64 \
   -v "$TOP/boot/module-order.txt":/in/module-order.txt:ro -v "$IN/out/modules":/in/modules:ro \
   $(opt out/modules.builtin modules.builtin) $(opt out/modules.builtin.modinfo modules.builtin.modinfo) \
   $(opt firmware firmware) $(opt android-subset android-subset) $(opt android-gpu-subset android-gpu-subset) \
-  $(opt tools/logdw/logdw logdw) $(opt tools/bt-init/mu300-bt-init bt-init) $(opt tools/keys/mu300-keys keys) $(opt tools/adbd/adbd adbd) $(opt tools/gpu/cltest cltest) \
-  $(opt busybox busybox) $(opt upstream/out/modules mainline-modules) $(opt tools/carry/mu300-carry carry) -v "$TOP/openwrt":/out -v "$REGDB":/in/regdb:ro "$@" \
+  $(opt device-tools/logdw/logdw logdw) $(opt device-tools/bt-init/mu300-bt-init bt-init) $(opt device-tools/keys/mu300-keys keys) $(opt device-tools/adbd/adbd adbd) $(opt device-tools/gpu/cltest cltest) \
+  $(opt busybox busybox) $(opt kernel/mainline/out/modules mainline-modules) $(opt device-tools/carry/mu300-carry carry) -v "$TOP/systems/openwrt":/out -v "$REGDB":/in/regdb:ro "$@" \
   -e KREL=$KREL -e OUT="$(basename "$OUT")" -e MU300_VERSION="${MU300_VERSION:-dev}" -e MU300_SYSTEM="$SYSTEM" -e MU300_DOCKER="$DOCKER" mu300-$FLAVOUR-base:$VER /bin/sh -eu -c '
 mkdir -p /var/lock /var/run /tmp
 # The packages come from the feed over the network while the image is built, and one connection cut in the middle of
@@ -359,9 +359,9 @@ fi
 [ -e /in/logdw ] && { cp /in/logdw $R/opt/mu300/bin/logdw; chmod 755 $R/opt/mu300/bin/logdw; }
 [ -e /in/bt-init ] && { cp /in/bt-init $R/opt/mu300/bin/mu300-bt-init; chmod 755 $R/opt/mu300/bin/mu300-bt-init; }
 [ -e /in/keys ] && { cp /in/keys $R/opt/mu300/bin/mu300-keys; chmod 755 $R/opt/mu300/bin/mu300-keys; }
-# adb over USB (tools/adbd, static): on unless mu300-usb adb off
+# adb over USB (device-tools/adbd, static): on unless mu300-usb adb off
 [ -e /in/adbd ] && { cp /in/adbd $R/opt/mu300/bin/adbd; chmod 755 $R/opt/mu300/bin/adbd; }
-# an update carries everything of the user over with it (tools/carry, static; mu300-update, the carry block). Without
+# an update carries everything of the user over with it (device-tools/carry, static; mu300-update, the carry block). Without
 # it an update of this image keeps only the list of places, as before the first release with a four-field tag
 [ -e /in/carry ] && { cp /in/carry $R/opt/mu300/bin/mu300-carry; chmod 755 $R/opt/mu300/bin/mu300-carry; }
 # the manifests of the releases before images carried their own: of this system only (opt/mu300 has all four)
@@ -440,14 +440,14 @@ apk list --installed | sort > $R/etc/mu300/packages.txt
 for c in $(cat /in/opt-mu300/lib/path-commands); do ln -sf /opt/mu300/bin/$c $R/usr/bin/$c; done
 # no kernel of its own: OpenWrt kmods (6.12) and grub are unused on this device
 rm -rf $R/lib/modules/6.* $R/boot
-# the modules of the mainline kernel (upstream/out: the vendor ones and those of the kernel itself, about 20 MiB), so that
+# the modules of the mainline kernel (kernel/mainline/out: the vendor ones and those of the kernel itself, about 20 MiB), so that
 # a switch to it needs nothing more; mu300-update installs those of the bundle it boots over them
 if ls /in/mainline-modules/*.ko >/dev/null 2>&1; then
     # the release the modules were built for (their vermagic), not a version written down here
     krel=$(for f in /in/mainline-modules/*.ko; do tr "\0" "\n" < $f | sed -n "s/^vermagic=\([^ ]*\) .*/\1/p"; break; done)
     [ -n "$krel" ] && mkdir -p $R/lib/modules/$krel && cp /in/mainline-modules/*.ko $R/lib/modules/$krel/
 fi
-# The manifest of the image: every file it holds, with type, mode, owner, size and sha256 (tools/image-manifest.py has
+# The manifest of the image: every file it holds, with type, mode, owner, size and sha256 (scripts/release/image-manifest.py has
 # the format and makes the same lines from the tarball; make-release.sh holds the two against each other). The next
 # update reads it to tell the files of the image from those of the user. Last, when nothing in $R changes any more.
 if [ -x $R/opt/mu300/bin/mu300-carry ]; then

@@ -8,13 +8,13 @@
 # keep - Android keeps its data: its F2FS is shrunk while it runs, by its own kernel, then the table is written and
 # Android restarts once (dikeckaan's method, kanoqwq's implementation; offered where /data is an F2FS on all of
 # userdata); reset - the table is written and Android's own recovery resets Android, erasing everything in it (that
-# works with any encryption). Take a full backup with tools/backup-device.sh first. The installation resumes on the
+# works with any encryption). Take a full backup with scripts/device/backup-device.sh first. The installation resumes on the
 # next run of this installer (by itself after keep, in a terminal), once Android is up again with USB debugging and
-# root (tools/resume.sh; a transaction in ~/mu300-backups):
+# root (installer/lib/resume.sh; a transaction in ~/mu300-backups):
 #   ./install.sh --resume        continue the prepared installation, or stop when there is none for this device
 #   ./install.sh --no-resume     install as if nothing had been prepared (MU300_RESUME=0)
 #   ./install.sh --transaction FILE   that transaction, not the newest one for the device (MU300_TRANSACTION)
-#   ./install.sh                 install Ubuntu, OpenWrt or both, built here: the kernel of out/ (kernel/build-all.sh)
+#   ./install.sh                 install Ubuntu, OpenWrt or both, built here: the kernel of out/ (kernel/vendor/build-all.sh)
 #                                and root filesystems built in docker from this copy of the project (--build, the
 #                                default of this copy; MU300_MODE=build)
 #   ./install.sh --prebuilt      download the project's published release images from GitHub instead (MU300_MODE=prebuilt)
@@ -23,11 +23,11 @@
 #   ./install.sh --adb-path      print the adb this installer would use, and stop
 #   ./install.sh --package DIR   install the system and the kernel of a release's Magisk zip unpacked at DIR, from its
 #                                files and without a download (MU300_PACKAGE=DIR; the zip's own computer/install.sh,
-#                                which its start.sh runs, finds them by itself: START-HERE.md in the zip, tools/package.sh)
+#                                which its start.sh runs, finds them by itself: START-HERE.md in the zip, installer/lib/package.sh)
 #   ./install.sh --answers FILE  ask nothing: every question is answered by its variable, from FILE (NAME=value
 #                                lines) or the environment; a question without an answer is an error that names the
 #                                variable. MU300_PROGRESS=1 adds a machine-readable progress stream. For programs
-#                                that drive the installer: tools/answers.sh, docs/INSTALLER-AUTOMATION.md
+#                                that drive the installer: installer/lib/answers.sh, docs/guides/INSTALLER-AUTOMATION.md
 # The variable of each question, for --answers (a question is asked only where the installer asks it by hand too):
 #   MU300_LANG=en|zh                       the language
 #   ANDROID_SERIAL=<serial>                the adb device, with more than one attached (or MU300_ANS_DEVICE=<its
@@ -70,17 +70,16 @@
 # MU300_SYNC_BOOTCHAIN=0 skips that.
 # An update never goes back to an older release by itself (the device refuses before it writes anything: the older
 # release's updater may not carry over everything of the user's): MU300_DOWNGRADE=yes allows it.
-# It does not update this copy of the project from GitHub (MU300_SELF_UPDATE=1 does, and brings back what this trimmed
-# copy left out), and asks for
+# It asks for
 # the language (MU300_LANG=en|zh skips that). Started by a person at a terminal for a plain installation, it then
-# offers the graphical installer of gui/, a window that drives this script (MU300_GUI=0: never ask, MU300_GUI=1:
-# start it without asking; it needs a Python 3.8 or newer with tkinter, which tools/gui-launch.sh looks for).
+# offers the graphical installer of installer/gui/, a window that drives this script (MU300_GUI=0: never ask, MU300_GUI=1:
+# start it without asking; it needs a Python 3.8 or newer with tkinter, which installer/lib/gui-launch.sh looks for).
 #
 # Prebuilt: needs adb, python3, lz4, curl. Downloads the images of the newest release (or $MU300_RELEASE) and checks
 # their sha256. When GitHub has a prerelease newer than that release it asks whether to install the beta instead
-# (default: no; tools/releases.sh). The VPN, when wanted, is the module of github.com/dikeckaan/mu300-linux-vpn: its latest release
+# (default: no; installer/lib/releases.sh). The VPN, when wanted, is the module of github.com/dikeckaan/mu300-linux-vpn: its latest release
 # (MU300_VPN_URL: another place with its files and SHA256SUMS; MU300_VPN_MODULE=FILE: a copy on this computer).
-# Build:    needs adb, docker, python3, lz4 and the kernel outputs in $MU300_KERNEL_OUT (default: out/, kernel/build-all.sh).
+# Build:    needs adb, docker, python3, lz4 and the kernel outputs in $MU300_KERNEL_OUT (default: out/, kernel/vendor/build-all.sh).
 # The published images contain no proprietary files: Wi-Fi/Bluetooth firmware and the Android modem/GPU userspace are
 # pulled from *your* device into $MU300_WORK (default: work/), never leave the host except to your device.
 set -eu
@@ -116,23 +115,23 @@ for a in "$@"; do
     esac
 done
 [ -z "$_opt" ] || { echo "--$_opt needs a file or directory (see --help)" >&2; exit 2; }
-. "$TOP/tools/answers.sh"    # say, die, ask; the answers mode and the progress stream
+. "$TOP/installer/lib/answers.sh"    # say, die, ask; the answers mode and the progress stream
 answers_setup                # (before anything reads a MU300_* variable: an answers file sets them)
 RELEASE=${MU300_RELEASE:-}
 REPO=${MU300_REPO:-dikeckaan/mu300-linux}
-. "$TOP/tools/i18n.sh"
-. "$TOP/tools/storage.sh"
-. "$TOP/tools/releases.sh"
-. "$TOP/tools/resume.sh"
-. "$TOP/tools/package.sh"
-. "$TOP/tools/host-tools.sh"
+. "$TOP/installer/lib/i18n.sh"
+. "$TOP/installer/lib/storage.sh"
+. "$TOP/installer/lib/releases.sh"
+. "$TOP/installer/lib/resume.sh"
+. "$TOP/installer/lib/package.sh"
+. "$TOP/installer/lib/host-tools.sh"
 if [ $ADB_PATH_ONLY = 1 ]; then find_adb && command -v adb; exit; fi
 if [ $ANSWERS_MODE = 1 ]; then
     case $MU300_LANG in en|zh) ;; *) die "no answer to the language question: set MU300_LANG to en or zh" ;; esac
 fi
 choose_language
 progress hello script install.sh version 1 mode "$([ $CHECK_ONLY = 1 ] && echo check || { [ $BACKUP_ONLY = 1 ] && echo backup || echo $MODE; })"
-# an unpacked Magisk zip (tools/package.sh): its system and kernel, its release, no download and no self-update -
+# an unpacked Magisk zip (installer/lib/package.sh): its system and kernel, its release and no download -
 # the installer that came with the files is the one that knows them
 PKG=$(package_dir)
 if [ -n "$PKG" ]; then
@@ -142,18 +141,8 @@ if [ -n "$PKG" ]; then
     info package "$PKG"; info package.system "$PKG_SYSTEM"; info package.kernel "$PKG_KERNEL"; info package.release "$PKG_TAG"
     echo "$(t 'Package: {1} with kernel {2}, release {3} (unpacked Magisk zip at {4})' "$PKG_SYSTEM" "$PKG_KERNEL" "$PKG_TAG" "$PKG")"
 fi
-# first of all, make this the newest installer (it restarts itself when it changed) - not from a package, and not
-# while a prepared installation waits: its transaction is bound to the tools that prepared it (tools/resume.sh)
-. "$TOP/tools/self-update.sh"
-if [ -n "$PKG" ]; then
-    :
-elif resume_pending; then
-    echo "  $(t 'a prepared installation is waiting (tools/resume.sh): this installer does not update itself until it is done')"
-else
-    self_update "$0" "$@"
-fi
 # the graphical installer, offered once to a person who starts a plain installation
-. "$TOP/tools/gui-launch.sh"
+. "$TOP/installer/lib/gui-launch.sh"
 [ $CHECK_ONLY = 1 ] || [ $BACKUP_ONLY = 1 ] || [ $MODE != prebuilt ] || gui_offer
 # --- fetch begin
 # fetch URL OUT: GitHub's release CDN throttles a single connection hard in some regions (measured 0.2 MB/s
@@ -306,10 +295,10 @@ need="adb"
 find_adb || true
 for c in $need; do command -v $c >/dev/null || die "$(t '{1} not found' "$c")"; done
 if [ $CHECK_ONLY = 0 ] && [ $MODE = build ]; then
-    [ -f "$KOUT/Image" ] && ls "$KOUT"/modules/*.ko >/dev/null 2>&1 || die "$(t 'kernel outputs missing in {1} (run kernel/build-all.sh)' "$KOUT")"
+    [ -f "$KOUT/Image" ] && ls "$KOUT"/modules/*.ko >/dev/null 2>&1 || die "$(t 'kernel outputs missing in {1} (run kernel/vendor/build-all.sh)' "$KOUT")"
 fi
-. "$TOP/tools/linux-mode.sh"
-. "$TOP/tools/usb-adb.sh"
+. "$TOP/installer/lib/linux-mode.sh"
+. "$TOP/installer/lib/usb-adb.sh"
 require_android
 adb_prop() { adb shell getprop "$1" </dev/null 2>/dev/null | tr -d '\r' | head -n1; }
 # The bootloader's lock is a warning and never a refusal (the owner's decision of 2026-10-13, FINDINGS 71): Linux
@@ -337,7 +326,7 @@ if [ -n "$PROGRESS_FD" ]; then
     fi
 fi
 [ "$(su_do 'id -u')" = 0 ] || die "$(t 'su does not work on the device')"
-usb_adb_only        # adb alone on USB for this run, no MTP (tools/usb-adb.sh); back at the end while in Android
+usb_adb_only        # adb alone on USB for this run, no MTP (installer/lib/usb-adb.sh); back at the end while in Android
 model="$(su_do 'getprop ro.product.model') / $(su_do 'getprop ro.product.device')"
 echo "$(t 'device: {1}' "$model")"
 [ $BL_STATE != locked ] || echo "$(t 'WARNING: {1}' "$BL_WARN")"
@@ -379,7 +368,7 @@ slot_setup() {
 # Linux on a needs systems that know it (release v2026.10.10 on: mu300-next-boot, mu300-update and the recorder
 # follow the slot the initramfs names); the init is this checkout's either way, build-boot-image.py puts it behind a
 # mainline kernel's generic segment. A tag that is not a release tag (MU300_RELEASE_URL's "custom") is not judged;
-# newer and tag_ok: tools/releases.sh (vYYYY.MM.DD.N is newer than every vYYYY.MM.DD, docs/FINDINGS.md 125).
+# newer and tag_ok: installer/lib/releases.sh (vYYYY.MM.DD.N is newer than every vYYYY.MM.DD, docs/research/FINDINGS.md 125).
 slot_release_ok() {  # slot_release_ok RELEASE
     [ "$LINUX_SLOT" = a ] || return 0
     tag_ok "$1" || return 0
@@ -418,7 +407,7 @@ info slot.android $ANDROID_SLOT; info slot.linux $LINUX_SLOT; info work "$WORK"
 [ $BACKUP_ONLY = 0 ] || backup_only
 # --- bootchain begin
 # The Linux slot gets the boot chain of Android's slot - uboot, sml, teecfg, trustos and vbmeta, one firmware build on
-# both slots (issue #86; tools/android-bootchain.sh decides and checks, android-install.sh copies it before it installs
+# both slots (issue #86; installer/android/android-bootchain.sh decides and checks, android-install.sh copies it before it installs
 # anything, with a backup). MU300_SYNC_BOOTCHAIN=0 skips that, for experts.
 bootchain_plan() {
     SYNC_BOOTCHAIN=1; BC_LINE=; BC_REFUSED=
@@ -429,7 +418,7 @@ bootchain_plan() {
     if [ "${MODEL_KNOWN:-1}" = 0 ]; then
         SYNC_BOOTCHAIN=0; BC_LINE=$(t 'boot chain:     not synced (the model is not recognised)'); return 0
     fi
-    adb push "$TOP/tools/android-bootchain.sh" $T/android-bootchain.sh >/dev/null 2>&1 || BC_REFUSED=$(t 'no answer from the device')
+    adb push "$TOP/installer/android/android-bootchain.sh" $T/android-bootchain.sh >/dev/null 2>&1 || BC_REFUSED=$(t 'no answer from the device')
     bootchain_line "$(su_do "sh $T/android-bootchain.sh check")" && return 0
     if [ $CHECK_ONLY = 1 ]; then BC_LINE="$(t 'boot chain:     cannot be synced: {1}' "$BC_REFUSED")"; return 0; fi
     die "$(t 'the boot chain cannot be copied to the Linux slot: {1}' "$BC_REFUSED")
@@ -474,7 +463,7 @@ offer_repartition() {
     [ -s "$WORK/gpt/gpt.head" ] && [ -s "$WORK/gpt/gpt.tail" ] || die "$(t 'could not read the partition table')"
 
     # resize-last-partition.py validates both GPT copies and every CRC before it says anything
-    info=$(python3 "$TOP/tools/resize-last-partition.py" "$WORK/gpt/gpt.head,$WORK/gpt/gpt.tail" \
+    info=$(python3 "$TOP/installer/lib/resize-last-partition.py" "$WORK/gpt/gpt.head,$WORK/gpt/gpt.tail" \
              --disk-sectors "$disk" --sector-size "$ILBS" --name userdata --show) || die "$info"
     LAST_FIRST=$(echo "$info" | sed -n 's/^LAST_FIRST=//p')
     LAST_END=$(echo "$info" | sed -n 's/^LAST_END=//p')
@@ -494,7 +483,7 @@ $(t 'and Android needs at least {1} of it. Nothing is changed.' "$(gib $((MIN_AN
     [ "$UD_START" = "$LAST_FIRST" ] && [ $((UD_START + UD_SIZE - 1)) = "$LAST_END" ] ||
         die "$(t 'the partition table and the running kernel disagree about userdata; reboot Android and try again')"
     info makeroom.crypto "$CRYPTO"; info makeroom.crypto_state "$CRYPTO_STATE"; info makeroom.crypto_type "$CRYPTO_TYPE"
-    # the online way: can Android keep its data? (read only; tools/resume.sh online_inspect)
+    # the online way: can Android keep its data? (read only; installer/lib/resume.sh online_inspect)
     online_inspect
     info makeroom.online "$ONLINE"
     [ -z "$ONLINE_REASON" ] || info makeroom.online_reason "$ONLINE_REASON"
@@ -512,7 +501,7 @@ $(t 'and Android needs at least {1} of it. Nothing is changed.' "$(gib $((MIN_AN
     echo "  $(t 'Linux needs at least  {1} (OpenWrt) / 1.6 GiB (Ubuntu) / 2.4 GiB (both)' "$(gib $((MIN_LINUX * 512)))")"
     echo "  $(t 'Android keeps at least {1}' "$(gib $((MIN_ANDROID * 512)))")"
     echo
-    echo "  $(t 'THIS IS EXPERIMENTAL. It rewrites the partition table. Take a full backup first:  sh tools/backup-device.sh')"
+    echo "  $(t 'THIS IS EXPERIMENTAL. It rewrites the partition table. Take a full backup first:  sh scripts/device/backup-device.sh')"
     echo "  $(t 'Only userdata changes size; it is the last partition, so nothing else moves.')"
     echo "  $(t 'Two ways:')"
     if [ "$ONLINE" = yes ]; then
@@ -612,7 +601,7 @@ $(t 'and Android needs at least {1} of it. Nothing is changed.' "$(gib $((MIN_AN
             exit 0
         fi
         # the new boot has the user's USB functions again (MTP among them): adb alone once more, and the restore at
-        # the end of the run is for this boot (tools/usb-adb.sh)
+        # the end of the run is for this boot (installer/lib/usb-adb.sh)
         usb_adb_only
         return 0
     fi
@@ -957,7 +946,7 @@ fi
 # the user did not ask for (run again and answer no to set a new one). The systems installed new, and an update whose
 # user says no, get the new password asked for below.
 KEEP_PW_OSES=; NEW_PW_OSES=$OSES; pw1=
-# pw_tools: what computes the hash on the device (tools/storage.sh, pw_tools_push): the project's own tools, never a
+# pw_tools: what computes the hash on the device (installer/lib/storage.sh, pw_tools_push): the project's own tools, never a
 # program of the Linux system being checked (it would run with Android's root). From an unpacked zip its mu300/
 # (mu300-pwcheck when its release has one, and busybox); for prebuilt images the release's 5.4 kernel bundle, fetched
 # and checked against SHA256SUMS now (the installation takes it from there later: it is downloaded once). --build has
@@ -1042,9 +1031,9 @@ step pull 15
 say "$(t 'Pulling device data into {1} (stays on this computer)' "$WORK")"
 pull_boot_and_misc
 # what a complete subset must hold, not only the directory: an interrupted run left a partial one behind that the
-# old check then accepted for good (the same guard as install.ps1, issue #6)
+# old check then accepted for good (issue #6)
 [ -e "$WORK/android-subset/vendor/bin/modem_control" ] && [ -e "$WORK/android-subset/linkerconfig/ld.config.txt" ] ||
-    sh "$TOP/android-vendor/extract-subset.sh" "$WORK/android-subset"
+    sh "$TOP/android/vendor/extract-subset.sh" "$WORK/android-subset"
 for f in wcnmodem.bin gnssmodem.bin wifi_board_config.ini wifi_board_config_ab.ini bt_configure_pskey.ini bt_configure_rf.ini; do
     for d in /odm/firmware /vendor/firmware /vendor/etc; do
         if [ "$(su_do "[ -f $d/$f ] && echo y")" = y ]; then dev_pull "$d/$f" "$WORK/firmware/$f"; break; fi
@@ -1059,7 +1048,7 @@ done
 [ -z "$missing" ] || die "$(t 'these firmware files could not be read from the device:{1}' "$missing")
 $(t 'Wi-Fi and Bluetooth need them; without them the system installs and boots but has no hotspot.')"
 if [ "$gpu" = yes ] && [ ! -d "$WORK/android-gpu-subset" ]; then
-    sh "$TOP/android-vendor/extract-gpu-subset.sh" "$WORK/android-gpu-subset"
+    sh "$TOP/android/vendor/extract-gpu-subset.sh" "$WORK/android-gpu-subset"
 fi
 
 if [ $MODE = prebuilt ]; then
@@ -1149,25 +1138,25 @@ say "$(t 'Adding the vendor files from your device to the images')"
 # a mainline kernel's modules come from its tarball, not from $KMAIN: names that differ only in case (xt_HL.ko and
 # xt_hl.ko) collapse into one file in a tree on macOS's default file system (FINDINGS 212)
 for os in $OSES; do
-    python3 "$TOP/tools/vendor-overlay.py" --os $os --firmware "$WORK/firmware" --android-subset "$WORK/android-subset" \
+    python3 "$TOP/installer/lib/vendor-overlay.py" --os $os --firmware "$WORK/firmware" --android-subset "$WORK/android-subset" \
       $([ -d "$WORK/android-gpu-subset" ] && [ "$gpu" = yes ] && echo --gpu-subset "$WORK/android-gpu-subset") \
       $([ -n "$KMAIN" ] && echo --kernel-bundle "$ASSETS/mu300-kernel-$KERNEL.tar.gz") \
       --out "$WORK/mu300-vendor-$os.tar.gz"
 done
-PWHASH=; [ -z "$pw1" ] || PWHASH=$(printf '%s\n' "$pw1" | python3 "$TOP/tools/sha512crypt.py")
+PWHASH=; [ -z "$pw1" ] || PWHASH=$(printf '%s\n' "$pw1" | python3 "$TOP/installer/lib/sha512crypt.py")
 else
 # ---------------------------------------------------------------- build
 say "$(t 'Building helper binaries')"
-mkdir -p "$WORK/out" "$WORK/tools/logdw" "$WORK/tools/bt-init" "$WORK/tools/gpu"
+mkdir -p "$WORK/out" "$WORK/device-tools/logdw" "$WORK/device-tools/bt-init" "$WORK/device-tools/gpu"
 rm -rf "$WORK/out/modules" && cp -R "$KOUT/modules" "$WORK/out/modules"
 cp "$KOUT/modules.builtin" "$KOUT/modules.builtin.modinfo" "$WORK/out/" 2>/dev/null || true
-docker build -q -t mu300-ubuntu:24.04 "$TOP/rootfs" >/dev/null
+docker build -q -t mu300-ubuntu:24.04 "$TOP/systems/base" >/dev/null
 docker run --rm mu300-ubuntu:24.04 cat /bin/busybox > "$WORK/busybox"; chmod +x "$WORK/busybox"
 # init's e2fsck for a root filesystem with recorded errors (FINDINGS 182)
-sh "$TOP/tools/e2fsck/build.sh" "$WORK/tools/e2fsck/e2fsck" >/dev/null && E2FSCK=$WORK/tools/e2fsck/e2fsck
+sh "$TOP/device-tools/e2fsck/build.sh" "$WORK/device-tools/e2fsck/e2fsck" >/dev/null && E2FSCK=$WORK/device-tools/e2fsck/e2fsck
 # adbd (adb to Linux is on by default; a build here takes a few minutes)
-sh "$TOP/tools/adbd/build.sh" "$WORK/tools/adbd/adbd" >/dev/null
-docker run --rm -v "$TOP/tools":/src:ro -v "$WORK/tools":/o mu300-kbuild sh -c '
+sh "$TOP/device-tools/adbd/build.sh" "$WORK/device-tools/adbd/adbd" >/dev/null
+docker run --rm -v "$TOP/device-tools":/src:ro -v "$WORK/device-tools":/o mu300-kbuild sh -c '
   gcc -O2 -static -o /o/logdw/logdw /src/logdw/logdw.c &&
   gcc -O2 -static -o /o/bt-init/mu300-bt-init /src/bt-init/mu300-bt-init.c &&
   mkdir -p /o/keys && gcc -O2 -static -o /o/keys/mu300-keys /src/keys/mu300-keys.c &&
@@ -1177,14 +1166,14 @@ docker run --rm -v "$TOP/tools":/src:ro -v "$WORK/tools":/o mu300-kbuild sh -c '
 # the web panel: built here without Cockpit's packages (its first boot installs them from Ubuntu's archive once online)
 if [ "$px" = yes ]; then
     say "$(t 'Building the web panel extra')"
-    sh "$TOP/tools/make-extra.sh" panel "$WORK/mu300-extra-panel.tar.gz" dev >/dev/null
+    sh "$TOP/scripts/release/make-extra.sh" panel "$WORK/mu300-extra-panel.tar.gz" dev >/dev/null
     EXTRA_PANEL=$WORK/mu300-extra-panel.tar.gz
 fi
 if [ -d "$WORK/android-gpu-subset" ]; then
     L=$(mktemp -d "$WORK/cllibs.XXXX")
     cp "$WORK/android-gpu-subset/vendor/lib64/libOpenCL.so" "$WORK/android-subset/apex/com.android.runtime/lib64/bionic/libc.so" \
        "$WORK/android-subset/apex/com.android.runtime/lib64/bionic/libdl.so" "$L/"
-    docker run --rm -v "$TOP/tools/gpu":/w -v "$L":/l:ro -v "$WORK/tools/gpu":/o mu300-kbuild sh -c \
+    docker run --rm -v "$TOP/device-tools/gpu":/w -v "$L":/l:ro -v "$WORK/device-tools/gpu":/o mu300-kbuild sh -c \
       'ln -sf /usr/bin/clang-12 /usr/local/bin/clang; cp -r /w /tmp/gpu && sh /tmp/gpu/build.sh /l && cp /tmp/gpu/cltest /o/'
     rm -rf "$L"
 fi
@@ -1194,24 +1183,24 @@ reuse() { [ "${MU300_REUSE_BUILD:-0}" = 1 ] && [ -s "$WORK/mu300-$1.tar.gz" ] &&
 case " $OSES " in *" ubuntu "*) reuse ubuntu || {
     say "$(t 'Building the Ubuntu root filesystem')"
     B=$(mktemp -d "$WORK/ubuntu-build.XXXX")
-    tar -C "$TOP/rootfs" --exclude ./base.tar --exclude './*.tar.gz' -cf - . | tar -xf - -C "$B"
+    tar -C "$TOP/systems/base" --exclude ./base.tar --exclude './*.tar.gz' -cf - . | tar -xf - -C "$B"
     cid=$(docker create mu300-ubuntu:24.04 /bin/true); docker export "$cid" > "$B/base.tar"; docker rm "$cid" >/dev/null
     gpuargs=""
-    [ -f "$WORK/tools/adbd/adbd" ] && gpuargs="-v $WORK/tools/adbd/adbd:/adbd:ro"
-    [ -d "$WORK/android-gpu-subset" ] && gpuargs="$gpuargs -v $WORK/android-gpu-subset:/android-gpu-subset:ro -v $WORK/tools/gpu/cltest:/cltest:ro"
+    [ -f "$WORK/device-tools/adbd/adbd" ] && gpuargs="-v $WORK/device-tools/adbd/adbd:/adbd:ro"
+    [ -d "$WORK/android-gpu-subset" ] && gpuargs="$gpuargs -v $WORK/android-gpu-subset:/android-gpu-subset:ro -v $WORK/device-tools/gpu/cltest:/cltest:ro"
     # shellcheck disable=SC2086
     docker run --rm -v "$B":/w -v "$WORK/out/modules":/kmods:ro -v "$WORK/out":/kout:ro -v "$WORK/firmware":/firmware:ro \
-      -v "$WORK/android-subset":/android-subset:ro -v "$WORK/tools/logdw/logdw":/logdw:ro \
-      -v "$WORK/tools/bt-init/mu300-bt-init":/bt-init:ro -v "$WORK/tools/keys/mu300-keys":/keys:ro \
-      -v "$WORK/tools/carry/mu300-carry":/carry:ro \
+      -v "$WORK/android-subset":/android-subset:ro -v "$WORK/device-tools/logdw/logdw":/logdw:ro \
+      -v "$WORK/device-tools/bt-init/mu300-bt-init":/bt-init:ro -v "$WORK/device-tools/keys/mu300-keys":/keys:ro \
+      -v "$WORK/device-tools/carry/mu300-carry":/carry:ro \
       $gpuargs mu300-ubuntu:24.04 bash /w/assemble.sh >/dev/null
     mv "$B/mu300-ubuntu-24.04-rootfs.tar.gz" "$WORK/mu300-ubuntu.tar.gz"; rm -rf "$B"; } ;;
 esac
 for os in $OSES; do case $os in openwrt|openwrt-*) reuse $os || {
     say "$(t 'Building the OpenWrt root filesystem')"
-    MU300_SYSTEM=$os MU300_INPUTS="$WORK" sh "$TOP/openwrt/build-rootfs.sh" mu300-$os-rootfs.tar.gz >/dev/null
-    mv "$TOP/openwrt/mu300-$os-rootfs.tar.gz" "$WORK/mu300-$os.tar.gz"; } ;; esac; done
-BUSYBOX=$WORK/busybox; LOGDW=$WORK/tools/logdw/logdw
+    MU300_SYSTEM=$os MU300_INPUTS="$WORK" sh "$TOP/systems/openwrt/build-rootfs.sh" mu300-$os-rootfs.tar.gz >/dev/null
+    mv "$TOP/systems/openwrt/mu300-$os-rootfs.tar.gz" "$WORK/mu300-$os.tar.gz"; } ;; esac; done
+BUSYBOX=$WORK/busybox; LOGDW=$WORK/device-tools/logdw/logdw
 PWHASH=; [ -z "$pw1" ] || PWHASH=$(printf '%s' "$pw1" | docker run --rm -i mu300-ubuntu:24.04 openssl passwd -6 -stdin)
 fi
 
@@ -1224,7 +1213,7 @@ python3 "$TOP/boot/build-boot-image.py" --stock-boot "$WORK/dumps/boot_$ANDROID_
   --kernel "${KMAIN:-$KOUT}/Image" ${KMAIN:+--append-ramdisk "$KMAIN/ramdisk-generic.lz4"} \
   ${KOUT:+--modules "$KOUT/modules"} --init "$WORK/init" ${BUSYBOX:+--busybox "$BUSYBOX"} --device "$DEVICE" \
   $([ -n "$KOUT" ] && [ -d "$KOUT/modules-u30air" ] && echo --device-modules "u30air=$KOUT/modules-u30air") \
-  ${LOGDW:+--logdw "$LOGDW"} ${E2FSCK:+--e2fsck "$E2FSCK"} --ueventd-perms "$TOP/android-vendor/ueventd-perms.sh" \
+  ${LOGDW:+--logdw "$LOGDW"} ${E2FSCK:+--e2fsck "$E2FSCK"} --ueventd-perms "$TOP/android/vendor/ueventd-perms.sh" \
   --android-subset "$WORK/android-subset" --linux-slot "$LINUX_SLOT" --out "$WORK/boot-linux-slot$LINUX_SLOT.img" >/dev/null
 
 # ---------------------------------------------------------------- confirm and install
@@ -1252,7 +1241,7 @@ ask confirm "$(t 'Type INSTALL to continue')" no MU300_ANS_CONFIRM
 
 step copy 75
 say "$(t 'Copying to the device')"
-adb push "$TOP/tools/android-mount-mu300root.sh" "$TOP/tools/android-install.sh" "$TOP/tools/android-bootchain.sh" $T/ >/dev/null
+adb push "$TOP/installer/android/android-mount-mu300root.sh" "$TOP/installer/android/android-install.sh" "$TOP/installer/android/android-bootchain.sh" $T/ >/dev/null
 for os in $OSES; do
     if [ $MODE = prebuilt ]; then
         adb push "$ASSETS/$(rootfs_file $os)" $T/mu300-$os.tar.gz >/dev/null
@@ -1268,7 +1257,7 @@ done
 [ -z "$EXTRA_PANEL" ] || adb push "$EXTRA_PANEL" $T/mu300-extra-panel.tar.gz >/dev/null
 env=$(mktemp)
 write_install_env > "$env"
-# an update to an older release: the device refuses it unless told (tools/android-install.sh, the downgrade block)
+# an update to an older release: the device refuses it unless told (installer/android/android-install.sh, the downgrade block)
 [ "${MU300_DOWNGRADE:-}" != yes ] || echo DOWNGRADE=1 >> "$env"
 adb push "$env" $T/mu300-install.env >/dev/null; rm -f "$env"
 step device 80
@@ -1291,7 +1280,7 @@ say "$(t 'Installing the on-device switch (Magisk module)')"
 # (the module of this release, as its Magisk zip installs it: not the generic one, FINDINGS 131)
 MU300_MODULE_TAG="${RELEASE:-}" MU300_MODULE_KERNEL="$KERNEL" \
 MU300_MODULE_SYSTEM="$(for o in $OSES; do if [ "$o" = ubuntu ]; then printf 'ubuntu-%s ' "${UBUNTU:-24.04}"; else printf '%s ' "$o"; fi; done)" \
-    sh "$TOP/tools/install-magisk-module.sh" || echo "  $(t '(skipped; the installer keeps working either way)')"
+    sh "$TOP/installer/lib/install-magisk-module.sh" || echo "  $(t '(skipped; the installer keeps working either way)')"
 
 step done 100
 say "$(t 'Done. Rebooting into {1}' "$BOOT_OS")"

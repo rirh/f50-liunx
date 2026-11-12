@@ -14,7 +14,7 @@
 # kernels update a flowtable in place and need none of this.
 #
 # Not covered: a reload that is not an ifup's - the firewall saved in LuCI, "fw4 reload" by hand - still fails on
-# 5.4 while the flowtable is there (docs/FINDINGS.md 38): "nft delete flowtable inet fw4 ft; fw4 reload".
+# 5.4 while the flowtable is there (docs/research/FINDINGS.md 38): "nft delete flowtable inet fw4 ft; fw4 reload".
 [ "$ACTION" = ifup ] || exit 0
 case $(uname -r) in 5.4.*) ;; *) exit 0 ;; esac
 /etc/init.d/firewall enabled 2>/dev/null || exit 0

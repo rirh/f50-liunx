@@ -14,7 +14,7 @@
 # driver must not void the whole snapshot (the same lesson the V50 panel learned
 # in the field - one hung call used to blank every readout on the page).
 #
-# Known traps this deliberately works around (docs/FINDINGS.md and the V50
+# Known traps this deliberately works around (docs/research/FINDINGS.md and the V50
 # research archive):
 #   * loadavg is meaningless here - three vendor kernel threads sit in D state
 #     and pin it around 3.5 forever. It is not reported at all.
@@ -124,7 +124,7 @@ apn_option=apn
 [ "$SIM_SLOT" != 1 ] || apn_option=apn_internal
 apn=$(t3 uci -q get "network.$DATA_IFACE.$apn_option")
 [ -n "$apn" ] || apn="(SIM default)"
-# data roaming (mobile-data, docs/FINDINGS.md 120): the card's setting - unset or anything but a "no" is allowed, as
+# data roaming (mobile-data, docs/research/FINDINGS.md 120): the card's setting - unset or anything but a "no" is allowed, as
 # the dial reads it - and whether data is held back because the card is registered as roaming
 roam_option=roaming
 [ "$SIM_SLOT" != 1 ] || roam_option=roaming_internal
@@ -416,7 +416,7 @@ for _d in /mnt/mu300-disk ""; do [ -f "$_d/.mu300/boot-lock" ] && { BOOT_LOCK=1;
 # A newer release: the note mu300-update keeps (notice, at boot and every 6 hours; this only reads it). Its tag, for
 # the home page's link to System > Update.
 UPDATE_TAG=$(sed -n 's/^mu300-linux \(v[0-9.]*\) is out .*/\1/p' "${MU300_NOTICE:-/run/mu300/update-available}" 2>/dev/null | head -n1)
-# (a release tag, docs/FINDINGS.md 125: vYYYY.MM.DD, and vYYYY.MM.DD.N after v2026.10.27)
+# (a release tag, docs/research/FINDINGS.md 125: vYYYY.MM.DD, and vYYYY.MM.DD.N after v2026.10.27)
 printf '%s\n' "$UPDATE_TAG" | LC_ALL=C grep -Eqx -- 'v[0-9]{4}\.[0-9]{2}\.[0-9]{2}|v[0-9]{4}\.(0[1-9]|1[0-2])\.(0[1-9]|[12][0-9]|3[01])\.[1-9][0-9]?' || UPDATE_TAG=
 
 # ------------------------------------------------------------- data usage

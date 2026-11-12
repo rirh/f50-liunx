@@ -31,7 +31,7 @@ image, which is why both slots are identical.
 Make your own backup instead of relying on this file:
 
 ```sh
-tools/backup-device.sh
+scripts/device/backup-device.sh
 ```
 
 That saves your unit's own `trustos`, bootloader chain and the irreplaceable calibration partitions, each verified

@@ -82,7 +82,7 @@ class Fixtures(unittest.TestCase):
         r = subprocess.run([sys.executable, str(BOOT / 'build-boot-image.py'), '--generic-ramdisk',
                             '--modules', str(self.mods), '--busybox', str(self.tmp / 'busybox'),
                             '--logdw', str(self.tmp / 'logdw'),
-                            '--ueventd-perms', str(TOP / 'android-vendor' / 'ueventd-perms.sh'),
+                            '--ueventd-perms', str(TOP / 'android' / 'vendor' / 'ueventd-perms.sh'),
                             '--out', str(out), *extra], capture_output=True, text=True)
         return r, out
 
@@ -129,7 +129,7 @@ class GenericRamdisk(Fixtures):
     def test_crlf_checkout(self):
         # a Windows clone with core.autocrlf=true (issue #7): the device's shell must still get LF
         crlf = {}
-        for name, src in (('init', BOOT / 'init'), ('perms', TOP / 'android-vendor' / 'ueventd-perms.sh'),
+        for name, src in (('init', BOOT / 'init'), ('perms', TOP / 'android' / 'vendor' / 'ueventd-perms.sh'),
                           ('order', BOOT / 'module-order.txt')):
             crlf[name] = self.tmp / name
             crlf[name].write_bytes(src.read_bytes().replace(b'\n', b'\r\n'))
@@ -138,7 +138,7 @@ class GenericRamdisk(Fixtures):
         self.assertEqual(r.returncode, 0, r.stderr)
         files = cpio_files(unlz4_legacy(out.read_bytes()))
         self.assertEqual(files['init'][1], (BOOT / 'init').read_bytes())
-        self.assertEqual(files['etc/ueventd-perms.sh'][1], (TOP / 'android-vendor' / 'ueventd-perms.sh').read_bytes())
+        self.assertEqual(files['etc/ueventd-perms.sh'][1], (TOP / 'android' / 'vendor' / 'ueventd-perms.sh').read_bytes())
         self.assertEqual(files['etc/module-order'][1], (BOOT / 'module-order.txt').read_bytes())
 
     def test_generic_refuses_device_settings(self):
@@ -196,7 +196,7 @@ class SlotBlocks(Fixtures):
                             '--misc-head', str(self.tmp / 'misc.bin'), '--kernel', str(self.tmp / 'Image'),
                             '--modules', str(self.mods), '--busybox', str(self.tmp / 'busybox'),
                             '--logdw', str(self.tmp / 'logdw'), '--device', 'f50',
-                            '--ueventd-perms', str(TOP / 'android-vendor' / 'ueventd-perms.sh'),
+                            '--ueventd-perms', str(TOP / 'android' / 'vendor' / 'ueventd-perms.sh'),
                             '--out', str(out), *extra], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         img = out.read_bytes()
@@ -253,7 +253,7 @@ class SlotBlocks(Fixtures):
 
 @unittest.skipIf(not HAVE_LZ4, 'neither the lz4 command nor the lz4 Python module is installed')
 class WithoutTheFirstSegmentsBinaries(Fixtures):
-    """A Magisk zip of a mainline kernel, unpacked on a computer (tools/package.sh), has no 5.4 bundle: the boot image's
+    """A Magisk zip of a mainline kernel, unpacked on a computer (installer/lib/package.sh), has no 5.4 bundle: the boot image's
     first segment then carries no busybox, logdw or modules, and the kernel's generic segment - unpacked after it,
     replacing what the first one has of those anyway - must bring every one of them."""
 
@@ -265,7 +265,7 @@ class WithoutTheFirstSegmentsBinaries(Fixtures):
         args = {'--modules': str(self.mods), '--busybox': str(self.tmp / 'busybox'), '--logdw': str(self.tmp / 'logdw')}
         argv = [sys.executable, str(BOOT / 'build-boot-image.py'), '--stock-boot', str(self.tmp / 'stock.img'),
                 '--misc-head', str(self.tmp / 'misc.bin'), '--kernel', str(self.tmp / 'Image'), '--device', 'f50',
-                '--ueventd-perms', str(TOP / 'android-vendor' / 'ueventd-perms.sh'), '--out', str(out)]
+                '--ueventd-perms', str(TOP / 'android' / 'vendor' / 'ueventd-perms.sh'), '--out', str(out)]
         for k, v in args.items():
             if k not in drop:
                 argv += [k, v]

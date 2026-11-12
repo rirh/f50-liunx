@@ -1,6 +1,6 @@
-"""An update writes only what changed (docs/FINDINGS.md 131): mu300-carry same, tarfilter and tarlink
-(tools/carry/mu300-carry.c, built here), mu300-update's delta block (the plan, the room, the unpack, a run that is cut
-off), apply_one and the installers' loop (tools/android-install.sh) with an image that brings it, the previous system
+"""An update writes only what changed (docs/research/FINDINGS.md 131): mu300-carry same, tarfilter and tarlink
+(device-tools/carry/mu300-carry.c, built here), mu300-update's delta block (the plan, the room, the unpack, a run that is cut
+off), apply_one and the installers' loop (installer/android/android-install.sh) with an image that brings it, the previous system
 kept for a rollback whole after the update and after what the new system does to its files, and the Magisk switch
 module the computer's installer puts on the device."""
 import gzip
@@ -31,7 +31,7 @@ def setUpModule():
         return
     _build = tempfile.mkdtemp(prefix='mu300-delta-build-')
     out = Path(_build) / 'mu300-carry'
-    r = subprocess.run([CC, '-O2', '-Wall', '-Wextra', '-Werror', '-o', str(out), str(TOP / 'tools/carry/mu300-carry.c')],
+    r = subprocess.run([CC, '-O2', '-Wall', '-Wextra', '-Werror', '-o', str(out), str(TOP / 'device-tools/carry/mu300-carry.c')],
                        capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError('mu300-carry.c does not build without warnings:\n' + r.stderr)
@@ -529,11 +529,11 @@ class Block(ShellTest):
 
 @unittest.skipUnless(CC and LINUX and BUSYBOX, 'needs a C compiler and busybox on Linux')
 class Installers(ShellTest):
-    """the installers' loop (tools/android-install.sh) with an image that brings the delta block"""
+    """the installers' loop (installer/android/android-install.sh) with an image that brings the delta block"""
 
     def setUp(self):
         super().setUp()
-        src = (TOP / 'tools/android-install.sh').read_text()
+        src = (TOP / 'installer/android/android-install.sh').read_text()
         self.blocks = ''.join(re.search(rf'# --- {b} begin\n(.*?)# --- {b} end', src, re.S).group(1)
                               for b in ('stage', 'user-packages', 'delta', 'install-os'))
         self.T = self.tmp / 'T'
@@ -637,7 +637,7 @@ class SwitchModule(ShellTest):
                          '  push*) cp "$2" "$STUBLOG/pushed-$(basename "$3")" ;;\n'
                          '  *"echo yes"*) echo yes ;;\n'
                          'esac\nexit 0')
-        r = self.sh(self.shells[0], f'sh "{TOP}/tools/install-magisk-module.sh"', **env)
+        r = self.sh(self.shells[0], f'sh "{TOP}/installer/lib/install-magisk-module.sh"', **env)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         return (self.tmp / 'pushed-module.prop').read_text()
 

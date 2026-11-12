@@ -4,7 +4,7 @@ hostapd knows the associated stations, but iw, iwinfo and LuCI ask the driver, w
 "iw dev wlan0 station dump" and LuCI's "Associated Stations" stayed empty; without get_channel iwinfo showed
 "Channel: 0". The firmware's peer table holds the stations: the entries of the interface with a unicast address
 other than its own. The firmware reports no signal or byte counts for them, so only the address is filled in.
-The channel is the one cfg80211 kept from start_ap. (The mainline copy in upstream/modules has the same code.)
+The channel is the one cfg80211 kept from start_ap. (The mainline copy in kernel/mainline/modules has the same code.)
 
 --- a/common/cfg80211.c
 +++ b/common/cfg80211.c

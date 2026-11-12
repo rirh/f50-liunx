@@ -9,9 +9,14 @@ SSH_KNOWN_HOSTS ?=
 SSH_HOST_KEY_ALIAS ?=
 RPC_OBJECT ?= mu300dash
 
+# F50 stock Android (make adb / install)
+F50_IP ?= 192.168.0.1
+F50_SERIAL ?=
+INSTALL_ARGS ?=
+
 -include make/local.mk
 
 export DEVICE SSH_HOST SSH_USER SSH_PORT
 export SSH_IDENTITY SSH_KNOWN_HOSTS SSH_HOST_KEY_ALIAS RPC_OBJECT
 
-DEVICE_TOOL = "$(PYTHON)" tools/dev/device.py
+DEVICE_TOOL = "$(PYTHON)" scripts/dev/device.py

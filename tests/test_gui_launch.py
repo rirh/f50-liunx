@@ -1,4 +1,4 @@
-"""tools/gui-launch.sh: the question that offers the graphical installer, and the search for a Python that can run
+"""installer/lib/gui-launch.sh: the question that offers the graphical installer, and the search for a Python that can run
 it - against fake directory trees and stub interpreters, never this machine's own Pythons. The stubs answer the two
 probes (the version, `import tkinter`) and record anything else they are run with."""
 import os
@@ -38,10 +38,10 @@ class GuiLaunch(ShellTest):
         return p
 
     def run_gui(self, shell, code, os_name='Linux', stdin='', **env):
-        pre = (f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; MU300_LANG=en; ANSWERS_MODE=0; '
+        pre = (f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; MU300_LANG=en; ANSWERS_MODE=0; '
                'say() { echo "==> $*"; }; '
                'ask() { printf "ASKED[%s|%s] " "$2" "$3"; read -r _a || _a=; [ -n "$_a" ] || _a=$3; eval "$1=\\$_a"; }; '
-               '. "$TOP/tools/gui-launch.sh"; ')
+               '. "$TOP/installer/lib/gui-launch.sh"; ')
         e = self.env(MU300_GUI_OS=os_name, MU300_GUI_ROOT=str(self.root), **env)
         e['PATH'] = f'{self.stubs}{os.pathsep}{self.bin}'
         for k in ('SSH_CONNECTION', 'SSH_CLIENT', 'SSH_TTY', 'DISPLAY', 'WAYLAND_DISPLAY', 'MU300_GUI', 'MU300_FROM_GUI'):
@@ -224,8 +224,8 @@ class GuiLaunch(ShellTest):
 
     def gui_tree(self):
         top = self.tmp / 'top'
-        (top / 'gui').mkdir(parents=True, exist_ok=True)
-        (top / 'gui' / 'mu300-gui.py').write_text('# stands for the window\n')
+        (top / 'installer' / 'gui').mkdir(parents=True, exist_ok=True)
+        (top / 'installer' / 'gui' / 'mu300-gui.py').write_text('# stands for the window\n')
         return top
 
     def test_offer_starts_the_window_and_hands_over(self):
@@ -234,7 +234,7 @@ class GuiLaunch(ShellTest):
             p = self.python('python3', '3.12')
             out, ran = self.offer(shell, top=top, MU300_GUI='1')
             self.assertIn('==> Starting the graphical installer (Python 3.12)', out)
-            self.assertEqual(ran.strip(), f'{p} {top}/gui/mu300-gui.py lang=en')
+            self.assertEqual(ran.strip(), f'{p} {top}/installer/gui/mu300-gui.py lang=en')
             self.assertNotIn('text installer goes on', out)          # the window ran and ended: so does the script
             self.assertNotIn('ASKED', out)
 
@@ -319,7 +319,6 @@ class GuiLaunch(ShellTest):
     def test_install_sh_offers_it_for_a_plain_installation_only(self):
         src = (TOP / 'install.sh').read_text()
         self.assertIn('[ $CHECK_ONLY = 1 ] || [ $BACKUP_ONLY = 1 ] || [ $MODE != prebuilt ] || gui_offer', src)
-        self.assertLess(src.index('self_update "$0" "$@"'), src.index('|| gui_offer'))        # the newest window
         self.assertLess(src.index('|| gui_offer'), src.index("say \"$(t 'Checking host tools and device')\""))
 
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""The graphical installer of MU300 Linux: a window that drives install.sh / install.ps1 (and the uninstallers) in
+"""The graphical installer of MU300 Linux: a window that drives install.sh (and the uninstallers) in
 their answers mode. Standard library only; Python 3.8 or newer with tkinter.
 
-    python3 gui/mu300-gui.py            the window
-    python3 gui/mu300-gui.py --check    can it start here? (Python, tkinter, a display); prints why not
+    python3 installer/gui/mu300-gui.py            the window
+    python3 installer/gui/mu300-gui.py --check    can it start here? (Python, tkinter, a display); prints why not
 
-install.sh and install.ps1 offer it when they are started by hand (tools/gui-launch.sh, tools/gui-launch.ps1).
+install.sh offer it when they are started by hand (installer/lib/gui-launch.sh).
 Exit status 3: the window could not be opened (no tkinter, no display) - the caller goes on with the text installer.
 """
 import os

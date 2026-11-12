@@ -27,15 +27,15 @@ authentication bypass.
 
 | Layer | Now |
 | --- | --- |
-| hostapd | The patch that imported the record (`openwrt/patches/hostapd/990-u30-sae-offload.patch`) and its SDK recipe (`openwrt/build-u30-sae.sh`) are gone. Images carry the stock `wpad-basic-mbedtls`; `openwrt/build-rootfs.sh` refuses `MU300_SAE_APK_DIR`. |
-| Driver (6.18, 7.3: `upstream/modules/sprd_wlan_combo`; 5.4: `kernel/patches/wlan_combo-softap-no-sae.patch`) | `sprd_report_softap()` drops every `dd .. 40:45:da:04` element (and a malformed tail) from the association elements before `cfg80211_new_sta()`, whoever wrote it, so even a hand-built hostapd cannot import it. `vendor_set_sae_password()` (subcommand 43) returns `-EOPNOTSUPP`: the firmware is never given an SAE password. |
-| wifi-scripts (OpenWrt) | `openwrt/patches/wifi-scripts-wpa2-only.patch`: an access point with `encryption` `sae`, `sae-mixed`, `sae-compat`, `psk3`, `psk3-mixed`, or the `u30_sae_offload` hostapd option, is not started; the log says `WPA3/SAE is disabled on this Wi-Fi chip ... WPA2-PSK only`. Down, never open. |
+| hostapd | The patch that imported the record (`systems/openwrt/patches/hostapd/990-u30-sae-offload.patch`) and its SDK recipe (`systems/openwrt/build-u30-sae.sh`) are gone. Images carry the stock `wpad-basic-mbedtls`; `systems/openwrt/build-rootfs.sh` refuses `MU300_SAE_APK_DIR`. |
+| Driver (6.18, 7.3: `kernel/mainline/modules/sprd_wlan_combo`; 5.4: `kernel/vendor/patches/wlan_combo-softap-no-sae.patch`) | `sprd_report_softap()` drops every `dd .. 40:45:da:04` element (and a malformed tail) from the association elements before `cfg80211_new_sta()`, whoever wrote it, so even a hand-built hostapd cannot import it. `vendor_set_sae_password()` (subcommand 43) returns `-EOPNOTSUPP`: the firmware is never given an SAE password. |
+| wifi-scripts (OpenWrt) | `systems/openwrt/patches/wifi-scripts-wpa2-only.patch`: an access point with `encryption` `sae`, `sae-mixed`, `sae-compat`, `psk3`, `psk3-mixed`, or the `u30_sae_offload` hostapd option, is not started; the log says `WPA3/SAE is disabled on this Wi-Fi chip ... WPA2-PSK only`. Down, never open. |
 | Boot (OpenWrt) | `openwrt-wifi-sae-guard` is replaced by `openwrt-wifi-wpa2-only migrate` (below). |
 | Web device manager, `mu300-api` | WPA3 was never offered; a hotspot still on SAE is switched to WPA2-PSK (CCMP) on the next save, with its password or the new one; without one the save is refused. |
 | Ubuntu | Always WPA2-PSK. `hotspot-start` refuses `ENCRYPTION`/`SECURITY`/`KEY_MGMT` asking for SAE/WPA3 in `hotspot.conf` with one line, and starts WPA2. |
 
 The driver changes that stop it printing the passphrase, station keys and raw command/event payloads
-(`kernel/patches/wlan_combo-sae-private-logs.patch` and the same in the mainline tree) stay: they are worth having
+(`kernel/vendor/patches/wlan_combo-sae-private-logs.patch` and the same in the mainline tree) stay: they are worth having
 without the offload.
 
 ## A device that had turned it on

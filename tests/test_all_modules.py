@@ -1,4 +1,4 @@
-"""upstream/all-modules.py (every tristate the boards can use, as a module) and check-dt-modules.py (none of them
+"""kernel/mainline/all-modules.py (every tristate the boards can use, as a module) and check-dt-modules.py (none of them
 may bind to the vendor device tree by itself)."""
 import fnmatch
 import importlib.util
@@ -11,7 +11,7 @@ import tempfile
 import unittest
 
 TOP = Path(__file__).resolve().parents[1]
-UP = TOP / 'upstream'
+UP = TOP / 'kernel' / 'mainline'
 
 
 def load(name, file):
@@ -83,8 +83,8 @@ class AllModules(unittest.TestCase):
 
 class AutoloadGuard(unittest.TestCase):
     """The kernel's on-demand loads go through mu300-modprobe-guard on both systems (review of #256)."""
-    GUARD = TOP / 'rootfs/overlay/opt/mu300/bin/mu300-modprobe-guard'
-    LIST = TOP / 'rootfs/overlay/opt/mu300/lib/autoload-blocked'
+    GUARD = TOP / 'systems/base/overlay/opt/mu300/bin/mu300-modprobe-guard'
+    LIST = TOP / 'systems/base/overlay/opt/mu300/lib/autoload-blocked'
 
     SAMPLE = TOP / 'tests/data/autoload-7.2.11'   # a subset of the 7.2.11 build's modules.dep and modules.alias
 
@@ -253,17 +253,17 @@ class AutoloadGuard(unittest.TestCase):
             self.assertEqual(helper.read_text(), '/sbin/modprobe\n')
 
     def test_both_systems_install_it(self):
-        for system in ('rootfs', 'openwrt'):
-            conf = (TOP / system / 'overlay/etc/sysctl.d/98-mu300-modules.conf').read_text()
+        for system in ('base', 'openwrt'):
+            conf = (TOP / 'systems' / system / 'overlay/etc/sysctl.d/98-mu300-modules.conf').read_text()
             self.assertIn('dev.tty.ldisc_autoload = 0', conf)
-        unit = (TOP / 'rootfs/overlay/etc/systemd/system/mu300-modprobe-guard.service').read_text()
+        unit = (TOP / 'systems/base/overlay/etc/systemd/system/mu300-modprobe-guard.service').read_text()
         self.assertIn('ExecStart=/opt/mu300/bin/mu300-modprobe-guard --prepare', unit)
-        self.assertIn('mu300-modprobe-guard.service:sysinit.target', (TOP / 'rootfs/assemble.sh').read_text())
-        hw = (TOP / 'openwrt/overlay/etc/init.d/mu300-hw').read_text()
+        self.assertIn('mu300-modprobe-guard.service:sysinit.target', (TOP / 'systems/base/assemble.sh').read_text())
+        hw = (TOP / 'systems/openwrt/overlay/etc/init.d/mu300-hw').read_text()
         self.assertIn('/opt/mu300/bin/mu300-modprobe-guard --prepare', hw)
         # OpenWrt's image takes /opt/mu300 from the Ubuntu overlay, and both copy their overlay whole
-        build = (TOP / 'openwrt/build-rootfs.sh').read_text()
-        self.assertIn('rootfs/overlay/opt/mu300":/in/opt-mu300', build)
+        build = (TOP / 'systems/openwrt/build-rootfs.sh').read_text()
+        self.assertIn('systems/base/overlay/opt/mu300":/in/opt-mu300', build)
         self.assertIn('cp -a /in/overlay/. $R/', build)
         self.assertTrue(self.GUARD.stat().st_mode & 0o111)
 

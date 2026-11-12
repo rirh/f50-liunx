@@ -2,7 +2,7 @@
 # Build mu300-f2fs-online (kanoqwq's online F2FS shrink helper) for the device's Android: one static aarch64 binary
 # (musl), in a pinned Alpine image with fixed flags, so the same source gives the same bytes. The native test
 # (test-f2fs-online.c) runs first, in the same image.
-#   tools/f2fs-online/build.sh [OUT]   OUT defaults to tools/f2fs-online/mu300-f2fs-online (the copy in git, which
+#   device-tools/f2fs-online/build.sh [OUT]   OUT defaults to device-tools/f2fs-online/mu300-f2fs-online (the copy in git, which
 #                                      the installers push); needs docker with arm64 support
 # tests/test_online_shrink.py checks that the copy in git is this build of this source (SHA256SUMS next to it).
 set -eu

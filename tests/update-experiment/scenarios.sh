@@ -29,7 +29,7 @@ for s in "$@"; do
         MU300_LAB_ENV=MU300_UBUNTU=26.04 MU300_LAB_KERNEL=6.18 run move device ubuntu "$old/mu300-ubuntu-rootfs.tar.gz" "$new" "$tag" "$out/move-device-ubuntu.tsv" ;;
     unknown)
         MU300_LAB_OLD_VERSION=dev run "unknown, mu300-update" device openwrt "$old/mu300-openwrt-rootfs.tar.gz" "$new" "$tag" "$out/unknown-device-openwrt.tsv"
-        MU300_LAB_OLD_VERSION=dev run "unknown, installers" android ubuntu "$old/mu300-ubuntu-rootfs.tar.gz" "$new/mu300-ubuntu-rootfs.tar.gz" "$HERE/../../tools/android-install.sh" "$out/unknown-android-ubuntu.tsv" ;;
+        MU300_LAB_OLD_VERSION=dev run "unknown, installers" android ubuntu "$old/mu300-ubuntu-rootfs.tar.gz" "$new/mu300-ubuntu-rootfs.tar.gz" "$HERE/../../installer/android/android-install.sh" "$out/unknown-android-ubuntu.tsv" ;;
     room)
         MU300_LAB_BIG=2500 MU300_LAB_FREE=2300 run "room, a copy does not fit" device openwrt "$old/mu300-openwrt-rootfs.tar.gz" "$new" "$tag" "$out/room-device-openwrt.tsv"
         MU300_LAB_BIG=2500 MU300_LAB_FREE=2300 MU300_LAB_APPLY=--no-rollback run "room, --no-rollback" device openwrt "$old/mu300-openwrt-rootfs.tar.gz" "$new" "$tag" "$out/room-link-device-openwrt.tsv" ;;

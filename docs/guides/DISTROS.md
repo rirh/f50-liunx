@@ -17,14 +17,14 @@ What a distribution has to bring:
 
 | Distribution | Build | Notes |
 |---|---|---|
-| Ubuntu 24.04 LTS | `rootfs/` (default) | the tested default, systemd 255 |
-| Ubuntu 26.04 LTS | `docker build --build-arg BASE=ubuntu:26.04 -t mu300-ubuntu:26.04 rootfs/` then `rootfs/assemble.sh` | released; needs kernel 6.18 or 7.3 |
-| OpenWrt 25.12 | `openwrt/build-rootfs.sh` | router use, LuCI, ~140 MiB RAM |
-| OpenWrt 25.12 with the MU300 panel | `MU300_SYSTEM=openwrt-luci openwrt/build-rootfs.sh` | released as `openwrt-luci`, see [BUILD.md](BUILD.md) |
-| ImmortalWrt 25.12 | `MU300_FLAVOUR=immortalwrt openwrt/build-rootfs.sh` | OpenWrt fork with more drivers and LuCI apps |
-| Arch Linux ARM | `arch/build-rootfs.sh` | rolling, 258 MiB image / 922 MiB installed; built, not yet booted on hardware |
-| Debian 13 | `docker build --build-arg BASE=debian:13 -t mu300-debian:13 rootfs/` then `rootfs/assemble.sh` | same package names as Ubuntu |
-| Kali Linux | `docker build --build-arg BASE=kalilinux/kali-rolling -t mu300-kali rootfs/` then `rootfs/assemble.sh` | see below |
+| Ubuntu 24.04 LTS | `systems/base/` (default) | the tested default, systemd 255 |
+| Ubuntu 26.04 LTS | `docker build --build-arg BASE=ubuntu:26.04 -t mu300-ubuntu:26.04 systems/base/` then `systems/base/assemble.sh` | released; needs kernel 6.18 or 7.3 |
+| OpenWrt 25.12 | `systems/openwrt/build-rootfs.sh` | router use, LuCI, ~140 MiB RAM |
+| OpenWrt 25.12 with the MU300 panel | `MU300_SYSTEM=openwrt-luci systems/openwrt/build-rootfs.sh` | released as `openwrt-luci`, see [BUILD.md](BUILD.md) |
+| ImmortalWrt 25.12 | `MU300_FLAVOUR=immortalwrt systems/openwrt/build-rootfs.sh` | OpenWrt fork with more drivers and LuCI apps |
+| Arch Linux ARM | `systems/arch/build-rootfs.sh` | rolling, 258 MiB image / 922 MiB installed; built, not yet booted on hardware |
+| Debian 13 | `docker build --build-arg BASE=debian:13 -t mu300-debian:13 rootfs/` then `systems/base/assemble.sh` | same package names as Ubuntu |
+| Kali Linux | `docker build --build-arg BASE=kalilinux/kali-rolling -t mu300-kali rootfs/` then `systems/base/assemble.sh` | see below |
 
 The Arch build removes the `linux-aarch64` kernel and `linux-firmware` packages that the generic Arch ARM image
 ships (about 1.5 GB): this device boots the vendor kernel from the boot image and takes its firmware from Android.
@@ -94,7 +94,7 @@ somebody has to write those ~15 service definitions again before the modem and W
 
 The installer knows `ubuntu`, `openwrt` and `openwrt-luci` by name.
  For anything else, unpack the tarball next to them and select
-it (from Android, with the Linux filesystem mounted as in `tools/android-mount-mu300root.sh`):
+it (from Android, with the Linux filesystem mounted as in `installer/android/android-mount-mu300root.sh`):
 
 ```sh
 mkdir -p /data/local/tmp/mu300root/arch

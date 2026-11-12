@@ -1,48 +1,68 @@
 # 项目目录说明
 
-本文按 2026-11-12 的本地目录整理，覆盖所有顶层目录和主要功能子目录。内核驱动内部的大量目录按驱动模块归类。
+本文按 2026-11-12 的目录整理，覆盖所有顶层目录和主要功能子目录。内核驱动内部的大量目录按驱动模块归类。
 
 这个项目包含四类内容：电脑上的安装与构建工具、设备上运行的程序、内核与硬件适配代码、本机产生的安装资料。目录里有源码或编译产物，不代表这些内容已经安装到设备。
+
+## 0. 布局原则
+
+顶层按“这段代码在哪里运行、由谁使用”划分，每个顶层目录只承担一种职责：
+
+```text
+.
+├── install.sh / uninstall.sh   安装与卸载入口（用户直接执行，保持在根目录）
+├── Makefile + make/            开发命令入口
+├── installer/                  电脑端安装器的组成部分
+├── boot/                       启动镜像与早期启动
+├── kernel/                     内核：vendor/（厂商 5.4）与 mainline/（主线移植）
+├── systems/                    各系统的镜像构建与设备端文件：base/、openwrt/、arch/
+├── android/                    Android 侧：magisk/、vendor/、stock/
+├── device-tools/               编译后装进设备的小程序源码
+├── scripts/                    手动执行的开发维护命令：release/、i18n/、dev/、device/
+├── tests/                      自动化测试
+├── docs/                       文档：guides/、architecture/、research/、api/、images/
+└── out/ work/ backup/          本机产物与资料（Git 忽略）
+```
 
 ## 1. 按你要做的事情找代码
 
 | 要做什么 | 从哪里开始 |
 |---|---|
 | 本地预览 OpenWrt 界面 | 根目录 `make dev`，访问 `http://127.0.0.1:27547/` |
-| 改首页布局、状态卡片 | `openwrt/luci-app-mu300/htdocs/luci-static/resources/view/mu300/home.js` |
-| 改公共样式、显示辅助函数 | `openwrt/luci-app-mu300/htdocs/luci-static/resources/mu300/common.js`，CSS 也写在这个 JS 里 |
-| 改短信、VPN、流量等页面 | `openwrt/luci-app-mu300/htdocs/luci-static/resources/view/mu300/` 下对应的 JS |
-| 改网页菜单 | `openwrt/luci-app-mu300/root/usr/share/luci/menu.d/` |
-| 改网页接口和接口权限 | `openwrt/luci-app-mu300/root/usr/libexec/rpcd/`、`root/usr/share/rpcd/acl.d/` |
-| 改设备控制逻辑 | 先看 `openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/` 的适配器，再找它调用的设备命令 |
-| 改共享的设备命令 | `rootfs/overlay/opt/mu300/bin/`、`rootfs/overlay/opt/mu300/lib/` |
-| 改 OpenWrt 默认配置、开机服务 | `openwrt/overlay/`；仅面板版需要的内容看 `openwrt/luci-overlay/` |
-| 改 Ubuntu 的网页面板 | `rootfs/panel/`，它使用 Cockpit，与 OpenWrt 的 LuCI 是两套界面 |
-| 改安装流程或电脑端安装窗口 | `install.sh`、`tools/`、`gui/` |
+| 改首页布局、状态卡片 | `systems/openwrt/luci-app-mu300/htdocs/luci-static/resources/view/mu300/home.js` |
+| 改公共样式、显示辅助函数 | `systems/openwrt/luci-app-mu300/htdocs/luci-static/resources/mu300/common.js`，CSS 也写在这个 JS 里 |
+| 改短信、VPN、流量等页面 | `systems/openwrt/luci-app-mu300/htdocs/luci-static/resources/view/mu300/` 下对应的 JS |
+| 改网页菜单 | `systems/openwrt/luci-app-mu300/root/usr/share/luci/menu.d/` |
+| 改网页接口和接口权限 | `systems/openwrt/luci-app-mu300/root/usr/libexec/rpcd/`、`root/usr/share/rpcd/acl.d/` |
+| 改设备控制逻辑 | 先看 `systems/openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/` 的适配器，再找它调用的设备命令 |
+| 改共享的设备命令 | `systems/base/overlay/opt/mu300/bin/`、`systems/base/overlay/opt/mu300/lib/` |
+| 改 OpenWrt 默认配置、开机服务 | `systems/openwrt/overlay/`；仅面板版需要的内容看 `systems/openwrt/luci-overlay/` |
+| 改 Ubuntu 的网页面板 | `systems/base/panel/`，它使用 Cockpit，与 OpenWrt 的 LuCI 是两套界面 |
+| 改安装流程 | `install.sh`、`installer/lib/`；在设备 Android 侧执行的步骤看 `installer/android/` |
+| 改电脑端安装窗口 | `installer/gui/` |
+| 改安装器翻译 | `installer/i18n/`，用 `scripts/i18n/check-i18n.py` 检查 |
 | 改开机选系统、挂载根文件系统 | `boot/init` |
-| 改 5.4 内核或驱动 | `kernel/` |
-| 改主线内核或移植的驱动 | `upstream/` |
+| 改 5.4 内核或驱动 | `kernel/vendor/` |
+| 改主线内核或移植的驱动 | `kernel/mainline/` |
+| 改设备上的小程序（adbd、日志、按键等） | `device-tools/` |
+| 构建发布包、签名、发布检查 | `scripts/release/` |
+| 备份设备、SSH/串口连接、收集日志 | `scripts/device/` |
 | 找本机安装记录、离线包、备份 | `work/`、`backup/`，不要把它们当作源码目录 |
 
 ## 2. 所有顶层目录
 
 | 目录 | 用途 | 在哪里使用 |
 |---|---|---|
-| `openwrt/` | OpenWrt 系统组装、系统配置、LuCI 网页及其后端 | 构建在电脑上完成，生成内容安装到设备 |
-| `rootfs/` | Ubuntu 等系统的根文件系统组装，以及多种系统共用的 MU300 命令 | 构建在电脑上完成，运行程序在设备上 |
+| `installer/` | 电脑端安装器：`install.sh` 加载的脚本、推送到设备 Android 侧的脚本、图形界面、翻译 | 电脑上运行；`installer/android/` 中的脚本由安装器推送到设备执行 |
 | `boot/` | 生成 Linux 启动镜像、早期启动、选择和挂载系统、切换启动槽位 | 镜像生成在电脑上，`init` 在设备早期启动时运行 |
-| `kernel/` | 厂商 5.4 内核的构建入口、配置片段和驱动补丁 | 电脑上编译，内核与模块在设备运行 |
-| `upstream/` | Linux 主线内核的构建、移植、补丁、驱动和调试资料 | 电脑上构建，内核与模块在设备运行 |
-| `android/` | 从 Android 切回 Linux 的 Magisk 模块及相关文件 | 模块在电脑上打包，在设备 Android 中使用 |
-| `android-vendor/` | 从设备提取厂商程序、固件依赖和权限信息的脚本及文件清单 | 提取工具在电脑上运行，提取内容供设备 Linux 使用 |
-| `arch/` | Arch Linux ARM 根文件系统的构建脚本 | 备用发行版构建入口，不是当前 OpenWrt 界面的组成部分 |
-| `gui/` | Python 图形安装器，封装安装选项、设备检测和进度显示 | 电脑端桌面程序 |
-| `i18n/` | 命令行和图形安装器的翻译文件 | 电脑端安装器使用 |
-| `tools/` | 安装辅助、发布打包、本地开发代理、设备工具源码等 | 有的在电脑上运行，有的编译后安装到设备 |
-| `make/` | 按开发、部署、设备管理和调试拆分的 Make 命令与本机配置示例 | 电脑端使用，详见 [命令说明](../make/README.md) |
+| `kernel/` | `vendor/` 是厂商 5.4 内核的构建入口、配置和补丁；`mainline/` 是 Linux 主线内核的移植 | 电脑上编译，内核与模块在设备运行 |
+| `systems/` | `base/`（Ubuntu 镜像与各系统共用的设备命令）、`openwrt/`（OpenWrt 镜像与 LuCI 面板）、`arch/`（Arch Linux ARM 镜像） | 构建在电脑上完成，生成内容安装到设备 |
+| `android/` | `magisk/`（从 Android 切回 Linux 的模块）、`vendor/`（从设备提取厂商文件的脚本和清单）、`stock/`（原厂固件来源与恢复说明） | 打包和提取在电脑上，模块在设备 Android 中使用 |
+| `device-tools/` | 设备上运行的小程序源码及其构建脚本 | 电脑上编译，产物装进系统镜像或启动镜像 |
+| `scripts/` | 手动执行的命令：发布打包、翻译检查、本地开发、设备维护 | 电脑端使用 |
+| `make/` | 按开发、部署、设备管理和调试拆分的 Make 命令与本机配置示例 | 电脑端使用，详见 [命令说明](../../make/README.md) |
 | `tests/` | 自动化测试、模拟设备、固定输入和升级实验 | 测试环境使用；不作为正常系统服务部署 |
-| `docs/` | 构建、发布、安装协议、硬件研究和使用说明 | 开发者阅读 |
-| `stock/` | 原厂固件来源和恢复说明 | 参考资料；当前目录仅有说明，不是完整原厂系统源码或固件备份 |
+| `docs/` | 构建、发布、安装协议、硬件研究、接口和架构说明 | 开发者阅读 |
 | `out/` | 当前本机的内核与模块产物 | 构建或组装镜像时读取；可能来自编译，也可能来自预编译包解压 |
 | `work/` | 下载包、提取的厂商文件、设备专用镜像、部署日志等本机工作资料 | 安装和部署时使用，Git 忽略 |
 | `backup/` | 原设备备份、源码裁剪前的归档等 | 恢复和追溯使用，Git 忽略 |
@@ -51,10 +71,23 @@
 
 根目录的重要文件：`Makefile` 是统一命令入口，加载 `make/*.mk`；`install.sh`、`uninstall.sh` 负责安装和卸载；`README.md` 是总说明；`.gitignore` 定义产物与本机资料的忽略规则。
 
-## 3. `openwrt/`：你修改界面最常用的目录
+## 3. `installer/`：电脑端安装器
+
+`install.sh` 和 `uninstall.sh` 留在根目录，因为它们是用户直接执行的入口；它们的实现拆在这里。
+
+| 子目录 | 内容 |
+|---|---|
+| `lib/` | `install.sh` 用 `. "$TOP/installer/lib/*.sh"` 加载的脚本：安装问答（`answers.sh`）、翻译（`i18n.sh`）、存储布局（`storage.sh`）、版本选择（`releases.sh`、`release_pick.py`）、中断后续装（`resume.sh`、`resume.py`）、离线包（`package.sh`）、ADB/USB（`usb-adb.sh`、`linux-mode.sh`）等；以及它们调用的辅助程序（`resize-last-partition.py`、`sha512crypt.py`、`vendor-overlay.py`、`install-magisk-module.sh`） |
+| `android/` | 安装器通过 `adb push` 送到设备、在 Android 里执行的脚本：安装（`android-install.sh`）、挂载（`android-mount-mu300root.sh`）、启动链同步（`android-bootchain.sh`）、在线缩容（`android-online-shrink.sh`）、启动镜像（`android-boot-image.sh`）、密码核对（`android-pwcheck.sh`）、USB（`android-usb.sh`） |
+| `gui/` | Python 图形安装器。`mu300gui/` 包含窗口、状态模型、控制器、安装进程、设备连接、主题、翻译及日志脱敏等模块 |
+| `i18n/` | 命令行和图形安装器共用的 `<语言>.tsv` 翻译；与 LuCI 的 `po/`、Cockpit 的 `panel/po/` 分开 |
+
+## 4. `systems/`：系统镜像与设备端文件
+
+### `systems/openwrt/`：修改界面最常用的目录
 
 ```text
-openwrt/
+systems/openwrt/
 ├── build-rootfs.sh           组装 OpenWrt 系统包
 ├── luci-app-mu300/           MU300 的 LuCI 插件
 │   ├── htdocs/              浏览器加载的文件，对应设备 /www/
@@ -69,7 +102,7 @@ openwrt/
 └── keys/usign/             验证下载的 OpenWrt 文件所用的公钥
 ```
 
-### `luci-app-mu300/` 内部如何分工
+`luci-app-mu300/` 内部如何分工：
 
 | 位置 | 内容 | 安装到设备后的位置 |
 |---|---|---|
@@ -89,32 +122,30 @@ openwrt/
 
 插件的 `Makefile` 用来构建 OpenWrt 软件包；仓库根目录的 `Makefile` 用来启动本地开发代理，二者用途不同。插件 `lmo/` 是构建时生成的翻译目录，当前源码中没有预先保存它。
 
-### 三处系统适配目录
-
-`overlay` 表示按路径合并进系统镜像的文件集合。例如 `openwrt/overlay/etc/config/` 会提供设备 `/etc/config/` 中的默认配置。它是项目的源码目录，不是设备运行时的 OverlayFS 分区。
+`overlay` 表示按路径合并进系统镜像的文件集合。例如 `systems/openwrt/overlay/etc/config/` 会提供设备 `/etc/config/` 中的默认配置。它是项目的源码目录，不是设备运行时的 OverlayFS 分区。
 
 | 目录 | 负责什么 |
 |---|---|
-| `openwrt/overlay/etc/board.d/` | 设备识别后的默认网络初始化 |
-| `openwrt/overlay/etc/config/` | 网络、防火墙、服务等 UCI 默认配置 |
-| `openwrt/overlay/etc/init.d/` | OpenWrt 的 procd 服务启动脚本 |
-| `openwrt/overlay/etc/hotplug.d/` | 热插拔事件处理 |
-| `openwrt/overlay/etc/uci-defaults/` | 首次启动或配置迁移时运行的初始化脚本 |
-| `openwrt/overlay/etc/docker/`、`etc/mu300/`、`etc/sysctl.d/`、`etc/profile.d/` | Docker、MU300、内核参数、登录环境的配置 |
-| `openwrt/overlay/lib/netifd/` | 蜂窝网络等协议与网络管理器的对接 |
-| `openwrt/overlay/lib/preinit/`、`lib/mu300/` | 早期初始化与 OpenWrt 平台辅助脚本 |
-| `openwrt/overlay/opt/mu300/` | OpenWrt 专用的命令或兼容补充 |
-| `openwrt/overlay/usr/` | 系统辅助命令和额外 RPC 权限等 |
-| `openwrt/overlay/www/` | 蜂窝协议配置页、Wi-Fi 提示等额外 LuCI 资源 |
-| `openwrt/luci-overlay/etc/` | 面板版额外配置、后台服务和初始化脚本，如网页终端、短信服务 |
-| `openwrt/luci-overlay/lib/netifd/` | 面板版的额外网络协议实现 |
-| `openwrt/luci-overlay/opt/mu300/` | 短信池、短信转发、IPv6 辅助等面板版所需命令 |
+| `overlay/etc/board.d/` | 设备识别后的默认网络初始化 |
+| `overlay/etc/config/` | 网络、防火墙、服务等 UCI 默认配置 |
+| `overlay/etc/init.d/` | OpenWrt 的 procd 服务启动脚本 |
+| `overlay/etc/hotplug.d/` | 热插拔事件处理 |
+| `overlay/etc/uci-defaults/` | 首次启动或配置迁移时运行的初始化脚本 |
+| `overlay/etc/docker/`、`etc/mu300/`、`etc/sysctl.d/`、`etc/profile.d/` | Docker、MU300、内核参数、登录环境的配置 |
+| `overlay/lib/netifd/` | 蜂窝网络等协议与网络管理器的对接 |
+| `overlay/lib/preinit/`、`lib/mu300/` | 早期初始化与 OpenWrt 平台辅助脚本 |
+| `overlay/opt/mu300/` | OpenWrt 专用的命令或兼容补充 |
+| `overlay/usr/` | 系统辅助命令和额外 RPC 权限等 |
+| `overlay/www/` | 蜂窝协议配置页、Wi-Fi 提示等额外 LuCI 资源 |
+| `luci-overlay/etc/` | 面板版额外配置、后台服务和初始化脚本，如网页终端、短信服务 |
+| `luci-overlay/lib/netifd/` | 面板版的额外网络协议实现 |
+| `luci-overlay/opt/mu300/` | 短信池、短信转发、IPv6 辅助等面板版所需命令 |
 
-OpenWrt 组装还会复用 `rootfs/overlay/opt/mu300/` 中的通用命令，因此查设备功能时不能只看 `openwrt/`。
+OpenWrt 组装还会复用 `systems/base/overlay/opt/mu300/` 中的通用命令，因此查设备功能时不能只看 `systems/openwrt/`。
 
-## 4. `rootfs/`：系统环境和共用设备命令
+### `systems/base/`：Ubuntu 镜像和各系统共用的设备命令
 
-`rootfs/Dockerfile` 默认构建 Ubuntu 24.04 的基础系统环境；`rootfs/assemble.sh` 把基础文件系统、项目文件、模块和需要的工具组装成系统包。Docker 在这里是电脑上的构建工具，不意味着设备上的 Ubuntu 运行在 Docker 中。
+`Dockerfile` 默认构建 Ubuntu 24.04 的基础系统环境；`assemble.sh` 把基础文件系统、项目文件、模块和需要的工具组装成系统包。Docker 在这里是电脑上的构建工具，不意味着设备上的 Ubuntu 运行在 Docker 中。目录名叫 `base` 是因为它的 `overlay/` 同时被 OpenWrt 和 Arch 的构建复用。
 
 | 子目录 | 用途 |
 |---|---|
@@ -129,9 +160,13 @@ OpenWrt 组装还会复用 `rootfs/overlay/opt/mu300/` 中的通用命令，因�
 | `panel/bin/` | Cockpit 面板的安装、状态查询和设备操作命令 |
 | `panel/po/` | Cockpit 面板翻译 |
 
-`rootfs/panel/` 是可选面板组件，不是 OpenWrt LuCI 的前端。修改当前 OpenWrt 首页应去 `openwrt/luci-app-mu300/`。
+`panel/` 是可选面板组件，不是 OpenWrt LuCI 的前端。修改当前 OpenWrt 首页应去 `systems/openwrt/luci-app-mu300/`。
 
-## 5. `boot/`、`kernel/`、`upstream/`：启动与硬件支持
+### `systems/arch/`
+
+只有 `build-rootfs.sh`，是 Arch Linux ARM 根文件系统的构建脚本。备用发行版构建入口，不是当前 OpenWrt 界面的组成部分。
+
+## 5. `boot/` 与 `kernel/`：启动与硬件支持
 
 ### `boot/`：已有内核怎样启动系统
 
@@ -143,7 +178,7 @@ OpenWrt 组装还会复用 `rootfs/overlay/opt/mu300/` 中的通用命令，因�
 | `flash-trial.sh` | 写入试启动镜像及设置试启动信息 |
 | `android-boot-linux.sh` | 从 Android 侧重新选择 Linux 启动 |
 
-### `kernel/`：厂商 5.4 内核路线
+### `kernel/vendor/`：厂商 5.4 内核路线
 
 这里是构建脚本、配置和补丁，不是完整 Linux 内核源码树。构建入口会准备内核源码和构建环境。
 
@@ -156,9 +191,9 @@ OpenWrt 组装还会复用 `rootfs/overlay/opt/mu300/` 中的通用命令，因�
 | `patches/` | 应用到厂商内核或驱动的补丁 |
 | `mu300-dp-enable/`、`build-display.sh` | 显示输出相关的实验模块与构建入口；目录存在不代表本机 HDMI 已可用 |
 
-### `upstream/`：主线内核路线
+`kernel/mainline/parity/5.4-build.list` 里记录了这些构建输入（文件路径加内容）的摘要。改动这里的配置或构建脚本后，`check-parity.py` 会要求重新记录。
 
-这里的 `upstream` 指 Linux 主线内核适配，不是本项目 Git 远程仓库的副本。
+### `kernel/mainline/`：主线内核路线
 
 | 子目录 | 用途 |
 |---|---|
@@ -174,7 +209,7 @@ OpenWrt 组装还会复用 `rootfs/overlay/opt/mu300/` 中的通用命令，因�
 | `stub/` | 小型启动入口、复位实验代码 |
 | `tools/` | 主线移植、调制解调器适配等辅助工具 |
 
-`upstream/modules/` 中的主要模块：
+`kernel/mainline/modules/` 中的主要模块：
 
 | 模块目录 | 对应功能 |
 |---|---|
@@ -189,13 +224,19 @@ OpenWrt 组装还会复用 `rootfs/overlay/opt/mu300/` 中的通用命令，因�
 | `ums9620_lpintc/` | 低功耗中断控制器 |
 | `zte_sar_stk/` | SAR 传感器相关支持 |
 
-## 6. `android/` 与 `android-vendor/`：两个不同用途
+`modules/` 和 `port/` 里是内核源码，其中出现的 `kernel/`、`tools/`、`arch/` 等路径指 Linux 源码树，不是本仓库的目录。
 
-`android/` 放的是 Android 侧的切换工具。当前保留的 `android/magisk/mu300-linux-switch/` 是 Magisk 切换模块：`system/bin/` 提供命令入口，其他脚本处理模块安装、按钮操作和启动槽位切换。`android/magisk/build.sh` 打包切换模块。
+## 6. `android/`：Android 侧的三类内容
+
+| 子目录 | 用途 |
+|---|---|
+| `magisk/` | Magisk 切换模块。`mu300-linux-switch/` 中 `system/bin/` 提供命令入口，其他脚本处理模块安装、按钮操作和启动槽位切换；`build.sh` 打包切换模块 |
+| `vendor/` | 从设备提取厂商程序、固件依赖和权限信息的脚本及文件清单 |
+| `stock/` | 原厂固件来源和恢复说明；当前只有说明，不是完整原厂系统源码或固件备份 |
 
 当前副本的 `android/magisk/installer/` 只有 `module.prop.in` 模板。旧说明中提到的完整 Magisk 安装器与发布打包链，并没有全部保留在这个裁剪副本中；不能仅凭旧文档判断它仍可完整构建。
 
-`android-vendor/` 放的是提取工具和输入清单：
+`android/vendor/` 的内容：
 
 | 内容 | 用途 |
 |---|---|
@@ -205,15 +246,12 @@ OpenWrt 组装还会复用 `rootfs/overlay/opt/mu300/` 中的通用命令，因�
 | `ueventd/` | 生成设备节点权限所依据的原始规则 |
 | `gen-ueventd-perms.py`、`ueventd-perms.sh` | 生成和应用 Linux 下需要的设备权限 |
 
-这两个目录都不是 Android 完整系统源码。真正提取出来的厂商文件通常在安装工作目录的 `android-subset/`、`android-gpu-subset/`、`firmware/` 中。
+这些目录都不是 Android 完整系统源码。真正提取出来的厂商文件通常在安装工作目录的 `android-subset/`、`android-gpu-subset/`、`firmware/` 中。
 
-## 7. `tools/`：电脑辅助脚本与设备小工具
-
-顶层脚本主要处理安装问答、ADB/SSH 连接、存储布局、备份、版本选择、签名校验、发布包和翻译等。`luci-dev.py` 是最近加入的本地界面开发代理，根目录 `make dev` 调用它。
+## 7. `device-tools/`：设备小程序源码
 
 | 子目录 | 用途 |
 |---|---|
-| `dev/` | Make 命令使用的 SSH、前后端文件部署和设备调试工具 |
 | `adbd/` | 构建设备 Linux 下的 ADB 服务程序 |
 | `bt-init/` | 初始化蓝牙芯片的厂商参数 |
 | `carry/` | 系统升级时扫描和迁移用户文件，保留权限、扩展属性等信息 |
@@ -226,28 +264,36 @@ OpenWrt 组装还会复用 `rootfs/overlay/opt/mu300/` 中的通用命令，因�
 | `mu300-peek/` | 读取或修改物理内存、硬件寄存器的底层调试模块 |
 | `pwcheck/` | 安装和更新流程中的密码哈希核对工具 |
 | `vbc-profile/` | 从厂商 XML 参数生成音频 DSP 配置文件 |
-| `__pycache__/` | Python 自动生成的缓存，不是源码 |
 
-这些工具并非全部已经安装或启用。比如有 GPU 测试工具源码，不代表当前发布包一定包含其编译后的程序。
+编译产物写在源码旁边（例如 `device-tools/logdw/logdw`），已被 Git 忽略。安装器和发布脚本在自己的工作目录里使用同名的 `device-tools/` 子目录存放这些产物。这些工具并非全部已经安装或启用。比如有 GPU 测试工具源码，不代表当前发布包一定包含其编译后的程序。
 
-## 8. 安装界面、翻译、文档和测试
+## 8. `scripts/`：手动执行的命令
+
+| 子目录 | 内容 |
+|---|---|
+| `release/` | 构建与发布：`make-release.sh`、`make-diffs.sh`、`make-extra.sh`、`sign-release.sh`、镜像清单与差异（`image-manifest.py`、`image-diff.py`）、OpenWrt 下载签名校验（`usign-verify.py`）、发布冒烟测试（`smoke.py`，本机配置 `smoke.json` 被 Git 忽略） |
+| `i18n/` | 翻译：安装器翻译检查（`check-i18n.py`）、LuCI 翻译提取与检查（`luci-i18n.py`）、`.po` 转 `.lmo`（`po2lmo.py`）、Cockpit 面板翻译（`cockpit-i18n.py`） |
+| `dev/` | 根目录 Make 命令的实现：本地界面开发代理（`luci-dev.py`）、SSH 部署与设备调试（`device.py`） |
+| `device/` | 设备维护：备份（`backup-device.sh`、`backup-full.sh`）、重置密码（`reset-password.sh`）、F50 开启 ADB（`f50-enable-adb-macos.sh`，仅 macOS）、收集日志（`collect-logs.sh`）；均通过 `make` 调用，见 `make help` |
+
+这些脚本都从自身位置向上两级定位仓库根目录，可以在任意当前目录下执行，例如 `sh scripts/device/backup-device.sh`。
+
+## 9. 文档和测试
 
 | 目录 | 用途 |
 |---|---|
-| `gui/mu300gui/` | 图形安装器的窗口、状态模型、控制器、安装进程、设备连接、主题、翻译及日志脱敏等模块 |
-| `i18n/` | 安装器的 `<语言>.tsv` 翻译；与 LuCI 的 `po/`、Cockpit 的 `panel/po/` 分开 |
-| `docs/images/gui/` | 图形安装器的说明图片 |
-| `docs/images/installer/` | 命令行安装器的示例输出、图片和渲染脚本 |
-| `docs/reference/` | 硬件研究参考资料，例如 Android 网络加速状态记录 |
+| `docs/guides/` | 操作指南：自行构建（`BUILD.md`）、发布流程（`RELEASING.md`）、其他发行版（`DISTROS.md`）、安装器自动化协议（`INSTALLER-AUTOMATION.md`）、SIM 选择（`SIM-SELECTION.md`）、ADB 接口（`ADB-INTERFACE.md`）、更新的真机测试（`update-device-test.md`） |
+| `docs/architecture/` | 整体架构图（`ARCHITECTURE.zh-CN.md`）和本文 |
+| `docs/research/` | 硬件与问题排查的历史记录（`FINDINGS.md`，代码注释里的 “FINDINGS 120” 指它的条目编号）、U30 Air SAE 研究、`reference/` 中的参考资料 |
+| `docs/api/` | 设备接口的说明与 OpenAPI 描述 |
+| `docs/images/gui/`、`docs/images/installer/` | 图形安装器的说明图片；命令行安装器的示例输出、图片和渲染脚本 |
 | `tests/fixtures/` | 固定测试输入、模拟 VPN 命令、协议输出和上游组件样本 |
 | `tests/data/` | 测试用的模块等数据快照 |
 | `tests/update-experiment/` | 系统升级、文件迁移实验的容器、场景和执行脚本 |
-| `tests/update-experiment/results/` | 已保存的升级实验结果；不是当前设备状态的实时证明 |
-| `tests/.claude/` | 测试目录下的本地开发工具配置，不属于测试数据或设备程序 |
 
-常用说明：安装和使用看根目录 `README.md`；自行构建看 [BUILD.md](BUILD.md)；发布流程看 [RELEASING.md](RELEASING.md)；其他发行版看 [DISTROS.md](DISTROS.md)；硬件与问题排查的历史记录看 [FINDINGS.md](FINDINGS.md)。裁剪副本中的旧文档可能仍引用已经移除的文件，应以实际存在的源码为准。
+常用说明：整体架构图看 [ARCHITECTURE.zh-CN.md](ARCHITECTURE.zh-CN.md)；安装和使用看根目录 `README.md`；自行构建看 [BUILD.md](../guides/BUILD.md)；发布流程看 [RELEASING.md](../guides/RELEASING.md)；其他发行版看 [DISTROS.md](../guides/DISTROS.md)；硬件与问题排查的历史记录看 [FINDINGS.md](../research/FINDINGS.md)。裁剪副本中的旧文档可能仍引用已经移除的文件，应以实际存在的源码为准。
 
-## 9. `out/`、`work/`、`backup/`：本机资料和产物
+## 10. `out/`、`work/`、`backup/`：本机资料和产物
 
 | 目录 | 当前用途 |
 |---|---|
@@ -270,17 +316,17 @@ OpenWrt 组装还会复用 `rootfs/overlay/opt/mu300/` 中的通用命令，因�
 
 `work/` 和 `backup/` 已被 Git 忽略，但被忽略不等于可以直接清理。设备校准信息、原始启动链、登录材料和恢复文件可能只保存在这里。源码修改应落在上面的源码目录，不要只改解压出来的安装副本。
 
-构建或安装后还可能出现顶层 `release/`、`dumps/`、`firmware/`、`android-subset/`、`android-gpu-subset/`，以及 `upstream/out/`、`upstream/out-*/`。它们分别用于发布包、设备提取资料和主线内核产物；是否存在取决于所执行的流程，不能把预期输出目录当成已完成构建。
+构建或安装后还可能出现顶层 `release/`、`dumps/`、`firmware/`、`android-subset/`、`android-gpu-subset/`，以及 `kernel/mainline/out/`、`kernel/mainline/out-*/`。它们分别用于发布包、设备提取资料和主线内核产物；是否存在取决于所执行的流程，不能把预期输出目录当成已完成构建。
 
-## 10. 修改与生效范围
+## 11. 修改与生效范围
 
 | 修改位置 | `make dev` 刷新后是否直接生效 | 后续怎么进入设备 |
 |---|---|---|
-| `openwrt/luci-app-mu300/htdocs/` 中 `/luci-static/` 下的文件 | 是，本地代理优先读取仓库文件 | 部署改动文件或重新打包插件/系统 |
-| `openwrt/overlay/www/` 中 `/luci-static/` 下的文件 | 是；如果与插件同路径，插件文件优先 | 部署改动文件或重新构建系统包 |
+| `systems/openwrt/luci-app-mu300/htdocs/` 中 `/luci-static/` 下的文件 | 是，本地代理优先读取仓库文件 | 部署改动文件或重新打包插件/系统 |
+| `systems/openwrt/overlay/www/` 中 `/luci-static/` 下的文件 | 是；如果与插件同路径，插件文件优先 | 部署改动文件或重新构建系统包 |
 | 插件 `root/`、翻译 `po/` | 否，相关运行内容仍来自设备 | 部署后端/菜单配置，或编译并部署翻译 |
-| `rootfs/overlay/`、OpenWrt 各系统适配目录 | 否 | 部署相应命令和配置，或重新构建系统包 |
-| `boot/`、`kernel/`、`upstream/` | 否 | 根据改动构建并更新配套的启动镜像、内核或模块 |
-| `gui/`、`i18n/`、电脑端工具 | 影响电脑端工具的后续运行 | 通常不需要部署到设备 |
+| `systems/base/overlay/`、OpenWrt 各系统适配目录 | 否 | 部署相应命令和配置，或重新构建系统包 |
+| `boot/`、`kernel/`、`device-tools/` | 否 | 根据改动构建并更新配套的启动镜像、内核、模块或系统包 |
+| `installer/`、`scripts/` | 影响电脑端工具的后续运行 | 通常不需要部署到设备 |
 
-本地开发代理仍使用真实设备的 LuCI 登录、接口和主题。它只替换本地存在的浏览器资源，不会启动另一套 OpenWrt，也不会自动上传改动。网页终端使用独立端口，应从设备地址访问。启动和限制见 [LuCI 本地开发说明](../openwrt/luci-app-mu300/README.md#local-interface-development)。
+本地开发代理仍使用真实设备的 LuCI 登录、接口和主题。它只替换本地存在的浏览器资源，不会启动另一套 OpenWrt，也不会自动上传改动。网页终端使用独立端口，应从设备地址访问。启动和限制见 [LuCI 本地开发说明](../../systems/openwrt/luci-app-mu300/README.md#local-interface-development)。

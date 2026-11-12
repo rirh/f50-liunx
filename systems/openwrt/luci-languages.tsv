@@ -1,4 +1,4 @@
-# The panel's languages (openwrt/luci-app-mu300/po/<dir>) and LuCI's: po directory, LuCI code (the name of the .lmo
+# The panel's languages (systems/openwrt/luci-app-mu300/po/<dir>) and LuCI's: po directory, LuCI code (the name of the .lmo
 # files, base.<code>.lmo; uci luci.languages takes it with - as _), and the name the language list shows (LuCI's own
 # "native (English)" form). English is the source language and has no catalog.
 # dir	code	name

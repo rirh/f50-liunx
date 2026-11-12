@@ -9,7 +9,7 @@ import unittest
 from helpers import ShellTest, TOP
 from test_mu300dash_security import JSONFILTER
 
-APP = TOP / 'openwrt/luci-app-mu300/root'
+APP = TOP / 'systems/openwrt/luci-app-mu300/root'
 USB = APP / 'usr/libexec/unisoc-modem/device-usb'
 INIT = (TOP / 'boot/init').read_text()
 

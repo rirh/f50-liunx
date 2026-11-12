@@ -6,7 +6,7 @@ set -e
 # region of the free eMMC space after the last GPT partition (install.sh passes the values it computed)
 OFF=${MU300_OFF:-27762098176}
 # Android's shell does 32-bit arithmetic: byte offsets of this region overflow there, so the size is never
-# computed here. Callers that know it pass MU300_SIZE (install.sh, tools/reset-password.sh); without it the loop
+# computed here. Callers that know it pass MU300_SIZE (install.sh, scripts/device/reset-password.sh); without it the loop
 # simply spans to the end of the disk, which mounts any size of filesystem.
 SIZE=${MU300_SIZE:-}
 # MU300_RO=1: read only, and no journal replay either (an ext4 "ro" mount still replays it, which writes): the
@@ -17,7 +17,7 @@ SIZE=${MU300_SIZE:-}
 # last passwd (needs_recovery was set on an F50, FINDINGS 126). The password check of an update uses this.
 # --- android-disk begin
 # The internal disk, as Android's by-name links have it: the disk that holds misc - mmcblk0 on an eMMC unit, sda on a
-# UFS one (issue #396; tools/storage.sh's internal_disk asks the same) - and what its partitions are named after
+# UFS one (issue #396; installer/lib/storage.sh's internal_disk asks the same) - and what its partitions are named after
 # (mmcblk0p, sda). mmcblk0 when Android does not say; MU300_DISK names it.
 _ad=$(readlink -f "${MU300_BY_NAME:-/dev/block/by-name}/misc" 2>/dev/null) || _ad=
 _ad=$(readlink -f "${MU300_SYSFS:-/sys}/class/block/${_ad##*/}/.." 2>/dev/null) || _ad=

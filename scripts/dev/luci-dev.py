@@ -14,10 +14,10 @@ import shutil
 from urllib.parse import unquote, urlsplit
 
 
-TOP = Path(__file__).resolve().parent.parent
+TOP = Path(__file__).resolve().parents[2]
 WEB_ROOTS = (
-    TOP / 'openwrt/luci-app-mu300/htdocs',
-    TOP / 'openwrt/overlay/www',
+    TOP / 'systems/openwrt/luci-app-mu300/htdocs',
+    TOP / 'systems/openwrt/overlay/www',
 )
 HOP_HEADERS = {
     'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',

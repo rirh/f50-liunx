@@ -1,6 +1,6 @@
 # An update keeps everything: the test on a device
 
-What docs/FINDINGS.md 85 measured in containers (and `tests/update-experiment` on the images of a real release
+What docs/research/FINDINGS.md 85 measured in containers (and `tests/update-experiment` on the images of a real release
 build), to be run on the **F50 with Ubuntu** and the **U30 Air with OpenWrt and the control panel** in one go,
 before the release that brings it is promoted. Run on both devices on 2026-10-16 (FINDINGS 85, "On the devices"; part 7 on a third F50 with OpenWrt, the same day). Every step says what to
 expect; what differs goes into FINDINGS 85 with the device, the release and the kernel.
@@ -22,15 +22,14 @@ v2026.10.31 for FINDINGS 86) - an older tag is refused as a downgrade, which is 
 ```sh
 for t in $T1 $T2; do
     MU300_KERNEL_OUT=<the 5.4 out/> MU300_RELEASE_KEY_FILE=~/.config/mu300-linux/release.sec \
-    MU300_OPENSSL=/opt/homebrew/opt/openssl@3/bin/openssl sh tools/make-release.sh $t        # no --publish
-    sh tools/make-magisk-zips.sh release/$t release/$t $t
+    MU300_OPENSSL=/opt/homebrew/opt/openssl@3/bin/openssl sh scripts/release/make-release.sh $t        # no --publish
 done
 ```
 
 Each audit must pass (every image has `opt/mu300/bin/mu300-carry`, its own manifest and the manifests of the older
 releases), and each release is signed (`SHA256SUMS.sig`): the images of the branch carry the project's key, so the
 second update refuses an unsigned release. The mainline kernels must be built at the branch's commit (or their
-`upstream/mu300-mainline.config` audit fails); the release dir the PR's agent built (`release/<tag>`, a three-field test tag after v2026.10.27) with
+`kernel/mainline/mu300-mainline.config` audit fails); the release dir the PR's agent built (`release/<tag>`, a three-field test tag after v2026.10.27) with
 v2026.10.27's mainline kernels is fine for containers, not for this.
 
 **The mirror** on the computer, laid out as in FINDINGS 86 so that the page's *Check* works too. The devices reach

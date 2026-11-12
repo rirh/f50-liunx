@@ -1,9 +1,9 @@
-"""A release's Magisk zip unpacked on this computer (tools/package.sh, START-HERE.md in the zip): the installers then
+"""A release's Magisk zip unpacked on this computer (installer/lib/package.sh, START-HERE.md in the zip): the installers then
 install its system and its kernel from its own files, and download nothing. The window offers exactly that - no
 other system, kernel or release - and asks GitHub nothing.
 
 The zip's computer/ directory (the TOP of this window) holds the file .mu300-package; MU300_PACKAGE names another
-unpacked zip. The manifest is read as the zip's own installer and tools/package.sh read it: only its keys, every value
+unpacked zip. The manifest is read as the zip's own installer and installer/lib/package.sh read it: only its keys, every value
 exactly one a release has. The checksums are the installer's to check (it stops with a mismatch before it writes).
 """
 import os

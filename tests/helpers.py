@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 TOP = Path(__file__).resolve().parents[1]
-BIN = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'bin'
+BIN = TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'bin'
 # the tests that read what git tracks (file modes, ls-files) skip where there is no git or no checkout of this tree,
 # e.g. a container with the worktree mounted but not the repository it belongs to
 GIT_CHECKOUT = bool(shutil.which('git')) and subprocess.run(['git', '-C', str(TOP), 'rev-parse', '--git-dir'],
@@ -69,7 +69,7 @@ class ShellTest(unittest.TestCase):
         e['STUBLOG'] = str(self.tmp)
         e['LC_ALL'] = 'C.UTF-8' if os.name != 'nt' else e.get('LC_ALL', '')
         # the shared internal-disk lookup that init, early-recorder, android-vendor-start and mu300-cpu source
-        e.setdefault('MU300_STORAGE_LIB', str(TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'storage.sh'))
+        e.setdefault('MU300_STORAGE_LIB', str(TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'storage.sh'))
         e.update({k: str(v) for k, v in extra.items()})
         return e
 

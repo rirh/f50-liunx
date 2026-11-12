@@ -1,9 +1,9 @@
 #!/bin/sh
 # Back up EVERYTHING of a rooted Android device, before porting to it: every partition by name (userdata and super
 # included), the eMMC boot areas (splloader lives there) and both GPT copies, each checked against a SHA-256 taken on
-# the device. tools/backup-device.sh keeps only the irreplaceable parts; this is the "before touching anything" copy.
+# the device. scripts/device/backup-device.sh keeps only the irreplaceable parts; this is the "before touching anything" copy.
 #
-#   tools/backup-full.sh OUTDIR            (ANDROID_SERIAL=... picks the device when more than one is attached)
+#   scripts/device/backup-full.sh OUTDIR            (ANDROID_SERIAL=... picks the device when more than one is attached)
 #
 # Partitions are read in 512 MiB pieces, gzipped on the device, pulled and removed there, so a partition larger
 # than the free space of /data is not a problem, and no binary ever goes through `adb exec-out "su -c ..."` (a
@@ -12,9 +12,9 @@
 # userdata is copied while Android runs, so it is only as consistent as a power cut; everything else is static.
 # Nothing here belongs in a public repository: the dumps contain device identifiers and personal data.
 set -eu
-OUT=${1:?usage: tools/backup-full.sh OUTDIR}
-TOP=$(cd "$(dirname "$0")/.." && pwd)
-. "$TOP/tools/host-tools.sh"
+OUT=${1:?usage: scripts/device/backup-full.sh OUTDIR}
+TOP=$(cd "$(dirname "$0")/../.." && pwd)
+. "$TOP/installer/lib/host-tools.sh"
 CHUNK=512            # MiB per piece
 T=/data/local/tmp/mu300-backup
 command -v adb >/dev/null || { echo "adb not found" >&2; exit 1; }

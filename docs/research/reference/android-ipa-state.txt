@@ -1,6 +1,6 @@
 MU300 / ZTE F50 - IPA state on stock Android with mobile data working.
 
-Taken so that the same dump from Linux has something to be compared against; see docs/FINDINGS.md 13f for what
+Taken so that the same dump from Linux has something to be compared against; see docs/research/FINDINGS.md 13f for what
 it means and which fields are easy to misread. Collect the Linux side with /opt/mu300/bin/mu300-ipa-dump.
 
 Android does not mount debugfs, so this needs "mount -t debugfs debugfs /sys/kernel/debug" first.

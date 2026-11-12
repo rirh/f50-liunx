@@ -1,6 +1,6 @@
 /* The MU300 page of Cockpit (Ubuntu): the device's own settings and tools, the pages of the OpenWrt control panel
  * (openwrt-luci) and of the web installer's device manager, through the same backend: mu300-api (one method per call,
- * the request a JSON object on its stdin, the answer one JSON object; docs/ADB-INTERFACE.md). Every call is a
+ * the request a JSON object on its stdin, the answer one JSON object; docs/guides/ADB-INTERFACE.md). Every call is a
  * cockpit.spawn with an argument array (never a shell: nothing typed here is ever parsed as a command line) with
  * Cockpit's administrative access ("try": without it mu300-api answers not-root and the page says what to turn on).
  * Secrets (the hotspot's, a Wi-Fi network's, the APN's and the login password, VPN links) travel in the request on

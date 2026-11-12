@@ -22,7 +22,7 @@
 #   mu300-power daemon                  the state machine (mu300-power.service, /etc/init.d/mu300-power)
 # Idle: LEDs, hotspot, modem, CPU. Every wake: hotspot, LEDs, CPU, then the modem (its dial can take minutes).
 # A wake restores by inspection, not by the state file, and needs no daemon; every external step has a deadline.
-# Design: docs/superpowers/specs/2026-10-06-power-profiles-design.md. Configuration: /etc/mu300/power.conf,
+# Configuration: /etc/mu300/power.conf,
 # KEY=VALUE, kept across updates with the rest of etc/mu300; a missing key is its default below.
 set -u
 export PATH="$PATH:/opt/mu300/bin:/opt/mu300/busybox-bin:/usr/sbin:/sbin"

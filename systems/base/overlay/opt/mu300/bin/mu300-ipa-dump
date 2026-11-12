@@ -10,7 +10,7 @@
 #   mu300-ipa-dump [-i IFACE] [-t TARGET] [-n CONNECTS] > dump.txt
 #
 # The reference to compare it against - the same fields from stock Android on this device with data working - is
-# in docs/FINDINGS.md 13f.
+# in docs/research/FINDINGS.md 13f.
 set -u
 export PATH="$PATH:/opt/mu300/bin:/opt/mu300/busybox-bin:/usr/sbin:/sbin"
 

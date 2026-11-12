@@ -1,6 +1,6 @@
 sipa_delegate: an "already active" power domain is success (pm_runtime_resume_and_get), a failure is answered instead of spun on, runtime PM is on before the connection thread starts
 
-Same fix as upstream/modules (docs/FINDINGS.md 31f): pm_runtime_get_sync() returns 1 when the device is active
+Same fix as kernel/mainline/modules (docs/research/FINDINGS.md 31f): pm_runtime_get_sync() returns 1 when the device is active
 already, and the vendor loop took any non-zero value for a failure and retried every millisecond for ever - a
 soft lockup panic in dele-4-5 (seen at a 6.18 shutdown on the U30 Air).
 

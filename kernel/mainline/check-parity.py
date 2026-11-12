@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Nothing the 5.4 kernel has may be missing from mainline without saying so (upstream/parity-5.4.txt).
+"""Nothing the 5.4 kernel has may be missing from mainline without saying so (kernel/mainline/parity-5.4.txt).
 
     check-parity.py                                  the repository: CI (tests/test_parity.py) and anyone
     check-parity.py --mainline OUT [--record]        a mainline build (build-modules.sh, make-bundle.sh), or
                                                      a kernel bundle (OUT = mu300-kernel-X.Y.tar.gz)
-    check-parity.py --5.4 OUT                        a 5.4 build (kernel/build-all.sh): records it, then checks
+    check-parity.py --5.4 OUT                        a 5.4 build (kernel/vendor/build-all.sh): records it, then checks
 
 What 5.4 has, three kinds of items:
   * module NAME / builtin NAME - every module of the 5.4 build (out/modules, out/modules-u30air) and every object of
     its modules.builtin, recorded in parity/5.4-build.list by the 5.4 build together with a hash of what the 5.4
-    build is made from (kernel/: config, fragments, build scripts). A change there without a new record fails here.
-  * extra NAME - the modules kernel/build-display.sh builds for the 5.4 display experiment.
+    build is made from (kernel/vendor/: config, fragments, build scripts). A change there without a new record fails here.
+  * extra NAME - the modules kernel/vendor/build-display.sh builds for the 5.4 display experiment.
   * what a board shows at run time, from parity-inventory.sh: drivers with a bound device, thermal zones, devfreq,
     cpufreq, power supplies, Type-C ports, LEDs, regulators, misc devices, input devices, ... (parity/BOARD-5.4.inv,
     compared with the same board's mainline inventory, parity/BOARD-X.Y.inv).
@@ -32,15 +32,15 @@ import sys
 from pathlib import Path
 
 UP = Path(__file__).resolve().parent
-TOP = UP.parent
+TOP = UP.parents[1]
 PARITY = UP / 'parity-5.4.txt'
 DIR = UP / 'parity'
 BUILD54 = DIR / '5.4-build.list'
 MAINLINE = DIR / 'mainline.list'
 # what the 5.4 build is made from: a change to any of them can change its set of modules
-INPUTS54 = ['kernel/f50-stock-B09.config', 'kernel/mu300-linux.fragment', 'kernel/u30air.fragment',
-            'kernel/build-all.sh', 'kernel/build-linux.sh', 'kernel/build-u30air.sh', 'kernel/build-wlan.sh',
-            'kernel/build-mali.sh', 'kernel/build-display.sh']
+INPUTS54 = ['kernel/vendor/f50-stock-B09.config', 'kernel/vendor/mu300-linux.fragment', 'kernel/vendor/u30air.fragment',
+            'kernel/vendor/build-all.sh', 'kernel/vendor/build-linux.sh', 'kernel/vendor/build-u30air.sh', 'kernel/vendor/build-wlan.sh',
+            'kernel/vendor/build-mali.sh', 'kernel/vendor/build-display.sh']
 DEVICE_KINDS = {'driver', 'tz', 'cooling', 'devfreq', 'cpufreq', 'cpuidle', 'hwrng', 'psy', 'typec', 'extcon', 'led',
                 'regulator', 'misc', 'udc', 'input', 'class'}
 KINDS = {'module', 'builtin', 'extra'} | DEVICE_KINDS
@@ -126,7 +126,7 @@ def read_build54(path=BUILD54):
 
 
 def display_extras(top=TOP):
-    s = (top / 'kernel/build-display.sh').read_text()
+    s = (top / 'kernel/vendor/build-display.sh').read_text()
     return {('extra', norm(m)) for m in re.findall(r'([\w-]+)\.ko\b', s)}
 
 
@@ -182,7 +182,7 @@ def names(ko_files, builtin_text, config_text):
 
 
 def build_names(modules_dir, builtin, config):
-    """names() of a build directory (upstream/out: modules/*.ko, modules.builtin, kernel.config)"""
+    """names() of a build directory (kernel/mainline/out: modules/*.ko, modules.builtin, kernel.config)"""
     return names(os.listdir(modules_dir), Path(builtin).read_text(), Path(config).read_text())
 
 
@@ -242,7 +242,7 @@ def check_repo(top=TOP, d=DIR, parity=None):
     b54, digest = read_build54(d / '5.4-build.list')
     if digest != inputs_hash(top):
         errors.append('parity/5.4-build.list was recorded from other 5.4 build inputs (%s): build 5.4 with '
-                      'kernel/build-all.sh, which records it again' % ', '.join(INPUTS54))
+                      'kernel/vendor/build-all.sh, which records it again' % ', '.join(INPUTS54))
     mainline = read_mainline(d / 'mainline.list')
     if not mainline:
         errors.append('parity/mainline.list is empty: check-parity.py --mainline OUT --record after a mainline build')
@@ -261,7 +261,7 @@ def check_repo(top=TOP, d=DIR, parity=None):
     want = set(b54)
     every54 = set(b54)
     if {i for i in b54 if i[0] == 'extra'} != display_extras(top):
-        errors.append('parity/5.4-build.list does not have the modules of kernel/build-display.sh as extra lines')
+        errors.append('parity/5.4-build.list does not have the modules of kernel/vendor/build-display.sh as extra lines')
     for board, kernels in invs.items():
         if '5.4' not in kernels:
             continue
@@ -337,7 +337,7 @@ def record_54(out, path=BUILD54, top=TOP):
     for l in (out / 'modules.builtin').read_text().splitlines():
         if l.strip():
             items.add(('builtin', norm(l.strip().rsplit('/', 1)[-1].rsplit('.ko', 1)[0])))
-    lines = ['# check-parity.py --5.4 OUT (kernel/build-all.sh): the modules (F50 and U30 Air sets) and built-in',
+    lines = ['# check-parity.py --5.4 OUT (kernel/vendor/build-all.sh): the modules (F50 and U30 Air sets) and built-in',
              '# objects of the 5.4 build', '# inputs %s' % inputs_hash(top)]
     lines += ['%s %s' % i for i in sorted(items | display_extras(top))]
     path.write_text('\n'.join(lines) + '\n')

@@ -1,4 +1,4 @@
-"""tools/linux-mode.sh: which adb device install.sh and uninstall.sh work on. With a phone or tablet attached next to
+"""installer/lib/linux-mode.sh: which adb device install.sh and uninstall.sh work on. With a phone or tablet attached next to
 the device the installer must ask, never pick one by itself."""
 import hashlib
 import json
@@ -27,10 +27,10 @@ class SelectDevice(ShellTest):
     def run_select(self, shell, devices, answer='', mode=''):
         (self.tmp / 'adb.out').write_text('List of devices attached\n' + ''.join(d + '\n' for d in devices) + '\n')
         self.stub('adb', '[ "$1 $2" = "devices -l" ] && cat "$STUBLOG/adb.out"; exit 0')
-        code = (f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; MU300_LANG=en; '
+        code = (f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; MU300_LANG=en; '
                 'say() { :; }; die() { echo "DIE $*"; exit 1; }; '
                 'ask() { printf "ASKED[%s] " "$3"; read -r _a; [ -n "$_a" ] || _a=$3; eval "$1=\\$_a"; }; '
-                f'. "$TOP/tools/linux-mode.sh"; unset ANDROID_SERIAL; select_device {mode}; '
+                f'. "$TOP/installer/lib/linux-mode.sh"; unset ANDROID_SERIAL; select_device {mode}; '
                 'echo "rc=$? serial=${ANDROID_SERIAL:-none}"')
         return self.sh(shell, code, stdin=answer + '\n').stdout
 
@@ -114,10 +114,10 @@ exit 0''')
     def run_sh(self, shell, call, answer='', serial=None):
         (self.tmp / 'adb.log').unlink(missing_ok=True)
         # sleep as a function: busybox ash may run its own sleep applet before the stub on PATH (CI: 60 waits of 5 s)
-        code = (f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; MU300_LANG=en; '
+        code = (f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; MU300_LANG=en; '
                 'say() { echo "SAY $*"; }; sleep() { :; }; die() { echo "DIE $*"; exit 1; }; '
                 'ask() { printf "ASKED[%s] " "$3"; read -r _a; [ -n "$_a" ] || _a=$3; eval "$1=\\$_a"; }; '
-                f'. "$TOP/tools/linux-mode.sh"; {"ANDROID_SERIAL=" + serial + "; export ANDROID_SERIAL" if serial else "unset ANDROID_SERIAL"}; '
+                f'. "$TOP/installer/lib/linux-mode.sh"; {"ANDROID_SERIAL=" + serial + "; export ANDROID_SERIAL" if serial else "unset ANDROID_SERIAL"}; '
                 f'{call}; echo "rc=$? serial=${{ANDROID_SERIAL:-none}}"')
         r = self.sh(shell, code, stdin=answer + '\n')
         log = self.tmp / 'adb.log'
@@ -303,7 +303,7 @@ exit 0''')
 
 
 class Storage(ShellTest):
-    """tools/storage.sh: internal region or SD card."""
+    """installer/lib/storage.sh: internal region or SD card."""
     GIB = 1024 ** 3
 
     def run_choose(self, shell, card, internal=30 * GIB, answer='', forced='', label=None, tail=''):
@@ -312,14 +312,14 @@ class Storage(ShellTest):
             (self.tmp / 'label').write_text(label)
         (self.tmp / 'sd').write_text('' if card is None else '%s %s %s\n' % (
             card[0] + ('p1' if card[2] else ''), card[1], card[3]))
-        code = (f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; MU300_LANG=en; '
+        code = (f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; MU300_LANG=en; '
                 'say() { :; }; die() { echo "DIE $*"; exit 1; }; '
                 'gib() { echo "$1"; }; '
                 'ask() { printf "ASKED[%s] " "$3"; read -r _a; [ -n "$_a" ] || _a=$3; eval "$1=\\$_a"; }; '
                 f'su_do() {{ case $1 in *skip=1080*) [ -e "{self.tmp}/label" ] && echo " 53 ef" ;; '
                 f'*skip=1144*) cat "{self.tmp}/label" 2>/dev/null ;; *) cat "{self.tmp}/sd" ;; esac; }}; SIZE={internal}; '
                 f'{"MU300_STORAGE=" + forced + "; " if forced else "unset MU300_STORAGE; "}'
-                '. "$TOP/tools/storage.sh"; sd_probe; ' + (tail or 'choose_storage; ') +
+                '. "$TOP/installer/lib/storage.sh"; sd_probe; ' + (tail or 'choose_storage; ') +
                 'echo "mode=$SD_MODE dev=${SD_DEV:-none}"')
         return self.sh(shell, code, stdin=answer + '\n').stdout
 
@@ -388,7 +388,7 @@ class Storage(ShellTest):
         (self.tmp / 'label').write_bytes(b'\xff\xfe\x80MSDOS\xc3\x00\x00')
         code = (f'su_do() {{ case $1 in *skip=1080*) echo " 00 00" ;; *skip=1144*) cat "{self.tmp}/label" ;; '
                 f'*) echo /dev/block/mmcblk1p1 {card[1]} SD ;; esac; }}; t() {{ printf %s "$1"; }}; '
-                f'. "{TOP}/tools/storage.sh"; sd_probe; echo "existing=$(sd_existing)"')
+                f'. "{TOP}/installer/lib/storage.sh"; sd_probe; echo "existing=$(sd_existing)"')
         for shell in self.each_shell():
             r = self.sh(shell, code, LANG='en_US.UTF-8', LC_ALL='en_US.UTF-8')
             self.assertIn('existing=no\n', r.stdout)
@@ -453,7 +453,7 @@ class Storage(ShellTest):
                 (k / 'features').unlink(missing_ok=True)
                 if features is not None:
                     (k / 'features').write_text(features)
-                r = self.sh(shell, f'. "{TOP}/tools/storage.sh"; SD_MODE={sd_mode}; sd_kernel_ok "{k}"; echo "rc=$?"')
+                r = self.sh(shell, f'. "{TOP}/installer/lib/storage.sh"; SD_MODE={sd_mode}; sd_kernel_ok "{k}"; echo "rc=$?"')
                 self.assertEqual(f'rc={want}', r.stdout.strip(), (features, sd_mode))
 
     def test_installer_refuses_a_card_install_with_a_kernel_that_cannot_read_it(self):
@@ -465,7 +465,7 @@ class Storage(ShellTest):
 
 
 class InstallEnv(ShellTest):
-    """mu300-install.env, what android-install.sh is told: tools/storage.sh's write_install_env (install.sh) and
+    """mu300-install.env, what android-install.sh is told: installer/lib/storage.sh's write_install_env (install.sh) and
     install.ps1's InstallEnvText write the same text (tests/installer.Tests.ps1 compares the two)."""
     COMMON = dict(OFF=27762098176, FORMAT=1, OSES='ubuntu openwrt', WIPE_LEGACY=0, UPDATE=0, BOOT_OS='openwrt',
                   DEFAULT_LINUX=1, BOOT_ATTEMPTS=5, IMPORT_HOTSPOT=1, KERNEL='6.18', SYNC_BOOTCHAIN=1,
@@ -473,7 +473,7 @@ class InstallEnv(ShellTest):
 
     def write_env(self, shell, **v):
         code = ''.join(f"{k}='{val}'; " for k, val in v.items())
-        r = self.sh(shell, code + f'. "{TOP}/tools/storage.sh"; write_install_env')
+        r = self.sh(shell, code + f'. "{TOP}/installer/lib/storage.sh"; write_install_env')
         self.assertEqual('', r.stderr)
         return r.stdout
 
@@ -543,14 +543,14 @@ class InstallEnv(ShellTest):
         for shell in self.each_shell():
             for text, want in cases:
                 f.write_text(text)
-                r = self.sh(shell, f'. "{TOP}/tools/storage.sh"; adb_pubkey "{f}"')
+                r = self.sh(shell, f'. "{TOP}/installer/lib/storage.sh"; adb_pubkey "{f}"')
                 if want is None:
                     self.assertEqual(1, r.returncode, text)
                     self.assertEqual('', r.stdout)
                 else:
                     self.assertEqual(0, r.returncode, r.stderr)
                     self.assertEqual(want + '\n', r.stdout)
-            r = self.sh(shell, f'. "{TOP}/tools/storage.sh"; adb_pubkey "{self.tmp}/none"')
+            r = self.sh(shell, f'. "{TOP}/installer/lib/storage.sh"; adb_pubkey "{self.tmp}/none"')
             self.assertEqual(1, r.returncode)
 
     def test_installer_writes_the_env_file_with_it(self):
@@ -560,7 +560,7 @@ class InstallEnv(ShellTest):
 
 
 class SdErase(ShellTest):
-    """tools/storage.sh's sd_erase (uninstall.sh): the card is erased only when it holds mu300sd, never the eMMC.
+    """installer/lib/storage.sh's sd_erase (uninstall.sh): the card is erased only when it holds mu300sd, never the eMMC.
 
     su_do runs the device commands here, with dd, sm and umount as stubs: dd reads the superblock from the files
     label/magic and logs every write, sm lists the volumes in vols, umount drops the line from the mounts file."""
@@ -596,7 +596,7 @@ class SdErase(ShellTest):
                 'gib() { echo "$1"; }; t() { printf "%s" "$1"; }; '
                 'su_do() { case $1 in "for b in /sys/block/mmcblk"*) cat "$STUBLOG/sd" ;; *) sh -c "$1" ;; esac; }; '
                 f'MU300_SYSFS="{self.tmp}/sys"; MU300_MOUNTS="{self.tmp}/mounts"; '
-                '. "$TOP/tools/storage.sh"; sd_probe; ' + tail)
+                '. "$TOP/installer/lib/storage.sh"; sd_probe; ' + tail)
         return self.sh(shell, code).stdout, (self.tmp / 'log').read_text()
 
     def test_erases_the_mu300sd_card_after_releasing_it(self):
@@ -733,7 +733,7 @@ class Region(ShellTest):
               # the installers' t: the message with its arguments in place
               't() { _m=$1; shift; _i=1; for _a; do _m=$(printf "%s" "$_m" | sed "s|{$_i}|$_a|g"); _i=$((_i + 1)); done; '
               'printf "%s" "$_m"; }\n')
-        return self.sh(shell, su + f'. "{TOP}/tools/storage.sh"\n{call}\n'
+        return self.sh(shell, su + f'. "{TOP}/installer/lib/storage.sh"\n{call}\n'
                        'echo "rc=$? OFF=$OFF SIZE=$SIZE existing=${existing:-} DIRTY=${DIRTY:-}"')
 
     def part(self, n, name, start, size):
@@ -919,7 +919,7 @@ class Model(ShellTest):
     def decide(self, shell, model, platform='ums9620', mode='prebuilt', answer='no'):
         m = re.search(r'# --- model begin\n(.*?)# --- model end', self.SRC, re.S)
         self.assertIsNotNone(m, 'install.sh has no model block')
-        code = (f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; MU300_LANG=en; MODE={mode}; '
+        code = (f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; MU300_LANG=en; MODE={mode}; '
                 'die() { echo "DIE $*"; exit 1; }; '
                 'ask() { printf "ASKED "; read -r _a; eval "$1=\\$_a"; }; '
                 'info() { :; }; '
@@ -996,7 +996,7 @@ class InstallSlot(ShellTest):
     def run_slot(self, shell, tail):
         m = re.search(r'# --- slot begin\n(.*?)# --- slot end', self.SRC, re.S)
         self.assertIsNotNone(m, 'install.sh has no slot block')
-        code = (f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; . "$TOP/tools/releases.sh"; MU300_LANG=en; T=/data/local/tmp; '
+        code = (f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; . "$TOP/installer/lib/releases.sh"; MU300_LANG=en; T=/data/local/tmp; '
                 'say() { echo "SAY $*"; }; die() { echo "DIE $*"; exit 1; }; '
                 'su_do() { printf "%s\\n" "$1" >> "$STUBLOG/su.log"; case $1 in '
                 '"getprop ro.boot.slot_suffix") n=$(( $(cat "$STUBLOG/n" 2>/dev/null || echo 0) + 1 )); '
@@ -1141,7 +1141,7 @@ class ChooseSystems(ShellTest):
     def run_choose(self, shell, choice, answers='', preset='', size=100):
         m = re.search(r'# --- choose-systems begin\n(.*?)# --- choose-systems end', self.SRC, re.S)
         self.assertIsNotNone(m, 'install.sh has no choose-systems block')
-        code = (f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; MU300_LANG=en; OWRT_VER=25.12.6; '
+        code = (f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; MU300_LANG=en; OWRT_VER=25.12.6; '
                 f'NEED_OPENWRT=1; NEED_UBUNTU=2; NEED_BOTH=3; SIZE={size}; '
                 'say() { :; }; die() { echo "DIE $*"; exit 1; }; '
                 'ask() { printf "ASKED[%s] " "$3"; read -r _a; [ -n "$_a" ] || _a=$3; eval "$1=\\$_a"; }; '
@@ -1254,7 +1254,7 @@ class VpnModule(ShellTest):
         (self.server / 'SHA256SUMS').write_text(f'{h}  mu300-linux-vpn.tar.gz\n')
 
     def run_fetch(self, shell, **env):
-        code = (f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; MU300_LANG=en; WORK="{self.tmp}/work"; '
+        code = (f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; MU300_LANG=en; WORK="{self.tmp}/work"; '
                 'say() { :; }; die() { echo "DIE $*"; exit 1; }; '
                 'fetch() { curl -fL -o "$2" "$1"; }\n' + self.fn + '\nfetch_vpn_module; echo "rc=$? EXTRA_VPN=$EXTRA_VPN"')
         return self.sh(shell, code, **env)
@@ -1295,7 +1295,7 @@ class VpnModule(ShellTest):
 
 
 class VpnOnInTheReplacedSystem(ShellTest):
-    """install.sh over an installation whose VPN is on: tools/storage.sh's vpn_on_systems finds it through a read-only
+    """install.sh over an installation whose VPN is on: installer/lib/storage.sh's vpn_on_systems finds it through a read-only
     mount (":ks" when its kill switch is on too), the VPN question's default becomes yes (no otherwise), and "no" with
     the kill switch on is refused before anything is written"""
 
@@ -1306,15 +1306,15 @@ class VpnOnInTheReplacedSystem(ShellTest):
         for o in ('ubuntu', 'openwrt'):
             (root / o / 'etc/mu300').mkdir(parents=True, exist_ok=True)
             (root / o / 'etc/mu300/vpn.conf').write_text(f'ENABLE={1 if o in on else 0}\nKILL_SWITCH={1 if o in ks else 0}\n')
-        lib = TOP / 'rootfs/overlay/opt/mu300/lib/vpn-orphan.sh'
+        lib = TOP / 'systems/base/overlay/opt/mu300/lib/vpn-orphan.sh'
         self.stub('adb', 'echo "adb $*" >> "$STUBLOG/calls"')
-        code = (f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; . "$TOP/tools/releases.sh"; MU300_LANG=en; T=/data/local/tmp; '
+        code = (f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; . "$TOP/installer/lib/releases.sh"; MU300_LANG=en; T=/data/local/tmp; '
                 'say() { :; }; die() { echo "DIE $*"; exit 1; }; '
                 f'su_do() {{ echo "$1" > "{self.tmp}/su"; '
                 f'eval "$(printf "%s" "$1" | sed "s|^.*&& {{|{{|; s|/data/local/tmp/vpn-orphan.sh|{lib}|; '
                 f's|/data/local/tmp/mu300probe|{root}|g; s|sh /data/local/tmp/android-mount-mu300root.sh -u [^;]*;||")"; }}; '
                 f'existing={existing}; OFF=123; SIZE=456; SD_MODE={sd_mode}; SD_DEV=/dev/block/mmcblk1p1; OSES="{oses}"; '
-                '. "$TOP/tools/storage.sh"; echo "probe=[$(vpn_on_systems "$OSES" | tr "\\n" " ")]"')
+                '. "$TOP/installer/lib/storage.sh"; echo "probe=[$(vpn_on_systems "$OSES" | tr "\\n" " ")]"')
         return self.sh(shell, code)
 
     def test_the_probe(self):
@@ -1344,7 +1344,7 @@ class VpnOnInTheReplacedSystem(ShellTest):
         src = (TOP / 'install.sh').read_text()
         block = src[src.index('vx_default=no\n'):src.index('\n[ -n "$PKG" ] || KERNEL=5.4\n')]
         block = block[:block.index('\nEXTRA_VPN=')]
-        code = (f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; MU300_LANG=en; OSES="ubuntu openwrt"; '
+        code = (f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; MU300_LANG=en; OSES="ubuntu openwrt"; '
                 'die() { echo "DIE $*"; exit 1; }; '
                 f'vpn_on_systems() {{ printf "%s" "{probe}" | tr " " "\\n"; }}; '
                 'ask() { printf "ASKED[%s] " "$3"; read -r _a; [ -n "$_a" ] || _a=$3; eval "$1=\\$_a"; }\n'

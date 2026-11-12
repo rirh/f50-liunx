@@ -1,6 +1,6 @@
-# The graphical installer (gui/): the question that offers it, and the Python that can run it. Sourced by install.sh
+# The graphical installer (installer/gui/): the question that offers it, and the Python that can run it. Sourced by install.sh
 # (t, ask, say and ANSWERS_MODE are its own; needs $TOP). The window drives this same script in answers mode
-# (tools/answers.sh), so nothing is installed differently from there.
+# (installer/lib/answers.sh), so nothing is installed differently from there.
 #   MU300_GUI=0   never ask: the text installer
 #   MU300_GUI=1   do not ask: the graphical installer (the text installer when it cannot start)
 # Asked once, and only of a person: both ends a terminal, no answers mode, not when the window itself runs this
@@ -181,10 +181,10 @@ gui_offer() {
         echo "  $(t 'Continuing with the text installer.')"
         return 0
     fi
-    [ -f "$TOP/gui/mu300-gui.py" ] || { echo "  $(t 'Continuing with the text installer.')"; return 0; }
+    [ -f "$TOP/installer/gui/mu300-gui.py" ] || { echo "  $(t 'Continuing with the text installer.')"; return 0; }
     say "$(t 'Starting the graphical installer (Python {1})' "$GUI_PY_VERSION")"
     _gs=0
-    MU300_LANG=$MU300_LANG "$GUI_PY" "$TOP/gui/mu300-gui.py" || _gs=$?
+    MU300_LANG=$MU300_LANG "$GUI_PY" "$TOP/installer/gui/mu300-gui.py" || _gs=$?
     [ $_gs != 0 ] || exit 0
     echo "  $(t 'The graphical installer could not start or stopped with an error ({1}).' "$_gs")"
     echo "  $(t 'Continuing with the text installer.')"

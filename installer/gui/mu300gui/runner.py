@@ -91,12 +91,12 @@ def parse_line(line):
 
 
 def base_env(lang, serial='', adb_path='', environ=None):
-    """The environment of a run: the progress stream on, no self-update under a running window, no question about
+    """The environment of a run: the progress stream on, no question about
     the window itself, the language, the device, and the directory of the adb in front of PATH."""
     env = dict(os.environ if environ is None else environ)
     for k in [k for k in env if k.startswith('MU300_ANS_')]:
         del env[k]                 # the answers come from this run's file alone
-    env.update(MU300_PROGRESS='1', MU300_FROM_GUI='1', MU300_GUI='0', MU300_NO_SELF_UPDATE='1', MU300_LANG=lang,
+    env.update(MU300_PROGRESS='1', MU300_FROM_GUI='1', MU300_GUI='0', MU300_LANG=lang,
                MU300_MODE='prebuilt')     # the window chooses among published releases; a local build is install.sh's own
     env.pop('MU300_ANSWERS', None)
     env.pop('MU300_PROGRESS_FD', None)

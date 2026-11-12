@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # Shrink Android's userdata while Android runs and keeps its data (EXPERIMENTAL): the device side of the installers'
-# "keep Android's data" way of making room. Runs in Android as root (su), pushed by install.sh / install.ps1 next to
+# "keep Android's data" way of making room. Runs in Android as root (su), pushed by install.sh next to
 # mu300-f2fs-online. The method - shrink the mounted F2FS online with the kernel's F2FS_IOC_RESIZE_FS instead of
 # having recovery reset Android - is dikeckaan's; kanoqwq implemented it (kanoqwq/mu300-linux fe52afe3, c69be3a3,
 # dad8224b: installer/backend/online_shrink.py and installer/device/f2fs-online.c), and this is his eligibility

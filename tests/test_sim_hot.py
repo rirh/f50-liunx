@@ -29,7 +29,7 @@ case "$*" in *network.interface.wan*)
     else printf '{ "up": false, "ipv4-address": [ ] }\n'; fi ;;
 esac
 '''
-# The modem, as our U30 Air answered (docs/FINDINGS.md 74): a card whose SIM power is off says "+CME ERROR: 10"
+# The modem, as our U30 Air answered (docs/research/FINDINGS.md 74): a card whose SIM power is off says "+CME ERROR: 10"
 # whatever is in its position; AT+SPACTCARD=<n>;+SFUN=2/3 is its SIM power, ;+SFUN=5 its radio off, AT+SFUN=4 on its
 # data channel its radio on; AT+SPSWDATA gives the packet-data route to the channel's card and AT+SPSWDATA? reads it.
 #   T_NOCARD=<slot>   no card in that position        T_PIN (+T_PINSLOT, default 0)  that card answers T_PIN
@@ -109,7 +109,7 @@ esac""")
         self.controller.chmod(0o755)
 
     def env(self, **extra):
-        extra.setdefault('MU300_SIM_CONFIG_LIB', TOP / 'rootfs/overlay/opt/mu300/lib/sim-config.sh')
+        extra.setdefault('MU300_SIM_CONFIG_LIB', TOP / 'systems/base/overlay/opt/mu300/lib/sim-config.sh')
         extra.setdefault('MU300_SIM_ROOT', self.tmp)   # the library's own files (sim-data-seen, the route mark)
         extra.setdefault('MU300_REBOOT_CMD', self.stubs / 'reboot')
         extra.setdefault('MU300_SIM_RESTART_DELAY', '0')
@@ -632,7 +632,7 @@ class PanelRadioActions(ShellTest):
         super().setUp()
         self.run = self.tmp / 'run'
         (self.run / 'mu300').mkdir(parents=True)
-        app = TOP / 'openwrt/luci-app-mu300/root/usr'
+        app = TOP / 'systems/openwrt/luci-app-mu300/root/usr'
         (self.tmp / 'usr/libexec/unisoc-modem').mkdir(parents=True)
         (self.tmp / 'usr/share/unisoc-modem').mkdir(parents=True)
         self.action = self.tmp / 'usr/libexec/unisoc-modem/action'

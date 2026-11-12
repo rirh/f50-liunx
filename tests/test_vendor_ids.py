@@ -14,9 +14,9 @@ import sys
 
 from helpers import BIN, TOP, ShellTest
 
-GEN = TOP / 'android-vendor' / 'gen-ueventd-perms.py'
-INPUTS = [TOP / 'android-vendor' / 'ueventd' / 'ueventd.rc', TOP / 'android-vendor' / 'ueventd' / 'init-perms.rc']
-OUTPUTS = [TOP / 'android-vendor' / 'ueventd-perms.sh', BIN / 'ueventd-perms.sh']
+GEN = TOP / 'android' / 'vendor' / 'gen-ueventd-perms.py'
+INPUTS = [TOP / 'android' / 'vendor' / 'ueventd' / 'ueventd.rc', TOP / 'android' / 'vendor' / 'ueventd' / 'init-perms.rc']
+OUTPUTS = [TOP / 'android' / 'vendor' / 'ueventd-perms.sh', BIN / 'ueventd-perms.sh']
 # the script as it was until v2026.10.18: Android's numbers taken over
 BEFORE = TOP / 'tests' / 'fixtures' / 'ueventd-perms-v2026.10.18.sh'
 # Ubuntu's accounts as on an F50 (v2026.10.18 with the vendor account made at boot)
@@ -303,11 +303,11 @@ class Account(ShellTest):
             self.assertIn('uid 1000', r.stderr)
 
     def test_the_images_have_it(self):
-        for f, rx in ((TOP / 'rootfs' / 'assemble.sh', r'useradd --root \$R --system --user-group [^\n]*\\\n[^\n]*mu300vnd'),
-                      (TOP / 'arch' / 'build-rootfs.sh', r'useradd --system --user-group [^\n]*\\\n[^\n]*mu300vnd')):
+        for f, rx in ((TOP / 'systems' / 'base' / 'assemble.sh', r'useradd --root \$R --system --user-group [^\n]*\\\n[^\n]*mu300vnd'),
+                      (TOP / 'systems' / 'arch' / 'build-rootfs.sh', r'useradd --system --user-group [^\n]*\\\n[^\n]*mu300vnd')):
             self.assertRegex(f.read_text(), rx, f.name)
         # the account line goes in before the image is packed
-        a = (TOP / 'rootfs' / 'assemble.sh').read_text()
+        a = (TOP / 'systems' / 'base' / 'assemble.sh').read_text()
         self.assertLess(a.index('mu300vnd'), a.index('tar --numeric-owner'))
 
     def test_an_update_brings_it(self):

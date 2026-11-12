@@ -1,4 +1,4 @@
-"""The graphical installer (gui/) without its window: the catalogs, the masking of logs, the adb devices, the
+"""The graphical installer (installer/gui/) without its window: the catalogs, the masking of logs, the adb devices, the
 choices and the answers they become, a run's progress, and the controller driving the real install.sh --check
 against tests/fakeadb.py and a whole installation against tests/fakeinstaller.py. At the end the window itself is
 built once, page by page, where there is a display (or an Xvfb to make one) - and skipped cleanly where there is
@@ -18,7 +18,7 @@ from pathlib import Path
 
 from helpers import TOP
 
-sys.path.insert(0, str(TOP / 'gui'))
+sys.path.insert(0, str(TOP / 'installer' / 'gui'))
 from mu300gui import adb, desktop, i18n, masking, model, releases, runner  # noqa: E402
 from mu300gui.controller import Controller  # noqa: E402
 
@@ -54,9 +54,9 @@ class Catalogs(unittest.TestCase):
         self.assertEqual(i18n.os_language({}, getlocale=lambda: 'zh-Hans'), 'zh')
 
     def messages(self):
-        """Every message of the window: the first argument of _() and N_() in gui/, where it is a plain string."""
+        """Every message of the window: the first argument of _() and N_() in installer/gui/, where it is a plain string."""
         found = []
-        for path in sorted((TOP / 'gui').rglob('*.py')):
+        for path in sorted((TOP / 'installer' / 'gui').rglob('*.py')):
             tree = ast.parse(path.read_text(encoding='utf-8'))
             for node in ast.walk(tree):
                 if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in ('_', 'N_') and node.args:
@@ -71,18 +71,18 @@ class Catalogs(unittest.TestCase):
     def test_every_message_is_in_the_catalogs_the_checker_reads(self):
         found = self.messages()
         self.assertGreater(len(found), 150)
-        r = subprocess.run([sys.executable, str(TOP / 'tools' / 'check-i18n.py'), '--keys'], capture_output=True, text=True)
+        r = subprocess.run([sys.executable, str(TOP / 'scripts' / 'i18n' / 'check-i18n.py'), '--keys'], capture_output=True, text=True)
         keys = set(r.stdout.split('\n'))
         for msg, _n, where in found:
             self.assertIn(msg, keys, where)
-        r = subprocess.run([sys.executable, str(TOP / 'tools' / 'check-i18n.py')], capture_output=True, text=True)
+        r = subprocess.run([sys.executable, str(TOP / 'scripts' / 'i18n' / 'check-i18n.py')], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout[-3000:])
 
     def test_messages_and_their_arguments(self):
         for msg, nargs, where in self.messages():
             holes = sorted(set(int(n) for n in re.findall(r'\{(\d)\}', msg)))
             self.assertEqual(holes, list(range(1, len(holes) + 1)), f'{where}: {msg}')
-            self.assertLessEqual(len(holes), 6, where)                 # tools/i18n.sh fills {1}..{6}
+            self.assertLessEqual(len(holes), 6, where)                 # installer/lib/i18n.sh fills {1}..{6}
             self.assertNotIn('\t', msg, where)                         # a tab ends the message in the catalogs
             self.assertNotIn('\n', msg, where)
 
@@ -163,8 +163,8 @@ class Devices(unittest.TestCase):
         self.assertEqual(adb.parse_devices(''), [])
 
     def test_the_installers_rule_for_a_target(self):
-        # the same expression as tools/linux-mode.sh's select_device
-        src = (TOP / 'tools' / 'linux-mode.sh').read_text()
+        # the same expression as installer/lib/linux-mode.sh's select_device
+        src = (TOP / 'installer' / 'lib' / 'linux-mode.sh').read_text()
         self.assertIn("grep -E '" + adb.TARGET.pattern + "'", src)
 
     def test_pick_never_takes_a_phone_by_itself(self):
@@ -697,7 +697,7 @@ class Runner(unittest.TestCase):
         self.assertEqual(Path(path).read_text(), 'MU300_ANS_KERNEL=6.18\nMU300_ANS_PASSWORD=hunter2 = secret # x\n')
         self.assertEqual(os.path.dirname(path), d)
         # install.sh takes it: its own check of the file's owner and permissions passes
-        code = f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; . "$TOP/tools/answers.sh"; ANSWERS_FILE="{path}"; answers_setup; echo "k=$MU300_ANS_KERNEL"'
+        code = f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; . "$TOP/installer/lib/answers.sh"; ANSWERS_FILE="{path}"; answers_setup; echo "k=$MU300_ANS_KERNEL"'
         r = subprocess.run(['sh', '-c', code], capture_output=True, text=True)
         self.assertEqual(r.stdout, 'k=6.18\n', r.stderr)
         runner.remove(path)
@@ -710,8 +710,8 @@ class Runner(unittest.TestCase):
     def test_the_environment_of_a_run(self):
         env = runner.base_env('zh', 'SERIAL', '/opt/pt/adb', {'PATH': '/usr/bin', 'MU300_ANS_PASSWORD': 'leak', 'MU300_ANS_KERNEL': '1',
                                                               'MU300_ANSWERS': '/x', 'ANDROID_SERIAL': 'other', 'HOME': '/h'})
-        self.assertEqual((env['MU300_LANG'], env['ANDROID_SERIAL'], env['MU300_PROGRESS'], env['MU300_FROM_GUI'], env['MU300_GUI'],
-                          env['MU300_NO_SELF_UPDATE']), ('zh', 'SERIAL', '1', '1', '0', '1'))
+        self.assertEqual((env['MU300_LANG'], env['ANDROID_SERIAL'], env['MU300_PROGRESS'], env['MU300_FROM_GUI'], env['MU300_GUI']),
+                         ('zh', 'SERIAL', '1', '1', '0'))
         self.assertEqual(env['PATH'], '/opt/pt' + os.pathsep + '/usr/bin')
         self.assertFalse([k for k in env if k.startswith('MU300_ANS_')])     # the answers come from the file alone
         self.assertNotIn('MU300_ANSWERS', env)
@@ -1284,8 +1284,8 @@ class Window(unittest.TestCase):
                           makeroom__min_android='8388608', makeroom__min_linux='1638400', makeroom__max_linux='101490688')
         page = show('install', 1)
         self.assertIn('Make room now', page)
-        self.assertIn("restarts into Android's own recovery", page)          # the reset, and how it goes on (tools/resume.sh)
-        # a prepared installation waiting (tools/resume.sh): what its checks said
+        self.assertIn("restarts into Android's own recovery", page)          # the reset, and how it goes on (installer/lib/resume.sh)
+        # a prepared installation waiting (installer/lib/resume.sh): what its checks said
         ctl.facts = facts(resume__transaction='/home/u/mu300-backups/x/transaction.json', resume__check='RESUME-OK', verdict__code='resume')
         self.assertIn('A prepared installation waits for this device (EXPERIMENTAL', show('install', 1))
         ctl.facts = facts(resume__transaction='/home/u/mu300-backups/x/transaction.json', resume__check='RESUME-REFUSED: preparation token mismatch')

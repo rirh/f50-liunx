@@ -266,7 +266,7 @@ drain() {  # drain WAIT: throw away what the modem sent while nobody was asking 
     # only what is already there is taken, and the round trip does not pay a second for nothing. Otherwise it
     # is a second, and after a command that timed out the budget is larger: the late answer is still coming.
     # This modem makes that easy to hit - AT+CGACT and AT+CGDATA answer "^ORIG: <cid>,<n>" first and OK or
-    # CONNECT ten to twenty seconds later (docs/FINDINGS.md 13f).
+    # CONNECT ten to twenty seconds later (docs/research/FINDINGS.md 13f).
     end=$(( $(now) + ${DRAIN_MAX:-3} ))
     while [ "$(now)" -lt "$end" ]; do
         junk=
@@ -344,7 +344,7 @@ while :; do
     # A PDU send ("AT+CMGS=N<CR>PDU<Ctrl-Z>") goes out as one write too: the modem's "> " prompt between the
     # header and the PDU has no newline, so the line reads here never see it, and it is collected with the reply.
     # Waiting for it before the PDU would need a byte-wise read whose timeout behaviour differs between bash and
-    # busybox ash, in the one process that owns the channel; measured sends work as is (docs/FINDINGS.md 46).
+    # busybox ash, in the one process that owns the channel; measured sends work as is (docs/research/FINDINGS.md 46).
     printf '%s\r' "$cmd" >&3
     # clean: the reply ended in a final result code, by collect's own exact test of its last line
     clean=0

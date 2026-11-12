@@ -4,7 +4,7 @@
 'require ui';
 
 /* MU300: WPA3 (SAE) on the hotspot is disabled on this Wi-Fi chip (the U30 Air's firmware SAE offload, mu300-linux
- * docs/U30AIR-SAE.md, FINDINGS 80). openwrt-wifi-wpa2-only switched a hotspot that had it to WPA2-PSK at boot (or
+ * docs/research/U30AIR-SAE.md, FINDINGS 80). openwrt-wifi-wpa2-only switched a hotspot that had it to WPA2-PSK at boot (or
  * switched it off, without a usable password) and left /etc/mu300/wpa3-disabled; this says so on Status > Overview,
  * and on the control panel's home page (which loads this module), until it is dismissed. Nothing is shown without
  * the file. It carries its own English, Turkish and Chinese: the plain OpenWrt image has no catalog of the panel's.

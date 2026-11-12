@@ -463,12 +463,6 @@ class Controller:
         return '\n'.join(self.masker.mask(l) for l in lines) + '\n'
 
     def _revision(self):
-        for name in ('.mu300-source',):
-            try:
-                with open(os.path.join(self.top, name), encoding='utf-8') as f:
-                    return f.read().strip()[:40]
-            except OSError:
-                pass
         try:
             head = os.path.join(self.top, '.git')
             if os.path.isfile(head):            # a worktree: .git is a file that names the directory

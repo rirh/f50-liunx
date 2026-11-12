@@ -1,4 +1,4 @@
-"""The fuel gauge's shutdown callback (upstream/patches/0018, FINDINGS 105; after kanoqwq's clean-tf-7.2 2af101f8):
+"""The fuel gauge's shutdown callback (kernel/mainline/patches/0018, FINDINGS 105; after kanoqwq's clean-tf-7.2 2af101f8):
 the function as the patch adds it, compiled against stubs of the driver's helpers. It reads the capacity under the
 driver's lock, keeps it and the boot mode, stops at the first error without writing what came after, and does nothing
 on a PMIC other than UMP9620 or without a battery. Needs a C compiler (skipped without one)."""
@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 TOP = Path(__file__).resolve().parents[1]
-PATCH = TOP / 'upstream/patches/0018-power-sc27xx-fuel-gauge-UMP9620-capacity-kept-at-power-off.patch'
+PATCH = TOP / 'kernel/mainline/patches/0018-power-sc27xx-fuel-gauge-UMP9620-capacity-kept-at-power-off.patch'
 
 STUBS = r'''
 #include <assert.h>
@@ -92,7 +92,7 @@ class FguShutdown(unittest.TestCase):
             self.assertEqual((r.returncode, r.stdout.strip()), (0, 'ok'), r.stderr)
 
 
-PATCH11 = TOP / 'upstream/patches/0011-power-sc27xx-fuel-gauge-UMP9620-saved-capacity-and-full.patch'
+PATCH11 = TOP / 'kernel/mainline/patches/0011-power-sc27xx-fuel-gauge-UMP9620-saved-capacity-and-full.patch'
 
 FULL_STUBS = r'''
 #include <assert.h>

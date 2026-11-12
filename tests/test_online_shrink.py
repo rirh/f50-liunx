@@ -1,7 +1,7 @@
 """The online way of making room (Android keeps its data; dikeckaan's method, kanoqwq's implementation): the helper
-mu300-f2fs-online in git is the build of its source (tools/f2fs-online/build.sh, SHA256SUMS), a static arm64 program;
+mu300-f2fs-online in git is the build of its source (device-tools/f2fs-online/build.sh, SHA256SUMS), a static arm64 program;
 resume.py's target and state rules; and, with docker (MU300_E2E_DOCKER=1, or CI's arm64 job), the helper and
-tools/android-online-shrink.sh for real on an F2FS in a loop disk (tests/online-shrink-e2e.sh). The installers' use
+installer/android/android-online-shrink.sh for real on an F2FS in a loop disk (tests/online-shrink-e2e.sh). The installers' use
 of them is tests/test_resume.py OnlineShrink."""
 import hashlib
 import json
@@ -15,10 +15,10 @@ from pathlib import Path
 
 from helpers import TOP
 
-sys.path.insert(0, str(TOP / 'tools'))
+sys.path.insert(0, str(TOP / 'installer' / 'lib'))
 import resume  # noqa: E402
 
-HERE = TOP / 'tools/f2fs-online'
+HERE = TOP / 'device-tools/f2fs-online'
 
 
 class Helper(unittest.TestCase):
@@ -26,7 +26,7 @@ class Helper(unittest.TestCase):
         sums = dict(reversed(l.split('  ', 1)) for l in (HERE / 'SHA256SUMS').read_text().splitlines())
         for name in ('mu300-f2fs-online.c', 'mu300-f2fs-online'):
             self.assertEqual(hashlib.sha256((HERE / name).read_bytes()).hexdigest(), sums[name],
-                             name + ' changed: run tools/f2fs-online/build.sh (it writes SHA256SUMS)')
+                             name + ' changed: run device-tools/f2fs-online/build.sh (it writes SHA256SUMS)')
 
     def test_a_static_arm64_program(self):
         raw = (HERE / 'mu300-f2fs-online').read_bytes()
@@ -40,21 +40,21 @@ class Helper(unittest.TestCase):
         src = (HERE / 'mu300-f2fs-online.c').read_text()
         self.assertIn('strncmp(argv[10], "/dev/mu300-online-", 18)', src)
         self.assertIn('/dev/mu300-f2fs-online.lock', src)
-        sh = (TOP / 'tools/android-online-shrink.sh').read_text()
+        sh = (TOP / 'installer/android/android-online-shrink.sh').read_text()
         self.assertIn('/dev/mu300-online-$1', sh)
 
     def test_no_disk_bytes_in_shell_arithmetic(self):
         # Android's sh is mksh, whose $((...)) has 32 bits: a 64 GB eMMC's bytes came out negative and the helper
         # refused to start (found on an F50). The byte offsets are computed with expr (64 bits in toybox).
-        sh = (TOP / 'tools/android-online-shrink.sh').read_text()
+        sh = (TOP / 'installer/android/android-online-shrink.sh').read_text()
         for line in sh.splitlines():
             if '$((' in line and '512' in line and not line.lstrip().startswith('#'):
                 self.assertNotRegex(line, r'\$\(\([^)]*disk', line)
         self.assertIn('expr "$disk" \\* 512', sh)
 
     def test_credited(self):
-        for name in ('tools/f2fs-online/mu300-f2fs-online.c', 'tools/android-online-shrink.sh', 'tools/resume.sh',
-                     'tools/resume.py'):
+        for name in ('device-tools/f2fs-online/mu300-f2fs-online.c', 'installer/android/android-online-shrink.sh', 'installer/lib/resume.sh',
+                     'installer/lib/resume.py'):
             text = (TOP / name).read_text()
             self.assertIn('kanoqwq', text, name)
             self.assertIn('dikeckaan', text, name)

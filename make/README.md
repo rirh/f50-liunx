@@ -9,13 +9,14 @@
 | 根目录 `Makefile` | 统一入口，只加载下列文件 |
 | `config.mk` | Python、设备地址、端口及 SSH 参数 |
 | `dev.mk` | 本地开发代理、浏览器入口 |
+| `install.mk` | F50 开启 ADB、安装、卸载、备份、日志、重置密码（仅 macOS） |
 | `deploy.mk` | 前端、插件后端和组合部署 |
 | `device.mk` | SSH、状态、缓存、服务重启和设备重启 |
 | `debug.mk` | 系统日志、状态 JSON 和 RPC 方法查看 |
 | `help.mk` | 命令帮助 |
 | `local.mk.example` | 本机配置示例，可复制成 `local.mk`；后者已被 Git 忽略 |
 
-本地代理由 `tools/luci-dev.py` 实现；SSH 和部署操作由 `tools/dev/device.py` 实现。
+本地代理由 `scripts/dev/luci-dev.py` 实现；SSH 和部署操作由 `scripts/dev/device.py` 实现。
 只依赖 Python 3.8+ 和电脑已有的 `ssh`，设备端使用 OpenWrt 自带的工具。
 
 ## 本机配置
@@ -36,10 +37,29 @@ cp make/local.mk.example make/local.mk
 | `SSH_KNOWN_HOSTS` | 可选，指定已有的 known_hosts 文件 |
 | `SSH_HOST_KEY_ALIAS` | 可选，配合 known_hosts 中记录的主机别名 |
 | `RPC_OBJECT` | `mu300dash`，`make rpc` 要查看的接口对象 |
+| `F50_IP` | `192.168.0.1`，原厂 Android 管理地址（Web 端口 8080） |
+| `F50_SERIAL` | 可选，多台 USB 设备时指定 F50 的 USB 序列号 |
+| `INSTALL_ARGS` | 可选，传给 `install.sh` 的参数，如 `--prebuilt`、`--answers FILE` |
 
 SSH 沿用 OpenSSH 的主机密钥检查与认证；可以使用密钥、ssh-agent 或终端密码提示。脚本不读取安装目录中的登录密码，也不保存密码。私钥和 known_hosts 的相对路径以仓库根目录为基准。
 
 也可以单次覆盖，例如 `make status DEVICE=http://192.168.77.1 SSH_PORT=22`。
+
+## 安装（macOS + F50）
+
+只支持 macOS 主机和 ZTE F50。F50 的 USB 需分配给 Mac，并连接 F50 的 Wi-Fi。
+
+| 命令 | 行为 |
+|---|---|
+| `make adb` | 运行 `scripts/device/f50-enable-adb-macos.sh`：原厂 Android 开启 USB 与无线 ADB（会询问设备后台密码并重启一次）；已开启则只检查，设备在 MU300 Linux 中则跳过 |
+| `make install` | 先 `make adb`，再运行 `./install.sh $(INSTALL_ARGS)` |
+| `make install-check` / `make install-prebuilt` | `install.sh --check` / `--prebuilt` |
+| `make uninstall` | `uninstall.sh`，恢复原厂 Android |
+| `make backup` / `make backup-full` | 备份不可替代分区 / 全部分区，`BACKUP_DIR=...` 指定目录 |
+| `make collect-logs` | Linux 启动失败回落 Android 后收集日志，`LOG_DIR=...` 指定目录 |
+| `make reset-password` | 从 Android 重置 Linux 密码，`SYSTEM=ubuntu\|openwrt\|openwrt-luci\|all` |
+
+开启 ADB 后同一台 F50 会同时以 USB 和 `F50_IP:5555` 出现；以上命令自动用 `ANDROID_SERIAL` 固定 USB 那一台。
 
 ## 本地开发
 
@@ -57,10 +77,10 @@ make dev
 | 命令 | 覆盖范围 |
 |---|---|
 | `make deploy` / `make deploy-ui` | 合并两处前端文件到设备 `/www/`，并应用 Aurora 顶栏定制；同路径时插件文件优先 |
-| `make deploy-backend` | `openwrt/luci-app-mu300/root/usr/` 安装到设备 `/usr/`，包括 RPC、适配器、菜单和 ACL |
+| `make deploy-backend` | `systems/openwrt/luci-app-mu300/root/usr/` 安装到设备 `/usr/`，包括 RPC、适配器、菜单和 ACL |
 | `make deploy-all` | 以上两部分一起部署 |
 
-前端文件来自 `openwrt/overlay/www/` 和 `openwrt/luci-app-mu300/htdocs/`。
+前端文件来自 `systems/openwrt/overlay/www/` 和 `systems/openwrt/luci-app-mu300/htdocs/`。
 部署同时安装并运行 `mu300-ui-theme`，直接移除 Aurora 主题模板中的顶栏主机名标签，
 因此标准 LuCI 页面也生效，不依赖 MU300 页面是否加载公共 JS。
 主题模板会和被覆盖的文件一起备份。主题后续升级可能恢复此标签，重新执行 `make deploy` 可再次应用。
@@ -83,7 +103,7 @@ make dev
 make deploy-backend && make restart
 ```
 
-`deploy-all` 也仅指前端与插件后端，不包含 `rootfs/overlay/` 中的全部设备命令。
+`deploy-all` 也仅指前端与插件后端，不包含 `systems/base/overlay/` 中的全部设备命令。
 
 ## 重启和设备管理
 

@@ -7,7 +7,7 @@ import unittest
 
 from helpers import TOP, ShellTest
 
-OPENWRT = TOP / 'openwrt' / 'overlay'
+OPENWRT = TOP / 'systems' / 'openwrt' / 'overlay'
 SCRIPT = OPENWRT / 'etc' / 'uci-defaults' / '92-mu300-uhttpd-key'
 
 
@@ -45,7 +45,7 @@ class ShippedList(unittest.TestCase):
 
 class ImageHasNoKey(unittest.TestCase):
     def test_build_removes_the_pair_and_the_audit_refuses_a_key(self):
-        owrt = (TOP / 'openwrt' / 'build-rootfs.sh').read_text()
+        owrt = (TOP / 'systems' / 'openwrt' / 'build-rootfs.sh').read_text()
         self.assertIn('rm -f $R/etc/uhttpd.key $R/etc/uhttpd.crt\n'
                       '[ ! -e $R/etc/uhttpd.key ] || { echo "the image holds a TLS key" >&2; exit 1; }', owrt)
         # the build script is one single-quoted sh -c argument: no apostrophe may be in it
@@ -53,7 +53,7 @@ class ImageHasNoKey(unittest.TestCase):
         body = owrt[owrt.index(start) + len(start):owrt.rindex("ls -la /out/$OUT'")]
         self.assertNotIn("'", body)
         self.assertIn('rm -f $R/etc/uhttpd.key', body)
-        rel = (TOP / 'tools' / 'make-release.sh').read_text()
+        rel = (TOP / 'scripts' / 'release' / 'make-release.sh').read_text()
         self.assertIn(r"-e '^etc/uhttpd\.key$'", rel)
         self.assertTrue(re.search(r'^etc/uhttpd\.key$', 'etc/uhttpd.key'))
 

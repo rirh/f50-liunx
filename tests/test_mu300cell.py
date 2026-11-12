@@ -1,11 +1,11 @@
-"""openwrt/overlay/lib/netifd/proto/mu300cell.sh: the netifd protocol handler, sourced with the netifd functions stubbed.
+"""systems/openwrt/overlay/lib/netifd/proto/mu300cell.sh: the netifd protocol handler, sourced with the netifd functions stubbed.
 
 The script is sourced with INCLUDE_ONLY=1 (it then defines only the proto_mu300cell_* functions). The netifd
 functions, `ip`, `mobile-data`, `mu300-led`, `sleep`, `logger` and `fw4` record their arguments in $STUBLOG/calls.
 The script's absolute paths (/opt/mu300/bin, /tmp, /proc/sys) are pointed into the scratch directory in a copy;
 sipa_eth0's disable_ipv6 and accept_ra are files there, so what the script writes into them is checked.
 
-Relay mode (K35-K37, K30, D9; openwrt-luci only) has its files in openwrt/luci-overlay: the event monitor
+Relay mode (K35-K37, K30, D9; openwrt-luci only) has its files in systems/openwrt/luci-overlay: the event monitor
 mu300cell-v6.sh, ndp-learn, init.d/mu300-ndp and the first-boot settings in 91-mu300-luci (class Relay).
 """
 import errno
@@ -20,8 +20,8 @@ from pathlib import Path
 
 from helpers import BIN, TOP, ShellTest
 
-PROTO = TOP / 'openwrt' / 'overlay' / 'lib' / 'netifd' / 'proto' / 'mu300cell.sh'
-LUCI = TOP / 'openwrt' / 'luci-overlay'
+PROTO = TOP / 'systems' / 'openwrt' / 'overlay' / 'lib' / 'netifd' / 'proto' / 'mu300cell.sh'
+LUCI = TOP / 'systems' / 'openwrt' / 'luci-overlay'
 MONITOR = LUCI / 'lib' / 'netifd' / 'proto' / 'mu300cell-v6.sh'
 NDP_LEARN = LUCI / 'opt' / 'mu300' / 'bin' / 'ndp-learn'
 NDP_INIT = LUCI / 'etc' / 'init.d' / 'mu300-ndp'
@@ -919,7 +919,7 @@ exit 0''')
 
     def test_ra_deprecate_is_in_the_panel_image(self):
         """ra-deprecate needs ucode's socket module, which the panel system's build installs."""
-        build = (TOP / 'openwrt' / 'build-rootfs.sh').read_text()
+        build = (TOP / 'systems' / 'openwrt' / 'build-rootfs.sh').read_text()
         self.assertIn('[ -d /in/luci-plugin ] && apk add ucode-mod-socket', build)
         ra = (LUCI / 'opt' / 'mu300' / 'bin' / 'ra-deprecate').read_text()
         self.assertTrue(ra.startswith('#!/usr/bin/ucode\n'))
@@ -1397,21 +1397,21 @@ esac
         self.assertEqual(self.sent(log), [('argv', 'AT+CGDCONT=1,"IP","internet"')])
 
     def test_the_interface_page_offers_them(self):
-        js = (TOP / 'openwrt/overlay/www/luci-static/resources/protocol/mu300cell.js').read_text()
+        js = (TOP / 'systems/openwrt/overlay/www/luci-static/resources/protocol/mu300cell.js').read_text()
         for kind, name in (('Value', 'username'), ('Value', 'password'), ('ListValue', 'auth')):
             self.assertIn(f"form.{kind}, '{name}'", js)
         self.assertIn('o.password = true', js)
         for v in ("o.value('pap'", "o.value('chap'", "o.value('both'", "o.value('none'"):
             self.assertIn(v, js)
-        example = (TOP / 'rootfs/overlay/etc/mu300/mobile-data.conf.example').read_text()
+        example = (TOP / 'systems/base/overlay/etc/mu300/mobile-data.conf.example').read_text()
         for name in ('MU300_APN_USER', 'MU300_APN_PASSWORD', 'MU300_APN_AUTH', 'MU300_APN_ICCID', 'install -m 600'):
             self.assertIn(name, example)
         self.assertIn("form.Value, 'iccid'", js)
         # the settings file never goes into a release, and OpenWrt's network settings are private from the first boot
-        self.assertIn('(hotspot|vpn|toolkit|mobile-data)', (TOP / 'tools/make-release.sh').read_text())
-        self.assertIn('chmod 600 /etc/config/network', (TOP / 'openwrt/overlay/etc/uci-defaults/90-mu300').read_text())
+        self.assertIn('(hotspot|vpn|toolkit|mobile-data)', (TOP / 'scripts/release/make-release.sh').read_text())
+        self.assertIn('chmod 600 /etc/config/network', (TOP / 'systems/openwrt/overlay/etc/uci-defaults/90-mu300').read_text())
         # the protocol handler has no gate of its own to differ from mobile-data's
-        self.assertNotIn('chmod', (TOP / 'openwrt/overlay/lib/netifd/proto/mu300cell.sh').read_text())
+        self.assertNotIn('chmod', (TOP / 'systems/openwrt/overlay/lib/netifd/proto/mu300cell.sh').read_text())
 
 
 if __name__ == '__main__':

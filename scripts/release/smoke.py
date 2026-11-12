@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """The release smoke test: update real boards to a release, reboot them, and check that nothing of theirs changed.
 
-  tools/smoke.py [--config FILE] [--board NAME]... [--dry-run] [--report FILE] RELEASE
-  tools/smoke.py --release-dir DIR [--tag TAG] ...         (the same, with a local release directory)
+  scripts/release/smoke.py [--config FILE] [--board NAME]... [--dry-run] [--report FILE] RELEASE
+  scripts/release/smoke.py --release-dir DIR [--tag TAG] ...         (the same, with a local release directory)
 
-RELEASE is a release tag (vYYYY.MM.DD.N, or an old vYYYY.MM.DD: docs/FINDINGS.md 125) or a local release directory
-(release/<tag> of tools/make-release.sh; the tag is its name unless --tag says it). FILE describes the boards
-(default tools/smoke.json, which git ignores; tools/smoke.example.json is the example). Per board, in this order:
+RELEASE is a release tag (vYYYY.MM.DD.N, or an old vYYYY.MM.DD: docs/research/FINDINGS.md 125) or a local release directory
+(release/<tag> of scripts/release/make-release.sh; the tag is its name unless --tag says it). FILE describes the boards
+(default scripts/release/smoke.json, which git ignores; scripts/release/smoke.example.json is the example). Per board, in this order:
 
   1. identity, for every board before any board is touched: the SSH host key's SHA256 fingerprint and the device's
      hostname, the device type (mu300-device), the running system, and the adb serial when one is configured. A board
@@ -25,7 +25,7 @@ RELEASE is a release tag (vYYYY.MM.DD.N, or an old vYYYY.MM.DD: docs/FINDINGS.md
 The report has one line per check and board, PASS, FAIL or SKIP; the exit status is 1 when any check failed.
 --dry-run prints the commands without connecting to anything. Every remote command is a fixed text built from values
 the config validation let through (strict patterns, no shell metacharacters); every subprocess has a timeout.
-Standard library only (Python 3.8+); needs ssh, ssh-keyscan and scp, and adb for adb boards. See docs/RELEASING.md.
+Standard library only (Python 3.8+); needs ssh, ssh-keyscan and scp, and adb for adb boards. See docs/guides/RELEASING.md.
 """
 import argparse
 import base64
@@ -42,8 +42,8 @@ import tempfile
 import time
 from pathlib import Path
 
-TOP = Path(__file__).resolve().parents[1]
-DEFAULT_CONFIG = TOP / 'tools' / 'smoke.json'
+TOP = Path(__file__).resolve().parents[2]
+DEFAULT_CONFIG = TOP / 'scripts' / 'release' / 'smoke.json'
 UPDATE = '/opt/mu300/bin/mu300-update'
 
 # ---- validation: every value that reaches a command line matches one of these, whole (fullmatch, ASCII)
@@ -402,7 +402,7 @@ def parse_identity(text):
                 j = json.loads(v)
             except ValueError:
                 j = None
-            if isinstance(j, dict):     # mu300-device --json (docs/ADB-INTERFACE.md)
+            if isinstance(j, dict):     # mu300-device --json (docs/guides/ADB-INTERFACE.md)
                 out['device'] = str(j.get('device', ''))
                 out['system'] = str(j.get('system', ''))
             else:                       # a release before --json printed the device alone
@@ -850,7 +850,7 @@ def resolve_release(release, tag=None, release_dir=None):
     elif release_dir:
         tag = tag or Path(release_dir).resolve().name
     if not valid_tag(tag):
-        raise ConfigError(f'not a release tag: {tag!r} (vYYYY.MM.DD.N, docs/FINDINGS.md 125)')
+        raise ConfigError(f'not a release tag: {tag!r} (vYYYY.MM.DD.N, docs/research/FINDINGS.md 125)')
     if release_dir and not Path(release_dir).is_dir():
         raise ConfigError(f'{release_dir} is not a directory')
     return tag, release_dir
@@ -858,7 +858,7 @@ def resolve_release(release, tag=None, release_dir=None):
 
 def main(argv=None, transport=None, clock=None, out=None):
     out = out or sys.stdout
-    ap = argparse.ArgumentParser(prog='tools/smoke.py', description='Update boards to a release and check them.')
+    ap = argparse.ArgumentParser(prog='scripts/release/smoke.py', description='Update boards to a release and check them.')
     ap.add_argument('release', nargs='?', help='a release tag or a local release directory')
     ap.add_argument('--tag', help='the tag, when the release directory is not named after it')
     ap.add_argument('--release-dir', help='a local release directory (the Magisk zips, or the files for "from")')

@@ -87,7 +87,7 @@ offline_why() {
 }
 
 # A transfer that stalls is cut off and retried rather than waited for: with older boot images the IPA's downlink
-# can die in the middle of one (docs/FINDINGS.md 32), and without a timeout the update hung for good.
+# can die in the middle of one (docs/research/FINDINGS.md 32), and without a timeout the update hung for good.
 # A network error is tried again a few times (MU300_FETCH_DELAY s apart): right after boot the VPN comes up some
 # seconds after mobile data, and a request in between is reset - "check" then said GitHub could not be reached.
 # curl's own --retry leaves resets alone. Only a failed connection is retried here (curl 6 7 35 52 56; wget 4, GNU's
@@ -467,7 +467,7 @@ notice() {
     [ -n "$latest" ] || return 1   # offline: the note stays as it was, the next round asks again
     inst=$(installed_version)
     mkdir -p "${NOTICE%/*}"
-    # (newer: the release tags, docs/FINDINGS.md 125) a test release newer than the newest is no reason to note; a
+    # (newer: the release tags, docs/research/FINDINGS.md 125) a test release newer than the newest is no reason to note; a
     # system that is no release (unknown, a build of one's own) hears of every one
     if newer "$latest" "$inst" || { tag_ok "$latest" && ! tag_ok "$inst"; }; then
         printf 'mu300-linux %s is out (this is %s): sudo mu300-update apply\n' "$latest" "$inst" > "$NOTICE"
@@ -513,7 +513,7 @@ check() {
     for os in $(installed_systems); do
         [ -d "$DISK/$os.old" ] && printf 'rollback available for %s (%s)\n' "$os" "$(cat "$DISK/$os.old/etc/mu300/image-version" 2>/dev/null || echo unknown)"
     done
-    # a device ahead of the newest release runs a test one (newer: docs/FINDINGS.md 125)
+    # a device ahead of the newest release runs a test one (newer: docs/research/FINDINGS.md 125)
     if newer "$(installed_version)" "$latest"; then
         printf '\nThis is newer than the newest release (a test release); mu300-update apply --downgrade would go back to %s.\n' "$latest"
     elif [ "$(installed_version)" = "$latest" ] && [ "$(cat "$BOOTDIR/installed.tag" 2>/dev/null)" != "$latest" ]; then
@@ -529,7 +529,7 @@ check() {
 # etc/unisoc-modem: the control panel's state (openwrt-luci; on Ubuntu the MU300 page's), above all lock-state.d, the
 # network, band and cell locks it saved and replays at boot. The modem keeps a lock by itself; without this directory
 # the panel came up after an update showing none, while the modem was still locked (FINDINGS 64).
-# tools/android-install.sh has the same list.
+# installer/android/android-install.sh has the same list.
 # etc/crontabs: the jobs of OpenWrt's System > Scheduled Tasks (LuCI writes /etc/crontabs/root) and of every package
 # or user that installs one. OpenWrt's sysupgrade keeps the directory; an update used to leave it behind in
 # <os>.old, and the image's own /etc/crontabs is empty, so cron's init refused to start at all (FINDINGS 83).
@@ -612,7 +612,7 @@ accounts() {
 # own set (etc/mu300/image-packages, written when the image is built) - into etc/mu300/user-packages/ of the new
 # system, and sets the UCI files of those packages aside (etc/mu300/orphaned-config/): a package that is not there
 # leaves no settings behind. At its first boot the new system installs them again (mu300-user-packages, a service)
-# and puts their settings back. tools/android-install.sh (the installers' update) has a copy of this block; tests
+# and puts their settings back. installer/android/android-install.sh (the installers' update) has a copy of this block; tests
 # hold the two to one text. It runs on Android too: sh, awk, sed, grep, sort - nothing else, and safe under set -e.
 UPK_DIR=etc/mu300/user-packages
 UPK_ORPH=etc/mu300/orphaned-config
@@ -849,7 +849,7 @@ stale_config_clean() {
 }
 # --- user-packages end
 # --- carry begin
-# An update keeps everything the user made (docs/FINDINGS.md 85). Until v2026.10.27 it kept a list of places
+# An update keeps everything the user made (docs/research/FINDINGS.md 85). Until v2026.10.27 it kept a list of places
 # (keep_list) and the image replaced the rest: /etc/wireguard, a unit written by hand, crontabs, /var/lib/docker,
 # /opt, a changed /etc/sysctl.conf were gone from the system after an update. Now the question is asked the other
 # way round: which files of the old system came with its image? Its manifest says (one line per file of the image,
@@ -904,7 +904,7 @@ stale_config_clean() {
 #
 # One implementation for the three ways to update: this block runs from the NEW image, by its static busybox
 # (carry_run: "busybox sh NEW/opt/mu300/bin/mu300-update carry OLD NEW OS MODE"), on the device and under Android
-# alike, with the image's mu300-carry for the files (tools/carry/mu300-carry.c). MODE copy: OLD stays whole and
+# alike, with the image's mu300-carry for the files (device-tools/carry/mu300-carry.c). MODE copy: OLD stays whole and
 # apart, for a rollback. MODE link: files become second names of OLD's, no data is copied - for an update that does
 # not keep OLD (the installers', and apply --no-rollback). OLD is never written to.
 CARRY_KEPT=etc/mu300/update-kept
@@ -1701,7 +1701,7 @@ carry_need() {
 # --- carry end
 
 # --- delta begin
-# An update writes only what changed (docs/FINDINGS.md 131). Unpacking the whole new image beside the running system
+# An update writes only what changed (docs/research/FINDINGS.md 131). Unpacking the whole new image beside the running system
 # needed room for a second copy of it: an OpenWrt with Docker in it (472 of 775 MiB) could not be updated in an
 # 804 MiB region at all. Now a file of the new image that the installed system has byte for byte - same type, mode,
 # owner, size and content, no extended attribute but Android's SELinux label - is not written again: it becomes a
@@ -1733,7 +1733,7 @@ carry_need() {
 # MU300_DELTA=0 asks for that too.
 DELTA_TOOLS="opt/mu300/bin/mu300-carry opt/mu300/bin/mu300-update usr/bin/busybox opt/mu300/bin/busybox etc/mu300/image-manifest.gz etc/mu300/image-version"
 # delta_tools TARBALL WORK: those parts of the new image out of its tarball into WORK/root (root's alone): a pass over
-# the image that writes a few MB. Status 1 when the image has not even mu300-carry. (tools/android-install.sh does the
+# the image that writes a few MB. Status 1 when the image has not even mu300-carry. (installer/android/android-install.sh does the
 # same with Android's tar.)
 delta_tools() {
     rm -rf "$2" && ( umask 077; mkdir -p "$2/root" ) || return 1
@@ -1932,7 +1932,7 @@ delta_unpack() {
     done
     "$4/carry" tarlink "$2" "$3" < "$4/log" > "$4/linked" || return 1
 }
-# delta_room OLD WORK OS [VENDOR]: for the installers (tools/android-install.sh), run from the new image by its busybox
+# delta_room OLD WORK OS [VENDOR]: for the installers (installer/android/android-install.sh), run from the new image by its busybox
 # once the parts are in WORK/root: one line, "delta KB LINKED_KB VENDOR_KB" (WORK/link: the files to link) or "full
 # KB 0 VENDOR_KB" (no system to link from, or MU300_DELTA=0; KB from the image's manifest), or "none" (an image
 # without these parts: unpacked whole, as before). VENDOR: the device's own files as the installers pack them
@@ -1957,8 +1957,8 @@ delta_room() {
 # --- delta end
 
 # --- diff begin
-# A release also carries, for each image, its diff from each of the five releases before it (tools/make-diffs.sh,
-# tools/image-diff.py; ported from kanoqwq/mu300-linux b8d4f222, fb0b28e7): the new image without the files the
+# A release also carries, for each image, its diff from each of the five releases before it (scripts/release/make-diffs.sh,
+# scripts/release/image-diff.py; ported from kanoqwq/mu300-linux b8d4f222, fb0b28e7): the new image without the files the
 # older image had as they are, in programs and libraries. Its checksum is in the release's SHA256SUMS with every
 # other file's, so it is downloaded and checked - the signature of SHA256SUMS too - as the whole image is
 # (fetch_verified), and nothing of it is used before that. A device whose installed image is the diff's base downloads
@@ -2239,7 +2239,7 @@ apply_one() {  # apply_one OS TAG
 # one copy and nothing that replaces a system touches it. mu300-extra is the command; the functions are here
 # because an update installs and refreshes them too, and the updater of the new release runs before the system
 # that has mu300-extra exists. Two kinds:
-#   lang         a release asset of mu300-linux, mu300-extra-lang.tar.gz (tools/make-extra.sh: ./name, ./release,
+#   lang         a release asset of mu300-linux, mu300-extra-lang.tar.gz (scripts/release/make-extra.sh: ./name, ./release,
 #                ./components, ./languages, ./manifest, ./i18n/<catalogs>), for the release it was published with
 #   vpn, vpn-xray, vpn-singbox, vpn-mihomo, vpn-dae   the VPN module, released on its own by
 #                github.com/dikeckaan/mu300-linux-vpn under fixed names (mu300-linux-vpn-core.tar.gz for vpn - the
@@ -3135,7 +3135,7 @@ head_sha() { dd if="$1" bs=4096 count=$(( ($2 + 4095) / 4096 )) 2>/dev/null | he
 # read it back
 # BODY is whole pages (bootimg_assemble pads it, a kept image is read in pages): VBMETA is written behind it by a second
 # dd, not from a copy of the two joined - that copy was one more image's worth of room on the Linux partition during
-# a kernel update (docs/FINDINGS.md 177). A body that is not whole pages is joined as before.
+# a kernel update (docs/research/FINDINGS.md 177). A body that is not whole pages is joined as before.
 write_boot() {  # write_boot DEV PSIZE BODY VBMETA FOOTER
     _wb=$(fsize "$3")
     if [ $((_wb % 4096)) = 0 ]; then
@@ -3216,7 +3216,7 @@ modules_dir() { case $1 in ubuntu) echo "$DISK/$1/lib/modules/$2/extra" ;; *) ec
 # takes the device back to Android). So the set in place is kept with the previous image, and goes back with it -
 # in rollback-boot, and when writing the new image fails.
 #
-# Room (docs/FINDINGS.md 177): since every module is built (FINDINGS 163) a set is some 2950 files, 120 MB,
+# Room (docs/research/FINDINGS.md 177): since every module is built (FINDINGS 163) a set is some 2950 files, 120 MB,
 # and copies of it - kept beside the new set, put into each system - made a kernel update want 500 MB free at once,
 # more than F50-C's 804 MiB region had. Sets are never copied now: the kept set, the sets in the systems and the
 # unpacked bundle are all on the Linux partition, so a set is given more names (ln) and a name is removed, never a
@@ -3289,7 +3289,7 @@ kernel_modules_into_systems() {  # kernel_modules_into_systems BUNDLE_DIR (unpac
     printf 'boot: %s modules for %s installed into: %s\n' "$(ls "$1/modules" | wc -l | tr -d ' ')" "$_krel" "$(installed_systems)"
 }
 
-# The room the kernel step takes on the Linux partition (docs/FINDINGS.md 177): the bundle (20 to 55 MB) until it is
+# The room the kernel step takes on the Linux partition (docs/research/FINDINGS.md 177): the bundle (20 to 55 MB) until it is
 # unpacked, what is unpacked from it (a mainline bundle: some 150 MB, 120 MB of it modules, that stay as the systems'
 # set), and the image in the slot now beside the new one (kept as prev.body, 25 to 30 MB each). The bundle is removed
 # once unpacked, so the peak is what is unpacked and the larger of the bundle and the two images.
@@ -3307,7 +3307,7 @@ kernel_need_kb() {
     fi
     echo $(( 3 * _kd + _ki + 16384 ))
 }
-# What the room is spent on between updates (docs/FINDINGS.md 177), and what of it an update may take back:
+# What the room is spent on between updates (docs/research/FINDINGS.md 177), and what of it an update may take back:
 #   * the boot image kept for rollback-boot - the one before the image in place - with its set of modules (120 MB of
 #     files of its own once a kernel update has replaced that set). An update replaces both anyway once it has
 #     written its image, and the device runs the image in place either way, so when the room is short they are given
@@ -3418,7 +3418,7 @@ boot_room() {
     return 1
 }
 
-# A restart in the middle of the kernel step (#422, docs/FINDINGS.md 235): the systems' set of the bundle's release is
+# A restart in the middle of the kernel step (#422, docs/research/FINDINGS.md 235): the systems' set of the bundle's release is
 # replaced before the image is written, and the two belong together - a module of one build in the kernel of another
 # reads the wrong offsets (sprd_wlan_combo's probe: an Oops 25 s into the boot, and the fallback went to Android). And
 # what was unpacked last had not reached the disk yet: 307 modules came back as empty files. So the unpacked set is
@@ -3818,7 +3818,7 @@ lock_drop() {
 }
 
 # Older boot images lose the mobile downlink for good when the IPA goes idle and fails to power off
-# (docs/FINDINGS.md 32) - after about two quiet minutes, which the unpacking alone takes. A packet every few seconds
+# (docs/research/FINDINGS.md 32) - after about two quiet minutes, which the unpacking alone takes. A packet every few seconds
 # keeps it from going idle while the update runs (two targets, one of them reachable from mainland China).
 keepalive_start() {
     have ping || return 0
@@ -3908,7 +3908,7 @@ apply() {
     done
 
     # Everything is downloaded and checked first, and only then is anything changed. Older boot images can lose
-    # the mobile downlink after two quiet minutes (docs/FINDINGS.md 32): a download that followed the minutes of
+    # the mobile downlink after two quiet minutes (docs/research/FINDINGS.md 32): a download that followed the minutes of
     # unpacking hung there, and a device that reset in the middle of writing its boot image could only start Android.
     clean_broken
     # (what an update that was cut off left - a half-unpacked <os>.new - would count against the room below)
@@ -4056,7 +4056,7 @@ clean() {
 }
 
 # ---- for a panel: status, the releases, an update from a file, release signatures ---------------------------------
-# What a page needs to update the device from a browser (LuCI's System > Update; docs/FINDINGS.md 86), and nothing
+# What a page needs to update the device from a browser (LuCI's System > Update; docs/research/FINDINGS.md 86), and nothing
 # that changes what an update does or keeps. All of it is below this line, except the few lines that call it:
 # fetch_verified (the offline source, the signature, the file being fetched), latest_release (the mirror), apply
 # (from_begin, the system of an offline source, the updater it continues with) and the commands at the end.
@@ -4073,10 +4073,10 @@ jstr() { if [ -n "$1" ]; then printf '"%s"' "$(jv "$1")"; else printf null; fi; 
 jnum() { case $1 in ''|*[!0-9]*) printf null ;; 0) printf 0 ;; 0*) printf null ;; *) printf '%s' "$1" ;; esac; }
 mtime() { _mt=$(date -r "$1" +%s 2>/dev/null) || _mt=; jnum "$_mt"; }
 # --- release-tag begin
-# The release tags (docs/FINDINGS.md 125): vYYYY.MM.DD up to v2026.10.27, where the "day" was a counter, and from then
+# The release tags (docs/research/FINDINGS.md 125): vYYYY.MM.DD up to v2026.10.27, where the "day" was a counter, and from then
 # on vYYYY.MM.DD.N: the real (UTC) day the release was built, N = 1..99 for the releases of that day. Every four-field
 # tag is newer than every three-field one; four-field tags compare by the date, then by N, as numbers. The same block,
-# word for word, is in tools/releases.sh (install.sh, make-release.sh), mu300-update and tools/android-install.sh
+# word for word, is in installer/lib/releases.sh (install.sh, make-release.sh), mu300-update and installer/android/android-install.sh
 # (tests/test_releases.py holds the copies to each other and to tests/fixtures/release-tags.tsv).
 # tag_ok TAG: TAG is a release tag (in the shell's own patterns: no grep, no locale, no regex engine to differ)
 tag_ok() {
@@ -4337,7 +4337,7 @@ boot_downgrade_ok() {
 
 # -- an update from a file or a directory, for a device that is not online (MU300_FROM, set by apply --from).
 # A directory holds a release's files as they are published, with their SHA256SUMS (and SHA256SUMS.sig). A file is
-# a Magisk zip of the release (mu300-magisk-TAG-SYSTEM-kKERNEL.zip, tools/make-magisk-zips.sh): one system and one
+# a Magisk zip of the release (mu300-magisk-TAG-SYSTEM-kKERNEL.zip): one system and one
 # kernel, with mu300/manifest naming them and their hashes, and - from the release that brought this - the release's
 # SHA256SUMS and its signature. Nothing of a zip is unpacked to a path it names: each member is read to a pipe by a
 # name this code made.

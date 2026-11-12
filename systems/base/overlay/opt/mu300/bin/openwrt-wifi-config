@@ -11,7 +11,7 @@ WIFI_CHANNELS=${MU300_WIFI_CHANNELS:-/opt/mu300/lib/wifi-channels.sh}
 . "$WIFI_CHANNELS"
 [ -f "$R/etc/openwrt_release" ] || exit 0
 # Configured before (at every boot from then on): a DFS channel set in LuCI or by hand becomes the country's default,
-# with a line that says so. (wifi-scripts would replace it at every start anyway, see openwrt/patches/
+# with a line that says so. (wifi-scripts would replace it at every start anyway, see systems/openwrt/patches/
 # wifi-scripts-no-dfs.patch; this makes LuCI show the channel the hotspot really uses.)
 if [ -e "$R/etc/mu300/wifi-configured" ]; then
 	radio=$(uci -q show wireless | sed -n "s/^wireless\.\([^.=]*\)=wifi-device$/\1/p" | head -1)

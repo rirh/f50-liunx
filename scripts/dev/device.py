@@ -100,10 +100,10 @@ def deployment_files(scope):
     roots = []
     if scope in ('ui', 'all'):
         # Same precedence as the image build and local development proxy.
-        roots += [('openwrt/overlay/www', 'www'), ('openwrt/luci-app-mu300/htdocs', 'www')]
+        roots += [('systems/openwrt/overlay/www', 'www'), ('systems/openwrt/luci-app-mu300/htdocs', 'www')]
     if scope in ('backend', 'all'):
         # Keep /etc/config, startup policy and firmware out of a development deploy.
-        roots += [('openwrt/luci-app-mu300/root/usr', 'usr')]
+        roots += [('systems/openwrt/luci-app-mu300/root/usr', 'usr')]
     files = {}
     for directory, destination in roots:
         root = TOP / directory
@@ -121,7 +121,7 @@ def deployment_files(scope):
             files[name] = source
     if scope in ('ui', 'all'):
         helper = 'usr/libexec/mu300-ui-theme'
-        files[helper] = TOP / 'openwrt/luci-app-mu300/root' / helper
+        files[helper] = TOP / 'systems/openwrt/luci-app-mu300/root' / helper
     if not files:
         raise ValueError('No files found for this deployment')
     return files

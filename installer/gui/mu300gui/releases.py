@@ -1,4 +1,4 @@
-"""The newest release and the beta, if there is one - decided by tools/release_pick.py, the file install.sh and
+"""The newest release and the beta, if there is one - decided by installer/lib/release_pick.py, the file install.sh and
 install.ps1 decide with, so the window offers exactly what they would. No token is needed; when GitHub does not
 answer (offline, its rate limit) there is simply nothing to offer and the installer looks the release up itself.
 """
@@ -15,7 +15,7 @@ _pick = None
 def picker(top=TOP):
     global _pick
     if _pick is None:
-        spec = importlib.util.spec_from_file_location('release_pick', os.path.join(top, 'tools', 'release_pick.py'))
+        spec = importlib.util.spec_from_file_location('release_pick', os.path.join(top, 'installer', 'lib', 'release_pick.py'))
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         _pick = mod

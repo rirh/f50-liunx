@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the DSP profile blobs the kernel loads from /lib/firmware, from the vendor's parameter XML.
 
-    tools/vbc-profile/vbc-profile.py dsp_vbc.xml audio_structure.xml cvs.xml -o out/
+    device-tools/vbc-profile/vbc-profile.py dsp_vbc.xml audio_structure.xml cvs.xml -o out/
 
 The XML is vendor parameter data and does not live in this repo; point this at a copy you already have.
 """

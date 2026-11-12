@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 TOP = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('bundle_audit', TOP / 'upstream/audit-bundle.py')
+spec = importlib.util.spec_from_file_location('bundle_audit', TOP / 'kernel/mainline/audit-bundle.py')
 audit = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(audit)
 
@@ -65,9 +65,9 @@ class BundleAudit(unittest.TestCase):
 
     def test_listed_options_of_the_repository(self):
         # what config-ignored.txt may list: options of the fragment, each with a reason above it
-        lines = (TOP / 'upstream/config-ignored.txt').read_text().splitlines()
+        lines = (TOP / 'kernel/mainline/config-ignored.txt').read_text().splitlines()
         names = [l for l in lines if l.startswith('CONFIG_')]
-        fragment = {l.split('=', 1)[0] for l in (TOP / 'upstream/mu300-mainline.config').read_text().splitlines()}
+        fragment = {l.split('=', 1)[0] for l in (TOP / 'kernel/mainline/mu300-mainline.config').read_text().splitlines()}
         self.assertEqual(names, ['CONFIG_PROC_SYSCTL'])
         self.assertTrue(set(names) <= fragment)
         self.assertIn('CONFIG_SYSCTL', fragment)

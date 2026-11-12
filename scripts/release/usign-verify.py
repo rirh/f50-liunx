@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Check a usign signature: tools/usign-verify.py PUBLIC_KEY SIGNATURE FILE
+"""Check a usign signature: scripts/release/usign-verify.py PUBLIC_KEY SIGNATURE FILE
 
 Exit 0 and "valid" only when SIGNATURE (the file `usign -S` writes) is a signature of FILE by PUBLIC_KEY (a usign
 public key file) - the same check as `usign -V -m FILE -p PUBLIC_KEY -x SIGNATURE`. Anything else exits 1 and says
 why: a file that is not a key or a signature, a signature by another key (its number is not the key's), or one that
 does not verify.
 
-openwrt/build-rootfs.sh checks OpenWrt's sha256sums with it before it takes a hash from that file. Plain Python
+systems/openwrt/build-rootfs.sh checks OpenWrt's sha256sums with it before it takes a hash from that file. Plain Python
 (RFC 8032's Ed25519 verification, written out): no usign on the build host, and macOS's own openssl (LibreSSL)
 cannot verify Ed25519 over a file as it is. Each file: a comment line, then base64 of "Ed", the key's 8-byte
 number and the 32-byte public key (a key) or the 64-byte Ed25519 signature of the whole file (a signature).

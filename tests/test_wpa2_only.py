@@ -1,4 +1,4 @@
-"""The U30 Air's firmware SAE offload is disabled, in every layer (FINDINGS 80, docs/U30AIR-SAE.md): the hotspot is
+"""The U30 Air's firmware SAE offload is disabled, in every layer (FINDINGS 80, docs/research/U30AIR-SAE.md): the hotspot is
 WPA2-PSK only on every device (F50, U30 Air, V50: the SC2355).
 
 * the driver (mainline tree and the 5.4 patch): the firmware's PMK record never reaches cfg80211 - the strip function
@@ -21,11 +21,11 @@ from pathlib import Path
 
 from helpers import BIN, TOP, ShellTest
 
-WLAN = TOP / 'upstream/modules/sprd_wlan_combo'
-PATCH54 = TOP / 'kernel/patches/wlan_combo-softap-no-sae.patch'
-WIFI_PATCH = TOP / 'openwrt/patches/wifi-scripts-wpa2-only.patch'
+WLAN = TOP / 'kernel/mainline/modules/sprd_wlan_combo'
+PATCH54 = TOP / 'kernel/vendor/patches/wlan_combo-softap-no-sae.patch'
+WIFI_PATCH = TOP / 'systems/openwrt/patches/wifi-scripts-wpa2-only.patch'
 MIGRATE = BIN / 'openwrt-wifi-wpa2-only'
-NOTICE_JS = TOP / 'openwrt/overlay/www/luci-static/resources/view/status/include/05_mu300_wpa2.js'
+NOTICE_JS = TOP / 'systems/openwrt/overlay/www/luci-static/resources/view/status/include/05_mu300_wpa2.js'
 RECORD_PREFIX = bytes([0xdd, 0x34, 0x40, 0x45, 0xda, 0x04])
 
 
@@ -97,7 +97,7 @@ class DriverStripsTheRecord(unittest.TestCase):
             self.assertNotIn('nla_for_each_attr', fn[:ret])
             self.assertNotIn('send_cmd_recv_rsp', fn[:ret])
         # the 5.4 patch applies after wlan_combo-sae-private-logs.patch (the build's glob order), which edits vendor.c
-        names = sorted(p.name for p in (TOP / 'kernel/patches').glob('wlan_combo-*.patch'))
+        names = sorted(p.name for p in (TOP / 'kernel/vendor/patches').glob('wlan_combo-*.patch'))
         self.assertLess(names.index('wlan_combo-sae-private-logs.patch'), names.index(PATCH54.name))
 
     def compile(self):
@@ -185,7 +185,7 @@ class DriverPrivacy(unittest.TestCase):
     """the driver never logs the passphrase, a station key or raw command/event payloads (kept from the offload work)"""
 
     def body(self, path, name):
-        source = (TOP / 'upstream/modules/sprd_wlan_combo' / path).read_text()
+        source = (TOP / 'kernel/mainline/modules/sprd_wlan_combo' / path).read_text()
         start = source.index('{', source.index(name + '('))
         depth = 1
         end = start + 1
@@ -210,30 +210,30 @@ class DriverPrivacy(unittest.TestCase):
                 self.assertNotIn('hex_dump', self.body(path, name))
 
     def test_station_key_is_not_logged_as_an_unbounded_string(self):
-        source = (TOP / 'upstream/modules/sprd_wlan_combo/common/cfg80211.c').read_text()
+        source = (TOP / 'kernel/mainline/modules/sprd_wlan_combo/common/cfg80211.c').read_text()
         self.assertNotIn('"PSK %s', source)
         self.assertIn('memcpy(con.psk, sme->key, sme->key_len)', source)
 
 
 class NoImportIsBuilt(ShellTest):
     def test_the_hostapd_patch_and_its_recipe_are_gone(self):
-        self.assertFalse((TOP / 'openwrt/patches/hostapd').exists())
-        self.assertFalse((TOP / 'openwrt/build-u30-sae.sh').exists())
+        self.assertFalse((TOP / 'systems/openwrt/patches/hostapd').exists())
+        self.assertFalse((TOP / 'systems/openwrt/build-u30-sae.sh').exists())
         self.assertFalse((BIN / 'openwrt-wifi-sae-guard').exists())
-        build = (TOP / 'openwrt/build-rootfs.sh').read_text()
+        build = (TOP / 'systems/openwrt/build-rootfs.sh').read_text()
         for gone in ('/in/u30-sae', 'wpad-basic-openssl', 'SAE_APKS'):
             self.assertNotIn(gone, build)
         self.assertIn('apk add wpad-basic-mbedtls wifi-scripts', build)
 
     def test_build_refuses_the_sae_apk_dir(self):
-        r = self.script(['sh'], TOP / 'openwrt/build-rootfs.sh', 'x.tar.gz', MU300_SAE_APK_DIR=self.tmp)
+        r = self.script(['sh'], TOP / 'systems/openwrt/build-rootfs.sh', 'x.tar.gz', MU300_SAE_APK_DIR=self.tmp)
         self.assertEqual(r.returncode, 1)
         self.assertIn('SAE offload is disabled', r.stderr)
 
     def test_no_code_turns_it_on(self):
         """u30_sae_offload is named only where it is refused or removed (and in the docs and tests)"""
-        allowed = {'openwrt/patches/wifi-scripts-wpa2-only.patch', 'rootfs/overlay/opt/mu300/bin/openwrt-wifi-wpa2-only',
-                   'rootfs/overlay/opt/mu300/bin/mu300-api'}
+        allowed = {'systems/openwrt/patches/wifi-scripts-wpa2-only.patch', 'systems/base/overlay/opt/mu300/bin/openwrt-wifi-wpa2-only',
+                   'systems/base/overlay/opt/mu300/bin/mu300-api'}
         out = subprocess.run(['git', '-C', str(TOP), 'grep', '-l', 'u30_sae_offload', '--', '.', ':!docs', ':!tests',
                               ':!wiki', ':!site', ':!README.md'], capture_output=True, text=True)
         if out.returncode not in (0, 1):
@@ -249,7 +249,7 @@ class WifiScriptsRefuseSae(unittest.TestCase):
         self.assertIn("'u30_sae_offload*'", p)
         self.assertIn('+\t\tif (mu300_sae_refused(k, interface.config))\n+\t\t\tcontinue;', p)
         self.assertIn('WPA2-PSK only', p)
-        build = (TOP / 'openwrt/build-rootfs.sh').read_text()
+        build = (TOP / 'systems/openwrt/build-rootfs.sh').read_text()
         self.assertIn('-v "$WPA2PATCH":/in/wifi-scripts-wpa2-only.patch:ro', build)
         # after the DFS patch, whose log import it uses, and checked like it
         self.assertLess(build.index('-i /in/wifi-scripts-no-dfs.patch'), build.index('-i /in/wifi-scripts-wpa2-only.patch'))
@@ -476,10 +476,10 @@ class Migration(ShellTest):
             self.assertUntouched(self.migrate(shell, SAE_STATE), SAE_STATE)
 
     def test_boot_migrates_before_wifi_up_and_nothing_else_checks_the_offload(self):
-        hw = (TOP / 'openwrt/overlay/etc/init.d/mu300-hw').read_text()
+        hw = (TOP / 'systems/openwrt/overlay/etc/init.d/mu300-hw').read_text()
         self.assertLess(hw.index('openwrt-wifi-config'), hw.index('openwrt-wifi-wpa2-only migrate'))
         self.assertLess(hw.index('openwrt-wifi-wpa2-only migrate'), hw.index('\twifi down >>'))
-        post = (TOP / 'openwrt/overlay/etc/init.d/mu300-post').read_text()
+        post = (TOP / 'systems/openwrt/overlay/etc/init.d/mu300-post').read_text()
         self.assertNotIn('sae', post)
 
 
@@ -547,9 +547,9 @@ mod.load().then(async (n) => {
         self.assertIn('Dismiss', self.render(migrated, 'de')['box'])
 
     def test_panel_home_loads_it_and_acl_allows_only_this_file(self):
-        home = (TOP / 'openwrt/luci-app-mu300/htdocs/luci-static/resources/view/mu300/home.js').read_text()
+        home = (TOP / 'systems/openwrt/luci-app-mu300/htdocs/luci-static/resources/view/mu300/home.js').read_text()
         self.assertIn("L.require('view.status.include.05_mu300_wpa2')", home)
-        acl = json.loads((TOP / 'openwrt/overlay/usr/share/rpcd/acl.d/mu300-wpa2-notice.json').read_text())
+        acl = json.loads((TOP / 'systems/openwrt/overlay/usr/share/rpcd/acl.d/mu300-wpa2-notice.json').read_text())
         g = acl['mu300-wpa2-notice']
         self.assertEqual(list(g['read']['file']), ['/etc/mu300/wpa3-disabled'])
         self.assertEqual(list(g['write']['file']), ['/etc/mu300/wpa3-disabled'])

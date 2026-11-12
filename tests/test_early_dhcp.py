@@ -9,8 +9,8 @@ import unittest
 from helpers import BIN, TOP, ShellTest
 
 
-OPENWRT = TOP / 'openwrt' / 'overlay'
-LUCI_DEFAULTS = TOP / 'openwrt' / 'luci-overlay' / 'etc' / 'uci-defaults' / '91-mu300-luci'
+OPENWRT = TOP / 'systems' / 'openwrt' / 'overlay'
+LUCI_DEFAULTS = TOP / 'systems' / 'openwrt' / 'luci-overlay' / 'etc' / 'uci-defaults' / '91-mu300-luci'
 
 # A uci stand-in that keeps the configuration (JSON in $STUBLOG/uci.json) and logs every call to $STUBLOG/uci.log
 # ("uci ARGS", a batch's lines as "batch: LINE", commits to $STUBLOG/commits). It knows what the defaults scripts use:

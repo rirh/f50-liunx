@@ -1,6 +1,6 @@
 #!/bin/sh
-# What the running kernel provides, one item per line, for check-parity.py (upstream/parity-5.4.txt). Run as root on
-# a board, once under 5.4 and once under a mainline kernel, and keep the output as upstream/parity/BOARD-KERNEL.inv:
+# What the running kernel provides, one item per line, for check-parity.py (kernel/mainline/parity-5.4.txt). Run as root on
+# a board, once under 5.4 and once under a mainline kernel, and keep the output as kernel/mainline/parity/BOARD-KERNEL.inv:
 #   sudo sh parity-inventory.sh > f50b-5.4.inv
 # Items (sorted, no duplicates):
 #   driver BUS/NAME     a driver with at least one device bound to it (/sys/bus/*/drivers/*)

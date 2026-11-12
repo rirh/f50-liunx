@@ -1,8 +1,8 @@
-"""tools/android-mount-mu300root.sh -u: the unmount, with stubs for Android's umount and losetup, a mount table
+"""installer/android/android-mount-mu300root.sh -u: the unmount, with stubs for Android's umount and losetup, a mount table
 (MU300_MOUNTS) and a sysfs tree (MU300_SYSFS) standing in for the device's."""
 from helpers import TOP, ShellTest
 
-HELPER = TOP / 'tools' / 'android-mount-mu300root.sh'
+HELPER = TOP / 'installer' / 'android' / 'android-mount-mu300root.sh'
 
 
 class Unmount(ShellTest):

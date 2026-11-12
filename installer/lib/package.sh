@@ -1,12 +1,12 @@
-# A release's Magisk zip, unpacked on a computer, is an installer for that computer too (START-HERE.md in the zip,
-# tools/make-magisk-zips.sh): its computer/ directory is this project's installers, with a file .mu300-package in it,
+# A release's Magisk zip, unpacked on a computer, is an installer for that computer too (START-HERE.md in the zip):
+# its computer/ directory is this project's installers, with a file .mu300-package in it,
 # and the system and the kernel of the zip lie next to it - payload/<the two assets>, mu300/manifest naming them and
 # mu300/SHA256SUMS, the release's own checksums. In that case install.sh installs exactly that system and that kernel,
 # from those files, and downloads nothing. Sourced by install.sh (t, die and progress are its own; needs $TOP).
 #   MU300_PACKAGE=DIR (or install.sh --package DIR)   the unpacked zip at DIR
 #   computer/.mu300-package                           the unpacked zip is the directory above this copy
-# The manifest is read the way the zip's own installer reads it (android/magisk/installer/mu300-install.sh,
-# manifest_load): only its keys, never sourced, and every value exactly one a release has - the values become file
+# The manifest is read the way the zip's own installer reads it
+# (manifest_load): only its keys, never sourced, and every value exactly one a release has - the values become file
 # names. Both payload files must have the checksum the manifest names and the one SHA256SUMS names.
 
 # package_dir: the directory of the unpacked zip this run installs from, or nothing (a copy of the project)

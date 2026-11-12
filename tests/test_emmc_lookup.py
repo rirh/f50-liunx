@@ -121,7 +121,7 @@ class EmmcDev(ShellTest):
 class UeventdPerms(ShellTest):
     def test_no_block_device_by_number(self):
         # mmcblk1p* was the card by number - under the 31l order the eMMC - and gid 1000 is a user on Ubuntu
-        for f in (TOP / 'android-vendor' / 'ueventd-perms.sh', BIN / 'ueventd-perms.sh'):
+        for f in (TOP / 'android' / 'vendor' / 'ueventd-perms.sh', BIN / 'ueventd-perms.sh'):
             t = f.read_text()
             self.assertNotRegex(t, r'mmcblk[0-9]', f)
             self.assertIn('for n in /dev/block/mmcblk*rpmb;', t)     # the eMMC's: a card has no RPMB
@@ -132,7 +132,7 @@ class UeventdPerms(ShellTest):
         rc = self.tmp / 'ueventd.rc'
         rc.write_text('/dev/block/mmcblk1p*  0660 root system\n/dev/block/mmcblk0rpmb 0660 system system\n'
                       '/dev/mmcblk0rpmb 0660 system system\n/dev/modem 0660 system radio\n')
-        out = subprocess.run([sys.executable, str(TOP / 'android-vendor' / 'gen-ueventd-perms.py'), str(rc)],
+        out = subprocess.run([sys.executable, str(TOP / 'android' / 'vendor' / 'gen-ueventd-perms.py'), str(rc)],
                              capture_output=True, text=True, check=True).stdout
         self.assertNotIn('mmcblk1p', out)
         self.assertIn('for n in /dev/block/mmcblk*rpmb; do', out)

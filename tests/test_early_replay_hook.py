@@ -9,8 +9,8 @@ import unittest
 
 
 TOP = Path(__file__).resolve().parents[1]
-RADIO = TOP / 'rootfs/overlay/opt/mu300/bin/mobile-data'
-ATD = TOP / 'openwrt/overlay/etc/init.d/mu300-atd'
+RADIO = TOP / 'systems/base/overlay/opt/mu300/bin/mobile-data'
+ATD = TOP / 'systems/openwrt/overlay/etc/init.d/mu300-atd'
 
 
 class EarlyReplayHook(unittest.TestCase):

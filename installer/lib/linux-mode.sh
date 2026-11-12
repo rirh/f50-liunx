@@ -4,8 +4,8 @@
 # "adb devices" too. Its USB serial number says which system answers: MU300LINUX-... in Linux (boot/init), the bare
 # number in Android. A device in Linux is never one to install to, and nothing else would stop it: "su -c id -u"
 # says 0 there as well, because the adb shell is root.
-# Uses: say(), die(), ask(), and t() from tools/i18n.sh (loaded here when the caller has not)
-command -v t >/dev/null 2>&1 || . "$TOP/tools/i18n.sh"
+# Uses: say(), die(), ask(), and t() from installer/lib/i18n.sh (loaded here when the caller has not)
+command -v t >/dev/null 2>&1 || . "$TOP/installer/lib/i18n.sh"
 
 # the USB network of each kind of device: F50 192.168.77.1, U30 Air 192.168.78.1, V50 192.168.79.1 (MU300_IP: another
 # address)

@@ -1,15 +1,15 @@
 # Shared by install.sh and uninstall.sh: Android's USB functions set to adb alone for the time of a run (no MTP, no
 # PTP), and set back at its end when the device is still in the same boot of Android. Reported by kanoqwq: an F50's
 # stock MTP hangs, and Windows then resets the USB device about every ten seconds, which cuts the adb session each
-# time. The device side, and why it is done this way, is tools/android-usb.sh. Not persistent: the next start of
+# time. The device side, and why it is done this way, is installer/android/android-usb.sh. Not persistent: the next start of
 # Android has the user's functions again.
 #   MU300_USB_ADB_ONLY=0   leave the USB functions as they are
 #   MU300_USB_WAIT=SECONDS how long to wait for adb after the switch (default 60)
-# Uses: su_do, say, die, info, t, and answers_exit (tools/answers.sh) - usb_adb_only sets an EXIT trap that runs it.
+# Uses: su_do, say, die, info, t, and answers_exit (installer/lib/answers.sh) - usb_adb_only sets an EXIT trap that runs it.
 USB_WAS= USB_BOOT=
 USB_T=/data/local/tmp
 
-usb_push() { adb push "$TOP/tools/android-usb.sh" $USB_T/android-usb.sh >/dev/null 2>&1; }
+usb_push() { adb push "$TOP/installer/android/android-usb.sh" $USB_T/android-usb.sh >/dev/null 2>&1; }
 usb_word() { printf '%s\n' "$1" | sed -n 's/^MU300-USB //p' | head -n1; }
 
 # usb_wait STATE: until adb answers again and sys.usb.state is STATE; status 1: not within MU300_USB_WAIT seconds.
@@ -57,7 +57,7 @@ usb_restore() {
     [ "${1:-}" != restore ] || echo "  $(t 'USB of Android set back to {1}' "$_ur")"
 }
 
-# the EXIT trap: the restore, then what tools/answers.sh's own trap does
+# the EXIT trap: the restore, then what installer/lib/answers.sh's own trap does
 usb_exit() {
     _ue=$?
     usb_restore || true

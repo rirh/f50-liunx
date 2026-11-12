@@ -20,7 +20,7 @@ from pathlib import Path
 
 from helpers import GIT_CHECKOUT, TOP, ShellTest
 
-APP = TOP / 'openwrt' / 'luci-app-mu300' / 'root'
+APP = TOP / 'systems' / 'openwrt' / 'luci-app-mu300' / 'root'
 DASH = APP / 'usr' / 'libexec' / 'rpcd' / 'mu300dash'
 ADAPTERS = APP / 'usr' / 'libexec' / 'unisoc-modem'
 ACL = APP / 'usr' / 'share' / 'rpcd' / 'acl.d' / 'luci-app-mu300.json'
@@ -371,7 +371,7 @@ class Refusals(Mu300Dash):
         ('update_get', {}, 'sizes', '1'),
         ('update_act', {'op': 'check'}, 'op', 'check'),
         ('update_act', {'op': 'apply', 'tag': 'v2026.10.25', 'confirm': 'apply'}, 'tag', 'v2026.10.25'),
-        # (the release tags, docs/FINDINGS.md 125: vYYYY.MM.DD.N too, N up to 99)
+        # (the release tags, docs/research/FINDINGS.md 125: vYYYY.MM.DD.N too, N up to 99)
         ('update_act', {'op': 'apply', 'confirm': 'apply'}, 'tag', 'v2026.10.16.1'),
         ('update_act', {'op': 'apply', 'confirm': 'apply'}, 'tag', 'v2026.10.16.12'),
         ('update_act', {'op': 'apply', 'tag': 'v2026.10.25', 'confirm': 'apply'}, 'confirm', 'apply'),
@@ -1595,9 +1595,9 @@ class FixRound1(Mu300Dash):
             self.assertEqual(self.reply(r), {'ok': 0, 'error': 'Delete failed', 'detail': 'no message "4"\\x'})
 
     def test_errors_are_english_sentences_in_the_catalogs(self):
-        # the page shows _(error): each error is one fixed English sentence that tools/luci-i18n.py extracts (so it
+        # the page shows _(error): each error is one fixed English sentence that scripts/i18n/luci-i18n.py extracts (so it
         # is in po/tr and po/zh_Hans), never Chinese; the value it carries, if any, is in detail
-        known = set(subprocess.run([sys.executable, str(TOP / 'tools' / 'luci-i18n.py'), 'extract'], check=True,
+        known = set(subprocess.run([sys.executable, str(TOP / 'scripts' / 'i18n' / 'luci-i18n.py'), 'extract'], check=True,
                                    capture_output=True, text=True, encoding='utf-8').stdout.splitlines())
         busy = 'The AT channel is busy; the command was not sent, try again'
         cases = [
@@ -1797,8 +1797,8 @@ class RuntimeDir(Mu300Dash):
         self.assertIn('RUN_DIR=/var/run/unisoc-modem', LIB.read_text())
         if not GIT_CHECKOUT:
             self.skipTest('no git checkout here')
-        r = subprocess.run(['git', 'grep', '-l', '/tmp/unisoc-modem', '--', 'openwrt', 'rootfs', 'README.md',
-                            'docs/BUILD.md'], cwd=TOP, capture_output=True, text=True)
+        r = subprocess.run(['git', 'grep', '-l', '/tmp/unisoc-modem', '--', 'systems/openwrt', 'systems/base', 'README.md',
+                            'docs/guides/BUILD.md'], cwd=TOP, capture_output=True, text=True)
         if r.returncode not in (0, 1):
             self.skipTest('no git checkout here: ' + r.stderr.strip())
         self.assertEqual(r.stdout, '')
@@ -1966,7 +1966,7 @@ class RadioLock(Mu300Dash):
             self.assertEqual([l.split()[1] for l in self.log('md')], ['radio-locked'])
 
     def test_the_backend_says_busy_before_starting_anything(self):
-        known = set(subprocess.run([sys.executable, str(TOP / 'tools' / 'luci-i18n.py'), 'extract'], check=True,
+        known = set(subprocess.run([sys.executable, str(TOP / 'scripts' / 'i18n' / 'luci-i18n.py'), 'extract'], check=True,
                                    capture_output=True, text=True, encoding='utf-8').stdout.splitlines())
         self.assertIn(BUSY_RADIO, known)
         for shell in self.each_shell():
@@ -1997,7 +1997,7 @@ class AtBudget(Mu300Dash):
                       'case $3 in AT+SLOW) echo "mu300-at: no answer from the daemon" >&2; exit 1 ;; esac\necho OK\n')
         at.chmod(0o755)
         slow = 'The modem did not answer in time; the command may still run, check before sending it again'
-        known = set(subprocess.run([sys.executable, str(TOP / 'tools' / 'luci-i18n.py'), 'extract'], check=True,
+        known = set(subprocess.run([sys.executable, str(TOP / 'scripts' / 'i18n' / 'luci-i18n.py'), 'extract'], check=True,
                                    capture_output=True, text=True, encoding='utf-8').stdout.splitlines())
         self.assertIn(slow, known)
         for shell in self.each_shell():

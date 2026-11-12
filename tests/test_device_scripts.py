@@ -86,7 +86,7 @@ class Device(ShellTest):
         self.assertEqual(a.group(0), b.group(0))
 
     def test_json_for_programs(self):
-        """mu300-device --json: the contract of docs/ADB-INTERFACE.md, one line a JSON parser takes."""
+        """mu300-device --json: the contract of docs/guides/ADB-INTERFACE.md, one line a JSON parser takes."""
         r = self.root('u30air')
         (r / 'etc' / 'mu300').mkdir(parents=True)
         (r / 'etc' / 'mu300' / 'image-version').write_text('v2026.10.23\n')
@@ -1570,7 +1570,7 @@ up() { at UP; }
     def test_the_openwrt_watchdog_logs(self):
         # FINDINGS 90 (measured on a U30 Air): procd kept none of the watchdog's stderr, so on OpenWrt nothing it said
         # ("mobile data lost ... reconnecting", "no answer about the data context") ever reached logread
-        post = (TOP / 'openwrt/overlay/etc/init.d/mu300-post').read_text()
+        post = (TOP / 'systems/openwrt/overlay/etc/init.d/mu300-post').read_text()
         inst = post[post.index('procd_open_instance cellwatch'):]
         inst = inst[:inst.index('procd_close_instance')]
         self.assertIn('procd_set_param command /opt/mu300/bin/mobile-data watch', inst)
@@ -2234,7 +2234,7 @@ at() {
         self.assertLess(up.index('rf_allowed'), up.index('radio_on'))
         for name in ('mu300-sim-u30', 'mu300-sim2-start', 'mu300-sim2-warmup'):
             self.assertIn('allowed', (BIN / name).read_text(), name)
-        self.assertIn('mu300-sim-radio', (TOP / 'rootfs/overlay/opt/mu300/lib/path-commands').read_text().split())
+        self.assertIn('mu300-sim-radio', (TOP / 'systems/base/overlay/opt/mu300/lib/path-commands').read_text().split())
 
 
 class SimState(ShellTest):
@@ -2354,7 +2354,7 @@ class SimState(ShellTest):
             self.assertIn('rm -f "$RF_HELD" "$SIM_HELD"; down ;;', text)
             atd = (BIN / 'mu300-atd').read_text()
             self.assertIn('"$SIM_STATE" event "$((n / 3))" "$urc"', atd)
-            self.assertIn('mu300-sim-state', (TOP / 'rootfs/overlay/opt/mu300/lib/path-commands').read_text().split())
+            self.assertIn('mu300-sim-state', (TOP / 'systems/base/overlay/opt/mu300/lib/path-commands').read_text().split())
         finally:
             md.tearDown()
 
@@ -2920,12 +2920,12 @@ class Bootmark(ShellTest):
         self.assertIn('${MU300_TIMELINE:-/run/mu300/boot-timeline}', (BIN / 'bootmark').read_text())
         self.assertTrue(os.access(BIN / 'bootmark', os.X_OK))
         for f in (BIN / 'android-vendor-start', BIN / 'mobile-data',
-                  TOP / 'openwrt' / 'overlay' / 'etc' / 'init.d' / 'mu300-atd'):
+                  TOP / 'systems' / 'openwrt' / 'overlay' / 'etc' / 'init.d' / 'mu300-atd'):
             text = f.read_text()
             self.assertRegex(text, r'\[ -x /opt/mu300/bin/bootmark \] && /opt/mu300/bin/bootmark .*\|\| true', f.name)
             # no bare call: every bootmark call sits behind the guard or inside mark()
             self.assertNotRegex(text, r'(?m)^\s*/opt/mu300/bin/bootmark', f.name)
-        self.assertIn('bootmark S19-atd-init', (TOP / 'openwrt' / 'overlay' / 'etc' / 'init.d' / 'mu300-atd').read_text())
+        self.assertIn('bootmark S19-atd-init', (TOP / 'systems' / 'openwrt' / 'overlay' / 'etc' / 'init.d' / 'mu300-atd').read_text())
 
 
 class VendorStart(ShellTest):
@@ -3099,7 +3099,7 @@ class VendorStart(ShellTest):
         text = (BIN / 'android-vendor-start').read_text()
         self.assertLess(text.index('mkdir -p /var/log 2>/dev/null || true\n'),
                         text.index('/opt/mu300/bin/logdw /dev/socket/logdw >> /var/log/android-logcat.txt'))
-        self.assertEqual((TOP / 'openwrt/overlay/etc/init.d/mu300-vendor').read_text().count('\nSTART=09\n'), 1)
+        self.assertEqual((TOP / 'systems/openwrt/overlay/etc/init.d/mu300-vendor').read_text().count('\nSTART=09\n'), 1)
 
     def test_no_forks_in_the_loop_and_no_sleep_after_logdw(self):
         text = (BIN / 'android-vendor-start').read_text()
@@ -4077,11 +4077,11 @@ esac''')
 
     def test_boot_indicator_hooks(self):
         # started as early as the system allows, ended when the boot is done, on both systems
-        hook = (TOP / 'openwrt/overlay/lib/preinit/04_mu300_early_leds').read_text()
+        hook = (TOP / 'systems/openwrt/overlay/lib/preinit/04_mu300_early_leds').read_text()
         self.assertIn('boot_hook_add preinit_essential mu300_early_leds', hook)
         self.assertIn('/opt/mu300/bin/mu300-led boot on', hook)
-        self.assertIn('/opt/mu300/bin/mu300-led boot off', (TOP / 'openwrt/overlay/etc/init.d/mu300-post').read_text())
-        units = TOP / 'rootfs/overlay/etc/systemd/system'
+        self.assertIn('/opt/mu300/bin/mu300-led boot off', (TOP / 'systems/openwrt/overlay/etc/init.d/mu300-post').read_text())
+        units = TOP / 'systems/base/overlay/etc/systemd/system'
         fixups = (units / 'mu300-fixups.service').read_text()
         self.assertLess(fixups.index('mu300-led boot on'), fixups.index('mu300-led power on'))
         ok = (units / 'mu300-boot-ok.service').read_text()
@@ -4167,7 +4167,7 @@ class Buttons(ShellTest):
             self.assertTrue(gone, 'mu300-keys outlived the stop')
 
     def test_procd_respawns_the_thermal_guard(self):
-        post = (TOP / 'openwrt/overlay/etc/init.d/mu300-post').read_text()
+        post = (TOP / 'systems/openwrt/overlay/etc/init.d/mu300-post').read_text()
         inst = post[post.index('procd_open_instance thermalguard'):]
         inst = inst[:inst.index('procd_close_instance')]
         self.assertIn('procd_set_param command /opt/mu300/bin/thermal-guard', inst)
@@ -4496,16 +4496,16 @@ class WcnReopen(ShellTest):
                                  ['ip link set wlan0 down', 'ip link set wlan0 up', 'ip link set wlan0 down'])
 
     def test_the_udev_rule_starts_the_service(self):
-        rule = (TOP / 'rootfs/overlay/etc/udev/rules.d/70-mu300-wcn.rules').read_text()
+        rule = (TOP / 'systems/base/overlay/etc/udev/rules.d/70-mu300-wcn.rules').read_text()
         self.assertIn('ENV{EVENT}=="FW_ERROR", RUN+="/bin/systemctl --no-block start mu300-wcn-reopen.service"', rule)
-        unit = (TOP / 'rootfs/overlay/etc/systemd/system/mu300-wcn-reopen.service').read_text()
+        unit = (TOP / 'systems/base/overlay/etc/systemd/system/mu300-wcn-reopen.service').read_text()
         self.assertIn('ExecStart=/opt/mu300/bin/wcn-reopen\n', unit)
 
 
 class OpenwrtWcnHotplug(ShellTest):
     """OpenWrt's hotplug.d/misc/10-mu300-wcn: one "wifi down; wifi up" per WCN reset, however many FW_ERROR events
     (kanoqwq/mu300-linux@23361ce: a single recovery owner)."""
-    HOOK = TOP / 'openwrt/overlay/etc/hotplug.d/misc/10-mu300-wcn'
+    HOOK = TOP / 'systems/openwrt/overlay/etc/hotplug.d/misc/10-mu300-wcn'
 
     def setUp(self):
         super().setUp()
@@ -5732,7 +5732,7 @@ class VpnUplink(ShellTest):
                 self.assertNotIn('vpn restart', calls, (shell, since, enabled, began, r.stderr))
 
     def test_the_openwrt_hook_runs_it_for_the_bearer_only(self):
-        hook = (TOP / 'openwrt/overlay/etc/hotplug.d/iface/96-mu300-vpn-uplink').read_text()
+        hook = (TOP / 'systems/openwrt/overlay/etc/hotplug.d/iface/96-mu300-vpn-uplink').read_text()
         self.assertIn('[ "$ACTION" = ifup ] || exit 0', hook)
         self.assertIn('sipa_eth*) ;;', hook)
         self.assertRegex(hook, r'/opt/mu300/bin/mu300-vpn-uplink "\$DEVICE" .*&\n')
@@ -6241,7 +6241,7 @@ class ToolkitStress(ShellTest):
 class SysupgradeWrapper(ShellTest):
     """OpenWrt's /sbin/sysupgrade here: a firmware image is refused, the configuration backup tools pass (kanoqwq's
     b8d4f222 added restore: LuCI's System > Backup "Upload archive" runs sysupgrade --restore-backup)."""
-    WRAP = TOP / 'openwrt/overlay/usr/libexec/mu300-sysupgrade'
+    WRAP = TOP / 'systems/openwrt/overlay/usr/libexec/mu300-sysupgrade'
 
     def run_it(self, shell, *args):
         real = self.stubs / 'sysupgrade.openwrt'

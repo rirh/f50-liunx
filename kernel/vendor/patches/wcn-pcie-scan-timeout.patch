@@ -1,7 +1,7 @@
 sprdwcn/pcie: initialise remove_done before a scan, retry a late card once, guard remove
 
 A PCIe scan that timed out removed the half-probed card, and sprd_pcie_remove() completed a completion that
-sprd_pcie_remove_card() had never initialised: an oops in __wake_up_locked and a panic (docs/FINDINGS.md 31i).
+sprd_pcie_remove_card() had never initialised: an oops in __wake_up_locked and a panic (docs/research/FINDINGS.md 31i).
 
 --- a/drivers/unisoc_platform/sprdwcn/pcie/pcie.c	2026-09-27 15:35:46
 +++ b/drivers/unisoc_platform/sprdwcn/pcie/pcie.c	2026-09-27 15:35:46
@@ -12,7 +12,7 @@ sprd_pcie_remove_card() had never initialised: an oops in __wake_up_locked and a
 +	/*
 +	 * MU300: sprd_pcie_remove() completes remove_done, and it also runs when a scan times out with the card half
 +	 * probed - before sprd_pcie_remove_card() ever initialised it: complete() on a zeroed completion oopsed in
-+	 * __wake_up_locked and the board panicked (seen on OpenWrt, docs/FINDINGS.md 31i). Completing it with nobody
++	 * __wake_up_locked and the board panicked (seen on OpenWrt, docs/research/FINDINGS.md 31i). Completing it with nobody
 +	 * waiting is harmless.
 +	 */
 +	init_completion(&priv->remove_done);

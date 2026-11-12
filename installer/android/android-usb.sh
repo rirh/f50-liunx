@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Android's USB functions while an installer works over adb (runs as root on Android; install.sh, install.ps1, the
+# Android's USB functions while an installer works over adb (runs as root on Android; install.sh, the
 # uninstallers and the web installer push it and run it under su). Reported by kanoqwq: on an F50 the stock firmware's
 # MTP function hangs, and Windows then resets the whole USB device about every ten seconds - which ends the adb
 # session the installer uses each time. Nothing here needs MTP (or PTP), so for the time of an installation the
@@ -25,7 +25,7 @@
 # and does not set them again while it has nothing to change.
 #
 # Changing the functions takes the USB device away and back (adb drops for a few seconds; Windows and macOS see
-# another USB product id): the caller waits for adb, see tools/usb-adb.sh and tools/usb-adb.ps1.
+# another USB product id): the caller waits for adb, see installer/lib/usb-adb.sh.
 #   MU300_GETPROP, MU300_SETPROP, MU300_BOOT_ID, MU300_USB_DELAY, MU300_USB_DETACH=0: for the tests
 set -u
 GETPROP=${MU300_GETPROP:-/system/bin/getprop}; [ -x "$GETPROP" ] || command -v "$GETPROP" >/dev/null 2>&1 || GETPROP=getprop

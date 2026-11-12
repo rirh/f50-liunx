@@ -1,6 +1,6 @@
-# check-parity.py --5.4 OUT (kernel/build-all.sh): the modules (F50 and U30 Air sets) and built-in
+# check-parity.py --5.4 OUT (kernel/vendor/build-all.sh): the modules (F50 and U30 Air sets) and built-in
 # objects of the 5.4 build
-# inputs f690c0359ad68ce3a694e09e0d13da3cab1013de98f0c657db1c7eb577d4f17b
+# inputs b2f065ca28f7755cb7b0da459233336d4fd7fccae7a29670944daddbebc3a81c
 builtin 8021q
 builtin 8250
 builtin 8250_base

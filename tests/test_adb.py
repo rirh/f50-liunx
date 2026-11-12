@@ -1,4 +1,4 @@
-"""adb over USB to Linux: the adbd build (tools/adbd), the gadget side (mu300-adbd, against a fake configfs gadget
+"""adb over USB to Linux: the adbd build (device-tools/adbd), the gadget side (mu300-adbd, against a fake configfs gadget
 whose UDC is a plain file) and its switch, its two ways of letting computers in and its keys (mu300-usb adb), the
 kernel option and the images. On by default and open to every computer (FINDINGS 70); what a device was set to
 before that stays."""
@@ -12,7 +12,7 @@ import unittest
 
 from helpers import BIN, TOP, ShellTest
 
-ADBD_DIR = TOP / 'tools/adbd'
+ADBD_DIR = TOP / 'device-tools/adbd'
 PATCH = (ADBD_DIR / 'mu300-adbd.patch').read_text()
 KEY = 'QAAAA' + 'A' * 694 + '='          # the shape of an Android RSA-2048 public key (adbkey.pub)
 KEY2 = 'QAAAA' + 'B' * 694 + '='
@@ -30,7 +30,7 @@ def added(patch, path):
 
 
 class AdbdBuild(unittest.TestCase):
-    """What tools/adbd builds: the security of the daemon is in its patch, so the patch is checked line by line."""
+    """What device-tools/adbd builds: the security of the daemon is in its patch, so the patch is checked line by line."""
 
     def test_source_is_pinned(self):
         b = (ADBD_DIR / 'build.sh').read_text()
@@ -92,37 +92,37 @@ class AdbdBuild(unittest.TestCase):
             self.assertNotIn(f, cm)
 
     def test_binary_is_not_tracked(self):
-        self.assertIn('\ntools/adbd/adbd\n', (TOP / '.gitignore').read_text())
+        self.assertIn('\ndevice-tools/adbd/adbd\n', (TOP / '.gitignore').read_text())
 
 
 class AdbImages(unittest.TestCase):
     def test_kernel_has_functionfs(self):
-        self.assertIn('\nCONFIG_USB_CONFIGFS_F_FS=y\n', (TOP / 'upstream/mu300-mainline.config').read_text())
+        self.assertIn('\nCONFIG_USB_CONFIGFS_F_FS=y\n', (TOP / 'kernel/mainline/mu300-mainline.config').read_text())
 
     def test_ubuntu_image(self):
-        a = (TOP / 'rootfs/assemble.sh').read_text()
+        a = (TOP / 'systems/base/assemble.sh').read_text()
         self.assertIn('install -m755 /adbd $R/opt/mu300/bin/adbd', a)
         self.assertIn('mu300-adbd.service:multi-user.target', a)
-        unit = (TOP / 'rootfs/overlay/etc/systemd/system/mu300-adbd.service').read_text()
+        unit = (TOP / 'systems/base/overlay/etc/systemd/system/mu300-adbd.service').read_text()
         self.assertIn('ExecStart=/opt/mu300/bin/mu300-adbd run', unit)
         self.assertIn('ExecStopPost=/opt/mu300/bin/mu300-adbd stop', unit)
         self.assertIn('KillMode=mixed', unit)
         self.assertIn('Before=mu300-lan.service', unit)
 
     def test_openwrt_image(self):
-        b = (TOP / 'openwrt/build-rootfs.sh').read_text()
-        self.assertIn('$(opt tools/adbd/adbd adbd)', b)
+        b = (TOP / 'systems/openwrt/build-rootfs.sh').read_text()
+        self.assertIn('$(opt device-tools/adbd/adbd adbd)', b)
         self.assertIn('cp /in/adbd $R/opt/mu300/bin/adbd', b)
         self.assertRegex(b, r'for s in mu300-accounts [^\n]* mu300-adbd; do')
-        init = (TOP / 'openwrt/overlay/etc/init.d/mu300-adbd').read_text()
+        init = (TOP / 'systems/openwrt/overlay/etc/init.d/mu300-adbd').read_text()
         # on unless turned off, as mu300-adbd run decides it
         self.assertIn('[ "$(cat /etc/mu300/adb 2>/dev/null)" != off ] || return 0', init)
         self.assertIn('procd_set_param command /opt/mu300/bin/mu300-adbd run', init)
         self.assertNotIn('respawn', init)   # the loop restarts adbd; a respawned loop would rebind the gadget again
 
     def test_release_builds_it(self):
-        r = (TOP / 'tools/make-release.sh').read_text()
-        self.assertIn('tools/adbd/build.sh', r)
+        r = (TOP / 'scripts/release/make-release.sh').read_text()
+        self.assertIn('device-tools/adbd/build.sh', r)
         self.assertIn('/adbd:ro', r)
 
 
@@ -131,7 +131,7 @@ class GadgetOsDescTable(unittest.TestCase):
     kept the pointer, so a bind without OS descriptors left it for the next unbind to free again. Patch 0027 forgets
     it in both; mu300-adbd keeps the descriptors on, for kernels without the patch."""
 
-    KPATCH = TOP / 'upstream/patches/0027-usb-gadget-ncm-rndis-os-desc-table-double-free.patch'
+    KPATCH = TOP / 'kernel/mainline/patches/0027-usb-gadget-ncm-rndis-os-desc-table-double-free.patch'
 
     def test_both_unbinds_forget_the_table_they_freed(self):
         p = self.KPATCH.read_text()
@@ -140,7 +140,7 @@ class GadgetOsDescTable(unittest.TestCase):
             self.assertIn('\n \tkfree(f->os_desc_table);\n+\tf->os_desc_table = NULL;\n \tf->os_desc_n = 0;\n', hunk)
 
     def test_one_patch_with_its_number(self):
-        names = [q.name for q in (TOP / 'upstream/patches').rglob('0027-*.patch')]
+        names = [q.name for q in (TOP / 'kernel/mainline/patches').rglob('0027-*.patch')]
         self.assertEqual([self.KPATCH.name], names)
 
     def test_adbd_never_turns_the_descriptors_off(self):
@@ -257,7 +257,7 @@ class Gadget(ShellTest):
     def test_a_functionfs_that_comes_late_in_the_boot_is_waited_for(self):
         """OpenWrt starts the service 13 s after power-on (S19), when the FunctionFS module cannot be had yet: making
         the function failed, the service said "no FunctionFS" and ended for good - with adb on by default, no
-        OpenWrt had adb after a boot (v2026.10.24 pre-release on an F50, docs/FINDINGS.md 82). It asks again for a
+        OpenWrt had adb after a boot (v2026.10.24 pre-release on an F50, docs/research/FINDINGS.md 82). It asks again for a
         minute now."""
         for shell in self.each_shell():
             self.builtin.write_text('kernel/drivers/usb/gadget/function/usb_f_ncm.ko\n')

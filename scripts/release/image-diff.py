@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """The diff of a root filesystem image: the new image without the files an older release's image had as they are.
 
-  tools/image-diff.py make BASE.manifest.gz NEW-ROOTFS.tar.gz OUT.tar.gz    write the diff; prints its sizes
-  tools/image-diff.py check BASE.manifest.gz NEW-ROOTFS.tar.gz DIFF.tar.gz  the diff and the files of BASE it leaves
+  scripts/release/image-diff.py make BASE.manifest.gz NEW-ROOTFS.tar.gz OUT.tar.gz    write the diff; prints its sizes
+  scripts/release/image-diff.py check BASE.manifest.gz NEW-ROOTFS.tar.gz DIFF.tar.gz  the diff and the files of BASE it leaves
                                                                             out give NEW, entry for entry; exit 1 if not
 
 Ported from kanoqwq/mu300-linux b8d4f222 and fb0b28e7 (his OTA diff, and diffs made from an old release's index rather
-than its whole image): here the index is the manifest every release publishes (tools/image-manifest.py), and the diff
-is made by tools/make-release.sh and listed in the release's signed SHA256SUMS like every other file of it.
+than its whole image): here the index is the manifest every release publishes (scripts/release/image-manifest.py), and the diff
+is made by scripts/release/make-release.sh and listed in the release's signed SHA256SUMS like every other file of it.
 
 A diff is a tar.gz of the new image's members in their order, the image's own etc/mu300/image-manifest.gz among them,
 with the regular files left out that the base image had with the same manifest line (type, mode, owner, size, sha256)

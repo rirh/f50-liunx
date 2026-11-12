@@ -11,12 +11,12 @@ It is based on [dikeckaan/mu300-linux](https://github.com/dikeckaan/mu300-linux)
 Windows installers, Magisk zip installer, website, wiki and Turkish translation. Existing `mu300` command,
 directory and package names are retained for compatibility.
 
-中文开发导航：[项目目录说明：各文件夹用途、前后端位置与修改生效范围](docs/PROJECT-STRUCTURE.zh-CN.md)。
+中文开发导航：[项目目录说明：各文件夹用途、前后端位置与修改生效范围](docs/architecture/PROJECT-STRUCTURE.zh-CN.md)。
 
 To develop the MU300 web interface locally, run `make dev` and open `http://127.0.0.1:27547/`.
 Python 3.8+ and a reachable F50 running OpenWrt are required. Local browser assets are served from this checkout;
-login and API calls go to the device. See [local interface development](openwrt/luci-app-mu300/README.md#local-interface-development).
-Run `make help` for deployment, restart and debugging commands; see the [Make command guide](make/README.md)
+login and API calls go to the device. See [local interface development](systems/openwrt/luci-app-mu300/README.md#local-interface-development).
+Run `make help` for installation, deployment, restart and debugging commands; see the [Make command guide](make/README.md)
 for their file scopes, SSH settings and backups.
 
 Upstream prebuilt images are available on the [mu300-linux releases page](https://github.com/dikeckaan/mu300-linux/releases).
@@ -78,7 +78,7 @@ them. If that is not acceptable to you, do not install it.
 | NFC | - | a phone held to the device joins the hotspot, as with ZTE's firmware: `sudo mu300-nfc` shows the tag, `wifi` writes the hotspot's name and password (again at every hotspot start), `url https://...` or `text ...` anything else, `clear` empties it, `on`/`off` is the NFC switch of ZTE's web interface (kept in the tag) |
 
 Both run the same kernel, the same systems and the same releases; what differs is a handful of drivers for the U30
-Air's charger and LEDs, which its boot image loads in place of the F50's ([`kernel/u30air.fragment`](kernel/u30air.fragment)).
+Air's charger and LEDs, which its boot image loads in place of the F50's ([`kernel/vendor/u30air.fragment`](kernel/vendor/u30air.fragment)).
 Nothing about the device has to be chosen by hand: the installer reads it from Android, and the boot image, the
 LEDs and the default address follow. The U30 **Pro** is a different chip (UMS9632) and is not supported.
 
@@ -86,7 +86,7 @@ LEDs and the default address follow. The U30 **Pro** is a different chip (UMS963
 
 The ZTE **V50** (`ro.product.model` V50, `ro.product.device` MU3351, platform `ums9620`; not the Blade V50 phone) is
 the F50's platform with two SIM slots, NFC and three front lamps on an AW9523B LED controller. kano (kanoqwq) ported
-this project to it in his line of it; what he found and measured is in [FINDINGS 95](docs/FINDINGS.md). **Nobody in
+this project to it in his line of it; what he found and measured is in [FINDINGS 95](docs/research/FINDINGS.md). **Nobody in
 this project has a V50 or has tested one**: install it only if you can get back to Android on your own.
 
 | | ZTE V50 / MU3351 |
@@ -95,7 +95,7 @@ this project has a V50 or has tested one**: install it only if you can get back 
 | What runs | what runs on an F50: the same systems, modules and settings, USB-powered (no battery) |
 | LEDs | NET1 lamp: blue 4G, white 5G, red no service; Wi-Fi lamp: white 5 GHz, blue 2.4 GHz; NET2 dark (`leds-aw9523b`, mainline) |
 | USB network | `192.168.79.1` (neither the F50's nor the U30 Air's subnet) |
-| SIM cards | one per boot: built-in SIM 1, 2, 3 or the external SIM, as the board has them (`mu300-sim card`, LuCI Cellular > SIM; [docs/SIM-SELECTION.md](docs/SIM-SELECTION.md), FINDINGS 204); untested on a V50 here |
+| SIM cards | one per boot: built-in SIM 1, 2, 3 or the external SIM, as the board has them (`mu300-sim card`, LuCI Cellular > SIM; [docs/guides/SIM-SELECTION.md](docs/guides/SIM-SELECTION.md), FINDINGS 204); untested on a V50 here |
 | NFC | the U30 Air's `mu300-nfc` on the same tag (reset line 189 from ZTE's device tree, FINDINGS 229); untested on a V50 here |
 | Not yet | the eMMC host is kept awake (kano's fix for lost files, patch 0017) |
 
@@ -152,7 +152,7 @@ the Linux boot image and the device goes back to Android by itself after the ins
 > recovery tool (SPD/BROM) to revive the device. On the usual 64 GB device Android, its data and the partition table
 > are never modified. The **32 GB variant** is the exception: it has no free space at all, and the installer offers to
 > make some by shrinking `userdata` — that rewrites the partition table and erases everything in Android, it is
-> experimental, and it asks first. Take a full backup with `tools/backup-device.sh` before going that way.
+> experimental, and it asks first. Take a full backup with `scripts/device/backup-device.sh` before going that way.
 > There is always some risk. Nothing here is endorsed by ZTE or Unisoc.
 
 **What protects you:**
@@ -176,10 +176,15 @@ available there too. After a restart from Linux, a device with a known serial is
 
 ## Install
 
+Host: **macOS only**. Every step below goes through `make` (`make help` lists them). Each target that needs the
+device first runs `make adb`, which turns on USB and wireless ADB on the F50's stock Android
+(`scripts/device/f50-enable-adb-macos.sh`: it asks for the web admin password once and reboots the F50; when ADB is
+already set up it only checks). Give the F50's USB to the Mac and stay on its Wi-Fi.
+
 **Step 0 — back up what cannot be replaced (recommended).**
 
 ```sh
-tools/backup-device.sh          # macOS / Linux, device in rooted Android
+make backup                  # device in stock Android
 ```
 
 This copies your unit's own data — `prodnv`, the modem calibration and IMEI partitions, the bootloader chain — to
@@ -190,7 +195,7 @@ repository: it contains your IMEI.
 **Step 1 — check your device.** This only reads; it writes nothing.
 
 ```sh
-./install.sh --check          # macOS / Linux
+make install-check
 ```
 
 It reports the storage size, where Android's partitions end and how much free space follows them. On the 64 GB
@@ -199,7 +204,7 @@ device that is about 32 GiB.
 If it reports none at all, you have the **32 GB variant**, where `userdata` fills the disk (a 64 GB unit can look
 the same after a vendor firmware flash replaced its partition table, issue #32). The installer can make
 room by shrinking it — that erases everything in Android and rewrites the partition table, so it is experimental
-and it asks first. Back the device up with `tools/backup-device.sh` before saying yes. If the numbers look like
+and it asks first. Back the device up with `scripts/device/backup-device.sh` before saying yes. If the numbers look like
 neither case, stop and open an issue with what `--check` printed; they identify the variant. With an SD card in the
 slot there is a way that erases nothing: `--check` says so, and the installer offers the card instead.
 
@@ -222,8 +227,7 @@ CRC), the region by the installers' own arithmetic, the token on the device and 
 reader, the region's arithmetic, what formats and fills it, `boot/init`) are all still the ones it was prepared with;
 otherwise it stops, having written nothing, and says which. `--resume` insists on a transaction, `--no-resume`
 installs as if nothing had been prepared (the region is then space that holds data, and you type `overwrite`),
-`--transaction FILE` takes another one. While a
-transaction waits the installer does not update itself. kano says he ran the stage after the reset's check against
+`--transaction FILE` takes another one. kano says he ran the stage after the reset's check against
 his V50's record ("passing the 8.00 GiB partition, identity, token and payload checks") and that the reset itself
 "still needs real MU300 validation"; this project has not run it on a device either (FINDINGS 112).
 
@@ -244,12 +248,12 @@ All three kernels have the card's driver (5.4 and 6.18 read it on the boards, as
 **Step 2 — install.**
 
 ```sh
-kernel/build-all.sh           # once: the 5.4 kernel and its modules, into out/ (docker)
-./install.sh                  # builds the systems here, from this copy, and installs them
+kernel/vendor/build-all.sh           # once: the 5.4 kernel and its modules, into out/ (docker)
+make install                 # builds the systems here, from this copy, and installs them
 ```
 
 In this copy `./install.sh` builds what it installs: the kernel of `out/`, and Ubuntu 24.04 or OpenWrt built in docker
-from `rootfs/` and `openwrt/` as they are here, so a change made in this directory is in the system that gets
+from `systems/base/` and `systems/openwrt/` as they are here, so a change made in this directory is in the system that gets
 installed. That is the 5.4 kernel only; `./install.sh --prebuilt` (or `MU300_MODE=prebuilt`) downloads the upstream
 project's published release from GitHub instead, with its 6.18 and 7.3 kernels and Ubuntu 26.04. The graphical
 installer installs published releases.
@@ -266,7 +270,7 @@ installer: the same steps in a window, with the device, its storage and the prog
 (`MU300_GUI=0` never asks, `MU300_GUI=1` starts it without asking). It needs a Python 3.8 or newer with tkinter
 (Tk 8.6 or newer); the installer looks for one, says what is missing, and installs nothing without showing the
 command and getting a yes. The window drives this same `install.sh`, so it installs nothing
-differently. It can also be started directly: `python3 gui/mu300-gui.py`.
+differently. It can also be started directly: `python3 installer/gui/mu300-gui.py`.
 
 ![The graphical installer: the device page](docs/images/gui/gui-01-device.png)
 
@@ -276,12 +280,10 @@ release and asks nothing.
 
 **Without a terminal.** `./install.sh --answers FILE` takes every answer from
 variables and asks nothing; a question without an answer stops the run and names its variable.
-`MU300_PROGRESS=1` adds a machine-readable progress stream. See [docs/INSTALLER-AUTOMATION.md](docs/INSTALLER-AUTOMATION.md).
+`MU300_PROGRESS=1` adds a machine-readable progress stream. See [docs/guides/INSTALLER-AUTOMATION.md](docs/guides/INSTALLER-AUTOMATION.md).
 
 The installer speaks **English and 中文**: it asks at the start (English is the default; `MU300_LANG=zh`
-skips the question). Adding a language is one file: see `i18n/README.md`. This trimmed copy does not update itself from
-GitHub: `MU300_SELF_UPDATE=1 ./install.sh` turns that back on, and it then replaces this copy's files with upstream's
-(the removed ones come back).
+skips the question). Adding a language is one file: see `installer/i18n/README.md`.
 
 With Ubuntu it asks for the release: **24.04 LTS** (the default, the longest tested) or **26.04 LTS** - the
 newest, with systemd 259, on kernel 6.18 or 7.3. An installed Ubuntu moves
@@ -324,7 +326,7 @@ Android's slot. The images the Linux slot held are backed up first, to the Linux
 to `work/bootchain/` on the computer; each written image is read back, and a mismatch puts the old ones back and stops
 before Linux is armed. The summary says what it will do ("boot chain: identical on both slots" on a device that never
 took an update). Experts can skip it: `MU300_SYNC_BOOTCHAIN=0 ./install.sh`.
-Details: [FINDINGS 40](docs/FINDINGS.md). Thanks to kano for the advice.
+Details: [FINDINGS 40](docs/research/FINDINGS.md). Thanks to kano for the advice.
 
 If Linux is already installed it asks whether to **update** or **wipe**:
 
@@ -340,7 +342,7 @@ on the device against the installed system's own hash (yescrypt on Ubuntu, SHA-c
 Enter for none, OpenWrt's `root` as it ships); three wrong tries stop the installer before anything is written, and
 nothing is changed. **no** asks a new password, typed twice. A system the update installs new still gets the new
 password. In answers mode: `MU300_ANS_KEEP_PASSWORD`, `MU300_ANS_CURRENT_PASSWORD` (one try,
-[docs/INSTALLER-AUTOMATION.md](docs/INSTALLER-AUTOMATION.md)).
+[docs/guides/INSTALLER-AUTOMATION.md](docs/guides/INSTALLER-AUTOMATION.md)).
 
 The check runs nothing of the installed Linux system on Android's side: it uses the project's own `mu300-pwcheck`
 (static, libxcrypt) and busybox from the release's kernel bundle. Releases up to v2026.10.16.1 have no
@@ -362,7 +364,7 @@ address is `192.168.78.1` instead.
 The Wi-Fi network the device broadcasts is its hotspot; unless you chose otherwise it uses the name and password
 copied from Android. It is **WPA2-PSK (CCMP) only**, on every device: WPA3 (SAE) is disabled on this Wi-Fi chip,
 because the U30 Air's firmware WPA3 could let a client in without the password
-([docs/U30AIR-SAE.md](docs/U30AIR-SAE.md), FINDINGS 80 and 175). A hotspot that was set to WPA3 is switched to WPA2
+([docs/research/U30AIR-SAE.md](docs/research/U30AIR-SAE.md), FINDINGS 80 and 175). A hotspot that was set to WPA3 is switched to WPA2
 with the same password at the first boot of a newer image (or switched off, never left open, if it has no usable
 password), and LuCI shows a notice saying so; choosing WPA3 in LuCI leaves that access point down, with a line in
 the log.
@@ -410,7 +412,7 @@ whenever OpenWrt is chosen (`MU300_OPENWRT=plain|luci` answers without asking), 
   with Android: `sudo mu300-usb net-name eth`) and adapters in host mode that can join the LAN bridge.
 * **Cellular > Adapter settings:** how the panel reaches the modem (AT backend, serial port, custom AT adapter).
 * **System > Languages:** the language of the interface, and the lang extra: download it, or upload the file.
-* **System > Power:** the active power profile and why (in the page's language), the battery, the power source and the charger's input current, the idle knobs of the three profiles (Wi-Fi idle minutes, radio idle keep/lte/off, LEDs, CPU), the saver threshold and the charge limit (0-100 %, U30 Air; also `mu300-power charge-limit N`), where charging starts again (`RESUME_AT`), a pause by hand and a one-off full charge (U30 Air; `mu300-power charge pause|resume|full`), and what a boot the charger started does (U30 Air: charge only until the Wi-Fi key or a held power key starts it, off when unplugged; or start normally, `POWER_ON_CHARGER=1`). The U30 Air powers off cleanly on an empty battery by the stock rules (docs/FINDINGS.md 196, 197).
+* **System > Power:** the active power profile and why (in the page's language), the battery, the power source and the charger's input current, the idle knobs of the three profiles (Wi-Fi idle minutes, radio idle keep/lte/off, LEDs, CPU), the saver threshold and the charge limit (0-100 %, U30 Air; also `mu300-power charge-limit N`), where charging starts again (`RESUME_AT`), a pause by hand and a one-off full charge (U30 Air; `mu300-power charge pause|resume|full`), and what a boot the charger started does (U30 Air: charge only until the Wi-Fi key or a held power key starts it, off when unplugged; or start normally, `POWER_ON_CHARGER=1`). The U30 Air powers off cleanly on an empty battery by the stock rules (docs/research/FINDINGS.md 196, 197).
 * **System > Packages after an update:** the packages you had installed yourself and what the update did with them
   (see [Updating](#updating)): what came back, what is pending or failed and why, the settings set aside, and the
   buttons Try again, Repair DNS (after a confirmation) and Dismiss.
@@ -423,18 +425,18 @@ whenever OpenWrt is chosen (`MU300_OPENWRT=plain|luci` answers without asking), 
 
 IPv6 on this system is relayed from the carrier (router advertisements and NAT66) instead of the prefix extension
 plain OpenWrt uses. Aurora is the default theme, Bootstrap stays installed. Its boot timings, measured on an F50
-and a U30 Air, are in [FINDINGS 35](docs/FINDINGS.md).
+and a U30 Air, are in [FINDINGS 35](docs/research/FINDINGS.md).
 
 From v2026.10.20 one stuck AT command no longer takes the whole panel down: every modem read has a deadline, the
 pages send their calls one at a time and back off after failures, and the lock reading is served from a cache while
 the modem is busy. On OpenWrt an AT command now takes about 0.13 s instead of a full second (the shell's `read` could
-not wait for fractions of a second), so the dashboard's readings arrive 7 times faster ([FINDINGS 40](docs/FINDINGS.md)).
+not wait for fractions of a second), so the dashboard's readings arrive 7 times faster ([FINDINGS 40](docs/research/FINDINGS.md)).
 
 
 The panel is the work of kanoqwq ([`kanoqwq/mu300-linux`](https://github.com/kanoqwq/mu300-linux), branch
 `clean-tf-7.2`); this repository ports it, with translations rewritten as standard LuCI catalogs and the shared
 fixes applied to all three systems. The theme is [Aurora](https://github.com/eamonxg/luci-theme-aurora) by
-eamonxg. The app's own notes are in [`openwrt/luci-app-mu300/README.md`](openwrt/luci-app-mu300/README.md).
+eamonxg. The app's own notes are in [`systems/openwrt/luci-app-mu300/README.md`](systems/openwrt/luci-app-mu300/README.md).
 
 ### A web panel on Ubuntu (optional)
 
@@ -474,7 +476,7 @@ the archive once online). `mu300-panel status` says where it is.
 | Check the mobile connection | `sudo mobile-data status` |
 | Set the APN | Ubuntu: `/etc/mu300/mobile-data.conf` (`MU300_APN`, `MU300_PDP_TYPE`). OpenWrt: LuCI → Network → Interfaces → wan, or `uci set network.wan.apn='…'; uci commit network; ifup wan`. Leave it empty to keep the context the SIM defines, which is what most carriers expect |
 | No mobile data while roaming | `sudo mobile-data roaming off` (`on` allows it again, the default; `sudo mobile-data roaming` shows the setting, the network and whether data is held back). Ubuntu: `MU300_DATA_ROAMING=0` in `/etc/mu300/mobile-data.conf`; OpenWrt: `network.wan.roaming` (`roaming_internal` for the other SIM), the panel's dashboard or LuCI → Network → Interfaces → wan. SMS and calls are not affected. Some SIMs report roaming at home (an MVNO, national roaming): those need it on (FINDINGS 120) |
-| Use the F50's internal SIM instead of the card in the slot | `sudo mu300-sim select internal` (`external` goes back; it takes effect at the next boot, the external card is the default, and nothing is written to the modem or the SIM). OpenWrt: LuCI → Network → Interfaces → wan → SIM source, with that card's own APN; Ubuntu: its APN in `/etc/mu300/mobile-data.conf`. F50 only, and the device must have an internal SIM fitted (docs/SIM-SELECTION.md) |
+| Use the F50's internal SIM instead of the card in the slot | `sudo mu300-sim select internal` (`external` goes back; it takes effect at the next boot, the external card is the default, and nothing is written to the modem or the SIM). OpenWrt: LuCI → Network → Interfaces → wan → SIM source, with that card's own APN; Ubuntu: its APN in `/etc/mu300/mobile-data.conf`. F50 only, and the device must have an internal SIM fitted (docs/guides/SIM-SELECTION.md) |
 | Change the Wi-Fi name or password | Ubuntu: edit `/etc/mu300/hotspot.conf`, then `sudo systemctl restart mu300-hotspot`. OpenWrt: LuCI → Network → Wireless (that file is only read once, at the first boot) |
 | Change the hotspot's channel | Ubuntu: `CHANNEL=` in `/etc/mu300/hotspot.conf` (`auto`, or on 5 GHz 36-48 / 149-165). OpenWrt: LuCI → Network → Wireless. Never a DFS channel (52-144): the Wi-Fi driver cannot detect radar, so hostapd could not start there; a DFS channel is replaced by 36 (149 where 36-48 are not allowed) and the log says why (FINDINGS 42) |
 | Read and send SMS | `sudo sms list`, `sudo sms send NUMBER TEXT...`, `sudo sms delete INDEX` (an index, `read` or `all`; anything else is refused before it reaches the modem) (OpenWrt with the panel: Cellular → SMS; Ubuntu with the panel extra: the MU300 page) |
@@ -523,7 +525,7 @@ The same with the same warning, each asking you to type `EXPERIMENTAL`: OpenWrt'
 Ubuntu panel's Power page and `sudo mu300-toolkit` (Performance). If Linux no longer comes up, the device falls back
 to Android after the failed boots in a row (`mu300-next-boot attempts`, above); deleting `.mu300/cpu-voltage` on
 the Linux disk turns the offset off. The firmware encoding is kano's work ([kanoqwq](https://github.com/kanoqwq));
-how it is applied and why these limits: [docs/FINDINGS.md](docs/FINDINGS.md) section 133, and the wiki page
+how it is applied and why these limits: [docs/research/FINDINGS.md](docs/research/FINDINGS.md) section 133, and the wiki page
 [CPU Voltage Offset](https://github.com/dikeckaan/mu300-linux/wiki/CPU-Voltage-Offset).
 
 ### adb to Linux
@@ -570,8 +572,8 @@ sudo mu300-usb adb on                  # after "off"; the USB connection drops f
 * Like Android's, the adb interface asks Windows for its WinUSB driver (MS OS descriptors; not tried on Windows yet -
   without it, Google's USB driver serves).
 
-For programs that talk to the device over adb: [docs/ADB-INTERFACE.md](docs/ADB-INTERFACE.md). The daemon is AOSP's
-adbd (platform-tools 34.0.5), built static for both systems by `tools/adbd/build.sh`; see FINDINGS 43 and 70.
+For programs that talk to the device over adb: [docs/guides/ADB-INTERFACE.md](docs/guides/ADB-INTERFACE.md). The daemon is AOSP's
+adbd (platform-tools 34.0.5), built static for both systems by `device-tools/adbd/build.sh`; see FINDINGS 43 and 70.
 
 
 ### Starting Linux from Android without a computer
@@ -691,9 +693,9 @@ The languages appear in the language list at once (no reboot); the extra stays a
 them. Which of its languages a system offers is that system's own setting (`/etc/mu300/languages`).
 
 The control panel's translations other than Turkish and Chinese are **machine (AI) translations** from the English
-original. Corrections are very welcome: edit `openwrt/luci-app-mu300/po/<language>/mu300.po` and open a pull request
-(`python3 tools/luci-i18n.py check` must stay clean; a new language also needs a row in
-`openwrt/luci-languages.tsv`).
+original. Corrections are very welcome: edit `systems/openwrt/luci-app-mu300/po/<language>/mu300.po` and open a pull request
+(`python3 scripts/i18n/luci-i18n.py check` must stay clean; a new language also needs a row in
+`systems/openwrt/luci-languages.tsv`).
 
 ### Wi-Fi client
 
@@ -797,7 +799,7 @@ sends the device back to Android on its own after the usual number of failed boo
 v2026.09.28 on it also switches to the updater of the release it installs before it starts.
 
 **Updating from v2026.09.27 or older?** Fetch the new updater first, then update; do both right after a reboot
-(older boot images can lose mobile data after a few quiet minutes, see docs/FINDINGS.md 32):
+(older boot images can lose mobile data after a few quiet minutes, see docs/research/FINDINGS.md 32):
 
 ```sh
 sudo curl -fL https://github.com/dikeckaan/mu300-linux/releases/latest/download/mu300-update -o /opt/mu300/bin/mu300-update
@@ -845,7 +847,7 @@ Like the installer, it offers to reboot the device from Linux into Android first
 |---|---|
 | Ubuntu 24.04 LTS, OpenWrt 25.12, OpenWrt with the control panel | ✅ |
 | Ubuntu 26.04 LTS | ✅ kernel 6.18 or 7.3 (its programs need system calls 5.4 does not have) |
-| Kernels | ✅ vendor 5.4, mainline 6.18 LTS and 7.3, the stable mainline release (7.3 from the next release after v2026.10.19.2 on, in place of the retired 7.2; 6.18.56 and 7.2.10 in v2026.10.20, with BTF and the BPF JIT, so dae runs), with the same functions (USB host on the U30 Air: mainline only); the mainline bundles carry about 360 modules (WireGuard, SQM, tunnels, USB adapters and modems, NTFS/exFAT/btrfs/NFS/CIFS, dm-crypt, containers). 6.18 hangs at boot about once in 20 boots and the device goes back to Android ([FINDINGS 31m](docs/FINDINGS.md)) |
+| Kernels | ✅ vendor 5.4, mainline 6.18 LTS and 7.3, the stable mainline release (7.3 from the next release after v2026.10.19.2 on, in place of the retired 7.2; 6.18.56 and 7.2.10 in v2026.10.20, with BTF and the BPF JIT, so dae runs), with the same functions (USB host on the U30 Air: mainline only); the mainline bundles carry about 360 modules (WireGuard, SQM, tunnels, USB adapters and modems, NTFS/exFAT/btrfs/NFS/CIFS, dm-crypt, containers). 6.18 hangs at boot about once in 20 boots and the device goes back to Android ([FINDINGS 31m](docs/research/FINDINGS.md)) |
 | KVM | ✅ `/dev/kvm` on all three kernels |
 | Mobile data (5G NSA / LTE) | ✅ shared with Wi-Fi and USB clients; reconnects by itself after modem resets |
 | SMS, USSD | ✅ `sms`, `mu300-ussd`; on `openwrt-luci` also in the panel |
@@ -875,20 +877,20 @@ you chose otherwise), the device falls back to Android by itself. Three small An
 `refnotify`, `cp_diskserver`) keep running inside Linux in a sandbox, because the modem needs them. From v2026.10.20
 the first two run under a system account of their own, `mu300vnd`, with only the capabilities they keep on Android,
 and the modem's device nodes (its calibration partitions among them) belong to that account rather than to the login
-user, and nothing in `/dev` is world-writable ([FINDINGS 41](docs/FINDINGS.md)).
+user, and nothing in `/dev` is world-writable ([FINDINGS 41](docs/research/FINDINGS.md)).
 
 The 5.4 kernel is built from ZTE's published (GPL) source; 6.18 and 7.3 are mainline Linux with this project's
-patches and the vendor drivers ported to them ([`upstream/`](upstream/)). The reasoning behind each step is in
-[`docs/FINDINGS.md`](docs/FINDINGS.md), and the full build is in [`docs/BUILD.md`](docs/BUILD.md).
+patches and the vendor drivers ported to them ([`kernel/mainline/`](kernel/mainline/)). The reasoning behind each step is in
+[`docs/research/FINDINGS.md`](docs/research/FINDINGS.md), and the full build is in [`docs/guides/BUILD.md`](docs/guides/BUILD.md).
 
 ## Common problems
 
 **The device does not come back after installing.** Wait two minutes. If there is still nothing, unplug and replug
 it. Every boot that does not finish counts, and after 5 of them in a row (or the number you chose) the device starts
-Android. Collect logs with `tools/collect-logs.sh`.
+Android. Collect logs with `scripts/device/collect-logs.sh`.
 
 **Back in Android without having asked for it, on kernel 6.18.** About one boot in 20 hangs in its first seconds
-([FINDINGS 31m](docs/FINDINGS.md)), and the device then falls back to Android. Start Linux again with the Linux
+([FINDINGS 31m](docs/research/FINDINGS.md)), and the device then falls back to Android. Start Linux again with the Linux
 button of the Magisk module or `su -c mu300-linux`.
 
 **The computer sees the device but gets no address (macOS).** macOS does not set up a network interface it has
@@ -902,23 +904,23 @@ connection that keeps dropping.
 
 **OpenWrt on kernel 5.4: no address, no web interface, nothing connects to the hotspot** (releases up to
 v2026.10.11). The firewall's boot ruleset had no rules for the LAN, and on 5.4 the reload that should have added them
-always failed ([FINDINGS 38c](docs/FINDINGS.md)). Fixed from the next release; until then the USB serial console
+always failed ([FINDINGS 38c](docs/research/FINDINGS.md)). Fixed from the next release; until then the USB serial console
 (`ttyGS0`, a root shell) is the way in, and `nft delete flowtable inet fw4 ft; fw4 reload` brings the LAN up. On
 5.4 a firewall change saved in LuCI still needs those two commands (or a reboot) to take effect.
 
 **The hotspot does not start on a 5 GHz channel between 52 and 144** (hostapd: `start_dfs_cac() failed`,
 `AP-DISABLED`; releases up to v2026.10.18). Those are DFS channels, and the Wi-Fi driver cannot detect radar
-([FINDINGS 42](docs/FINDINGS.md)). Fixed from v2026.10.20 on: such a channel is replaced by 36 (or 149). Until then
+([FINDINGS 42](docs/research/FINDINGS.md)). Fixed from v2026.10.20 on: such a channel is replaced by 36 (or 149). Until then
 choose 36-48 or 149-165 (165 at 20 MHz), or `auto` on Ubuntu.
 
 **The control panel stops answering after an AT command got stuck** (`openwrt-luci`, releases up to v2026.10.18):
 every page went blank, even the battery tile, and came back by itself after minutes. The panel's lock wait counted
-whole seconds instead of tenths, and some pages read the modem inside the request ([FINDINGS 40](docs/FINDINGS.md)).
+whole seconds instead of tenths, and some pages read the modem inside the request ([FINDINGS 40](docs/research/FINDINGS.md)).
 Fixed from v2026.10.20 on; until then wait, or restart `rpcd` and `mu300-atd`.
 
 **The installer prints nothing for minutes and the device gets hot.** A read past the end of the eMMC never
 returned on devices whose partition table ends at the end of the disk (the 32 GB variant and an F50 with no gap
-behind `userdata`; [FINDINGS 38a](docs/FINDINGS.md)). Fixed from the next release; reboot the device to end the
+behind `userdata`; [FINDINGS 38a](docs/research/FINDINGS.md)). Fixed from the next release; reboot the device to end the
 stuck reads, then install with the new installer.
 
 **Kernel warnings are not in `journalctl -k`.** On Ubuntu they are in `journalctl -t kernel` (warnings and errors
@@ -937,7 +939,7 @@ operators and VPN servers often look like a different city.
    system is up, so an interrupted boot never counts as successful).
 2. **Set a new password** from your computer, without booting Linux:
    ```sh
-   tools/reset-password.sh            # ubuntu, openwrt or both
+   scripts/device/reset-password.sh            # ubuntu, openwrt or both
    ```
    It mounts the Linux filesystem from Android and rewrites the password hash, keeping all your data.
 3. Start Linux again with `boot/android-boot-linux.sh work/boot-linux-slotb.img`, or reboot if Linux is the default.
@@ -954,13 +956,13 @@ and would overwrite the device's storage. A normal `apk upgrade` is fine, except
 
 ## For developers
 
-* [`docs/BUILD.md`](docs/BUILD.md) — build the kernel and images yourself (`kernel/build-all.sh` does it in one step).
-* [`docs/FINDINGS.md`](docs/FINDINGS.md) — everything learned about this hardware and why each workaround exists.
-* [`docs/DISTROS.md`](docs/DISTROS.md) — running other distributions (ImmortalWrt, Arch Linux ARM, Debian, Kali; the
+* [`docs/guides/BUILD.md`](docs/guides/BUILD.md) — build the kernel and images yourself (`kernel/vendor/build-all.sh` does it in one step).
+* [`docs/research/FINDINGS.md`](docs/research/FINDINGS.md) — everything learned about this hardware and why each workaround exists.
+* [`docs/guides/DISTROS.md`](docs/guides/DISTROS.md) — running other distributions (ImmortalWrt, Arch Linux ARM, Debian, Kali; the
   Ubuntu image's `Dockerfile` takes another base with `--build-arg BASE=...`) and what the 5.4 kernel rules out.
-* [`upstream/`](upstream/) — the mainline kernel port, 6.18 LTS and 7.3.
+* [`kernel/mainline/`](kernel/mainline/) — the mainline kernel port, 6.18 LTS and 7.3.
 * [`tests/`](tests/README.md) — `cd tests && python3 -m unittest` runs them all (standard library only; `lz4` for
-  the boot image tests), and `python3 tools/check-i18n.py` checks the installers' translations. CI
+  the boot image tests), and `python3 scripts/i18n/check-i18n.py` checks the installers' translations. CI
   (`.github/workflows/`): `tests.yml` on Ubuntu, macOS and Windows, `installer.yml` (translations, script syntax),
   `mainline.yml` (the port built every week against the newest longterm and stable kernels) and `magisk.yml` (the
   Magisk zips of each release).
@@ -970,16 +972,21 @@ and would overwrite the device's storage. A normal `apk upgrade` is fine, except
 | Path | Contents |
 |---|---|
 | `install.sh`, `uninstall.sh` | installer and remover for macOS/Linux |
-| `kernel/` | kernel build environment, config, patches |
+| `installer/` | what the installers are made of: `lib/` (the scripts `install.sh` sources and their helpers), `android/` (scripts pushed to the device and run in Android), `gui/` (the graphical installer), `i18n/` (translations) |
 | `boot/` | initramfs `init`, boot image builder, slot handling |
-| `rootfs/` | Ubuntu image: `Dockerfile`, `assemble.sh`, services and scripts in `overlay/` |
-| `openwrt/` | OpenWrt and ImmortalWrt image build; `luci-overlay/` and `luci-app-mu300/` make the `openwrt-luci` system |
-| `arch/` | Arch Linux ARM image build |
-| `upstream/` | the mainline kernel port (6.18, 7.3) |
+| `kernel/vendor/` | the vendor 5.4 kernel: build environment, config, patches |
+| `kernel/mainline/` | the mainline kernel port (6.18, 7.3) |
+| `systems/base/` | Ubuntu image: `Dockerfile`, `assemble.sh`; `overlay/` holds the services and the `mu300-*` commands every system shares |
+| `systems/openwrt/` | OpenWrt and ImmortalWrt image build; `luci-overlay/` and `luci-app-mu300/` make the `openwrt-luci` system |
+| `systems/arch/` | Arch Linux ARM image build |
 | `android/magisk/` | the Magisk module that starts Linux from Android (`mu300-linux-switch`) |
-| `android-vendor/` | scripts that copy the needed Android files from *your* device |
+| `android/vendor/` | scripts that copy the needed Android files from *your* device |
+| `android/stock/` | where the stock firmware comes from and how to go back to it |
+| `device-tools/` | sources of the small programs built for the device (`adbd`, `carry`, `logdw`, ...) |
+| `scripts/` | commands run by hand: `release/` (images, releases, signing), `i18n/` (translation checks), `dev/` (`make` targets), `device/` (backup, SSH/serial/log helpers) |
+| `make/` | the `Makefile`'s parts: local LuCI development, deployment, device management |
 | `tests/` | unit tests for the installers, the boot image, `boot/init` and the device scripts |
-| `tools/` | helper programs, release tooling, backup, SSH/serial/log helpers |
+| `docs/` | `guides/` (build, release, automation), `architecture/`, `research/` (hardware findings), `api/` |
 
 The kernel source used here is mirrored at
 [`dikeckaan/zte-ums9620-kernel-5.4.254`](https://github.com/dikeckaan/zte-ums9620-kernel-5.4.254).
@@ -997,12 +1004,12 @@ stays free.
 * Kernel source: ZTE's GPL release for the U30 Air (mirrored by Enceka) and the Unisoc drivers in it — GPL-2.0.
   The mainline kernels are Linux from kernel.org — GPL-2.0.
 * Wi-Fi, Bluetooth and GPU drivers: realme C51/C53 AndroidT kernel release — GPL-2.0; the patches in
-  `kernel/patches` are GPL-2.0.
+  `kernel/vendor/patches` are GPL-2.0.
 * Scripts, tools and documentation in this repository: MIT (see `LICENSE`).
-* kanoqwq (`kanoqwq/mu300-linux`, `clean-tf-7.2`): `openwrt/luci-app-mu300`, the control panel, changed here; the
+* kanoqwq (`kanoqwq/mu300-linux`, `clean-tf-7.2`): `systems/openwrt/luci-app-mu300`, the control panel, changed here; the
   idea of the SD card installation and the core of its boot-side change; and fixes ported from that branch (the
   faster USB rebind, the early DHCP lease, RNDIS, the radio-on sequence; on `openwrt-luci` the SMS pool and IPv6
-  relay mode), measured in [FINDINGS 35](docs/FINDINGS.md).
+  relay mode), measured in [FINDINGS 35](docs/research/FINDINGS.md).
 * The Aurora theme (`luci-theme-aurora`) by eamonxg is downloaded at build time, pinned and checked by hash.
 * The VPN module ([mu300-linux-vpn](https://github.com/dikeckaan/mu300-linux-vpn)) carries
   [Xray-core](https://github.com/XTLS/Xray-core) (MPL-2.0), [sing-box](https://github.com/SagerNet/sing-box)
@@ -1012,5 +1019,5 @@ stays free.
 * Stock firmware, Android vendor components and bootloaders belong to their owners and are not distributed here.
   The one stock image the project keeps available, the `trustos` (TEE) image for firmware `ZYV1.0.0B09` as a
   last-resort repair for devices whose own TEE is damaged, is hosted on the Internet Archive
-  (https://archive.org/details/zte-f50-mu300-trustos-ZYV1.0.0B09; all rights to it remain with ZTE/Unisoc). Read [`stock/README.md`](stock/README.md) before touching it — it can make
+  (https://archive.org/details/zte-f50-mu300-trustos-ZYV1.0.0B09; all rights to it remain with ZTE/Unisoc). Read [`android/stock/README.md`](android/stock/README.md) before touching it — it can make
   a non-booting device worse.

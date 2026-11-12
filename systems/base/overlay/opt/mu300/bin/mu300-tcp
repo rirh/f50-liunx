@@ -10,7 +10,7 @@
 # Only the device's own TCP changes (net.ipv4.tcp_congestion_control, net.core.default_qdisc): what hotspot and USB
 # clients forward keeps the client's own congestion control, and no firewall rule, interface or existing connection
 # is touched. Only what the kernel lists in tcp_available_congestion_control is offered: the 5.4 vendor kernel has no
-# BBR (kernel/fragment-rejected.txt), mainline has it built in (TCP_CONG_BBR=y) and fq as a module (NET_SCH_FQ=m).
+# BBR (kernel/vendor/fragment-rejected.txt), mainline has it built in (TCP_CONG_BBR=y) and fq as a module (NET_SCH_FQ=m).
 # "default" is the kernel's own pair, read once per boot before anything here writes (BOOT, the boot_id, says which
 # boot it belongs to), so it comes back exactly. A write the kernel refuses puts the old pair back.
 export PATH="$PATH:/opt/mu300/bin:/usr/sbin:/sbin"

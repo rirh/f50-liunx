@@ -1,6 +1,6 @@
-# Making room by a reset of Android, and the installation that resumes afterwards - EXPERIMENTAL (docs/FINDINGS.md
+# Making room by a reset of Android, and the installation that resumes afterwards - EXPERIMENTAL (docs/research/FINDINGS.md
 # 112). Ported from kano's desktop installer (kanoqwq/mu300-linux, branch clean-tf-7.2: desktop/installer.py and
-# desktop/boot/part-prepare.sh, commits f6b0668d and 0e19fe32); the transaction itself is tools/resume.py's. Sourced by
+# desktop/boot/part-prepare.sh, commits f6b0668d and 0e19fe32); the transaction itself is installer/lib/resume.py's. Sourced by
 # install.sh (su_do, dev_pull, adb_prop, sha256_of, ask, say, die, t, info, progress, gib are its own; needs $TOP,
 # $WORK, $T).
 #
@@ -14,7 +14,7 @@
 # every CRC), the region, the token and this installer's tools are still the ones it was prepared with.
 #
 # The other way (EXPERIMENTAL, method=online in the transaction): Android keeps its data. Its F2FS is shrunk while it
-# runs, by its own kernel (F2FS_IOC_RESIZE_FS, tools/f2fs-online and tools/android-online-shrink.sh), and only then is
+# runs, by its own kernel (F2FS_IOC_RESIZE_FS, device-tools/f2fs-online and installer/android/android-online-shrink.sh), and only then is
 # the smaller table written; Android restarts normally, and nothing is reset or set up again. The method is
 # dikeckaan's; kanoqwq implemented it (kanoqwq/mu300-linux fe52afe3, c69be3a3, dad8224b). Offered when /data is an F2FS
 # on all of userdata, directly or through one device-mapper mapping (file-based and metadata encryption), never with
@@ -23,14 +23,13 @@
 #   MU300_BACKUP_DIR=DIR    where the transactions and backups are kept (default ~/mu300-backups)
 #   MU300_RESUME=0|1        0 (--no-resume): never resume; 1 (--resume): resume, or stop when there is nothing to
 #   MU300_TRANSACTION=FILE  (--transaction FILE) this transaction, not the newest one for the device
-#   MU300_F2FS_ONLINE=FILE  the online way's helper (default tools/f2fs-online/mu300-f2fs-online)
+#   MU300_F2FS_ONLINE=FILE  the online way's helper (default device-tools/f2fs-online/mu300-f2fs-online)
 
 RESUME=0; RESUME_FILE=
 BACKUP_DIR=${MU300_BACKUP_DIR:-${HOME:-.}/mu300-backups}
-resume_py() { python3 "$TOP/tools/resume.py" "$@"; }
+resume_py() { python3 "$TOP/installer/lib/resume.py" "$@"; }
 
-# resume_pending: any transaction waiting in BACKUP_DIR (for any device). The installer does not update itself then:
-# the transaction is bound to the tools that made it.
+# resume_pending: any transaction waiting in BACKUP_DIR (for any device)
 resume_pending() {
     [ "${MU300_RESUME:-}" != 0 ] || return 1
     [ -n "${MU300_TRANSACTION:-}" ] && return 0
@@ -66,7 +65,7 @@ resume_facts() {
 }
 
 # resume_region NEW_LAST_END: RG_START and RG_END (sectors) of the free region behind a userdata that ends before
-# sector NEW_LAST_END - tools/storage.sh's region_probe arithmetic
+# sector NEW_LAST_END - installer/lib/storage.sh's region_probe arithmetic
 resume_region() {
     RG_START=$(( ($1 / 4096 + 1) * 4096 ))
     RG_END=$(( ((disk - ${GPT_TAIL:-33} - 1) / 4096 - 1) * 4096 ))
@@ -127,7 +126,7 @@ resume_prepare() {
 
     step repartition 50
     say "$(t 'Rewriting the partition table')"
-    python3 "$TOP/tools/resize-last-partition.py" "$WORK/gpt/gpt.head,$WORK/gpt/gpt.tail" \
+    python3 "$TOP/installer/lib/resize-last-partition.py" "$WORK/gpt/gpt.head,$WORK/gpt/gpt.tail" \
         --disk-sectors "$disk" --sector-size "$ILBS" --name userdata --end-sector "$_ne" --out "$WORK/gpt/new" || die "$(t 'the resize was refused; nothing is changed')"
     for _f in new.head new.tail marker.bin bcb.bin; do
         resume_push "$WORK/gpt/$_f" "$T/mu300-$_f" ||
@@ -146,7 +145,7 @@ resume_prepare() {
     adb pull /data/local/tmp/gpt.head "$WORK/gpt/after.head" >/dev/null 2>&1 || true
     adb pull /data/local/tmp/gpt.tail "$WORK/gpt/after.tail" >/dev/null 2>&1 || true
     su_do 'rm -f /data/local/tmp/gpt.head /data/local/tmp/gpt.tail' >/dev/null
-    check=$(python3 "$TOP/tools/resize-last-partition.py" "$WORK/gpt/after.head,$WORK/gpt/after.tail" \
+    check=$(python3 "$TOP/installer/lib/resize-last-partition.py" "$WORK/gpt/after.head,$WORK/gpt/after.tail" \
               --disk-sectors "$disk" --sector-size "$ILBS" --name userdata --show) || die "$(t 'the table on the device does not read back as valid GPT.')
 $(t "The backup copy at the end of the disk was written first, so Android's own repair may still fix this. Do not power off.")"
     got=$(echo "$check" | sed -n 's/^LAST_END=//p')
@@ -206,7 +205,7 @@ resume_validate() {
     adb pull /data/local/tmp/gpt.head "$WORK/gpt/resume.head" >/dev/null 2>&1 || true
     adb pull /data/local/tmp/gpt.tail "$WORK/gpt/resume.tail" >/dev/null 2>&1 || true
     su_do 'rm -f /data/local/tmp/gpt.head /data/local/tmp/gpt.tail' >/dev/null
-    _rs=$(python3 "$TOP/tools/resize-last-partition.py" "$WORK/gpt/resume.head,$WORK/gpt/resume.tail" \
+    _rs=$(python3 "$TOP/installer/lib/resize-last-partition.py" "$WORK/gpt/resume.head,$WORK/gpt/resume.tail" \
             --disk-sectors "$disk" --sector-size "$ILBS" --name userdata --show 2>&1) || _rs=
     [ -n "$_rs" ] || die "$(t 'could not read the partition table')"
     _rg() { printf '%s\n' "$_rs" | sed -n "s/^$1=//p"; }
@@ -256,8 +255,8 @@ $(t 'Another transaction: --transaction FILE. To install as if nothing had been 
 }
 
 # ---------------------------------------------------------------- the online way: Android keeps its data
-ONLINE_BIN=${MU300_F2FS_ONLINE:-$TOP/tools/f2fs-online/mu300-f2fs-online}
-ONLINE_SH=${MU300_ONLINE_SH:-$TOP/tools/android-online-shrink.sh}     # (MU300_ONLINE_SH: tests/fakeonline.py)
+ONLINE_BIN=${MU300_F2FS_ONLINE:-$TOP/device-tools/f2fs-online/mu300-f2fs-online}
+ONLINE_SH=${MU300_ONLINE_SH:-$TOP/installer/android/android-online-shrink.sh}     # (MU300_ONLINE_SH: tests/fakeonline.py)
 ONLINE_T=$T/mu300-online
 online_sh() { su_do "sh $ONLINE_T/android-online-shrink.sh $1"; }
 _ov() { printf '%s\n' "$1" | sed -n "s/^$2=//p" | head -n1; }
@@ -268,7 +267,7 @@ _ov() { printf '%s\n' "$1" | sed -n "s/^$2=//p" | head -n1; }
 online_inspect() {
     ONLINE=no; ONLINE_REASON=; ON_BLOCKS=; ON_SECTION=; ON_USED=; ON_UUID=
     if [ ! -s "$ONLINE_BIN" ] || [ ! -s "$ONLINE_SH" ]; then
-        ONLINE_REASON=$(t 'this installer has no mu300-f2fs-online (tools/f2fs-online)'); return 0
+        ONLINE_REASON=$(t 'this installer has no mu300-f2fs-online (device-tools/f2fs-online)'); return 0
     fi
     su_do "rm -rf $ONLINE_T; mkdir -p $ONLINE_T; chmod 777 $ONLINE_T" >/dev/null
     resume_push "$ONLINE_BIN" "$ONLINE_T/mu300-f2fs-online" && resume_push "$ONLINE_SH" "$ONLINE_T/android-online-shrink.sh" ||
@@ -300,7 +299,7 @@ online_prepare() {
     resume_region $((_ne + 1))
     _tok=$(resume_py token) || die "$(t 'could not make a token')"
     RESUME_FILE=$RESUME_BD/transaction.json
-    python3 "$TOP/tools/resize-last-partition.py" "$WORK/gpt/gpt.head,$WORK/gpt/gpt.tail" \
+    python3 "$TOP/installer/lib/resize-last-partition.py" "$WORK/gpt/gpt.head,$WORK/gpt/gpt.tail" \
         --disk-sectors "$disk" --sector-size "$ILBS" --name userdata --end-sector "$_ne" --out "$RESUME_BD/gpt-new" || die "$(t 'the resize was refused; nothing is changed')"
     (cd "$RESUME_BD" && for _f in gpt-new.head gpt-new.tail; do printf '%s  %s\n' "$(sha256_of "$_f")" "$_f"; done) >> "$RESUME_BD/SHA256SUMS"
     _id=$(resume_py identity "$TOP" "${PKG:+$PKG/mu300/manifest}") || die "$(t 'could not compute the installer identity')"

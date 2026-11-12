@@ -1,4 +1,4 @@
-"""The internal disk and its partitions, found the one way (rootfs/overlay/opt/mu300/lib/storage.sh): an eMMC
+"""The internal disk and its partitions, found the one way (systems/base/overlay/opt/mu300/lib/storage.sh): an eMMC
 (mmcblkN) as before, and a UFS (sdX below the UFS host) as on the 1 TB U30 Air of issue #396 - for init, early-recorder,
 android-vendor-start, mu300-cpu and mu300-update's copy - and the Android side's lookup through by-name."""
 import os
@@ -7,7 +7,7 @@ import shutil
 
 from helpers import BIN, TOP, ShellTest
 
-LIB = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'storage.sh'
+LIB = TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'storage.sh'
 INIT = (TOP / 'boot' / 'init').read_text()
 # the U30 Air of issue #396: misc is sda3, boot_a/boot_b sda37/38, userdata sda75; sdb and sdc are 4 MiB boot LUs
 UFS_GPT = {3: 'misc', 37: 'boot_a', 38: 'boot_b', 75: 'userdata'}
@@ -108,7 +108,7 @@ class Library(ShellTest):
 
     def test_the_ramdisk_has_it(self):
         src = (TOP / 'boot' / 'build-boot-image.py').read_text()
-        self.assertIn("'etc/mu300-storage.sh': (text(HERE.parent / 'rootfs/overlay/opt/mu300/lib/storage.sh')", src)
+        self.assertIn("'etc/mu300-storage.sh': (text(HERE.parent / 'systems/base/overlay/opt/mu300/lib/storage.sh')", src)
         self.assertIn('_sl=${MU300_STORAGE_LIB:-/etc/mu300-storage.sh}', INIT)
 
 
@@ -154,12 +154,12 @@ class UfsLookups(ShellTest):
 
 class AndroidSide(ShellTest):
     """The scripts that run on Android find the disk through Android's by-name links: the same lines in each."""
-    FILES = ('tools/android-install.sh', 'tools/android-mount-mu300root.sh')
+    FILES = ('installer/android/android-install.sh', 'installer/android/android-mount-mu300root.sh')
 
     def test_one_text(self):
         blocks = {f: block((TOP / f).read_text(), 'android-disk') for f in self.FILES}
         self.assertEqual(len(set(blocks.values())), 1, list(blocks))
-        st = (TOP / 'tools' / 'storage.sh').read_text()
+        st = (TOP / 'installer' / 'lib' / 'storage.sh').read_text()
         probe = ("'d=$(readlink -f /dev/block/by-name/misc); d=$(readlink -f /sys/class/block/${d##*/}/..); "
                  "echo ${d##*/} $(cat $d/queue/logical_block_size)'")
         self.assertIn('su_do ' + probe, st)

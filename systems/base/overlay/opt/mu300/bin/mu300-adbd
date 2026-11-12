@@ -1,5 +1,5 @@
 #!/bin/sh
-# adb over USB to Linux: adbd (/opt/mu300/bin/adbd, tools/adbd) as a function of the USB gadget, next to the network
+# adb over USB to Linux: adbd (/opt/mu300/bin/adbd, device-tools/adbd) as a function of the USB gadget, next to the network
 # and the serial console. Run by the mu300-adbd service unless "mu300-usb adb off" (/etc/mu300/adb) says not to: adb
 # is on by default. By hand:
 #   mu300-adbd run       keep adbd running in the gadget (the service): exits at once when adb is off
@@ -25,7 +25,7 @@
 #   keys  only the keys listed in /etc/mu300/adb_keys or /root/.android/adb_keys (mu300-usb adb key) get in, with a
 #         root shell; every other computer sees "unauthorized".
 # A device set up before open existed keeps keys, and open is only ever read from a state that is whole: see
-# auth_read. adbd itself has no listener but USB in either mode (tools/adbd: no TCP, no vsock).
+# auth_read. adbd itself has no listener but USB in either mode (device-tools/adbd: no TCP, no vsock).
 export PATH="$PATH:/opt/mu300/bin:/opt/mu300/busybox-bin:/usr/sbin:/sbin"
 G=${MU300_GADGET:-/sys/kernel/config/usb_gadget/linux}
 ROLE=${MU300_USB_ROLE:-/sys/class/usb_role/25100000.dwc3-role-switch/role}

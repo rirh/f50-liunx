@@ -11,7 +11,7 @@
 #       being the release's Magisk zip of that system (--unsigned: a release before the key has none to check with,
 #       and a file brought by hand is taken only on the owner's word); nothing is served
 #   lab.sh android OS OLD.tar.gz NEW.tar.gz ANDROID_INSTALL_SH OUT.tsv
-#       the installers' path (install.sh, install.ps1, the Magisk zip): the install loop of tools/android-install.sh in
+#       the installers' path (install.sh, the Magisk zip): the install loop of installer/android/android-install.sh in
 #       update mode, run by mksh with toybox's commands and the one true awk first on PATH, as on Android
 # OS is ubuntu, openwrt or openwrt-luci. OUT.tsv gets one line per planted item (experiment.py verify); the update's
 # output goes to OUT.tsv.log, the update report, when there is one, to OUT.tsv.report, and for the device path

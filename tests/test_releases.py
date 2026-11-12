@@ -1,5 +1,5 @@
-"""Which release the installers take: tools/release_pick.py (the decision, for install.sh, install.ps1 and the
-graphical installer) against fake answers of GitHub's API, and tools/releases.sh's release_resolve - the beta is
+"""Which release the installers take: installer/lib/release_pick.py (the decision, for install.sh and the
+graphical installer) against fake answers of GitHub's API, and installer/lib/releases.sh's release_resolve - the beta is
 asked about only when there is one newer than the newest full release, never with MU300_RELEASE set, and a GitHub
 that does not answer the list leaves the newest release, as before."""
 import importlib.util
@@ -12,7 +12,7 @@ import unittest
 
 from helpers import TOP, ShellTest
 
-PICK = TOP / 'tools' / 'release_pick.py'
+PICK = TOP / 'installer' / 'lib' / 'release_pick.py'
 spec = importlib.util.spec_from_file_location('release_pick', PICK)
 release_pick = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release_pick)
@@ -99,7 +99,7 @@ class Pick(unittest.TestCase):
 
 
 TAGS = TOP / 'tests' / 'fixtures' / 'release-tags.tsv'
-BIN_UPDATE = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'bin' / 'mu300-update'
+BIN_UPDATE = TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'bin' / 'mu300-update'
 # the regular expression of a release tag (ERE), where a device program checks one with grep: the panel's adapters
 TAG_ERE = r'v[0-9]{4}\.[0-9]{2}\.[0-9]{2}|v[0-9]{4}\.(0[1-9]|1[0-2])\.(0[1-9]|[12][0-9]|3[01])\.[1-9][0-9]?'
 
@@ -129,7 +129,7 @@ def relation(newer, ok, a, b):
 
 
 class Tags(unittest.TestCase):
-    """The release tags (docs/FINDINGS.md 125) in Python: tools/release_pick.py's tag_key, tag_ok and newer."""
+    """The release tags (docs/research/FINDINGS.md 125) in Python: installer/lib/release_pick.py's tag_key, tag_ok and newer."""
 
     def test_the_table(self):
         oks, bads, cmps = tag_table()
@@ -154,7 +154,7 @@ class Tags(unittest.TestCase):
             self.assertTrue(rx.fullmatch(t), t)
         for t in bads:
             self.assertFalse(rx.fullmatch(t), t)
-        luci = TOP / 'openwrt' / 'luci-app-mu300' / 'root' / 'usr' / 'libexec'
+        luci = TOP / 'systems' / 'openwrt' / 'luci-app-mu300' / 'root' / 'usr' / 'libexec'
         self.assertIn(f"allowed \"$tag\" '({TAG_ERE})?'", (luci / 'rpcd' / 'mu300dash').read_text())
         for f in ('update', 'dashboard-info'):
             self.assertIn(f"LC_ALL=C grep -Eqx -- '{TAG_ERE}'", (luci / 'unisoc-modem' / f).read_text(), f)
@@ -173,8 +173,8 @@ class Tags(unittest.TestCase):
 
 
 class ShellTags(ShellTest):
-    """The same table in sh: tools/releases.sh (install.sh, make-release.sh) and its copies in mu300-update and
-    tools/android-install.sh (the Magisk installer's and the computer installers' update on Android)."""
+    """The same table in sh: installer/lib/releases.sh (install.sh, make-release.sh) and its copies in mu300-update and
+    installer/android/android-install.sh (the Magisk installer's and the computer installers' update on Android)."""
 
     def block(self, text):
         m = re.search(r'\n# --- release-tag begin\n.*?\n# --- release-tag end\n', '\n' + text, re.S)
@@ -182,8 +182,8 @@ class ShellTags(ShellTest):
         return m.group(0)
 
     def test_the_copies_are_the_same(self):
-        lib = self.block((TOP / 'tools/releases.sh').read_text())
-        for f in (BIN_UPDATE, TOP / 'tools/android-install.sh'):
+        lib = self.block((TOP / 'installer/lib/releases.sh').read_text())
+        for f in (BIN_UPDATE, TOP / 'installer/android/android-install.sh'):
             self.assertEqual(self.block(f.read_text()), lib, f)
 
     @unittest.skipIf(os.name == 'nt', 'the device scripts run on Linux and Android; Windows has install.ps1 (installer.Tests.ps1)')
@@ -194,7 +194,7 @@ class ShellTags(ShellTest):
         lines += [f'newer "{a}" "{b}" && echo "gt[{a}][{b}]"; newer "{b}" "{a}" && echo "gt[{b}][{a}]"' for a, _, b in cmps]
         code = '\n'.join(lines) + '\necho end'
         for shell in self.each_shell():
-            for where, pre, env in (('releases.sh', f'. "{TOP}/tools/releases.sh"', {}),
+            for where, pre, env in (('releases.sh', f'. "{TOP}/installer/lib/releases.sh"', {}),
                                     ('mu300-update', f'. "{BIN_UPDATE}"', {'MU300_LIB': '1'})):
                 r = self.sh(shell, pre + '\n' + code, **env)
                 out = set(r.stdout.split('\n'))
@@ -212,7 +212,7 @@ class ShellTags(ShellTest):
 
 @unittest.skipIf(os.name == 'nt', 'make-release.sh runs on a Unix host')
 class MakeReleaseTag(ShellTest):
-    """tools/make-release.sh --next-tag and the tag it takes for a new release (docs/FINDINGS.md 125), with a stub gh
+    """scripts/release/make-release.sh --next-tag and the tag it takes for a new release (docs/research/FINDINGS.md 125), with a stub gh
     ($STUBLOG/gh: its list of releases; $STUBLOG/gh.rc: its status) and a stub for the repository's own tags
     ($STUBLOG/tags, $STUBLOG/remote)."""
 
@@ -227,7 +227,7 @@ class MakeReleaseTag(ShellTest):
         (self.tmp / 'gh.rc').write_text(str(rc))
         (self.tmp / 'tags').write_text(tags)
         (self.tmp / 'remote').write_text(remote)
-        return self.script(shell, TOP / 'tools/make-release.sh', *args, MU300_TODAY='2026.10.16')
+        return self.script(shell, TOP / 'scripts/release/make-release.sh', *args, MU300_TODAY='2026.10.16')
 
     def test_next_tag(self):
         for shell in self.each_shell():
@@ -272,9 +272,9 @@ class MakeReleaseTag(ShellTest):
 
     def test_the_release_workflow_names_the_release_by_it(self):
         wf = (TOP / '.github/workflows/release.yml').read_text()
-        self.assertIn('sh tools/make-release.sh --next-tag', wf)
-        self.assertIn('sh tools/make-release.sh --check-tag "$TAG"', wf)
-        self.assertIn('sudo -E sh tools/make-release.sh "$TAG" --publish --any-date $pre', wf)
+        self.assertIn('sh scripts/release/make-release.sh --next-tag', wf)
+        self.assertIn('sh scripts/release/make-release.sh --check-tag "$TAG"', wf)
+        self.assertIn('sudo -E sh scripts/release/make-release.sh "$TAG" --publish --any-date $pre', wf)
         self.assertLess(wf.index('--check-tag'), wf.index('Not yet released'))
 
 
@@ -297,10 +297,10 @@ class Resolve(ShellTest):
             else:
                 p.write_text(value if isinstance(value, str) else json.dumps(value))
         (self.tmp / 'curl.log').write_text('')
-        code = (f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; MU300_LANG=en; REPO=dikeckaan/mu300-linux; RELEASE=; '
+        code = (f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; MU300_LANG=en; REPO=dikeckaan/mu300-linux; RELEASE=; '
                 'die() { echo "DIE $*"; exit 1; }; '
                 'ask() { printf "ASKED[%s|%s|%s] " "$2" "$3" "${4:-}"; read -r _a; [ -n "$_a" ] || _a=$3; eval "$1=\\$_a"; }; '
-                f'{pre} . "$TOP/tools/releases.sh"; release_resolve; echo "release=$RELEASE offered=$BETA_OFFERED"')
+                f'{pre} . "$TOP/installer/lib/releases.sh"; release_resolve; echo "release=$RELEASE offered=$BETA_OFFERED"')
         r = self.sh(shell, code, stdin=answer + '\n')
         return r.stdout, (self.tmp / 'curl.log').read_text()
 
@@ -356,7 +356,7 @@ class Resolve(ShellTest):
         src = (TOP / 'install.sh').read_text()
         self.assertLess(src.index('release_resolve'), src.index("say \"$(t 'What should be installed?')\""))
         self.assertLess(src.index("say \"$(t 'What should be installed?')\""), src.index('slot_release_ok "$RELEASE"'))
-        self.assertNotIn('/releases/latest"', src)      # one place looks it up: tools/releases.sh
+        self.assertNotIn('/releases/latest"', src)      # one place looks it up: installer/lib/releases.sh
 
 
 if __name__ == '__main__':

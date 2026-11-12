@@ -1,9 +1,9 @@
 #!/bin/sh
 # Package the mainline build (build.sh + build-modules.sh) as a kernel bundle, laid out like the release's
 # mu300-kernel.tar.gz so that mu300-update can install it:
-#   upstream/make-bundle.sh OUT.tar.gz [KERNEL_BUNDLE_5.4]
+#   kernel/mainline/make-bundle.sh OUT.tar.gz [KERNEL_BUNDLE_5.4]
 #     ./Image                LK-loadable kernel (wrap-image.py: LK copies it to 0x80080000)
-#     ./ramdisk-generic.lz4  boot/init, busybox, logdw, e2fsck and the modules of upstream/module-order.txt
+#     ./ramdisk-generic.lz4  boot/init, busybox, logdw, e2fsck and the modules of kernel/mainline/module-order.txt
 #     ./modules/*.ko         every module - the kernel's own (=m) and the vendor ones - flat, for /lib/modules/<release>
 #                            on the root filesystem (Ubuntu: extra/, indexed by depmod; OpenWrt: flat, for kmodloader)
 #     ./kernel.release       the kernel's release string (uname -r)
@@ -12,11 +12,11 @@
 #     ./modules.builtin*     what the kernel has built in, for depmod/modprobe
 # busybox and logdw are the static helpers of the 5.4 bundle (default: the newest one under release/).
 set -eu
-TOP=$(cd "$(dirname "$0")/.." && pwd)
-U=$TOP/upstream
-# the build to package: upstream/out (6.18), or MU300_UPSTREAM_OUT=upstream/out-7.3 for another kernel
+TOP=$(cd "$(dirname "$0")/../.." && pwd)
+U=$TOP/kernel/mainline
+# the build to package: kernel/mainline/out (6.18), or MU300_UPSTREAM_OUT=kernel/mainline/out-7.3 for another kernel
 UO=${MU300_UPSTREAM_OUT:-$U/out}
-OUT=${1:?usage: upstream/make-bundle.sh OUT.tar.gz [mu300-kernel.tar.gz]}
+OUT=${1:?usage: kernel/mainline/make-bundle.sh OUT.tar.gz [mu300-kernel.tar.gz]}
 REF=${2:-$(ls -t "$TOP"/release/*/mu300-kernel.tar.gz 2>/dev/null | head -1)}
 [ -f "$UO/Image" ] || { echo "no $UO/Image (run build.sh)" >&2; exit 1; }
 [ -f "$REF" ] || { echo "no 5.4 kernel bundle for busybox/logdw (give one as the second argument)" >&2; exit 1; }
@@ -29,11 +29,11 @@ python3 "$U/audit-bundle.py" "$UO" "$U/mu300-mainline.config"
 # nothing of the 5.4 kernel missing unsaid (parity-5.4.txt; audit-bundle.py wrote kernel.config)
 python3 "$U/check-parity.py" --mainline "$UO"
 # the modules the devices' guard keeps from on-demand loading, against this build (FINDINGS 163)
-python3 "$U/check-autoload-blocked.py" "$UO" "$TOP/rootfs/overlay/opt/mu300/lib/autoload-blocked" \
-    "$TOP/rootfs/overlay/opt/mu300/bin/mu300-modprobe-guard"
+python3 "$U/check-autoload-blocked.py" "$UO" "$TOP/systems/base/overlay/opt/mu300/lib/autoload-blocked" \
+    "$TOP/systems/base/overlay/opt/mu300/bin/mu300-modprobe-guard"
 
 krel=$(strings "$UO/Image" | sed -n 's/^Linux version \([^ ]*\) .*/\1/p' | head -1)
-[ -n "$krel" ] || { echo "cannot read the kernel release from upstream/out/Image" >&2; exit 1; }
+[ -n "$krel" ] || { echo "cannot read the kernel release from kernel/mainline/out/Image" >&2; exit 1; }
 # a module left over from another kernel release would only fail on the device, at insmod
 for m in "$UO"/modules/*.ko; do
     v=$(strings "$m" | sed -n 's/^vermagic=\([^ ]*\) .*/\1/p' | head -1)
@@ -42,7 +42,7 @@ done
 # --- stale begin
 # ... and a vendor module built before its source last changed has the right vermagic and the old code (kanoqwq
 # 265f4de3, f6b0668d: a Wi-Fi fix that was in the tree and not in the bundle). build-modules.sh logs each module directory's build
-# to modules/NAME.log, so a file of upstream/modules/NAME newer than that log was changed after the build: refused
+# to modules/NAME.log, so a file of kernel/mainline/modules/NAME newer than that log was changed after the build: refused
 # until build-modules.sh has run again. (A release builds from a fresh checkout, where the logs come last.)
 for d in "$U"/modules/*/; do
     d=${d%/}; n=${d##*/}
@@ -67,7 +67,7 @@ python3 "$U/wrap-image.py" "$UO/Image" "$W/b/Image"
 python3 "$TOP/boot/build-boot-image.py" --generic-ramdisk --modules "$UO/modules" \
     --module-order "$U/module-order.txt" --busybox "$W/busybox" --logdw "$W/logdw" \
     $([ -f "$W/e2fsck" ] && echo --e2fsck "$W/e2fsck") \
-    --ueventd-perms "$TOP/android-vendor/ueventd-perms.sh" --out "$W/b/ramdisk-generic.lz4" >/dev/null
+    --ueventd-perms "$TOP/android/vendor/ueventd-perms.sh" --out "$W/b/ramdisk-generic.lz4" >/dev/null
 cp "$UO"/modules/*.ko "$W/b/modules/"
 for f in modules.builtin modules.builtin.modinfo; do [ ! -f "$UO/$f" ] || cp "$UO/$f" "$W/b/"; done
 cp "$UO/kernel.config" "$UO/modules.in-tree" "$W/b/"

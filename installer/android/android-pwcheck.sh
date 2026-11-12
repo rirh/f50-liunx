@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # The password of a system's own account (Ubuntu's ubuntu, OpenWrt's root) on the Linux filesystem, looked at on the
-# device: for "keep the current password" of an update (install.sh, install.ps1 and the Magisk zip). It prints one
+# device: for "keep the current password" of an update (install.sh and the Magisk zip). It prints one
 # word, and never a password or a hash:
 #   android-pwcheck.sh -s ROOT USER   SET, EMPTY (no password: root logs in without one), LOCKED (! or *), NOUSER
 #   android-pwcheck.sh ROOT USER      is the first line of standard input (an empty line: the empty password) USER's
@@ -11,7 +11,7 @@
 # This runs as Android's root, and the Linux system is not trusted here: nothing of it is ever run (no chroot into it,
 # no perl or openssl of its own - a replaced one, or a library or loader it brings, would run with Android's root),
 # and what is read from it is data. Only the project's own tools compute the hash:
-#   MU300_PWCHECK_BIN  mu300-pwcheck (tools/pwcheck, static, libxcrypt): every method - yescrypt (Ubuntu's passwd),
+#   MU300_PWCHECK_BIN  mu300-pwcheck (device-tools/pwcheck, static, libxcrypt): every method - yescrypt (Ubuntu's passwd),
 #                      SHA-crypt with or without rounds=, MD5-crypt (OpenWrt's passwd and LuCI), bcrypt. The password
 #                      and the hash reach it on standard input, never on a command line.
 #   MU300_PWCHECK_BB   a busybox with mkpasswd (the zips' and kernel bundles' own): MD5- and SHA-crypt without rounds=

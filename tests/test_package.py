@@ -1,7 +1,7 @@
-"""A release's Magisk zip unpacked on a computer (tools/package.sh, android/magisk/computer/START-HERE.md): install.sh
+"""A release's Magisk zip unpacked on a computer (installer/lib/package.sh, android/magisk/computer/START-HERE.md): install.sh
 installs that zip's system and kernel from its own payload and downloads nothing. The manifest is read as the zip's
 own installer reads it, the payload is checked against it and against the release's SHA256SUMS, and an install from a
-real unpacked zip (tools/make-magisk-zips.sh) asks no question about the system, the kernel or the release - against
+real unpacked zip asks no question about the system, the kernel or the release - against
 the fake adb of tests/fakeadb.py, as far as the first pull. The graphical installer's side: package.py, and the
 choices and answers of a package."""
 import hashlib
@@ -16,7 +16,7 @@ from pathlib import Path
 from helpers import TOP, ShellTest
 from test_answers import Device, events
 
-sys.path.insert(0, str(TOP / 'gui'))
+sys.path.insert(0, str(TOP / 'installer' / 'gui'))
 from mu300gui import model, package  # noqa: E402
 
 KB = b'kernel bundle'
@@ -49,7 +49,7 @@ def make_package(d, text=None, sums=None, kernel=KB, rootfs=ROOTFS):
 
 class Library(ShellTest):
     PRE = (f'TOP="{TOP}"; t() {{ printf "%s" "$1"; shift; for a; do printf " [%s]" "$a"; done; }}; '
-           'die() { echo "DIE: $*"; exit 1; }; progress() { echo "EVENT $*"; }; . "$TOP/tools/package.sh"; ')
+           'die() { echo "DIE: $*"; exit 1; }; progress() { echo "EVENT $*"; }; . "$TOP/installer/lib/package.sh"; ')
 
     def lib(self, shell, code, **env):
         return self.sh(shell, self.PRE + code, **env)
@@ -58,12 +58,12 @@ class Library(ShellTest):
         top = self.tmp / 'pkg' / 'computer'
         top.mkdir(parents=True)
         for shell in self.each_shell():
-            r = self.sh(shell, f'TOP="{top}"; . "{TOP}/tools/package.sh"; echo "[$(package_dir)]"')
+            r = self.sh(shell, f'TOP="{top}"; . "{TOP}/installer/lib/package.sh"; echo "[$(package_dir)]"')
             self.assertIn('[]', r.stdout)                                    # a copy of the project
             (top / '.mu300-package').write_text('x\n')
-            r = self.sh(shell, f'TOP="{top}"; . "{TOP}/tools/package.sh"; echo "[$(package_dir)]"')
+            r = self.sh(shell, f'TOP="{top}"; . "{TOP}/installer/lib/package.sh"; echo "[$(package_dir)]"')
             self.assertIn(f'[{top}/..]', r.stdout)                           # an unpacked zip: the directory above
-            r = self.sh(shell, f'TOP="{top}"; . "{TOP}/tools/package.sh"; echo "[$(package_dir)]"', MU300_PACKAGE='/else')
+            r = self.sh(shell, f'TOP="{top}"; . "{TOP}/installer/lib/package.sh"; echo "[$(package_dir)]"', MU300_PACKAGE='/else')
             self.assertIn('[/else]', r.stdout)                               # MU300_PACKAGE names another
             (top / '.mu300-package').unlink()
 

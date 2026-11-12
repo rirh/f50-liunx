@@ -1,4 +1,4 @@
-"""openwrt/patches/luci-lexical-translator.sh (issue #376): LuCI's views keep their translations when a browser
+"""systems/openwrt/patches/luci-lexical-translator.sh (issue #376): LuCI's views keep their translations when a browser
 extension puts Lodash on window._. The script gives luci.js's outer function a `const _` of its own, which the views
 LuCI compiles there by direct eval() find before the global. A small stand-in for luci.js with the same opening and
 the same way of compiling a view; the real luci.js was checked on a device (see the PR)."""
@@ -6,8 +6,8 @@ import json, shutil, subprocess, tempfile, unittest
 from pathlib import Path
 from helpers import TOP
 
-SCRIPT = TOP / 'openwrt' / 'patches' / 'luci-lexical-translator.sh'
-BUILD = TOP / 'openwrt' / 'build-rootfs.sh'
+SCRIPT = TOP / 'systems' / 'openwrt' / 'patches' / 'luci-lexical-translator.sh'
+BUILD = TOP / 'systems' / 'openwrt' / 'build-rootfs.sh'
 
 # luci.js as LuCI 25.12 ships it: a blank line, then the minified outer function; views are compiled with a direct
 # eval() inside it (compileClass), so their free names resolve in this scope first

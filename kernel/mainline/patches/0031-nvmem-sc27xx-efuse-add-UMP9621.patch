@@ -1,7 +1,7 @@
 nvmem: sc27xx-efuse: add the UMP9621 (the UMS9620's second PMIC)
 
 The UMP9621 (pmic@1) has the UMP9620's eFuse controller in its own register space, with 12 blocks (Unisoc's 5.4
-driver: UMP9621_EFUSE_BLOCK_MAX). Its parent MFD (upstream/port/drivers/mfd/ump962x-pmic.c) adds the PMIC's
+driver: UMP9621_EFUSE_BLOCK_MAX). Its parent MFD (kernel/mainline/port/drivers/mfd/ump962x-pmic.c) adds the PMIC's
 register offset, so the UMP9620 code path reads it as it is. With two of them, each nvmem device takes the number
 of its pmic_efuse alias (sc27xx-efuse0 and sc27xx-efuse1, as on 5.4); without an alias the id stays 0 as before.
 

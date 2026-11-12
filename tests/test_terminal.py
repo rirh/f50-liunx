@@ -11,12 +11,12 @@ from pathlib import Path
 
 from helpers import TOP, ShellTest
 
-APP = TOP / 'openwrt' / 'luci-app-mu300'
+APP = TOP / 'systems' / 'openwrt' / 'luci-app-mu300'
 LOGIN = APP / 'root' / 'usr' / 'libexec' / 'mu300-terminal-login'
 RPC = APP / 'root' / 'usr' / 'libexec' / 'rpcd' / 'mu300term'
 HOTPLUG = APP / 'root' / 'etc' / 'hotplug.d' / 'iface' / '95-mu300-terminal'
-TTYD_CONF = TOP / 'openwrt' / 'luci-overlay' / 'etc' / 'config' / 'ttyd'
-BUILD = TOP / 'openwrt' / 'build-rootfs.sh'
+TTYD_CONF = TOP / 'systems' / 'openwrt' / 'luci-overlay' / 'etc' / 'config' / 'ttyd'
+BUILD = TOP / 'systems' / 'openwrt' / 'build-rootfs.sh'
 ACL = APP / 'root' / 'usr' / 'share' / 'rpcd' / 'acl.d' / 'luci-app-mu300.json'
 MENU = APP / 'root' / 'usr' / 'share' / 'luci' / 'menu.d' / 'luci-app-mu300.json'
 
@@ -235,7 +235,7 @@ class Image(unittest.TestCase):
     def test_no_port_of_the_terminal_on_the_cellular_side(self):
         # nothing the OpenWrt images carry opens the terminal's port in the firewall, or puts ttyd on wan
         for d in ('overlay', 'luci-overlay', 'luci-app-mu300'):
-            for p in (TOP / 'openwrt' / d).rglob('*'):
+            for p in (TOP / 'systems' / 'openwrt' / d).rglob('*'):
                 if not p.is_file() or p.suffix in ('.po', '.md'):
                     continue
                 text = p.read_text(errors='replace')
@@ -244,8 +244,8 @@ class Image(unittest.TestCase):
                     self.assertNotRegex(text, r"firewall\.[^\n]*768[12]")
                     self.assertNotRegex(text, r"ttyd\.[^\n]*interface=.?@?wan")
         # the wan zone keeps OpenWrt's input REJECT: no default the images set opens it
-        for p in list((TOP / 'openwrt' / 'overlay' / 'etc' / 'uci-defaults').iterdir()) + \
-                list((TOP / 'openwrt' / 'luci-overlay' / 'etc' / 'uci-defaults').iterdir()):
+        for p in list((TOP / 'systems' / 'openwrt' / 'overlay' / 'etc' / 'uci-defaults').iterdir()) + \
+                list((TOP / 'systems' / 'openwrt' / 'luci-overlay' / 'etc' / 'uci-defaults').iterdir()):
             text = p.read_text()
             with self.subTest(p=p.name):
                 self.assertNotRegex(text, r"\$zone\.input='?ACCEPT")

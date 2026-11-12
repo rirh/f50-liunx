@@ -1,4 +1,4 @@
-"""Not a test: tools/android-online-shrink.sh as the fake eMMC of tests/fakeemmc.py would answer it, for the tests of
+"""Not a test: installer/android/android-online-shrink.sh as the fake eMMC of tests/fakeemmc.py would answer it, for the tests of
 the installers' online way (tests/test_resume.py OnlineShrink). The installers push it in place of the real script
 (MU300_ONLINE_SH, a two-line wrapper that runs this file); tests/fakeadb.py runs it against the directory
 ($FAKE_EMMC). The real script and mu300-f2fs-online are tested for real by tests/online-shrink-e2e.sh.

@@ -1,6 +1,6 @@
 kernel 5.4: quiet the vendor charger, fuel gauge, WCN and watchdog drivers' periodic log lines (issue #68)
 
-By AgentFan0315 (https://github.com/AgentFan0315/f50-openwrt, kernel/patches/logspam-quiet.patch), GPL-2.0 like the
+By AgentFan0315 (https://github.com/AgentFan0315/f50-openwrt, kernel/vendor/patches/logspam-quiet.patch), GPL-2.0 like the
 code it changes. Each line only changes the printk level to debug; CONFIG_DYNAMIC_DEBUG is on, so any of them comes
 back with `echo 'file <file> +p' > /sys/kernel/debug/dynamic_debug/control`.
 Left out of the original: the WCN_INFO macro in sprdwcn/include/wcn_dbg.h (every WCN info line, including the

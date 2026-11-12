@@ -19,7 +19,7 @@
 #   ./uninstall.sh --answers FILE   ask nothing: every question is answered by its variable, from FILE (NAME=value
 #                                   lines) or the environment (MU300_NONINTERACTIVE=1); a question without an answer
 #                                   is an error that names the variable. MU300_PROGRESS=1 adds the progress stream
-#                                   (tools/answers.sh, docs/INSTALLER-AUTOMATION.md). The variables:
+#                                   (installer/lib/answers.sh, docs/guides/INSTALLER-AUTOMATION.md). The variables:
 #     ANDROID_SERIAL=<serial>            the adb device, with more than one attached (or MU300_ANS_DEVICE=<number>)
 #     MU300_ANS_REBOOT_ANDROID=yes|no    the device runs Linux: reboot it into Android over SSH
 #     MU300_ANS_WIPE=secure|quick|keep   the Linux filesystem on the eMMC
@@ -41,26 +41,26 @@ for a in "$@"; do
     esac
 done
 [ -z "$_opt" ] || { echo "--answers needs a file (see --help)" >&2; exit 2; }
-. "$TOP/tools/answers.sh"    # say, die, ask; the answers mode and the progress stream
+. "$TOP/installer/lib/answers.sh"    # say, die, ask; the answers mode and the progress stream
 answers_setup
-. "$TOP/tools/host-tools.sh"
+. "$TOP/installer/lib/host-tools.sh"
 su_do() { adb shell "su -c '$1'" </dev/null | tr -d '\r'; }
-# tools/storage.sh finds the SD card; this script is English only: t() only fills in the {1} of its messages
-. "$TOP/tools/i18n.sh"
+# installer/lib/storage.sh finds the SD card; this script is English only: t() only fills in the {1} of its messages
+. "$TOP/installer/lib/i18n.sh"
 MU300_LANG=en
 progress hello script uninstall.sh version 1 mode uninstall
 gib() { awk -v b="$1" 'BEGIN { printf "%.1f GiB", b / 1073741824 }'; }
-. "$TOP/tools/storage.sh"
+. "$TOP/installer/lib/storage.sh"
 hex32() { su_do "dd if=/dev/block/by-name/misc bs=1 skip=2048 count=32 2>/dev/null | od -An -tx1 -v" | tr -d ' \n'; }
 
 step preflight 5
 say "Checking host tools and device"
 for c in adb python3; do command -v $c >/dev/null || die "$c not found"; done
-. "$TOP/tools/linux-mode.sh"
-. "$TOP/tools/usb-adb.sh"
+. "$TOP/installer/lib/linux-mode.sh"
+. "$TOP/installer/lib/usb-adb.sh"
 require_android
 [ "$(su_do 'id -u')" = 0 ] || die "su does not work on the device"
-usb_adb_only        # adb alone on USB for this run, no MTP (tools/usb-adb.sh); set back when it ends
+usb_adb_only        # adb alone on USB for this run, no MTP (installer/lib/usb-adb.sh); set back when it ends
 model="$(su_do 'getprop ro.product.model') / $(su_do 'getprop ro.product.device')"
 echo "device: $model"
 # (the ZTE V50, experimental: FINDINGS 95, as install.sh takes it)
@@ -78,7 +78,7 @@ info device.model "$model"; info slot.android $ANDROID_SLOT; info slot.linux $LI
 
 step find 15
 say "Looking for the Linux installation"
-# where the installers look and boot/init boots (tools/storage.sh): the free region behind the last partition, a GPT
+# where the installers look and boot/init boots (installer/lib/storage.sh): the free region behind the last partition, a GPT
 # partition named mu300root that another installer made (kanoqwq's desktop installer, FINDINGS 179), the old fixed
 # offset
 region_probe || die "could not read the partition table from the device (is su granted? try again)"
@@ -236,7 +236,7 @@ fi
 # A kept internal installation may hold the marker of a card installation next to it (boot/init then waits for
 # the card). With the card's installation gone it would only make a later boot wait for nothing.
 if [ -n "$OFF" ] && [ $wipe = keep ] && { [ $sdwipe = erase ] || [ "$SD_HAS" != yes ]; }; then
-    adb push "$TOP/tools/android-mount-mu300root.sh" $T/ </dev/null >/dev/null
+    adb push "$TOP/installer/android/android-mount-mu300root.sh" $T/ </dev/null >/dev/null
     r=$(su_do "MU300_OFF=$OFF MU300_SIZE=$SIZE sh $T/android-mount-mu300root.sh $T/mu300root >/dev/null && { rm -f $T/mu300root/.mu300/root-on-sd; sync; sh $T/android-mount-mu300root.sh -u $T/mu300root >/dev/null; echo CLEARED; }" 2>/dev/null) || true
     case $r in *CLEARED*) ;; *) echo "note: could not open the kept Linux filesystem to clear its SD card marker (harmless: boot_$LINUX_SLOT is Android)" ;; esac
 fi
@@ -263,7 +263,7 @@ else
     adb pull /data/local/tmp/gpt.tail "$GPTW/gpt.tail" >/dev/null 2>&1
     su_do 'rm -f /data/local/tmp/gpt.head /data/local/tmp/gpt.tail' >/dev/null
     if [ -s "$GPTW/gpt.head" ] && [ -s "$GPTW/gpt.tail" ] &&
-       info=$(python3 "$TOP/tools/resize-last-partition.py" "$GPTW/gpt.head,$GPTW/gpt.tail" \
+       info=$(python3 "$TOP/installer/lib/resize-last-partition.py" "$GPTW/gpt.head,$GPTW/gpt.tail" \
                 --disk-sectors "$disk" --sector-size "$ILBS" --name userdata --show 2>/dev/null); then
         u_first=$(echo "$info" | sed -n 's/^LAST_FIRST=//p')
         u_end=$(echo "$info" | sed -n 's/^LAST_END=//p')
@@ -285,7 +285,7 @@ else
         if [ "$grow" = yes ]; then
             ask sure2 "Type ERASE to rewrite the partition table and wipe Android's data" "" MU300_ANS_ERASE_ANDROID
             [ "$sure2" = ERASE ] || die "nothing was changed."
-            python3 "$TOP/tools/resize-last-partition.py" "$GPTW/gpt.head,$GPTW/gpt.tail" \
+            python3 "$TOP/installer/lib/resize-last-partition.py" "$GPTW/gpt.head,$GPTW/gpt.tail" \
                 --disk-sectors "$disk" --sector-size "$ILBS" --name userdata --fill --out "$GPTW/new" || die "the resize was refused; nothing is changed"
             adb push "$GPTW/new.head" /data/local/tmp/new.head >/dev/null 2>&1
             adb push "$GPTW/new.tail" /data/local/tmp/new.tail >/dev/null 2>&1
@@ -298,7 +298,7 @@ else
             adb pull /data/local/tmp/gpt.head "$GPTW/after.head" >/dev/null 2>&1
             adb pull /data/local/tmp/gpt.tail "$GPTW/after.tail" >/dev/null 2>&1
             su_do 'rm -f /data/local/tmp/gpt.head /data/local/tmp/gpt.tail' >/dev/null
-            chk=$(python3 "$TOP/tools/resize-last-partition.py" "$GPTW/after.head,$GPTW/after.tail" \
+            chk=$(python3 "$TOP/installer/lib/resize-last-partition.py" "$GPTW/after.head,$GPTW/after.tail" \
                     --disk-sectors "$disk" --sector-size "$ILBS" --name userdata --show) || die "the table on the device does not read back as valid GPT.
 The backup copy was written first, so Android's own repair may still fix this. Do not power off."
             [ "$(echo "$chk" | sed -n 's/^LAST_END=//p')" = "$u_usable" ] || die "the table did not take; nothing else was changed."
@@ -319,7 +319,7 @@ rm -rf "$GPTW"
 # the on-device switch would point at a Linux slot that holds Android again
 step switch 95
 say "Removing the on-device switch (Magisk module)"
-sh "$TOP/tools/install-magisk-module.sh" --remove || true
+sh "$TOP/installer/lib/install-magisk-module.sh" --remove || true
 
 step done 100
 say "Done. The device boots stock Android; reboot it once to check."

@@ -8,7 +8,7 @@ boot slot. There are two ways to get it:
   the install it is called "MU300 Linux" instead of "MU300 Linux switch"; the module id is the same
   (`mu300_linux_switch`), so the two replace each other. The Action button, `mu300-linux` and everything below work
   the same. Their files come from this directory (`installer/` is the installation part, `mu300-linux-switch/` is
-  this module), assembled by `tools/make-magisk-zips.sh`. Unpacked on a computer, the same zip is the computer's
+  this module). Unpacked on a computer, the same zip is the computer's
   installer for its system and kernel (`computer/`, `START-HERE.md` and the launchers; `computer/files.txt` here lists
   what goes in, and the README's "A Magisk zip on a computer" says how it is used).
 * **The switch-only module**, for a device where Linux was installed from a computer (`./install.sh`). It installs
@@ -40,7 +40,7 @@ su -c 'mu300-linux bootchain'   # does the boot chain differ between the slots? 
 su -c 'mu300-linux bootchain sync'   # copy Android's slot's chain to the Linux slot (backed up first)
 ```
 
-`bootchain sync` is the installers' step on its own (`bootchain.sh`, a copy of `tools/android-bootchain.sh`; FINDINGS
+`bootchain sync` is the installers' step on its own (`bootchain.sh`, a copy of `installer/android/android-bootchain.sh`; FINDINGS
 40): where `uboot`, `sml`, `teecfg`, `trustos` or `vbmeta` differ between the slots - after an Android update, say -
 both slots' images go to `/data/adb/mu300-bootchain/<date>/` with a `SHA256SUMS`, then Android's are written to the
 Linux slot and read back; a mismatch writes the old ones back. It refuses when Android's slot is not marked as booted

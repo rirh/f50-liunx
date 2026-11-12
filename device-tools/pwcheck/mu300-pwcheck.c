@@ -1,7 +1,7 @@
-/* mu300-pwcheck: is a password the one a crypt(3) hash was made of? For tools/android-pwcheck.sh, which runs on
+/* mu300-pwcheck: is a password the one a crypt(3) hash was made of? For installer/android/android-pwcheck.sh, which runs on
  * Android as root and must never run a program of the Linux system it looks at (a Linux system's perl or openssl
  * would run with Android's root): this is the project's own, built statically against libxcrypt
- * (tools/make-release.sh, into the 5.4 kernel bundle next to busybox; the Magisk zips carry it as mu300/mu300-pwcheck).
+ * (scripts/release/make-release.sh, into the 5.4 kernel bundle next to busybox; the Magisk zips carry it as mu300/mu300-pwcheck).
  *
  *   printf '%s\n%s\n' PASSWORD HASH | mu300-pwcheck
  *

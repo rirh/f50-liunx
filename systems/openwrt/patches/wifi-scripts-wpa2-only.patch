@@ -6,7 +6,7 @@
  
 +/* mu300: an access point is WPA2-PSK only on the SC2355 (ZTE F50, U30 Air, V50). SAE runs in the chip's firmware,
 + * which hostapd's own SAE never reaches, and the U30 Air's firmware SAE offload is disabled: the PMK record it hands
-+ * back cannot be told from one a client sends (mu300-linux docs/U30AIR-SAE.md, FINDINGS 80). An access point that
++ * back cannot be told from one a client sends (mu300-linux docs/research/U30AIR-SAE.md, FINDINGS 80). An access point that
 + * asks for SAE - WPA3-Personal, its mixed and compatibility modes, or the offload's hostapd option - is not started,
 + * and this line says why. */
 +function mu300_sae_refused(name, config) {

@@ -1,10 +1,10 @@
-"""tools/po2lmo.py against catalogs that LuCI's own po2lmo produced (tests/fixtures/po2lmo, from kanoqwq's fork)."""
+"""scripts/i18n/po2lmo.py against catalogs that LuCI's own po2lmo produced (tests/fixtures/po2lmo, from kanoqwq's fork)."""
 import subprocess, sys, tempfile, unittest
 from pathlib import Path
 from helpers import TOP
 
 FIX = TOP / 'tests' / 'fixtures' / 'po2lmo'
-sys.path.insert(0, str(TOP / 'tools'))
+sys.path.insert(0, str(TOP / 'scripts' / 'i18n'))
 import po2lmo  # noqa: E402
 
 
@@ -46,7 +46,7 @@ class Po2Lmo(unittest.TestCase):
                 po2lmo.compile_po(bad)
 
     def test_cli(self):
-        r = subprocess.run([sys.executable, str(TOP / 'tools/po2lmo.py'), str(FIX / 'mu300.tr.po'), '/dev/stdout'],
+        r = subprocess.run([sys.executable, str(TOP / 'scripts/i18n/po2lmo.py'), str(FIX / 'mu300.tr.po'), '/dev/stdout'],
                            capture_output=True)
         self.assertEqual(r.stdout, (FIX / 'mu300.tr.lmo').read_bytes())
 
@@ -55,7 +55,7 @@ class Po2Lmo(unittest.TestCase):
             po, lmo = Path(d) / 'x.po', Path(d) / 'x.lmo'
             po.write_text('msgid "A"\nmsgstr "A"\n', encoding='utf-8')
             lmo.write_bytes(b'stale')
-            r = subprocess.run([sys.executable, str(TOP / 'tools/po2lmo.py'), str(po), str(lmo)], capture_output=True)
+            r = subprocess.run([sys.executable, str(TOP / 'scripts/i18n/po2lmo.py'), str(po), str(lmo)], capture_output=True)
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertFalse(lmo.exists())
 
@@ -63,7 +63,7 @@ class Po2Lmo(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             po = Path(d) / 'x.po'
             po.write_text('msgctxt "x"\nmsgid "a"\nmsgstr "b"\n', encoding='utf-8')
-            r = subprocess.run([sys.executable, str(TOP / 'tools/po2lmo.py'), str(po), str(Path(d) / 'x.lmo')],
+            r = subprocess.run([sys.executable, str(TOP / 'scripts/i18n/po2lmo.py'), str(po), str(Path(d) / 'x.lmo')],
                                capture_output=True, text=True)
             self.assertEqual(r.returncode, 1)
             self.assertIn('msgctxt', r.stderr)

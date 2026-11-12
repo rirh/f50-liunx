@@ -16,11 +16,11 @@ import unittest
 from helpers import TOP, ShellTest
 from test_mu300dash_security import JSONFILTER
 
-FWD = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'bin' / 'mu300-sms-forward'
-HTTP_UC = TOP / 'openwrt' / 'luci-overlay' / 'opt' / 'mu300' / 'lib' / 'sms-forward-http.uc'
-HTTP_SH = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'sms-forward-http.sh'
-ADAPTER = TOP / 'openwrt' / 'luci-app-mu300' / 'root' / 'usr' / 'libexec' / 'unisoc-modem' / 'forward'
-DASH = TOP / 'openwrt' / 'luci-app-mu300' / 'root' / 'usr' / 'libexec' / 'rpcd' / 'mu300dash'
+FWD = TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'bin' / 'mu300-sms-forward'
+HTTP_UC = TOP / 'systems' / 'openwrt' / 'luci-overlay' / 'opt' / 'mu300' / 'lib' / 'sms-forward-http.uc'
+HTTP_SH = TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'sms-forward-http.sh'
+ADAPTER = TOP / 'systems' / 'openwrt' / 'luci-app-mu300' / 'root' / 'usr' / 'libexec' / 'unisoc-modem' / 'forward'
+DASH = TOP / 'systems' / 'openwrt' / 'luci-app-mu300' / 'root' / 'usr' / 'libexec' / 'rpcd' / 'mu300dash'
 
 TOKEN = '123456789:AAHsecretTokenValue_0123456789'
 PASSWORD = 'hunter2-mail-pass'
@@ -271,7 +271,7 @@ class Forwarder(ShellTest):
         page's body presets: WeCom/DingTalk and Feishu/Lark, each a JSON body the forwarder fills into one valid
         document of that service's shape, with the answer check that service needs (one of the check presets)."""
         import re
-        view = (TOP / 'openwrt/luci-app-mu300/htdocs/luci-static/resources/view/mu300/forward.js').read_text()
+        view = (TOP / 'systems/openwrt/luci-app-mu300/htdocs/luci-static/resources/view/mu300/forward.js').read_text()
         rows = re.findall(r"(\w+): \[ '([^']*)', '([^']*)'(?:, '(\w+)',\s*'(https://[^']*)')? \]", view)
         bodies = {r[0]: r[1] for r in rows}
         checks = {r[0]: r[2] for r in rows}
@@ -1407,7 +1407,7 @@ class Adapter(ShellTest):
 
 class Wiring(unittest.TestCase):
     def test_page_menu_acl_and_rpc(self):
-        app = TOP / 'openwrt' / 'luci-app-mu300'
+        app = TOP / 'systems' / 'openwrt' / 'luci-app-mu300'
         menu = json.loads((app / 'root/usr/share/luci/menu.d/luci-app-mu300.json').read_text())
         self.assertEqual(menu['admin/modem/sms-forward']['action'], {'type': 'view', 'path': 'mu300/forward'})
         cellular = [k for _, k in sorted((v['order'], k) for k, v in menu.items() if k.startswith('admin/modem/'))]
@@ -1440,11 +1440,11 @@ class Wiring(unittest.TestCase):
         self.assertIn("'value': 'text'", view)
         self.assertTrue(os.access(ADAPTER, os.X_OK))
         self.assertTrue(os.access(FWD, os.X_OK))
-        build = (TOP / 'openwrt' / 'build-rootfs.sh').read_text()
+        build = (TOP / 'systems' / 'openwrt' / 'build-rootfs.sh').read_text()
         self.assertIn('$R/opt/mu300/bin/mu300-sms-forward', build)
 
     def test_the_view_never_shows_a_saved_secret(self):
-        view = (TOP / 'openwrt/luci-app-mu300/htdocs/luci-static/resources/view/mu300/forward.js').read_text()
+        view = (TOP / 'systems/openwrt/luci-app-mu300/htdocs/luci-static/resources/view/mu300/forward.js').read_text()
         # the secret fields start empty; only their *_set flags and hints are read
         for k in ('webhook_url', 'webhook_headers', 'webhook_secret', 'telegram_token', 'email_password'):
             self.assertNotIn(f'st.{k})', view)

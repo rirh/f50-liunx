@@ -1,7 +1,7 @@
 #!/bin/sh
 # Install the "switch to Linux" Magisk module on the connected device (rooted Android, adb + su + Magisk).
-#   tools/install-magisk-module.sh            install (or update) the module
-#   tools/install-magisk-module.sh --remove   remove it again
+#   installer/lib/install-magisk-module.sh            install (or update) the module
+#   installer/lib/install-magisk-module.sh --remove   remove it again
 #
 # The files are copied straight into /data/adb/modules, which is what Magisk reads at boot; that needs no zip
 # tool on this computer and no Magisk app interaction. The module itself only ever writes the 32-byte
@@ -10,7 +10,7 @@
 # Nothing here is fatal for an installation: a device without Magisk simply keeps using ./install.sh from a
 # computer to start Linux.
 set -eu
-TOP=$(cd "$(dirname "$0")/.." && pwd)
+TOP=$(cd "$(dirname "$0")/../.." && pwd)
 SRC=$TOP/android/magisk/mu300-linux-switch
 MOD=/data/adb/modules/mu300_linux_switch
 TMP=/data/local/tmp/mu300-magisk
@@ -36,13 +36,13 @@ if ! have_magisk; then
 fi
 
 # The module names the release it came with, as the Magisk zip's does (android/magisk/installer/module.prop.in, the same
-# version and versionCode as tools/make-magisk-zips.sh): an update from the computer replaced the zip's module of the
-# release with the generic one, "v1.0" (seen on an F50, docs/FINDINGS.md 131). MU300_MODULE_TAG (the release installed;
+# version and versionCode): an update from the computer replaced the zip's module of the
+# release with the generic one, "v1.0" (seen on an F50, docs/research/FINDINGS.md 131). MU300_MODULE_TAG (the release installed;
 # install.sh passes it), MU300_MODULE_SYSTEM, MU300_MODULE_KERNEL; without a release tag (a build of the checkout) the
 # generic module.prop.
 PROP=$SRC/module.prop
 TAG=${MU300_MODULE_TAG:-}
-. "$TOP/tools/releases.sh"
+. "$TOP/installer/lib/releases.sh"
 if code=$(tag_key "$TAG"); then
     case $code in 2*) code=${code#2} ;; *) code=${code#1}; code=${code%00} ;; esac
     PROP=$(mktemp)

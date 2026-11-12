@@ -4,9 +4,9 @@ import unittest
 
 from helpers import GIT_CHECKOUT, TOP
 
-INIT = TOP / 'openwrt' / 'luci-overlay' / 'etc' / 'init.d' / 'mu300-atd-dash'
-BUILD = TOP / 'openwrt' / 'build-rootfs.sh'
-CELL = TOP / 'openwrt' / 'luci-app-mu300' / 'root' / 'usr' / 'libexec' / 'unisoc-modem' / 'cell'
+INIT = TOP / 'systems' / 'openwrt' / 'luci-overlay' / 'etc' / 'init.d' / 'mu300-atd-dash'
+BUILD = TOP / 'systems' / 'openwrt' / 'build-rootfs.sh'
+CELL = TOP / 'systems' / 'openwrt' / 'luci-app-mu300' / 'root' / 'usr' / 'libexec' / 'unisoc-modem' / 'cell'
 
 
 class AtdDash(unittest.TestCase):

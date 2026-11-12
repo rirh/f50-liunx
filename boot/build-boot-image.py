@@ -12,8 +12,8 @@ Example:
   build-boot-image.py \
     --stock-boot dumps/boot_a.img --misc-head dumps/misc-head.bin \
     --kernel out/Image --modules out/modules --busybox busybox-static-arm64 \
-    --logdw tools/logdw/logdw --android-subset android-subset \
-    --ueventd-perms android-vendor/ueventd-perms.sh --out boot-linux-slotb.img
+    --logdw device-tools/logdw/logdw --android-subset android-subset \
+    --ueventd-perms android/vendor/ueventd-perms.sh --out boot-linux-slotb.img
 """
 import argparse
 import re
@@ -34,7 +34,7 @@ BOOT_CMDLINE = b'loglevel=5'
 MISC_BC_OFFSET = 0x800
 # persistent init log lives at 48 MiB inside boot_b (8 MiB); the image must end before it
 PERSIST_LOG_OFFSET = 48 << 20
-# written by android-vendor/extract_subset.py on a host whose file system cannot hold every name from the
+# written by android/vendor/extract_subset.py on a host whose file system cannot hold every name from the
 # device (Windows: the property area's u:object_r:<context>:s0); while it exists it holds the whole subset
 WINDOWS_TAR = 'windows-source.tar.gz'
 
@@ -162,7 +162,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--stock-boot', type=Path, help='stock boot_a.img dump (64 MiB, header v4)')
     ap.add_argument('--misc-head', type=Path, help='first 4 KiB of the misc partition')
-    ap.add_argument('--kernel', type=Path, help='arm64 Image built from kernel/')
+    ap.add_argument('--kernel', type=Path, help='arm64 Image built from kernel/vendor/')
     ap.add_argument('--generic-ramdisk', action='store_true',
                     help='write only the device-independent ramdisk segment (init, busybox, modules) to --out, for '
                          'mu300-update to put behind the ramdisk of the boot image already on the device')
@@ -184,12 +184,12 @@ def main():
     ap.add_argument('--init', type=Path, default=HERE / 'init')
     ap.add_argument('--busybox', type=Path, help='static arm64 busybox (may be left out with --append-ramdisk, when '
                                                 'that segment brings one)')
-    ap.add_argument('--logdw', type=Path, help='tools/logdw build (static arm64; may be left out as --busybox)')
+    ap.add_argument('--logdw', type=Path, help='device-tools/logdw build (static arm64; may be left out as --busybox)')
     ap.add_argument('--e2fsck', type=Path,
-                    help='tools/e2fsck/build.sh build (static arm64): /sbin/e2fsck, which init runs on a root '
+                    help='device-tools/e2fsck/build.sh build (static arm64): /sbin/e2fsck, which init runs on a root '
                          'filesystem whose superblock records an error; without it init boots such a one as it is')
     ap.add_argument('--ueventd-perms', required=True, type=Path)
-    ap.add_argument('--android-subset', type=Path, help='directory produced by android-vendor/extract-subset.sh')
+    ap.add_argument('--android-subset', type=Path, help='directory produced by android/vendor/extract-subset.sh')
     ap.add_argument('--append-ramdisk', type=Path,
                     help='another LZ4 legacy ramdisk segment to put behind this one (the ramdisk-generic.lz4 of a '
                          'kernel bundle such as mu300-kernel-6.18.tar.gz: its init and modules replace these, which '
@@ -198,7 +198,7 @@ def main():
     a = ap.parse_args()
     if not a.generic_ramdisk and not (a.stock_boot and a.misc_head and a.kernel):
         ap.error('--stock-boot, --misc-head and --kernel are required unless --generic-ramdisk is given')
-    # Without the 5.4 bundle (a Magisk zip of a mainline kernel, unpacked on a computer: tools/package.sh) the first
+    # Without the 5.4 bundle (a Magisk zip of a mainline kernel, unpacked on a computer: installer/lib/package.sh) the first
     # segment carries no busybox, logdw or modules of its own: the kernel's generic segment, unpacked after it, brings
     # them - and replaces what the first one has of them in any case. So it must bring every one that is left out.
     missing = [n for n, v in (('modules', a.modules), ('busybox', a.busybox), ('logdw', a.logdw)) if v is None]
@@ -220,7 +220,7 @@ def main():
         'bin/sh': (b'busybox', stat.S_IFLNK | 0o777),
         'etc/ueventd-perms.sh': (text(a.ueventd_perms), stat.S_IFREG | 0o755),
         # the internal disk's lookup, which init shares with the system (issue #396): in every segment that has an init
-        'etc/mu300-storage.sh': (text(HERE.parent / 'rootfs/overlay/opt/mu300/lib/storage.sh'), stat.S_IFREG | 0o644),
+        'etc/mu300-storage.sh': (text(HERE.parent / 'systems/base/overlay/opt/mu300/lib/storage.sh'), stat.S_IFREG | 0o644),
     }
     if a.busybox:
         files['bin/busybox'] = (a.busybox.read_bytes(), stat.S_IFREG | 0o755)

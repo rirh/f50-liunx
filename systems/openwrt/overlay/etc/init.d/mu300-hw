@@ -29,7 +29,7 @@ hw_bringup() {
 	/opt/mu300/bin/zram-start >/dev/null 2>&1
 	cfg=$(md5sum /etc/config/wireless 2>/dev/null)
 	/opt/mu300/bin/openwrt-wifi-config >>/tmp/mu300-wifi-start.log 2>&1
-	# a hotspot set to WPA3/SAE (the U30 Air's SAE offload, now disabled: docs/U30AIR-SAE.md, FINDINGS 80) becomes
+	# a hotspot set to WPA3/SAE (the U30 Air's SAE offload, now disabled: docs/research/U30AIR-SAE.md, FINDINGS 80) becomes
 	# WPA2-PSK with the same password, before the Wi-Fi restart below, which is the start that brings the hotspot up
 	# (netifd's own, earlier one ends AP-DISABLED under the world regulatory domain; the wifi-scripts refuse SAE)
 	/opt/mu300/bin/openwrt-wifi-wpa2-only migrate >>/tmp/mu300-wifi-start.log 2>&1

@@ -14,7 +14,7 @@ import unittest
 
 from helpers import ShellTest, TOP
 
-APP = TOP / 'openwrt' / 'luci-app-mu300'
+APP = TOP / 'systems' / 'openwrt' / 'luci-app-mu300'
 INFO = APP / 'root' / 'usr' / 'libexec' / 'unisoc-modem' / 'dashboard-info'
 HOME = APP / 'htdocs' / 'luci-static' / 'resources' / 'view' / 'mu300' / 'home.js'
 

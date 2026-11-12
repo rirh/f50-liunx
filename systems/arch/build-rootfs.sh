@@ -1,9 +1,9 @@
 #!/bin/sh
 # Build an Arch Linux ARM root filesystem for the MU300 (runs on the host; needs Docker with arm64 support).
-#   arch/build-rootfs.sh [OUT.tar.gz]
-# Inputs are the same optional ones the other builds use (see openwrt/build-rootfs.sh):
+#   systems/arch/build-rootfs.sh [OUT.tar.gz]
+# Inputs are the same optional ones the other builds use (see systems/openwrt/build-rootfs.sh):
 #   out/modules/*.ko  out/modules.builtin*  firmware/  android-subset/  android-gpu-subset/
-#   tools/logdw/logdw  tools/bt-init/mu300-bt-init  tools/gpu/cltest  busybox
+#   device-tools/logdw/logdw  device-tools/bt-init/mu300-bt-init  device-tools/gpu/cltest  busybox
 # (the VPN is the module of github.com/dikeckaan/mu300-linux-vpn, engines included: mu300-extra install vpn)
 #
 # Arch Linux ARM ships a generic aarch64 root filesystem and a rolling package set, so the userspace is far newer
@@ -11,7 +11,7 @@
 # means an update can break things: this is the "fun" option, not the one to put in a router that must stay up.
 set -eu
 KREL=5.4.254-gb50db5b6224c
-TOP=$(cd "$(dirname "$0")/.." && pwd)
+TOP=$(cd "$(dirname "$0")/../.." && pwd)
 IN=${MU300_INPUTS:-$TOP}
 OUT=${1:-mu300-arch-rootfs.tar.gz}
 BASE=ArchLinuxARM-aarch64-latest.tar.gz
@@ -19,19 +19,19 @@ BASE=ArchLinuxARM-aarch64-latest.tar.gz
 URL=http://os.archlinuxarm.org/os/$BASE
 
 cd "$TOP"
-mkdir -p arch
-[ -f "arch/$BASE" ] || curl -fL --progress-bar -o "arch/$BASE" "$URL"
-docker import --platform linux/arm64 "arch/$BASE" mu300-arch-base:latest >/dev/null
+mkdir -p systems/arch
+[ -f "systems/arch/$BASE" ] || curl -fL --progress-bar -o "systems/arch/$BASE" "$URL"
+docker import --platform linux/arm64 "systems/arch/$BASE" mu300-arch-base:latest >/dev/null
 
 opt() { [ -e "$IN/$1" ] && echo "-v $IN/$1:/in/$2:ro" || true; }
 # shellcheck disable=SC2046
 docker run --rm --platform linux/arm64 \
-  -v "$TOP/rootfs/overlay/opt/mu300":/in/opt-mu300:ro -v "$TOP/rootfs/overlay":/in/overlay:ro \
+  -v "$TOP/systems/base/overlay/opt/mu300":/in/opt-mu300:ro -v "$TOP/systems/base/overlay":/in/overlay:ro \
   $(opt out/modules modules) $(opt out/modules.builtin modules.builtin) \
   $(opt out/modules.builtin.modinfo modules.builtin.modinfo) \
   $(opt firmware firmware) $(opt android-subset android-subset) $(opt android-gpu-subset android-gpu-subset) \
-  $(opt tools/logdw/logdw logdw) $(opt tools/bt-init/mu300-bt-init bt-init) $(opt tools/gpu/cltest cltest) \
-  $(opt busybox busybox) -v "$TOP/arch":/out \
+  $(opt device-tools/logdw/logdw logdw) $(opt device-tools/bt-init/mu300-bt-init bt-init) $(opt device-tools/gpu/cltest cltest) \
+  $(opt busybox busybox) -v "$TOP/systems/arch":/out \
   -e KREL=$KREL -e OUT="$(basename "$OUT")" -e MU300_VERSION="${MU300_VERSION:-dev}" \
   mu300-arch-base:latest /bin/bash -eu -c '
 export LANG=C
@@ -120,4 +120,4 @@ ln -sfn /dev/null $R/etc/systemd/system/getty@tty1.service
 cd $R && tar --numeric-owner -czf /out/$OUT .
 ls -la /out/$OUT; du -sh $R
 '
-echo "built $TOP/arch/$(basename "$OUT")"
+echo "built $TOP/systems/arch/$(basename "$OUT")"

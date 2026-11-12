@@ -1,5 +1,5 @@
 #!/bin/sh
-# Docker's networks in fw4 (docs/FINDINGS.md 130), once per device: the marker /etc/mu300/docker-zone is a file of
+# Docker's networks in fw4 (docs/research/FINDINGS.md 130), once per device: the marker /etc/mu300/docker-zone is a file of
 # the device that every update carries, so a zone the user changed or deleted stays as the user left it.
 #
 # dockerd runs with the nftables backend (/etc/docker/daemon.json): its own tables (ip docker-bridges) do the NAT

@@ -113,7 +113,7 @@ if [ -p "$DIR/cmd" ]; then
     case $wait in ''|*[!0-9]*) wait=90 ;; esac
     # A caller that holds this lock for a whole transaction says so with MU300_AT_LOCK_HELD=<its pid>: mu300-sms
     # takes it around a send (the SMSC refresh, PDU mode and the submission, which no other client may get in
-    # between - docs/FINDINGS.md 46) and runs each command through here. The lock is borrowed only when it really
+    # between - docs/research/FINDINGS.md 46) and runs each command through here. The lock is borrowed only when it really
     # is that process's (lock/pid names it, and it is alive): then no lock is taken, and none is removed on the way
     # out. Anything else and the variable is ignored, and the lock is taken as usual.
     held=0

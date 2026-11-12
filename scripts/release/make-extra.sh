@@ -1,13 +1,13 @@
 #!/bin/sh
 # Build an extra: the optional parts that are not in the images and that mu300-extra installs on the device.
-#   tools/make-extra.sh NAME OUT.tar.gz [TAG]     (TAG: the release it belongs to, default dev)
+#   scripts/release/make-extra.sh NAME OUT.tar.gz [TAG]     (TAG: the release it belongs to, default dev)
 # Extras of this repository:
 #   lang  LuCI's catalogs in every language of the OpenWrt feed besides the images' own (tr, zh-cn): luci-base and each
 #         LuCI app of the images, from the luci-i18n-* packages (apk add in the OpenWrt base image that
-#         openwrt/build-rootfs.sh imports, so apk checks every package against the feed's signed index), plus the
-#         MU300 panel's catalogs (openwrt/luci-app-mu300/po, tools/po2lmo.py). Needs docker with arm64 support.
-#   panel  the web panel for Ubuntu (rootfs/panel): bin/mu300-panel and the MU300 page of Cockpit (cockpit/mu300, with
-#         po.<lang>.js from rootfs/panel/po, tools/cockpit-i18n.py). Cockpit itself comes from Ubuntu's archive when
+#         systems/openwrt/build-rootfs.sh imports, so apk checks every package against the feed's signed index), plus the
+#         MU300 panel's catalogs (systems/openwrt/luci-app-mu300/po, scripts/i18n/po2lmo.py). Needs docker with arm64 support.
+#   panel  the web panel for Ubuntu (systems/base/panel): bin/mu300-panel and the MU300 page of Cockpit (cockpit/mu300, with
+#         po.<lang>.js from systems/base/panel/po, scripts/i18n/cockpit-i18n.py). Cockpit itself comes from Ubuntu's archive when
 #         the extra is installed.
 #   panel-offline  the same, plus Cockpit's packages for each Ubuntu release of the images (debs/24.04, debs/26.04):
 #         what "apt-get install --no-install-recommends cockpit-ws cockpit-system cockpit-bridge" adds to the
@@ -19,16 +19,16 @@
 # Layout (what mu300-update's extra_unpack checks): ./name ./release ./components ./manifest (sha256 of every file),
 # ./languages (uci key, tab, name) and ./i18n/<component>.<code>.lmo; owned by root.
 set -eu
-NAME=${1:?usage: tools/make-extra.sh NAME OUT.tar.gz [TAG]}
-OUT=${2:?usage: tools/make-extra.sh NAME OUT.tar.gz [TAG]}
+NAME=${1:?usage: scripts/release/make-extra.sh NAME OUT.tar.gz [TAG]}
+OUT=${2:?usage: scripts/release/make-extra.sh NAME OUT.tar.gz [TAG]}
 TAG=${3:-dev}
-TOP=$(cd "$(dirname "$0")/.." && pwd)
+TOP=$(cd "$(dirname "$0")/../.." && pwd)
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/mu300-extra.XXXXXX"); trap 'rm -rf "$tmp"' EXIT
 case $NAME in
     lang)
         IMG=mu300-openwrt-base:${MU300_WRT_VER:-25.12.6}
         docker image inspect "$IMG" >/dev/null 2>&1 || {
-            echo "$IMG missing: openwrt/build-rootfs.sh imports it (build an OpenWrt image first)" >&2; exit 1; }
+            echo "$IMG missing: systems/openwrt/build-rootfs.sh imports it (build an OpenWrt image first)" >&2; exit 1; }
         mkdir -p "$tmp/x/i18n" "$tmp/feed"
         # (no apostrophes in here: one single-quoted argument to sh -c)
         docker run --rm --platform linux/arm64 -v "$tmp/feed":/out "$IMG" /bin/sh -eu -c '
@@ -54,7 +54,7 @@ uci show luci.languages > /out/names
 import os, re, subprocess, sys
 top, feed, x = sys.argv[1:]
 table = {}
-for line in open(os.path.join(top, 'openwrt/luci-languages.tsv'), encoding='utf-8'):
+for line in open(os.path.join(top, 'systems/openwrt/luci-languages.tsv'), encoding='utf-8'):
     if line.strip() and not line.startswith('#'):
         d, code, name = line.rstrip('\n').split('\t')
         table[d] = (code, name)
@@ -66,10 +66,10 @@ for line in open(os.path.join(feed, 'names'), encoding='utf-8'):
 # the panel's catalogs, except the two the openwrt-luci image carries itself
 ours = []
 for d, (code, name) in sorted(table.items()):
-    if d in ('tr', 'zh_Hans') or not os.path.isfile(os.path.join(top, 'openwrt/luci-app-mu300/po', d, 'mu300.po')):
+    if d in ('tr', 'zh_Hans') or not os.path.isfile(os.path.join(top, 'systems/openwrt/luci-app-mu300/po', d, 'mu300.po')):
         continue
-    subprocess.run([sys.executable, os.path.join(top, 'tools/po2lmo.py'),
-                    os.path.join(top, 'openwrt/luci-app-mu300/po', d, 'mu300.po'),
+    subprocess.run([sys.executable, os.path.join(top, 'scripts/i18n/po2lmo.py'),
+                    os.path.join(top, 'systems/openwrt/luci-app-mu300/po', d, 'mu300.po'),
                     os.path.join(x, 'i18n', f'mu300.{code}.lmo')], check=True)
     ours.append(code)
     names[code.replace('-', '_')] = name          # our name where LuCI has none (az, kk, id); the same otherwise
@@ -95,11 +95,11 @@ PY
     panel|panel-offline)
         x=$tmp/x
         mkdir -p "$x/bin" "$x/cockpit/mu300"
-        cp "$TOP/rootfs/panel/bin/mu300-panel" "$x/bin/mu300-panel"
+        cp "$TOP/systems/base/panel/bin/mu300-panel" "$x/bin/mu300-panel"
         chmod 755 "$x/bin/mu300-panel"
-        for f in manifest.json index.html mu300.js mu300.css; do cp "$TOP/rootfs/panel/cockpit/mu300/$f" "$x/cockpit/mu300/"; done
-        python3 "$TOP/tools/cockpit-i18n.py" check >&2 || { echo "the MU300 page's translations are incomplete" >&2; exit 1; }
-        python3 "$TOP/tools/cockpit-i18n.py" build "$x/cockpit/mu300"
+        for f in manifest.json index.html mu300.js mu300.css; do cp "$TOP/systems/base/panel/cockpit/mu300/$f" "$x/cockpit/mu300/"; done
+        python3 "$TOP/scripts/i18n/cockpit-i18n.py" check >&2 || { echo "the MU300 page's translations are incomplete" >&2; exit 1; }
+        python3 "$TOP/scripts/i18n/cockpit-i18n.py" build "$x/cockpit/mu300"
         printf 'mu300-panel %s\ncockpit page mu300 (en tr zh_CN)\n' "$TAG" > "$x/components"
         if [ "$NAME" = panel-offline ]; then
             for u in ${MU300_PANEL_UBUNTU:-24.04 26.04}; do

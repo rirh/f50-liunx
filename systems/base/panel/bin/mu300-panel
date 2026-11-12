@@ -321,7 +321,7 @@ cpu_json() {
     _j=$(mu300-cpu status --json 2>/dev/null)
     case $_j in '{'*'}') printf '%s' "$_j" ;; *) echo null ;; esac
 }
-# data roaming (mobile-data roaming --json, docs/FINDINGS.md 120): the setting and whether data is held back; files
+# data roaming (mobile-data roaming --json, docs/research/FINDINGS.md 120): the setting and whether data is held back; files
 # only, no modem question. null when there is no such command (an older system) or it says something else.
 roaming_json() {
     _j=$(mobile-data roaming --json 2>/dev/null | head -n 1)

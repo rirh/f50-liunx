@@ -1,5 +1,5 @@
 """Making room on an encrypted Android by a reset, and the installation that resumes afterwards (EXPERIMENTAL;
-tools/resume.py, tools/resume.sh, install.ps1's make-room path; docs/FINDINGS.md 112). Ported from kano's desktop
+installer/lib/resume.py, installer/lib/resume.sh, install.ps1's make-room path; docs/research/FINDINGS.md 112). Ported from kano's desktop
 installer: the transaction and its checks first (the device, its slot, the partition geometry, the token, the
 installer's tools), then install.sh as a whole against tests/fakeadb.py with real storage (tests/fakeemmc.py): the
 backup, the partition table, the token and the request to recovery as they land on the fake eMMC; the reset; the
@@ -20,7 +20,7 @@ import fakegpt
 from helpers import TOP, ShellTest
 from test_answers import Device, events
 
-sys.path.insert(0, str(TOP / 'tools'))
+sys.path.insert(0, str(TOP / 'installer' / 'lib'))
 import resume  # noqa: E402
 
 TOK = 'b' * 32
@@ -118,7 +118,7 @@ class Transaction(unittest.TestCase):
         self.assertFalse(resume.encrypted('unencrypted', '', '/dev/block/mmcblk0p40', '53ef'))
         with self.assertRaises(ValueError):
             resume.encrypted('', '', '/dev/block/mmcblk0p40', '1020f5f2')
-        out = subprocess.run([sys.executable, str(TOP / 'tools/resume.py'), 'encrypted', 'state=', 'type=', 'source=/dev/block/mmcblk0p40', 'magic='],
+        out = subprocess.run([sys.executable, str(TOP / 'installer/lib/resume.py'), 'encrypted', 'state=', 'type=', 'source=/dev/block/mmcblk0p40', 'magic='],
                              capture_output=True, text=True).stdout
         self.assertEqual(out, 'unknown\n')
 
@@ -393,10 +393,10 @@ class ResetAndResume(Device):
                 self.assertEqual(self.writes(), [])
                 self.assertFalse(self.backups.exists())
 
-    def test_the_self_update_waits_while_a_transaction_does(self):
+    def test_a_waiting_transaction_is_found(self):
         self.backups.mkdir(parents=True)
         for shell in self.each_shell():
-            code = (f'TOP="{TOP}"; HOME="{self.tmp}/home"; . "$TOP/tools/resume.sh"; '
+            code = (f'TOP="{TOP}"; HOME="{self.tmp}/home"; . "$TOP/installer/lib/resume.sh"; '
                     'resume_pending && echo PENDING || echo NONE')
             self.assertIn('NONE', self.sh(shell, code).stdout)
             (self.backups / 'x').mkdir(exist_ok=True)
@@ -404,8 +404,6 @@ class ResetAndResume(Device):
             self.assertIn('PENDING', self.sh(shell, code).stdout)
             self.assertIn('NONE', self.sh(shell, code, MU300_RESUME='0').stdout)
             shutil.rmtree(self.backups / 'x')
-        src = (TOP / 'install.sh').read_text()
-        self.assertLess(src.index('if resume_pending; then'), src.index('self_update "$0" "$@"'))
 
 
 
@@ -461,7 +459,7 @@ class ResetAndResumeUfs(ResetAndResume):
     test_an_encryption_state_that_cannot_be_told_changes_nothing = None
     test_kanos_rule_on_the_device = None
     test_nothing_is_written_without_every_word = None
-    test_the_self_update_waits_while_a_transaction_does = None
+    test_a_waiting_transaction_is_found = None
 
 
 KEEP = dict(MU300_ANS_MAKE_ROOM='yes', MU300_ANS_MAKE_ROOM_METHOD='keep', MU300_ANS_LINUX_GIB='4', MU300_ANS_SHRINK='yes',
@@ -726,11 +724,11 @@ class Static(unittest.TestCase):
 
     def test_the_old_clear_of_userdata_is_gone(self):
         # a filesystem cleared from outside is one an encrypted Android cannot mount: recovery formats it now
-        for name in ('install.sh', 'tools/resume.sh'):
+        for name in ('install.sh', 'installer/lib/resume.sh'):
             self.assertNotIn('of=/dev/block/by-name/userdata', (TOP / name).read_text(), name)
 
     def test_experimental_and_credited(self):
-        for name in ('tools/resume.sh', 'tools/resume.py'):
+        for name in ('installer/lib/resume.sh', 'installer/lib/resume.py'):
             text = (TOP / name).read_text()
             self.assertIn('EXPERIMENTAL', text)
             self.assertIn('f6b0668d', text)

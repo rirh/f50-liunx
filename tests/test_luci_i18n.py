@@ -3,8 +3,8 @@ import importlib.util, json, re, shutil, subprocess, sys, tempfile, unittest
 from pathlib import Path
 from helpers import GIT_CHECKOUT, TOP
 
-TOOL = [sys.executable, str(TOP / 'tools' / 'luci-i18n.py')]
-APP = TOP / 'openwrt' / 'luci-app-mu300'
+TOOL = [sys.executable, str(TOP / 'scripts' / 'i18n' / 'luci-i18n.py')]
+APP = TOP / 'systems' / 'openwrt' / 'luci-app-mu300'
 CJK = '\u4e2d\u6587'        # written as escapes: this file is not one of the places Chinese is allowed
 
 VIEW = 'htdocs/luci-static/resources/view/mu300/home.js'
@@ -98,20 +98,21 @@ class Catalogs(unittest.TestCase):
         # without --root the check reads the files git tracks: Chinese in a shared script is found, Chinese in the
         # installers' i18n data is not (a copy of the tool, the app and two such files in a scratch repository)
         repo = self.tmp / 'repo'
-        shutil.copytree(APP, repo / 'openwrt' / 'luci-app-mu300')
-        shutil.copy(TOP / 'openwrt' / 'luci-languages.tsv', repo / 'openwrt' / 'luci-languages.tsv')
-        (repo / 'tools').mkdir()
+        shutil.copytree(APP, repo / 'systems' / 'openwrt' / 'luci-app-mu300')
+        shutil.copy(TOP / 'systems' / 'openwrt' / 'luci-languages.tsv', repo / 'systems' / 'openwrt' / 'luci-languages.tsv')
+        (repo / 'scripts' / 'i18n').mkdir(parents=True)
+        (repo / 'installer' / 'lib').mkdir(parents=True)
         for name in ('luci-i18n.py', 'po2lmo.py'):
-            shutil.copy(TOP / 'tools' / name, repo / 'tools' / name)
-        (repo / 'tools' / 'i18n.sh').write_text('# %s\n' % CJK, encoding='utf-8')
-        (repo / 'rootfs' / 'overlay').mkdir(parents=True)
-        (repo / 'rootfs' / 'overlay' / 'x.sh').write_text('echo %s\n' % CJK, encoding='utf-8')
+            shutil.copy(TOP / 'scripts' / 'i18n' / name, repo / 'scripts' / 'i18n' / name)
+        (repo / 'installer' / 'lib' / 'i18n.sh').write_text('# %s\n' % CJK, encoding='utf-8')
+        (repo / 'systems' / 'base' / 'overlay').mkdir(parents=True)
+        (repo / 'systems' / 'base' / 'overlay' / 'x.sh').write_text('echo %s\n' % CJK, encoding='utf-8')
         subprocess.run(['git', 'init', '-q', str(repo)], check=True)
         subprocess.run(['git', '-C', str(repo), 'add', '.'], check=True)
-        r = subprocess.run([sys.executable, str(repo / 'tools' / 'luci-i18n.py'), 'check'], capture_output=True,
+        r = subprocess.run([sys.executable, str(repo / 'scripts' / 'i18n' / 'luci-i18n.py'), 'check'], capture_output=True,
                            text=True, encoding='utf-8')
         self.assertNotIn('Traceback', r.stderr)
-        self.assertEqual(r.stdout, 'cjk: rootfs/overlay/x.sh:1: echo %s\n' % CJK)
+        self.assertEqual(r.stdout, 'cjk: systems/base/overlay/x.sh:1: echo %s\n' % CJK)
 
     def test_extract_finds_every_kind_of_message_and_nothing_else(self):
         r = run('extract', '--root', str(self.mini()))
@@ -138,14 +139,14 @@ class Catalogs(unittest.TestCase):
         lines = r.stdout.splitlines()
         self.assertEqual(len(lines), 2, lines)
         self.assertTrue(lines[0].startswith('missing: po/ja/mu300.po:0: "Dashboard" (used at '), lines)
-        self.assertEqual(lines[1], 'language: po/xx/mu300.po:0: po/xx has no row in openwrt/luci-languages.tsv')
+        self.assertEqual(lines[1], 'language: po/xx/mu300.po:0: po/xx has no row in systems/openwrt/luci-languages.tsv')
         # update keeps every catalog, the third one included
         run('update', '--root', str(root))
         self.assertIn('msgid "Dashboard"', (root / 'po' / 'ja' / 'mu300.po').read_text(encoding='utf-8'))
 
     def test_language_table(self):
         # one row per catalog of the app; codes as LuCI names its .lmo files; no row for English (the source)
-        rows = [l.split('\t') for l in (TOP / 'openwrt' / 'luci-languages.tsv').read_text(encoding='utf-8')
+        rows = [l.split('\t') for l in (TOP / 'systems' / 'openwrt' / 'luci-languages.tsv').read_text(encoding='utf-8')
                 .splitlines() if l and not l.startswith('#')]
         self.assertTrue(all(len(r) == 3 for r in rows), rows)
         dirs = [r[0] for r in rows]
@@ -228,12 +229,12 @@ class Catalogs(unittest.TestCase):
 
 
 COMMON = APP / 'htdocs/luci-static/resources/mu300/common.js'
-BUILD = TOP / 'openwrt' / 'build-rootfs.sh'
+BUILD = TOP / 'systems' / 'openwrt' / 'build-rootfs.sh'
 
 
 def catalog(lang):
     """{msgid: msgstr} of po/<lang>/mu300.po, read as the tool reads it."""
-    spec = importlib.util.spec_from_file_location('luci_i18n', TOP / 'tools' / 'luci-i18n.py')
+    spec = importlib.util.spec_from_file_location('luci_i18n', TOP / 'scripts' / 'i18n' / 'luci-i18n.py')
     tool = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tool)
     return {e['msgid']: e['msgstr'] for e in tool.read_po(APP / 'po' / lang / 'mu300.po')[1]}

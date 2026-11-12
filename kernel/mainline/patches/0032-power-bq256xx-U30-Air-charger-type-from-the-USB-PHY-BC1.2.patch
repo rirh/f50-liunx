@@ -1,8 +1,8 @@
 From: kanoqwq <kanoqwq@qq.com>
 Subject: [PATCH] power: supply: bq256xx: the U30 Air's charger type from the USB PHY's BC1.2 detection
 
-Ported from kanoqwq/mu300-linux b4748534 (his upstream/patches/0026, "consume PHY-owned U30 Air BC1.2 results"),
-rewritten for this tree's 0009/0012/0019/0024/0025. The other half is the USB PHY driver (upstream/port/drivers/usb/
+Ported from kanoqwq/mu300-linux b4748534 (his kernel/mainline/patches/0026, "consume PHY-owned U30 Air BC1.2 results"),
+rewritten for this tree's 0009/0012/0019/0024/0025. The other half is the USB PHY driver (kernel/mainline/port/drivers/usb/
 phy/phy-sprd-ums9620-ssphy.c, ums9620-bc12.h), which now owns D+/D- on the U30 Air and runs the PMIC's BC1.2
 detection on each VBUS event, as ZTE's 5.4 kernel does.
 

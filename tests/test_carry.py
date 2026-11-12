@@ -1,6 +1,6 @@
-"""An update keeps everything the user made (docs/FINDINGS.md 85): tools/carry/mu300-carry.c, built here, and the carry
+"""An update keeps everything the user made (docs/research/FINDINGS.md 85): device-tools/carry/mu300-carry.c, built here, and the carry
 block of mu300-update, run on small fake systems - an old image with its manifest, what a user did to it, a new
-image - under each shell. tools/image-manifest.py against the helper's own manifest. On real release images the same
+image - under each shell. scripts/release/image-manifest.py against the helper's own manifest. On real release images the same
 is measured by tests/update-experiment (in a container, as root: owners, capabilities, devices)."""
 import gzip
 import os
@@ -20,7 +20,7 @@ CC = shutil.which('cc') or shutil.which('gcc')
 LINUX = sys.platform.startswith('linux')
 CARRY = None
 _build = None
-TOOL = TOP / 'tools' / 'image-manifest.py'
+TOOL = TOP / 'scripts' / 'release' / 'image-manifest.py'
 
 
 def setUpModule():
@@ -29,7 +29,7 @@ def setUpModule():
         return
     _build = tempfile.mkdtemp(prefix='mu300-carry-build-')
     out = Path(_build) / 'mu300-carry'
-    r = subprocess.run([CC, '-O2', '-Wall', '-Wextra', '-Werror', '-o', str(out), str(TOP / 'tools/carry/mu300-carry.c')],
+    r = subprocess.run([CC, '-O2', '-Wall', '-Wextra', '-Werror', '-o', str(out), str(TOP / 'device-tools/carry/mu300-carry.c')],
                        capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError('mu300-carry.c does not build without warnings:\n' + r.stderr)
@@ -241,7 +241,7 @@ class Helper(unittest.TestCase):
 class Tool(unittest.TestCase):
     def test_union_gives_every_release_back(self):
         # the manifests of the releases before the first release with a four-field tag ship as one file per image: every distinct line once
-        sys.path.insert(0, str(TOP / 'tools'))
+        sys.path.insert(0, str(TOP / 'scripts' / 'release'))
         try:
             import importlib
             im = importlib.import_module('image-manifest')
@@ -263,14 +263,14 @@ class Tool(unittest.TestCase):
 
     def test_the_shipped_unions_are_whole(self):
         # one per image, each naming the releases it holds; a release's manifest comes out with the image's own files
-        d = TOP / 'rootfs/overlay/opt/mu300/lib/image-manifests'
+        d = TOP / 'systems/base/overlay/opt/mu300/lib/image-manifests'
         self.assertEqual(sorted(p.name for p in d.iterdir()), ['openwrt-luci.gz', 'openwrt.gz', 'ubuntu-24.04.gz', 'ubuntu-26.04.gz'])
         for p in d.iterdir():
             lines = gzip.open(p, 'rt', errors='surrogateescape').read().split('\n')
             self.assertEqual(lines[0], f'mu300-image-manifests 1 {p.name[:-3]}')
             tags = lines[1].split(' ')[1:]
             # (every release before the carry block: one published before this is merged must be added, or a device on
-            # it updates the old way - tools/image-manifest.py legacy and union, FINDINGS 85)
+            # it updates the old way - scripts/release/image-manifest.py legacy and union, FINDINGS 85)
             self.assertIn('v2026.10.27', tags)
             self.assertEqual(tags, sorted(tags))
             body = [l for l in lines[2:] if l]
@@ -795,7 +795,7 @@ class Carry(CarryCase):
         self.assertIn('( umask 077; mkdir "$CARRY_T" ) && chmod 700 "$CARRY_T"', src)
         self.assertIn('( umask 077; cat "$CARRY_T/report" > "$_cr" )', src)
         # the installers pass the block's output on from a file on the Linux filesystem, never from /data/local/tmp
-        ai = (TOP / 'tools/android-install.sh').read_text()
+        ai = (TOP / 'installer/android/android-install.sh').read_text()
         self.assertIn('clog=$M/$os.new.carry-log', ai)
         self.assertNotIn('$T/mu300-carry', ai)
 
@@ -1499,13 +1499,13 @@ class Apply(ShellTest):
 
 @unittest.skipUnless(CC and LINUX and shutil.which('busybox'), 'needs a C compiler and busybox on Linux')
 class Installers(ShellTest):
-    """The update of install.sh, install.ps1 and the Magisk zip: the install loop of tools/android-install.sh (cut out
+    """The update of install.sh and the Magisk zip: the install loop of installer/android/android-install.sh (cut out
     between its markers, as tests/test_android_install.py does) on a fake mounted Linux filesystem, with an image
     that brings the carry block."""
 
     def setUp(self):
         super().setUp()
-        src = (TOP / 'tools/android-install.sh').read_text()
+        src = (TOP / 'installer/android/android-install.sh').read_text()
         self.blocks = ''.join(re.search(rf'# --- {b} begin\n(.*?)# --- {b} end', src, re.S).group(1)
                               for b in ('stage', 'user-packages', 'install-os'))
         self.T = self.tmp / 'T'
@@ -1625,8 +1625,8 @@ class Wiring(unittest.TestCase):
     same carry block, from the new image."""
 
     def test_the_images_get_what_carries_everything_over(self):
-        assemble = (TOP / 'rootfs/assemble.sh').read_text()
-        owrt = (TOP / 'openwrt/build-rootfs.sh').read_text()
+        assemble = (TOP / 'systems/base/assemble.sh').read_text()
+        owrt = (TOP / 'systems/openwrt/build-rootfs.sh').read_text()
         self.assertIn('if [ -e /carry ]; then install -m755 /carry $R/opt/mu300/bin/mu300-carry; fi', assemble)
         self.assertIn('[ -e /in/carry ] && { cp /in/carry $R/opt/mu300/bin/mu300-carry;', owrt)
         for text in (assemble, owrt):
@@ -1641,9 +1641,9 @@ class Wiring(unittest.TestCase):
         self.assertIn('-e MU300_SYSTEM="$SYSTEM"', owrt)
 
     def test_a_release_is_not_published_without_them(self):
-        rel = (TOP / 'tools/make-release.sh').read_text()
+        rel = (TOP / 'scripts/release/make-release.sh').read_text()
         self.assertIn('gcc -O2 -static -o /o/carry/mu300-carry /src/carry/mu300-carry.c', rel)
-        self.assertIn('-v "$IN/tools/carry/mu300-carry":/carry:ro', rel)
+        self.assertIn('-v "$IN/device-tools/carry/mu300-carry":/carry:ro', rel)
         audit = rel[rel.index('echo "==> audit"'):rel.index('audit failed, nothing published')]
         for s in ('opt/mu300/bin/mu300-carry', 'etc/mu300/image-manifest.gz', 'image-manifest.py" check "$D/$a.tar.gz" || fail=1',
                   'mu300-openwrt-luci-rootfs:opt/mu300/bin/busybox:openwrt-luci'):
@@ -1652,10 +1652,10 @@ class Wiring(unittest.TestCase):
         self.assertEqual(rel.count('"$D"/*.manifest.gz "$D/mu300-update" "$D/mu300-release" "$D/SHA256SUMS" $SIG'), 2)     # uploaded
         inst = (TOP / 'install.sh').read_text()
         self.assertIn('gcc -O2 -static -o /o/carry/mu300-carry /src/carry/mu300-carry.c', inst)
-        self.assertIn('-v "$WORK/tools/carry/mu300-carry":/carry:ro', inst)
+        self.assertIn('-v "$WORK/device-tools/carry/mu300-carry":/carry:ro', inst)
 
     def test_the_installers_run_the_new_images_carry_block(self):
-        ai = (TOP / 'tools/android-install.sh').read_text()
+        ai = (TOP / 'installer/android/android-install.sh').read_text()
         self.assertIn("MU300_LIB='' $cbb sh $M/$os.new/opt/mu300/bin/mu300-update carry $M/$os $M/$os.new $os link", ai)
         # and a run that does not say it did the work at its end is a failed one, whatever its status
         self.assertIn('if [ $crc = 0 ] && [ ! -e $M/$os.new/.mu300-carried ]; then crc=1; fi', ai)
@@ -1668,7 +1668,7 @@ class Wiring(unittest.TestCase):
         # carry runs without the root check and without the lock, which the run that called it holds
         main = upd[upd.index('[ -z "${MU300_LIB:-}" ] || return 0'):]
         self.assertLess(main.index('    carry) shift; carry_system "$@"; exit $? ;;'), main.index('[ "$(id -u)" = 0 ]'))
-        # (and so does the installers' count of what an update writes, docs/FINDINGS.md 131)
+        # (and so does the installers' count of what an update writes, docs/research/FINDINGS.md 131)
         self.assertLess(main.index('    delta-room) shift; delta_room "$@"; exit $? ;;'), main.index('[ "$(id -u)" = 0 ]'))
         self.assertNotIn('carry', main[main.index('apply|boot|kernel|rollback'):main.index('lock_take')])
 

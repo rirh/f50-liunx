@@ -1,5 +1,5 @@
 # Where the Linux filesystem goes: the free eMMC region or the SD card. Sourced by install.sh, uninstall.sh and
-# tools/reset-password.sh (su_do, ask, t, die and gib are theirs).
+# scripts/device/reset-password.sh (su_do, ask, t, die and gib are theirs).
 #   region_probe     last_end / disk (sectors) and OFF / SIZE (bytes) of the free eMMC region; 1 when the device
 #                    gave no answer
 #   region_find_existing  existing=yes|no; an installed mu300root defines OFF / SIZE (IN_PART=1: in the GPT
@@ -204,7 +204,7 @@ pw_mount_env() { if [ "$SD_MODE" = 1 ]; then echo "MU300_SD_DEV=$SD_DEV"; else e
 # per line; nothing at all when the filesystem cannot be mounted
 pw_states() {
     [ "$existing" = yes ] || return 0
-    adb push "$TOP/tools/android-mount-mu300root.sh" "$TOP/tools/android-pwcheck.sh" $T/ >/dev/null 2>&1 || return 0
+    adb push "$TOP/installer/android/android-mount-mu300root.sh" "$TOP/installer/android/android-pwcheck.sh" $T/ >/dev/null 2>&1 || return 0
     su_do "$(pw_mount_env) MU300_RO=1 sh $T/android-mount-mu300root.sh $T/mu300pw >/dev/null 2>&1 && { for o in $1; do case \$o in ubuntu) u=ubuntu ;; *) u=root ;; esac; echo \$o:\$(sh $T/android-pwcheck.sh -s $T/mu300pw/\$o \$u); done; sh $T/android-mount-mu300root.sh -u $T/mu300pw >/dev/null 2>&1 && rmdir $T/mu300pw 2>/dev/null; }; true"
 }
 # pw_tools_push: the project's own tools that compute the hash - never a program of the Linux system being checked,
@@ -295,7 +295,7 @@ region_find_existing() {
     existing=no; PART_FS=none
     for cand in ${REG_OFF:-$OFF} ${PART_OFF:-} 27762098176; do
         region_on_disk "$cand" || continue
-        # a region made by making room (tools/resume.sh: RESUME=1) is the transaction's and nothing else: an old
+        # a region made by making room (installer/lib/resume.sh: RESUME=1) is the transaction's and nothing else: an old
         # mu300root superblock left at the fixed offset inside it is not an installation (found on an F50-B, #468)
         [ "${RESUME:-0}" != 1 ] || [ "$cand" = "${REG_OFF:-$OFF}" ] || continue
         if [ "$cand" = 27762098176 ] && [ -n "${PART_OFF:-}" ] && [ "$cand" -ge "$PART_OFF" ] &&
@@ -358,6 +358,6 @@ vpn_on_systems() {
     [ "$existing" = yes ] || return 0
     _env="MU300_OFF=$OFF MU300_SIZE=$SIZE"
     [ "$SD_MODE" = 1 ] && _env="MU300_SD_DEV=$SD_DEV"
-    adb push "$TOP/tools/android-mount-mu300root.sh" "$TOP/rootfs/overlay/opt/mu300/lib/vpn-orphan.sh" $T/ >/dev/null 2>&1 || return 0
+    adb push "$TOP/installer/android/android-mount-mu300root.sh" "$TOP/systems/base/overlay/opt/mu300/lib/vpn-orphan.sh" $T/ >/dev/null 2>&1 || return 0
     su_do "$_env MU300_RO=1 sh $T/android-mount-mu300root.sh $T/mu300probe >/dev/null 2>&1 && { . $T/vpn-orphan.sh; for o in $1; do if vpn_killswitch_wanted $T/mu300probe/\$o; then echo \$o:ks; elif [ \"\$(vpn_conf_value $T/mu300probe/\$o/etc/mu300/vpn.conf ENABLE)\" = 1 ]; then echo \$o; fi; done; sh $T/android-mount-mu300root.sh -u $T/mu300probe >/dev/null 2>&1; }; true"
 }

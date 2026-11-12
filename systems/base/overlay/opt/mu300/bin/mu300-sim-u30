@@ -177,7 +177,7 @@ route() {
 }
 # sequence TARGET: the radio from the other card to TARGET, the card in use first off, then the other one on.
 #
-# The order is the measured one (our U30 Air, 7.2.10, 2026-10-13; docs/FINDINGS.md 74). The factory selector
+# The order is the measured one (our U30 Air, 7.2.10, 2026-10-13; docs/research/FINDINGS.md 74). The factory selector
 # (VendorTelephonyManager.setProtocolStack) and this script's first version switch the target's radio on while the
 # other card is still on, and on the unit the sequence came from that worked in both directions. On ours the
 # target's AT+SFUN=4 then never answered (30 s), the card in use lost its radio meanwhile, and the way back could

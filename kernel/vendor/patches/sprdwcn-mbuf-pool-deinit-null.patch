@@ -1,6 +1,6 @@
 sprdwcn: mbuf_pool_deinit() on a channel without a pool does nothing
 
-Same fix as upstream/modules/wcn_bsp: the Wi-Fi post-init error path deinitialises the channel that failed. When
+Same fix as kernel/mainline/modules/wcn_bsp: the Wi-Fi post-init error path deinitialises the channel that failed. When
 its EDMA init failed after an earlier power cycle, its pool has no memory (freed then) but keeps that cycle's size,
 and the memset of NULL oopsed.
 

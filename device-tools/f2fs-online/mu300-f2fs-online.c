@@ -1,7 +1,7 @@
 /* mu300-f2fs-online: shrink Android's mounted userdata F2FS in place, and commit the smaller partition table.
  * By kanoqwq (kanoqwq/mu300-linux, installer/device/f2fs-online.c, fe52afe3..e567f09e); the method, shrinking
  * userdata online instead of resetting Android, is dikeckaan's. Runs on the device in Android, as root, from a
- * directory in /dev (never from the userdata it resizes); tools/android-online-shrink.sh drives it.
+ * directory in /dev (never from the userdata it resizes); installer/android/android-online-shrink.sh drives it.
  *
  *   mu300-f2fs-online inspect MOUNT DEV       geometry of the F2FS mounted at MOUNT from DEV (read only)
  *   mu300-f2fs-online probe MOUNT DEV         the kernel's F2FS_IOC_RESIZE_FS at the current size: a no-op that
@@ -12,7 +12,7 @@
  *       new-first/new-last of a commit that was interrupted), shrinks the F2FS to TARGET_BLOCKS, then writes the new
  *       backup GPT at TAIL_BYTE and the new primary at 0, each read back. WORKDIR/status says how far it got:
  *       shrinking, unchanged (the kernel refused, nothing changed), committing, complete, recovery, failed.
- * Built by tools/f2fs-online/build.sh (static, musl); the binary next to this file is that build.
+ * Built by device-tools/f2fs-online/build.sh (static, musl); the binary next to this file is that build.
  */
 #define _GNU_SOURCE
 #include <errno.h>

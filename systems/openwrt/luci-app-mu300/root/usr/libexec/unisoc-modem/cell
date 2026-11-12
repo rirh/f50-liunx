@@ -7,7 +7,7 @@
 # (setsid) whenever it is older than the TTL. That separation is the one hard rule
 # the V50 panel learned in the field: a synchronous AT round inside a web request
 # starves the AT channel, the dial watchdog then sees a dead modem and the box
-# ends up rebooting itself (docs/FINDINGS.md, V50 archive "45g").
+# ends up rebooting itself (docs/research/FINDINGS.md, V50 archive "45g").
 #
 # Everything goes through the configured AT adapter, which is responsible for
 # serializing access with the platform dialer and SMS implementation.

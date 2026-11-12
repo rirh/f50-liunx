@@ -220,7 +220,7 @@ class Record(ShellTest):
             self.assertTrue((self.new / 'etc/mu300/orphaned-config/etc/config/openclash').exists())
 
     def test_safe_under_set_e(self):
-        # tools/android-install.sh runs with set -e
+        # installer/android/android-install.sh runs with set -e
         for shell in self.each_shell():
             self.fresh()
             r = self.record(shell, pre='set -e;')
@@ -332,7 +332,7 @@ class Record(ShellTest):
 
     def test_android_install_has_the_same_block(self):
         upd = UPD.read_text()
-        ai = (TOP / 'tools/android-install.sh').read_text()
+        ai = (TOP / 'installer/android/android-install.sh').read_text()
         blk = re.compile(r'# --- user-packages begin\n.*?# --- user-packages end\n', re.S)
         self.assertEqual(blk.search(ai).group(0), blk.search(upd).group(0))
         # and it runs where mu300-update's does: after the settings, before the switch
@@ -1133,20 +1133,20 @@ class Service(ShellTest):
 
 class Wiring(ShellTest):
     def test_the_images_list_their_packages_and_run_the_service(self):
-        b = (TOP / 'openwrt/build-rootfs.sh').read_text()
+        b = (TOP / 'systems/openwrt/build-rootfs.sh').read_text()
         self.assertRegex(b, r'for s in [^\n]*\bmu300-user-packages\b[^\n]*; do')   # in the service loop, whatever else is there
         self.assertIn('upk_manual $R openwrt) > $R/etc/mu300/image-packages', b)
         # no stray config file in the image itself (an update would add it to every device): removed from $R, checked
         self.assertIn('rm -f $R/etc/config/attendedsysupgrade $R/etc/config/*.apk-new', b)
         self.assertLess(b.index('rm -f $R/etc/config/attendedsysupgrade'), b.index('cd $R && tar -czf'))
-        a = (TOP / 'rootfs/assemble.sh').read_text()
+        a = (TOP / 'systems/base/assemble.sh').read_text()
         self.assertIn('mu300-user-packages.service:multi-user.target', a)
         self.assertIn('upk_manual $R ubuntu) > $R/etc/mu300/image-packages', a)
-        self.assertTrue((TOP / 'rootfs/overlay/etc/systemd/system/mu300-user-packages.service').exists())
-        i = TOP / 'openwrt/overlay/etc/init.d/mu300-user-packages'
+        self.assertTrue((TOP / 'systems/base/overlay/etc/systemd/system/mu300-user-packages.service').exists())
+        i = TOP / 'systems/openwrt/overlay/etc/init.d/mu300-user-packages'
         self.assertTrue(i.stat().st_mode & 0o111)
         self.assertIn('START=99', i.read_text())
-        self.assertIn('/etc/mu300/user-packages/note', (TOP / 'openwrt/overlay/etc/profile.d/mu300-update.sh').read_text())
+        self.assertIn('/etc/mu300/user-packages/note', (TOP / 'systems/openwrt/overlay/etc/profile.d/mu300-update.sh').read_text())
 
     def test_build_shell_can_source_the_updater(self):
         # the OpenWrt build sources mu300-update under sh -eu, assemble.sh under bash -e

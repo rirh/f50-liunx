@@ -13,7 +13,7 @@ from pathlib import Path
 from helpers import ShellTest, TOP
 
 
-APP = TOP / 'openwrt' / 'luci-app-mu300' / 'root'
+APP = TOP / 'systems' / 'openwrt' / 'luci-app-mu300' / 'root'
 AT = APP / 'usr' / 'libexec' / 'unisoc-modem' / 'at'
 REPLAY = APP / 'usr' / 'libexec' / 'unisoc-modem' / 'boot-replay'
 LOCK = APP / 'usr' / 'libexec' / 'unisoc-modem' / 'lock'

@@ -1,16 +1,13 @@
 #!/bin/bash
-# macOS equivalent of the six-step F50-ADB aaadddbbb.exe flow.
+# F50 stock Android: enable USB + wireless ADB (macOS only; equivalent of the F50-ADB aaadddbbb.exe flow).
+# Normally run through `make adb`; `make install` runs it first. A device that already has ADB is only checked.
 # Protocol/commands: work/analysis/F50-ADB-aaadddbbb-2026-11-12/提取命令.txt
-# Requires stock Android firmware, access to its Wi-Fi/Web UI, adb and Python 3.
 # No firmware flashing. Samba guest access is enabled, as in the original tool.
 set -eu
-TOP=$(cd "$(dirname "$0")/.." && pwd)
-. "$TOP/tools/host-tools.sh"
-if ! command -v adb >/dev/null && [ -x "$TOP/work/deploy/bin/adb" ]; then
-    PATH="$TOP/work/deploy/bin:$PATH"
-    export PATH
-fi
-command -v adb >/dev/null || { echo '缺少 adb：请安装 Android platform-tools。' >&2; exit 1; }
+[ "$(uname -s)" = Darwin ] || { echo '只支持 macOS。' >&2; exit 1; }
+TOP=$(cd "$(dirname "$0")/../.." && pwd)
+. "$TOP/installer/lib/host-tools.sh"
+command -v adb >/dev/null || { echo '缺少 adb：请安装 Android platform-tools（brew install android-platform-tools）。' >&2; exit 1; }
 command -v python3 >/dev/null || { echo '缺少 Python 3。' >&2; exit 1; }
 exec python3 - "$@" <<'PY'
 import argparse
@@ -33,20 +30,18 @@ import time
 from urllib.parse import quote, urlencode
 
 parser = argparse.ArgumentParser(
-    description='F50 原厂 Android：重启后捕获短暂的 USB ADB 窗口，写入配置并开启无线 ADB。',
+    description='F50 原厂 Android：已有 ADB 时先检查配置，缺失才写入；未连接时重启并捕获 USB ADB 窗口。',
     epilog='先把 F50 的 USB 分配给 Mac（不要分配给 Parallels），并连接 F50 的 Wi-Fi。'
            '默认使用原程序的 Web 端口 8080；会修改 Samba 访客访问配置。'
 )
 parser.add_argument('--ip', default='192.168.0.1', help='F50 管理 IPv4 地址（默认 192.168.0.1）')
 parser.add_argument('--serial', help='只操作指定的 USB ADB 序列号；默认只允许一台 USB 设备')
-parser.add_argument('--manual-reboot', action='store_true', help='跳过 Web 操作，等待你手动重启 F50')
+parser.add_argument('--manual-reboot', action='store_true', help='ADB 未连接时跳过 Web 操作，等待你手动重启 F50')
 args = parser.parse_args()
 try:
     ipaddress.IPv4Address(args.ip)
 except ValueError:
     parser.error('--ip 必须是 IPv4 地址')
-if sys.platform != 'darwin':
-    parser.error('此脚本使用 macOS 的 SMB 工具，请在 Mac 上运行')
 if args.serial and ':' in args.serial:
     parser.error('--serial 应为 USB 序列号，不能是无线 ADB 地址')
 
@@ -164,17 +159,13 @@ echo F50_CONFIG_SAVED
 '''
 
 
-def inject_after_restart(was_online):
+def inject_configuration(target):
     deadline = time.monotonic() + 180
     last = ''
-    if was_online:
-        rc, last = run([ADB, *USB, 'wait-for-disconnect'], timeout=180)
-        if rc:
-            raise RuntimeError('等待重启前的 ADB 连接断开失败：' + last)
     while time.monotonic() < deadline:
         try:
             # ADB accepts one wait prefix followed by shell, without host polling.
-            rc, last = run([ADB, *USB, 'wait-for-device', 'shell', '-T',
+            rc, last = run([ADB, *target, 'wait-for-device', 'shell', '-T',
                             'sh -c ' + shlex.quote(PAYLOAD)],
                            timeout=max(1, deadline - time.monotonic()))
         except subprocess.TimeoutExpired:
@@ -223,7 +214,27 @@ def trigger_samba():
     return output
 
 
-CHECK = r'''printf 'SERVICE=%s\nPERSIST=%s\nUSB=%s\n' "$(getprop service.adb.tcp.port)" "$(getprop persist.adb.tcp.port)" "$(getprop persist.sys.usb.config)"; grep -q 'preexec = start adbd' /data/samba/etc/smb.conf && echo F50_SAMBA_OK'''
+CHECK = r'''
+printf 'SERVICE=%s\nPERSIST=%s\nUSB=%s\n' "$(getprop service.adb.tcp.port)" "$(getprop persist.adb.tcp.port)" "$(getprop persist.sys.usb.config)"
+cfg=/data/samba/etc/smb.conf
+[ -r "$cfg" ] &&
+grep -q '^[[:space:]]*preexec[[:space:]]*=[[:space:]]*start adbd[[:space:]]*$' "$cfg" &&
+grep -q '^[[:space:]]*map to guest[[:space:]]*=[[:space:]]*Bad User[[:space:]]*$' "$cfg" &&
+! grep -Eq 'guest ok = no|restrict anonymous = 1|public = no|nt acl support = no' "$cfg" &&
+echo F50_SAMBA_OK
+'''
+CONFIG_VALUES = ('SERVICE=5555', 'PERSIST=5555', 'USB=adb,rndis', 'F50_SAMBA_OK')
+
+
+def connected_target():
+    targets = [USB] if args.serial else [USB, ['-s', ENDPOINT]]
+    for target in targets:
+        rc, output = run([ADB, *target, 'get-state'], timeout=4)
+        if 'more than one' in output:
+            raise RuntimeError('发现多台 USB 设备，请使用 --serial 或只连接 F50')
+        if rc == 0 and output == 'device':
+            return target
+    return None
 
 
 def connect_wireless():
@@ -256,8 +267,19 @@ def main():
     rc, output = run([ADB, 'start-server'])
     if rc:
         raise RuntimeError('无法启动 Mac ADB 服务：' + output)
+    target = connected_target()
+    if target:
+        rc, output = run([ADB, *target, 'get-serialno'], timeout=4)
+        if output.startswith('MU300LINUX'):
+            say('设备当前运行 MU300 Linux，ADB 已可用，跳过原厂 Android 配置。')
+            return
+        rc, output = run([ADB, *target, 'shell', CHECK], timeout=4)
+        if rc == 0 and all(item in output.splitlines() for item in CONFIG_VALUES):
+            say('ADB 已连接，端口、USB 和 Samba 配置均已完整，无需重复写入或重启。')
+            return
+        say('ADB 已连接，但配置尚不完整；跳过 Web 操作和重启，直接补写配置。')
     password = None
-    if not args.manual_reboot:
+    if not target and not args.manual_reboot:
         password = getpass.getpass('F50 设备后台密码（不是 Wi-Fi 密码）：')
         for value in ('0', '1'):
             say(f'设置 USB_PORT_SETTING usb_port_switch={value}……')
@@ -270,20 +292,27 @@ def main():
         fields, cookie = prepare_post(password, {'goformId': 'REBOOT_DEVICE'})
         password = None
 
-    rc, output = run([ADB, *USB, 'get-state'], timeout=4)
-    if 'more than one' in output:
-        raise RuntimeError('发现多台 USB 设备，请使用 --serial 或只连接 F50')
-    was_online = rc == 0 and output == 'device'
+    # USB setup or a manual reconnect may have made ADB available in the meantime.
+    if not target:
+        target = connected_target()
+        if target:
+            rc, output = run([ADB, *target, 'shell', CHECK], timeout=4)
+            if rc == 0 and all(item in output.splitlines() for item in CONFIG_VALUES):
+                say('ADB 已连接且配置完整，无需重复写入或重启。')
+                return
     outcome = []
 
     def worker():
         try:
-            inject_after_restart(was_online)
+            inject_configuration(target or USB)
         except Exception as exc:
             outcome.append(exc)
 
     thread = threading.Thread(target=worker, daemon=True)
-    if args.manual_reboot:
+    if target:
+        thread.start()
+        say('使用现有 ADB 连接写入配置，不重启设备。')
+    elif args.manual_reboot:
         thread.start()
         say('已开始等待。现在请手动重启 F50；出现 ADB 后会立即写入。')
     else:
@@ -307,8 +336,7 @@ def main():
     for _ in range(15):
         time.sleep(2)
         rc, output = run([ADB, '-s', ENDPOINT, 'shell', CHECK], timeout=4)
-        if rc or not all(item in output.splitlines() for item in
-                         ('SERVICE=5555', 'PERSIST=5555', 'USB=adb,rndis', 'F50_SAMBA_OK')):
+        if rc or not all(item in output.splitlines() for item in CONFIG_VALUES):
             raise RuntimeError('连接或配置在观察期间发生变化，未达到持续开启目标：\n' + output)
     say(f'完成：无线 ADB 在 30 秒观察期间持续可用。\n连接命令：adb connect {ENDPOINT}')
     say('这是本次开机的结果；原程序也提示重启后可能需要重新开启。')

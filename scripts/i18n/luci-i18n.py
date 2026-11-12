@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""The control panel's (openwrt/luci-app-mu300) translation catalogs, po/<lang>/mu300.po (tr and zh_Hans required).
+"""The control panel's (systems/openwrt/luci-app-mu300) translation catalogs, po/<lang>/mu300.po (tr and zh_Hans required).
 
-    python3 tools/luci-i18n.py check   [--root DIR]   list the problems; exit 1 if there is any
-    python3 tools/luci-i18n.py extract [--root DIR]   print every message once, in order of first use
-    python3 tools/luci-i18n.py update  [--root DIR]   add the missing msgids (empty msgstr) to every .po file,
+    python3 scripts/i18n/luci-i18n.py check   [--root DIR]   list the problems; exit 1 if there is any
+    python3 scripts/i18n/luci-i18n.py extract [--root DIR]   print every message once, in order of first use
+    python3 scripts/i18n/luci-i18n.py update  [--root DIR]   add the missing msgids (empty msgstr) to every .po file,
                                                        drop the stale ones, order the entries by first use
 
 --root DIR checks another copy of the app (the tests use it); the shared scripts are then not scanned for CJK.
@@ -22,19 +22,19 @@ Messages are English and come from:
         (mu300vpn); single or double quotes, no $ or `
         inside double quotes. A helper called with a non-literal message is an error, except in BACKEND_DYNAMIC_OK.
       - a comment line '# i18n: Text', for a message the code builds or passes through a variable.
-  * N_() is an error: the app has no plural messages (tools/po2lmo.py refuses msgid_plural).
+  * N_() is an error: the app has no plural messages (scripts/i18n/po2lmo.py refuses msgid_plural).
 
 The problems `check` prints, one per line as RULE: PATH:LINE: WHAT (spec, Translations):
   cjk          a CJK character outside the catalogs (po/) and the installers' i18n data
   missing      a message without an entry, or with an empty msgstr, in any po/<lang>/mu300.po (or no po/tr,
                po/zh_Hans: the images need both)
-  language     a po/<lang> directory without a row in openwrt/luci-languages.tsv (its LuCI code and name)
+  language     a po/<lang> directory without a row in systems/openwrt/luci-languages.tsv (its LuCI code and name)
   placeholder  a msgstr whose %s/%d/%% placeholders are not its msgid's, in the same order
   stale        a msgid that no source uses
   dynamic      a _(), a reply helper or an "error"/"message" key with a non-literal message, not allowed above
   plural       an N_() call
   js           a JavaScript file the scanner cannot read (its messages are then not extracted)
-  po           a .po that LuCI's po2lmo (tools/po2lmo.py) would not compile
+  po           a .po that LuCI's po2lmo (scripts/i18n/po2lmo.py) would not compile
 """
 import argparse
 import json
@@ -43,14 +43,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-TOP = Path(__file__).resolve().parent.parent
+TOP = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import po2lmo  # noqa: E402
 
-APP = TOP / 'openwrt' / 'luci-app-mu300'
+APP = TOP / 'systems' / 'openwrt' / 'luci-app-mu300'
 REQUIRED = ('tr', 'zh_Hans')
 # po directory -> (LuCI code, name): the build, the lang extra and this check read the same table
-TABLE = TOP / 'openwrt' / 'luci-languages.tsv'
+TABLE = TOP / 'systems' / 'openwrt' / 'luci-languages.tsv'
 
 
 def table():
@@ -79,8 +79,9 @@ BACKEND_DYNAMIC_OK = {('mu300dash', 'refuse', '"$2"'),   # reply_obj passing its
 
 # CJK: only these files may contain it (repository paths; with --root, only po/ of that copy)
 CJK = re.compile('[\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef]')
-CJK_SCOPE = ['openwrt', 'rootfs/overlay', 'boot', 'tools', 'install.sh', 'uninstall.sh']
-CJK_ALLOWED = re.compile(r'^(tools/i18n\.sh|i18n/[^/]+\.tsv|openwrt/luci-app-mu300/po/.*|openwrt/luci-languages\.tsv|tests/fixtures/.*|rootfs/overlay/opt/mu300/lib/cpu-voltage-warning\.txt|rootfs/overlay/opt/mu300/lib/image-manifests/[^/]+\.gz)$')   # (compressed data: no text to look at)
+CJK_SCOPE = ['systems/openwrt', 'systems/base/overlay', 'boot', 'installer/lib', 'installer/android', 'scripts',
+             'device-tools', 'install.sh', 'uninstall.sh']
+CJK_ALLOWED = re.compile(r'^(installer/lib/i18n\.sh|installer/i18n/[^/]+\.tsv|systems/openwrt/luci-app-mu300/po/.*|systems/openwrt/luci-languages\.tsv|tests/fixtures/.*|systems/base/overlay/opt/mu300/lib/cpu-voltage-warning\.txt|systems/base/overlay/opt/mu300/lib/image-manifests/[^/]+\.gz)$')   # (compressed data: no text to look at)
 
 PLACEHOLDER = re.compile(r'%(?:%|[-+#0]*\d*(?:\.\d+)?[a-zA-Z])')
 
@@ -448,7 +449,7 @@ def check(root, scan_shared):
             continue
         data = p.read_bytes()
         if b'\0' in data:
-            continue        # a program (tools/f2fs-online/mu300-f2fs-online): its bytes are no text to translate
+            continue        # a program (device-tools/f2fs-online/mu300-f2fs-online): its bytes are no text to translate
         for no, line in enumerate(data.decode('utf-8', errors='replace').split('\n'), 1):
             if CJK.search(line):
                 problems.append(('cjk', f, no, line.strip()[:100]))
@@ -509,7 +510,7 @@ def update(root):
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument('--root', type=Path, help='the app directory (default: openwrt/luci-app-mu300)')
+    common.add_argument('--root', type=Path, help='the app directory (default: systems/openwrt/luci-app-mu300)')
     sub = ap.add_subparsers(dest='cmd', required=True)
     for name in ('check', 'extract', 'update'):
         sub.add_parser(name, parents=[common])

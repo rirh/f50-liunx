@@ -1,7 +1,7 @@
 From: kanoqwq <kanoqwq@qq.com>
 Subject: [PATCH] power: supply: bq256xx: the U30 Air's battery CV in the stock driver's encoding (REG04 0x70)
 
-Ported from kanoqwq/mu300-linux b4748534 (his upstream/patches/0027, on top of his 0023 = our 0024).
+Ported from kanoqwq/mu300-linux b4748534 (his kernel/mainline/patches/0027, on top of his 0023 = our 0024).
 
 0024 bounded the battery's declared CV (4.3 V) and let the generic path round it down: register code 13, REG04
 0x68, 4.272 V. The stock driver does not round down. sqc_bq2560x.ko (SHA256 ce42c87c42f9..., sqc_mp_set_cv

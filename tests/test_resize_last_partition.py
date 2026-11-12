@@ -1,4 +1,4 @@
-"""tools/resize-last-partition.py, the tool both installers make room with (install.sh's offer_repartition and
+"""installer/lib/resize-last-partition.py, the tool both installers make room with (install.sh's offer_repartition and
 install.ps1's OfferRepartition), against the tables of fakegpt.py: the factory 64 GB layout and the one of issue #32,
 where userdata fills the disk. It may change one thing, the last sector of userdata, and it refuses every table it
 does not expect before it writes a file."""
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import fakegpt
 
-TOOL = Path(__file__).resolve().parents[1] / 'tools' / 'resize-last-partition.py'
+TOOL = Path(__file__).resolve().parents[1] / 'installer' / 'lib' / 'resize-last-partition.py'
 DISK = fakegpt.DISK64
 LAST = fakegpt.USABLE_LAST64
 FIRST = fakegpt.USERDATA_FIRST

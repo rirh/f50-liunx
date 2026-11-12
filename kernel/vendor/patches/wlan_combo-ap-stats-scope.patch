@@ -9,7 +9,7 @@ per-client figures. In AP and P2P-GO mode an address that is not in the firmware
 interface's (as dump_station lists them) is now -ENOENT, and a station of ours is answered with nothing filled in,
 as dump_station does. dump_station refuses a negative index, and get_channel answers for link 0 only: the driver
 has no MLO, and the 5.15+ variant indexed wdev->links[link_id] unchecked (on 5.4 the other variant is built; the
-code is kept the same as the mainline copy in upstream/modules). FINDINGS 180.
+code is kept the same as the mainline copy in kernel/mainline/modules). FINDINGS 180.
 
 --- a/common/cfg80211.c
 +++ b/common/cfg80211.c

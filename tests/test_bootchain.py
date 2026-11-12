@@ -1,4 +1,4 @@
-"""tools/android-bootchain.sh: the boot chain of Android's slot (uboot, sml, teecfg, trustos, vbmeta) copied to the
+"""installer/android/android-bootchain.sh: the boot chain of Android's slot (uboot, sml, teecfg, trustos, vbmeta) copied to the
 Linux slot, on a fake by-name directory of files. Only the Linux slot's images change, a backup with the right hashes
 exists before the first write, a write that does not read back is undone, Android's slot is never written, and
 nothing outside the five names is ever touched. Also its callers: android-install.sh's block, the plan line
@@ -12,7 +12,7 @@ import unittest
 from helpers import TOP, ShellTest
 from test_boot_image import LIVE_A, fake_misc, fake_stock, with_slots
 
-SCRIPT = TOP / 'tools' / 'android-bootchain.sh'
+SCRIPT = TOP / 'installer' / 'android' / 'android-bootchain.sh'
 MODULE_COPY = TOP / 'android' / 'magisk' / 'mu300-linux-switch' / 'bootchain.sh'
 CHAIN = ('uboot', 'sml', 'teecfg', 'trustos', 'vbmeta')
 # never to be written by this, whatever happens (backup-device.sh's CRITICAL list and more)
@@ -330,8 +330,8 @@ class TheList(Fixture):
             self.assertIn('BOOTCHAIN-REFUSED: nr_fixnv1 is not part of the boot chain', r.stdout)
 
     def test_backup_device_knows_every_one(self):
-        # tools/backup-device.sh saves both slots of each, so a full backup can undo this too
-        text = (TOP / 'tools' / 'backup-device.sh').read_text()
+        # scripts/device/backup-device.sh saves both slots of each, so a full backup can undo this too
+        text = (TOP / 'scripts' / 'device' / 'backup-device.sh').read_text()
         for p in CHAIN:
             for s in 'ab':
                 self.assertIn(f'{p}_{s}', text)
@@ -340,11 +340,11 @@ class TheList(Fixture):
 class Copies(unittest.TestCase):
     def test_module_copy_is_identical(self):
         self.assertEqual(SCRIPT.read_bytes(), MODULE_COPY.read_bytes(),
-                         'android/magisk/mu300-linux-switch/bootchain.sh must be a copy of tools/android-bootchain.sh')
+                         'android/magisk/mu300-linux-switch/bootchain.sh must be a copy of installer/android/android-bootchain.sh')
 
     def test_shipped_with_every_installer(self):
         self.assertIn('android-bootchain.sh', (TOP / 'install.sh').read_text())
-        self.assertIn('bootchain.sh', (TOP / 'tools/install-magisk-module.sh').read_text())
+        self.assertIn('bootchain.sh', (TOP / 'installer/lib/install-magisk-module.sh').read_text())
 
 
 class AndroidInstall(ShellTest):
@@ -353,7 +353,7 @@ class AndroidInstall(ShellTest):
 
     def setUp(self):
         super().setUp()
-        src = (TOP / 'tools' / 'android-install.sh').read_text()
+        src = (TOP / 'installer' / 'android' / 'android-install.sh').read_text()
         m = re.search(r'# --- bootchain begin\n(.*?)# --- bootchain end', src, re.S)
         self.assertIsNotNone(m)
         self.block = m.group(1)
@@ -406,12 +406,12 @@ class AndroidInstall(ShellTest):
 class PlanLine(ShellTest):
     """storage.sh's bootchain_line: what install.sh and the Magisk installer show"""
 
-    # a t() that fills in {1}.. as tools/i18n.sh does for English
+    # a t() that fills in {1}.. as installer/lib/i18n.sh does for English
     T = ('t() { _s=$1; shift; i=1; for a; do _s=$(printf %s "$_s" | sed "s|{$i}|$a|g"); i=$((i + 1)); done; '
          'printf %s "$_s"; }\n')
 
     def line(self, shell, out):
-        code = (self.T + f'. "{TOP}/tools/storage.sh"\n'
+        code = (self.T + f'. "{TOP}/installer/lib/storage.sh"\n'
                 'if bootchain_line "$1"; then echo "LINE=$BC_LINE"; else echo "REFUSED=$BC_REFUSED"; fi')
         return subprocess.run(shell + ['-c', code, 'x', out], capture_output=True, text=True,
                               env=self.env()).stdout.strip()

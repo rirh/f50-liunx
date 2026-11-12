@@ -1,4 +1,4 @@
-"""sipa_eth_start_xmit (upstream/modules/sprd_modem/sipa_v3/sipa_eth.c), the mobile data TX path, compiled from the
+"""sipa_eth_start_xmit (kernel/mainline/modules/sprd_modem/sipa_v3/sipa_eth.c), the mobile data TX path, compiled from the
 source with stand-ins for the kernel calls it makes: a full IPA FIFO (NETDEV_TX_BUSY) hands the skb back to the qdisc
 exactly as it came - no Ethernet header pushed again at every retry, the checksum seed back - and a failed linearize,
 which frees the skb, says NETDEV_TX_OK (kanoqwq's clean-tf-7.2 149c9d2a, FINDINGS 102)."""
@@ -11,7 +11,7 @@ import unittest
 
 from helpers import TOP
 
-SRC = TOP / 'upstream/modules/sprd_modem/sipa_v3/sipa_eth.c'
+SRC = TOP / 'kernel/mainline/modules/sprd_modem/sipa_v3/sipa_eth.c'
 
 HARNESS = r'''
 #include <errno.h>

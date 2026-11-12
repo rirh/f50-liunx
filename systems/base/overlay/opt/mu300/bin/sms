@@ -15,7 +15,7 @@
 # Everything goes through mu300-atd, so it queues behind whatever else is talking to the modem and never opens
 # the channel itself (see that script for why that matters). A send is one transaction under mu300-at's client
 # lock, as mu300-sms's is on openwrt-luci: the modem's own SMSC written back to it unchanged, PDU mode, then the
-# submission, with no other client in between (docs/FINDINGS.md 46).
+# submission, with no other client in between (docs/research/FINDINGS.md 46).
 #
 # PDU mode, not text mode. Text mode is easier to read but this modem mangles the sender whenever it is a name
 # rather than a number - "144414+4140224P444" where the real sender is "ADANA BLD" - and it cannot say that two

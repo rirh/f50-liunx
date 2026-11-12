@@ -53,7 +53,7 @@ class CaseSensitive(unittest.TestCase):
         env = dict(os.environ)
         if path:
             env['PATH'] = path + os.pathsep + env['PATH']
-        return subprocess.run(['sh', '-c', '. "$1" && case_sensitive "$2"', 'sh', str(TOP / 'upstream/case-sensitive.sh'),
+        return subprocess.run(['sh', '-c', '. "$1" && case_sensitive "$2"', 'sh', str(TOP / 'kernel/mainline/case-sensitive.sh'),
                                str(self.d)], capture_output=True, text=True, env=env)
 
     def test_the_host_directory(self):
@@ -86,19 +86,19 @@ class CaseSensitive(unittest.TestCase):
 
 class Scripts(unittest.TestCase):
     def test_the_release_scripts_check_and_honour_tmpdir(self):
-        bundle = (TOP / 'upstream/make-bundle.sh').read_text()
+        bundle = (TOP / 'kernel/mainline/make-bundle.sh').read_text()
         self.assertIn('W=$(mktemp -d "${TMPDIR:-/tmp}/mu300-bundle.XXXXXX")', bundle)
         self.assertIn('case_sensitive "$UO/modules" || exit 1', bundle)
         self.assertIn('case_sensitive "$W" || exit 1', bundle)
         self.assertLess(bundle.index('case_sensitive "$W"'), bundle.index('tar -xzf "$REF"'))
-        rel = (TOP / 'tools/make-release.sh').read_text()
+        rel = (TOP / 'scripts/release/make-release.sh').read_text()
         self.assertIn('case_sensitive "$D" || exit 1', rel)
         self.assertIn('case_sensitive "${TMPDIR:-/tmp}" || exit 1', rel)
         self.assertLess(rel.index('case_sensitive "$D"'), rel.index('echo "==> helper binaries"'))
-        mods = (TOP / 'upstream/build-modules.sh').read_text()
+        mods = (TOP / 'kernel/mainline/build-modules.sh').read_text()
         self.assertLess(mods.index('case_sensitive $OUT/modules || exit 1'), mods.index('modules_install'))
-        for f in ('tools/make-release.sh', 'tools/make-extra.sh', 'tools/sign-release.sh',
-                  'upstream/make-bundle.sh'):
+        for f in ('scripts/release/make-release.sh', 'scripts/release/make-extra.sh', 'scripts/release/sign-release.sh',
+                  'kernel/mainline/make-bundle.sh'):
             src = (TOP / f).read_text()
             self.assertNotRegex(src, r'mktemp( -d)?\)', f)
 
@@ -110,7 +110,7 @@ class Scripts(unittest.TestCase):
 
 class VendorOverlay(unittest.TestCase):
     def test_both_modules_of_a_pair_from_the_tarball(self):
-        vo = load('vendor_overlay', 'tools/vendor-overlay.py')
+        vo = load('vendor_overlay', 'installer/lib/vendor-overlay.py')
         with tempfile.TemporaryDirectory() as d:
             bundle = Path(d) / 'mu300-kernel-6.18.tar.gz'
             with tarfile.open(bundle, 'w:gz') as t:
@@ -137,7 +137,7 @@ class BundleAudit(unittest.TestCase):
     def test_a_build_that_lost_one_of_a_pair(self):
         # the tree as a file system that ignores case leaves it: modules.in-tree names both, the directory has one
         # (is_file() of the other is true there, so the audit asks the listing)
-        audit = load('bundle_audit_case', 'upstream/audit-bundle.py')
+        audit = load('bundle_audit_case', 'kernel/mainline/audit-bundle.py')
         with tempfile.TemporaryDirectory() as d:
             out = Path(d)
             (out / 'Image').write_bytes(b'IKCFG_ST' + __import__('gzip').compress(b'CONFIG_KVM=y\n') + b'IKCFG_ED')
@@ -155,7 +155,7 @@ class ReleaseAudit(unittest.TestCase):
     case could not hold both names of a pair in a tree)"""
 
     def setUp(self):
-        rel = (TOP / 'tools/make-release.sh').read_text()
+        rel = (TOP / 'scripts/release/make-release.sh').read_text()
         start = rel.index('# every module a mainline build made')
         self.audit = rel[start:rel.index("# Call audio is not supported:", start)]
         self.tmp = tempfile.TemporaryDirectory()

@@ -1,6 +1,6 @@
 #!/bin/sh
 # mu300-vpn-uplink [IFACE]: the bearer has just come up (OpenWrt: its ifup hotplug; Ubuntu: `mobile-data up`). A VPN
-# whose current run started before that moment is started again (docs/FINDINGS.md 176).
+# whose current run started before that moment is started again (docs/research/FINDINGS.md 176).
 #
 # Measured on the U30 Air (openwrt-luci, the owner's sing-box profile, the kill switch on, kernels 6.18.56 and 6.18.57
 # alike): the VPN service starts at boot before the bearer, finds no uplink, and its service manager starts it again

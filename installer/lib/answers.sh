@@ -1,6 +1,6 @@
 # The installers without a person at the terminal: every question answered by a variable, and a progress stream a
 # program can read. Sourced by install.sh and uninstall.sh once t() exists; say(), die() and ask() are defined here.
-# docs/INSTALLER-AUTOMATION.md has the whole interface (the variables of every question, the events).
+# docs/guides/INSTALLER-AUTOMATION.md has the whole interface (the variables of every question, the events).
 #
 # Answers mode - MU300_NONINTERACTIVE=1, or an answers file (--answers FILE, MU300_ANSWERS=FILE):
 #   nothing is read from the terminal. Each question has a variable (the last argument of its ask), taken from the

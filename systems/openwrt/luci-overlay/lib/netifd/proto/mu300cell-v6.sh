@@ -10,7 +10,7 @@
 # single read refreshes them. This process is owned by netifd via
 # proto_run_command and also implements the standard WAN renew signal (USR1).
 # The bearer half follows the active card and believes only a well-formed
-# answer (docs/FINDINGS.md 91, after kanoqwq's clean-tf-7.2 3cbf37fc).
+# answer (docs/research/FINDINGS.md 91, after kanoqwq's clean-tf-7.2 3cbf37fc).
 #
 # Every update is sent address-external (matching the setup in mu300cell.sh):
 # the kernel state belongs to RA and to this monitor, netifd only tracks it. A

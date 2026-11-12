@@ -6,8 +6,8 @@ import unittest
 
 from helpers import BIN, TOP, ShellTest
 
-HW = TOP / 'openwrt' / 'overlay' / 'etc' / 'init.d' / 'mu300-hw'
-OWBIN = TOP / 'openwrt' / 'overlay' / 'opt' / 'mu300' / 'bin'
+HW = TOP / 'systems' / 'openwrt' / 'overlay' / 'etc' / 'init.d' / 'mu300-hw'
+OWBIN = TOP / 'systems' / 'openwrt' / 'overlay' / 'opt' / 'mu300' / 'bin'
 
 
 class WifiStart(ShellTest):
@@ -189,7 +189,7 @@ if __name__ == '__main__':
     unittest.main()
 
 
-UAPSD = TOP / 'openwrt' / 'overlay' / 'etc' / 'uci-defaults' / '94-mu300-ap-uapsd'
+UAPSD = TOP / 'systems' / 'openwrt' / 'overlay' / 'etc' / 'uci-defaults' / '94-mu300-ap-uapsd'
 
 
 class ApUapsd(ShellTest):

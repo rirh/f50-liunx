@@ -16,7 +16,7 @@ from pathlib import Path
 from helpers import BIN, TOP, ShellTest
 
 API = BIN / 'mu300-api'
-LIB = TOP / 'rootfs/overlay/opt/mu300/lib'
+LIB = TOP / 'systems/base/overlay/opt/mu300/lib'
 HAVE_BUSYBOX = bool(shutil.which('busybox'))
 
 # a recording tool: its name and arguments as one line, its stdin kept when the test asks (STUB_STDIN), then the

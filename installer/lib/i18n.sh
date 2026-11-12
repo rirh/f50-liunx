@@ -1,4 +1,4 @@
-# Messages of the installer scripts in other languages. i18n/<lang>.tsv holds one "English<TAB>translation" line
+# Messages of the installer scripts in other languages. installer/i18n/<lang>.tsv holds one "English<TAB>translation" line
 # per message, where {1}..{6} stand for the arguments; a message without a line there stays in English, so a
 # missing translation never breaks anything. Needs $TOP.
 #   MU300_LANG=en|zh   the language (asked by choose_language when it is not set)
@@ -8,7 +8,7 @@ MU300_LANG=${MU300_LANG:-}
 t() {
     _tk=$1; shift
     _tf=/dev/null
-    [ -n "$MU300_LANG" ] && [ "$MU300_LANG" != en ] && [ -f "$TOP/i18n/$MU300_LANG.tsv" ] && _tf=$TOP/i18n/$MU300_LANG.tsv
+    [ -n "$MU300_LANG" ] && [ "$MU300_LANG" != en ] && [ -f "$TOP/installer/i18n/$MU300_LANG.tsv" ] && _tf=$TOP/installer/i18n/$MU300_LANG.tsv
     TK=$_tk TF=$_tf T1=${1-} T2=${2-} T3=${3-} T4=${4-} T5=${5-} T6=${6-} awk 'BEGIN {
         s = ENVIRON["TK"]
         while ((getline l < ENVIRON["TF"]) > 0) {

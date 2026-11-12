@@ -1,6 +1,6 @@
 #!/bin/sh
-# Maintainer: sign a release's SHA256SUMS with the project's release key (docs/FINDINGS.md 86).
-#   tools/sign-release.sh SHA256SUMS [PUBLIC_KEY]     writes SHA256SUMS.sig beside it
+# Maintainer: sign a release's SHA256SUMS with the project's release key (docs/research/FINDINGS.md 86).
+#   scripts/release/sign-release.sh SHA256SUMS [PUBLIC_KEY]     writes SHA256SUMS.sig beside it
 # The key is the secret key file that OpenWrt's usign wrote (usign -G -s release.sec -p release.pub; OpenBSD's
 # signify -G -n makes the same file), given as its text in MU300_RELEASE_KEY (the repository secret of that name, in
 # the Release workflow) or as a path in MU300_RELEASE_KEY_FILE. It is never printed, and never written anywhere but a
@@ -11,7 +11,7 @@
 # With PUBLIC_KEY the result is checked against it before it counts: signing with a key that is not the one in the
 # images must stop the release here, not on every device that then refuses it.
 set -eu
-SUMS=${1:?usage: tools/sign-release.sh SHA256SUMS [PUBLIC_KEY]}
+SUMS=${1:?usage: scripts/release/sign-release.sh SHA256SUMS [PUBLIC_KEY]}
 PUB=${2:-}
 [ -s "$SUMS" ] || { echo "sign-release: $SUMS is missing or empty" >&2; exit 1; }
 [ -n "${MU300_RELEASE_KEY:-}${MU300_RELEASE_KEY_FILE:-}" ] || { echo "sign-release: no key (MU300_RELEASE_KEY or MU300_RELEASE_KEY_FILE)" >&2; exit 1; }

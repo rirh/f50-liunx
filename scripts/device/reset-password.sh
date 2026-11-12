@@ -3,35 +3,35 @@
 # (adb + su); it mounts the Linux filesystem from Android and rewrites the password hash in /etc/shadow. With an
 # installation on the SD card (ext4 labelled mu300sd) that one is changed: it is the one that boots.
 #
-#   tools/reset-password.sh [ubuntu|openwrt|openwrt-luci|all]      (default: all; both is an alias of all)
+#   scripts/device/reset-password.sh [ubuntu|openwrt|openwrt-luci|all]      (default: all; both is an alias of all)
 #
 # Forgot the password and Linux boots by default? Unplug the device about ten seconds after it powers on and plug
 # it back in: the bootloader sees an unfinished boot and falls back to Android, then run this.
 set -eu
 WHICH=${1:-all}
 [ "$WHICH" = both ] && WHICH=all
-TOP=$(cd "$(dirname "$0")/.." && pwd)
-. "$TOP/tools/host-tools.sh"
+TOP=$(cd "$(dirname "$0")/../.." && pwd)
+. "$TOP/installer/lib/host-tools.sh"
 T=/data/local/tmp
 
 say() { printf '\n==> %s\n' "$*"; }
 die() { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
 su_do() { adb shell "su -c '$1'" </dev/null | tr -d '\r'; }
-# tools/storage.sh finds the SD card; this script is English only
+# installer/lib/storage.sh finds the SD card; this script is English only
 t() { printf '%s' "$1"; }
 gib() { awk -v b="$1" 'BEGIN { printf "%.1f GiB", b / 1073741824 }'; }
 
 case $WHICH in ubuntu|openwrt|openwrt-luci|all) ;; *) die "usage: $0 [ubuntu|openwrt|openwrt-luci|all]" ;; esac
 command -v adb >/dev/null || die "adb not found"
 command -v python3 >/dev/null || die "python3 not found"
-. "$TOP/tools/linux-mode.sh"
+. "$TOP/installer/lib/linux-mode.sh"
 require_android
 [ "$(su_do 'id -u')" = 0 ] || die "su does not work on the device"
 
 say "Looking for the Linux filesystem"
 # an installation on the SD card is the one that boots (boot/init looks there first, also when there is one in
 # internal storage too), so it is the one whose password is reset
-. "$TOP/tools/storage.sh"; sd_probe
+. "$TOP/installer/lib/storage.sh"; sd_probe
 MOUNTENV=
 if [ -n "$SD_DEV" ] && [ "$(sd_existing)" = yes ]; then
     MOUNTENV="MU300_SD_DEV=$SD_DEV"
@@ -40,7 +40,7 @@ if [ -n "$SD_DEV" ] && [ "$(sd_existing)" = yes ]; then
 fi
 OFF=; SIZE=
 if [ -z "$MOUNTENV" ]; then
-    # the same search install.sh does (tools/storage.sh): the free region, a GPT partition named mu300root that
+    # the same search install.sh does (installer/lib/storage.sh): the free region, a GPT partition named mu300root that
     # another installer made (FINDINGS 179), the old fixed offset; all byte arithmetic happens here, not in Android's
     # 32-bit shell
     region_probe || die "could not read the partition table from the device"
@@ -52,7 +52,7 @@ if [ -z "$MOUNTENV" ]; then
 fi
 
 say "Mounting the Linux filesystem"
-adb push "$TOP/tools/android-mount-mu300root.sh" $T/ >/dev/null
+adb push "$TOP/installer/android/android-mount-mu300root.sh" $T/ >/dev/null
 out=$(su_do "${MOUNTENV:-MU300_OFF=$OFF MU300_SIZE=$SIZE} sh $T/android-mount-mu300root.sh $T/mu300root")
 # ALREADY-MOUNTED is a failure too (the card or region is in use elsewhere)
 echo "$out" | grep -q '^MOUNTED' || die "could not mount the Linux filesystem ($out)"
@@ -71,7 +71,7 @@ echo " systems:$found"
 printf 'New password for "ubuntu" (Ubuntu) and "root" (OpenWrt, openwrt-luci): '
 [ -t 0 ] && stty -echo; read -r pw1; printf '\nRepeat: '; read -r pw2; [ -t 0 ] && stty echo; echo
 [ "$pw1" = "$pw2" ] && [ ${#pw1} -ge 6 ] || die "passwords differ or are shorter than 6 characters"
-HASH=$(printf '%s\n' "$pw1" | python3 "$TOP/tools/sha512crypt.py")
+HASH=$(printf '%s\n' "$pw1" | python3 "$TOP/installer/lib/sha512crypt.py")
 case $HASH in \$6\$*) ;; *) die "could not build the password hash" ;; esac
 
 for os in $found; do

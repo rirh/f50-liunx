@@ -1,10 +1,10 @@
 # 简体中文 - MU300 Linux installer. One line per message: English<TAB>translation; {1}.. are the arguments.
-# Check with: tools/check-i18n.py
+# Check with: scripts/i18n/check-i18n.py
 parallel download failed, retrying as a single stream	并行下载失败，改为单线程重试
 could not read {1} from the device	无法从设备读取 {1}
 Checking host tools and device	正在检查电脑上的工具和设备
 {1} not found	未找到 {1}
-kernel outputs missing in {1} (run kernel/build-all.sh)	{1} 中缺少内核编译输出（请运行 kernel/build-all.sh）
+kernel outputs missing in {1} (run kernel/vendor/build-all.sh)	{1} 中缺少内核编译输出（请运行 kernel/vendor/build-all.sh）
 su does not work on the device	设备上的 su 无法使用
 device: {1}	设备：{1}
 This does not look like a ZTE F50/MU300 or U30 Air. Continue anyway? (yes/no)	这看起来不是 ZTE F50/MU300 或 U30 Air。仍要继续吗？(是/否)
@@ -97,7 +97,6 @@ Which Ubuntu?	选择哪个 Ubuntu？
 2) 26.04 LTS  the newest (systemd 259, newer packages), supported until 2031; kernel 6.18 or 7.3	2) 26.04 LTS  最新版本（systemd 259，更新的软件包），支持到 2031 年；需要 6.18 或 7.3 内核
 Ubuntu	Ubuntu
 Ubuntu 26.04 needs a mainline kernel (6.18 or 7.3): its programs use system calls that 5.4 does not have (tar, for one, cannot unpack folders there).	Ubuntu 26.04 需要主线内核（6.18 或 7.3）：它的程序使用了 5.4 没有的系统调用（例如 tar 在 5.4 上无法解压包含文件夹的归档）。
-this copy has changes of its own, so {1} files were left as they are	此副本有自己的修改，因此 {1} 个文件保持原样
 Device	设备
 Kernel	内核
 enter 1, 2 or 3	请输入 1、2 或 3
@@ -169,14 +168,6 @@ waiting for Android	正在等待 Android
 the device did not come back as Android; boot it yourself (mu300-next-boot android)	设备没有以 Android 启动；请自行启动（mu300-next-boot android）
 Android is up	Android 已启动
 could not reboot it over SSH; on the device run: sudo mu300-next-boot android && sudo reboot	无法通过 SSH 重启；请在设备上执行：sudo mu300-next-boot android && sudo reboot
-could not check GitHub for a newer installer; continuing with this copy	无法在 GitHub 上检查是否有更新的安装程序；继续使用当前副本
-a newer installer is on GitHub, but this copy has local changes; not updating it	GitHub 上有更新的安装程序，但此副本有本地修改，因此不更新
-Updating the installer to the newest version from GitHub	正在将安装程序更新到 GitHub 上的最新版本
-could not update this copy (it has commits of its own?); continuing with it	无法更新此副本（是否有自己的提交？）；继续使用它
-Checking the installer against the newest version on GitHub	正在将安装程序与 GitHub 上的最新版本进行比较
-could not download it; continuing with this copy	下载失败；继续使用当前副本
-{1} files updated	已更新 {1} 个文件
-restarting the updated installer	正在重新启动更新后的安装程序
 yes	是
 no	否
 update	update（更新）
@@ -427,7 +418,7 @@ The card will be formatted and everything on it is erased. Type ERASE to allow t
 Give a number of GiB, like 4 or 2.5.	请输入 GiB 数，例如 4 或 2.5。
 Not with Ubuntu 26.04: its programs use system calls that 5.4 does not have.	不能与 Ubuntu 26.04 搭配：它的程序使用了 5.4 没有的系统调用。
 A prerelease for testing, newer than {1}. It has not been run on a device as long as a full release.	供测试的预发布版本，比 {1} 更新。它在设备上运行的时间不如正式版长。
-Never copied by the installer or this window: the NV and calibration partitions (IMEI, radio calibration). The installer does not read or write them. A copy of those for safekeeping is a separate tool, tools/backup-device.sh, that you run yourself - keep its output private.	安装程序和此窗口都不会复制：NV 与校准分区（IMEI、射频校准）。安装程序不会读取或写入它们。如需留存这些分区的副本，请自行运行单独的工具 tools/backup-device.sh——其输出请妥善保密。
+Never copied by the installer or this window: the NV and calibration partitions (IMEI, radio calibration). The installer does not read or write them. A copy of those for safekeeping is a separate tool, scripts/device/backup-device.sh, that you run yourself - keep its output private.	安装程序和此窗口都不会复制：NV 与校准分区（IMEI、射频校准）。安装程序不会读取或写入它们。如需留存这些分区的副本，请自行运行单独的工具 scripts/device/backup-device.sh——其输出请妥善保密。
 Start	开始
 Saved: {1}	已保存：{1}
 Starting…	正在启动…
@@ -546,7 +537,7 @@ Only for a device where this installer shrank userdata to make room. On the usua
 Leave it off too if Linux may be installed again: the installer then uses this space without touching Android. With it on, a new installation has to make room again, which resets Android once more.	如果以后可能再次安装 Linux，也请保持关闭：安装程序会直接使用这块空间，不会动 Android。打开后，新的安装必须重新腾出空间，这会再次重置 Android。
 Type ERASE to allow that:	输入 ERASE 以允许此操作：
 This window	此窗口
-drives install.sh / install.ps1 in their answers mode; it installs nothing by itself	以应答模式驱动 install.sh / install.ps1；它本身不安装任何内容
+drives install.sh in their answers mode; it installs nothing by itself	以应答模式驱动 install.sh；它本身不安装任何内容
 Project folder	项目文件夹
 running Linux	正在运行 Linux
 Root (su)	Root（su）
@@ -665,7 +656,6 @@ This looks like a ZTE V50 but is not one this installer knows (model V50, device
 ZTE V50: EXPERIMENTAL, tested by nobody in this project (kano ported it); mainline kernel only; no second SIM, no NFC; USB network 192.168.79.1	ZTE V50：实验性支持，本项目中无人测试过（由 kano 移植）；只能使用主线内核；不支持第二张 SIM 卡和 NFC；USB 网络 192.168.79.1
 The ZTE V50 runs a mainline kernel only: install a prebuilt release (without --build)	ZTE V50 只能使用主线内核：请安装预编译的版本（不加 --build）
 The ZTE V50 runs a mainline kernel only (6.18 or 7.3).	ZTE V50 只能使用主线内核（6.18 或 7.3）。
-a prepared installation is waiting (tools/resume.sh): this installer does not update itself until it is done	有一个已准备的安装正在等待（tools/resume.sh）：在它完成之前，本安装程序不会自我更新
 could not read what identifies this device (serial, eMMC CID, userdata)	无法读取识别本设备的信息（序列号、eMMC CID、userdata）
 the partition table and the running kernel disagree about userdata; reboot Android and try again	分区表与正在运行的内核对 userdata 的认识不一致；请重启 Android 后再试
 encrypted	已加密
@@ -746,7 +736,7 @@ WARNING: the partition named mu300root is not empty, and it holds no Linux files
 Note: the Android data partition holds a Linux image file from another installer (/data/mu300linux/openwrt.ext4). This installer cannot update that layout, and after this installation the device starts the new system, not that one. The file is left as it is: delete it in Android to free its space.	注意：Android 的数据分区中有另一个安装程序留下的 Linux 镜像文件（/data/mu300linux/openwrt.ext4）。本安装程序无法更新这种布局，本次安装后设备启动的是新系统，而不是那个。该文件保持原样：如需释放空间，请在 Android 中删除它。
 The eMMC has {1} partitions named mu300root, and which one holds Linux cannot be told. Nothing was changed: remove the one that is not used (with the installer that made it) and try again.	eMMC 上有 {1} 个名为 mu300root 的分区，无法判断 Linux 在哪一个里。未做任何更改：请（用创建它的安装程序）删除不用的那个，然后重试。
 The partition named mu300root holds another Linux (ext4) filesystem, not labelled mu300root, and the installer never formats one that is not its own. Nothing was changed.	名为 mu300root 的分区中有另一个未标记为 mu300root 的 Linux（ext4）文件系统，安装程序绝不会格式化不属于自己的文件系统。未做任何更改。
-THIS IS EXPERIMENTAL. It rewrites the partition table. Take a full backup first:  sh tools/backup-device.sh	这是实验性功能。它会改写分区表。请先做完整备份：  sh tools/backup-device.sh
+THIS IS EXPERIMENTAL. It rewrites the partition table. Take a full backup first:  sh scripts/device/backup-device.sh	这是实验性功能。它会改写分区表。请先做完整备份：  sh scripts/device/backup-device.sh
 Two ways:	两种方式：
 in use now. Method: dikeckaan; implementation: kanoqwq.	已用。方法：dikeckaan；实现：kanoqwq。
 more than one restart). Then set Android up again, turn USB debugging back on and bring root back	多次重启）。之后重新设置 Android，重新打开 USB 调试并恢复 root
@@ -764,7 +754,7 @@ not possible on this device: {1}	在此设备上不可行：{1}
 ERASES everything in Android: Android's own recovery resets it (a factory reset, a few minutes and	清除 Android 中的一切：由 Android 自己的 recovery 将其重置（恢复出厂设置，需要几分钟和
 Android's data:       {1} in use, kept; its filesystem becomes {2}	Android 数据：        已用 {1}，保留；文件系统变为 {2}
 Shrink userdata now, keeping Android's data? (yes/no)	现在缩小 userdata 并保留 Android 的数据吗？(是/否)
-this installer has no mu300-f2fs-online (tools/f2fs-online)	本安装器缺少 mu300-f2fs-online（tools/f2fs-online）
+this installer has no mu300-f2fs-online (device-tools/f2fs-online)	本安装器缺少 mu300-f2fs-online（device-tools/f2fs-online）
 the helper did not arrive on the device as it is here	辅助程序未能原样传到设备上
 the helper gave no geometry	辅助程序未给出文件系统几何信息
 shrink: {1}	缩小：{1}

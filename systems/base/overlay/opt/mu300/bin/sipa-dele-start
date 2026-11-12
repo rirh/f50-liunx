@@ -3,7 +3,7 @@
 #
 # The delegate is what makes downlink happen at all. Measured on stock Android, the modem asks permission over
 # SIPC channel 120 before it sends anything - "smsg_recv, dst=5, chan=120, type=5, flag=0x1" - the AP grants
-# SIPA_RM_RES_CONS_WWAN_DL and acks, and only then do packets arrive (docs/FINDINGS.md 13f). Never answer that
+# SIPA_RM_RES_CONS_WWAN_DL and acks, and only then do packets arrive (docs/research/FINDINGS.md 13f). Never answer that
 # and the modem never sends, which is exactly our symptom: the call completes, the address is right, and
 # rx_packets stays at zero.
 #
@@ -37,7 +37,7 @@ MODULES=/proc/modules
 
 log() { echo "sipa-dele-start: $*"; }
 
-# The delegate's own word on its channel (kanoqwq's 0043a5d8, docs/FINDINGS.md 241): a module built from this tree
+# The delegate's own word on its channel (kanoqwq's 0043a5d8, docs/research/FINDINGS.md 241): a module built from this tree
 # has sipa_dele_wait in sysfs, and reading it waits on the kernel's wait queue until the channel-120 handshake with
 # the CP is done and the resource callbacks are in place - at once when they are, at most 3 s otherwise - and fails
 # for an open that failed, a channel the CP closed, or no answer in time. That is what the PDP context needs; the

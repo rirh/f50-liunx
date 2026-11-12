@@ -1,7 +1,7 @@
 sipc, mailbox: drop the "base_addr" attributes that can never be read
 
 Neither show nor store, created on platform devices that are never registered: two warnings each at boot, about
-ten seconds in all on the 5.4 console (docs/FINDINGS.md 31g).
+ten seconds in all on the 5.4 console (docs/research/FINDINGS.md 31g).
 
 diff -ru a/drivers/soc/sprd/modem/sipc/sblock.c b/drivers/soc/sprd/modem/sipc/sblock.c
 --- a/drivers/soc/sprd/modem/sipc/sblock.c	2026-09-27 16:21:13

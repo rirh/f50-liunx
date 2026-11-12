@@ -3,8 +3,8 @@
 # tests/test_online_shrink.py starts it with docker, CI on an arm64 runner too): a 6 GiB disk image with a GPT whose
 # last partition is "userdata", an F2FS on it - mounted through a device-mapper mapping as Android's metadata
 # encryption has it (dm-N, one slave, all of userdata), or directly - with files on it, and then exactly what the
-# installers do: tools/android-online-shrink.sh inspect, stage and start with the committed mu300-f2fs-online, the new
-# table from tools/resize-last-partition.py, the worker's status until it is complete. Afterwards: both GPT copies
+# installers do: installer/android/android-online-shrink.sh inspect, stage and start with the committed mu300-f2fs-online, the new
+# table from installer/lib/resize-last-partition.py, the worker's status until it is complete. Afterwards: both GPT copies
 # are the new ones, the kernel (re-reading the disk) sees the smaller userdata, the F2FS has the target size and its
 # UUID, fsck.f2fs finds nothing, and every file reads back with its checksum. Then the refusals: a probe on a
 # read-only mount and a stale table. Only loop devices are touched.
@@ -66,9 +66,9 @@ mkdir -p /data/dir; for i in $(seq 1 200); do echo "file $i" > /data/dir/$i; don
 sync
 
 S=$W/stage; mkdir -p "$S"
-cp "$TOP/tools/f2fs-online/mu300-f2fs-online" "$S/"
+cp "$TOP/device-tools/f2fs-online/mu300-f2fs-online" "$S/"
 # inspect
-out=$(sh "$TOP/tools/android-online-shrink.sh" inspect "$S")
+out=$(sh "$TOP/installer/android/android-online-shrink.sh" inspect "$S")
 echo "$out" | grep -qx ONLINE=yes || fail "inspect: $out"
 v() { echo "$out" | sed -n "s/^$1=//p"; }
 blocks=$(v BLOCKS); section=$(v SECTION_BLOCKS); used=$(v USED_BYTES); uuid=$(v UUID)
@@ -78,31 +78,31 @@ ok "inspect ($MAPPING): $blocks blocks, sections of $section, uuid $uuid"
 lin_s=$((1024 * 1024 * 1024 / 512))
 new_end=$(( ((disk - 34) / 4096 - 1) * 4096 - lin_s - 4096 - 1 ))
 new_size=$((new_end - ud_start + 1))
-tgt=$(python3 "$TOP/tools/resume.py" online-target new_size=$new_size section_blocks=$section used_bytes=$used blocks=$blocks)
+tgt=$(python3 "$TOP/installer/lib/resume.py" online-target new_size=$new_size section_blocks=$section used_bytes=$used blocks=$blocks)
 target=${tgt#TARGET=}
 case $target in ''|*[!0-9]*) fail "online-target: $tgt" ;; esac
 dd if="$LOOP" bs=512 count=34 of="$S/old-first" 2>/dev/null
 dd if="$LOOP" bs=512 skip=$((disk - 33)) count=33 of="$S/old-last" 2>/dev/null
-python3 "$TOP/tools/resize-last-partition.py" "$S/old-first,$S/old-last" --disk-sectors $disk --name userdata \
+python3 "$TOP/installer/lib/resize-last-partition.py" "$S/old-first,$S/old-last" --disk-sectors $disk --name userdata \
     --end-sector $new_end --out "$S/new" >/dev/null
 mv "$S/new.head" "$S/new-first"; mv "$S/new.tail" "$S/new-last"
 TOK=0123456789abcdef0123456789abcdef
-st=$(sh "$TOP/tools/android-online-shrink.sh" stage "$S" $TOK)
+st=$(sh "$TOP/installer/android/android-online-shrink.sh" stage "$S" $TOK)
 echo "$st" | grep -qx STAGE=ok || fail "stage: $st"
 [ "$(echo "$st" | sed -n 's/^SHA_NEW_FIRST=//p')" = "$(sha256sum "$S/new-first" | cut -d' ' -f1)" ] || fail 'staged copy differs'
 # more writes after the plan: the worker works on the live filesystem
 head -c $((8 * 1024 * 1024)) /dev/urandom > /data/late; sha256sum /data/late | sed 's|/data/|./|' >> "$W/sums"
-r=$(sh "$TOP/tools/android-online-shrink.sh" start $TOK "$blocks" "$target" "$uuid" $disk)
+r=$(sh "$TOP/installer/android/android-online-shrink.sh" start $TOK "$blocks" "$target" "$uuid" $disk)
 echo "$r" | grep -qx LAUNCH=ok || fail "start: $r"
 i=0
 while :; do
-    s=$(sh "$TOP/tools/android-online-shrink.sh" status $TOK)
+    s=$(sh "$TOP/installer/android/android-online-shrink.sh" status $TOK)
     case $s in *PHASE=complete*BUSY=0*) break ;; *PHASE=unchanged*|*PHASE=failed*|*PHASE=recovery*) fail "worker: $s" ;; esac
     i=$((i + 1)); [ $i -lt 600 ] || fail "worker did not finish: $s"; sleep 1
 done
 ok "worker complete: $(echo "$s" | tr '\n' ' ')"
 # a second start against the committed state finds nothing to do but to confirm it (resumable, never a second shrink)
-sh "$TOP/tools/android-online-shrink.sh" cleanup $TOK | grep -qx CLEANUP=ok || fail cleanup
+sh "$TOP/installer/android/android-online-shrink.sh" cleanup $TOK | grep -qx CLEANUP=ok || fail cleanup
 [ ! -e /dev/mu300-online-$TOK ] || fail 'stage dir left'
 # both copies of the table are the new ones
 dd if="$LOOP" bs=512 count=34 2>/dev/null | cmp -s - "$S/new-first" || fail 'primary GPT'
@@ -124,27 +124,27 @@ mount -t f2fs "$UD" /data
 (cd /data && sha256sum -c "$W/sums" >/dev/null) || fail 'files differ after the shrink'
 ok "every file reads back ($(wc -l < "$W/sums") files)"
 # the space behind userdata is outside every partition now
-python3 "$TOP/tools/resize-last-partition.py" "$S/new-first,$S/new-last" --disk-sectors $disk --name userdata --show |
+python3 "$TOP/installer/lib/resize-last-partition.py" "$S/new-first,$S/new-last" --disk-sectors $disk --name userdata --show |
     grep -qx "LAST_END=$new_end" || fail 'table does not read back'
 ok 'the table reads back with userdata ending where it was planned'
 
 # refusals
 # a read-only mount: inspect says no
 mount -o remount,ro /data
-out=$(sh "$TOP/tools/android-online-shrink.sh" inspect "$S")
+out=$(sh "$TOP/installer/android/android-online-shrink.sh" inspect "$S")
 echo "$out" | grep -qx ONLINE=no || fail "read-only mount was offered: $out"
 mount -o remount,rw /data
 ok 'a read-only /data is refused'
 # a worker given a table that is not the one on the disk changes nothing
-cp "$TOP/tools/f2fs-online/mu300-f2fs-online" "$S/"
+cp "$TOP/device-tools/f2fs-online/mu300-f2fs-online" "$S/"
 dd if="$LOOP" bs=512 count=34 of="$S/old-first" 2>/dev/null; printf 'X' | dd of="$S/old-first" bs=1 seek=600 conv=notrunc 2>/dev/null
 dd if="$LOOP" bs=512 count=34 of="$S/new-first" 2>/dev/null; printf 'Y' | dd of="$S/new-first" bs=1 seek=600 conv=notrunc 2>/dev/null
-sh "$TOP/tools/android-online-shrink.sh" stage "$S" $TOK | grep -qx STAGE=ok || fail 'stage 2'
-out=$(sh "$TOP/tools/android-online-shrink.sh" inspect "$S"); b2=$(echo "$out" | sed -n 's/^BLOCKS=//p'); u2=$(echo "$out" | sed -n 's/^UUID=//p')
-r=$(sh "$TOP/tools/android-online-shrink.sh" start $TOK "$b2" $((b2 - section * 4)) "$u2" $disk)
+sh "$TOP/installer/android/android-online-shrink.sh" stage "$S" $TOK | grep -qx STAGE=ok || fail 'stage 2'
+out=$(sh "$TOP/installer/android/android-online-shrink.sh" inspect "$S"); b2=$(echo "$out" | sed -n 's/^BLOCKS=//p'); u2=$(echo "$out" | sed -n 's/^UUID=//p')
+r=$(sh "$TOP/installer/android/android-online-shrink.sh" start $TOK "$b2" $((b2 - section * 4)) "$u2" $disk)
 echo "$r" | grep -qx LAUNCH=failed || fail "a stale table was accepted: $r"
 fsb2=$(dd if="$UD" bs=4096 count=1 2>/dev/null | od -An -tu4 -j1060 -N8 | awk '{ print $1 + $2 * 4294967296 }')
 [ "$fsb2" = "$b2" ] || fail 'the F2FS changed although the table was stale'
 ok "a stale partition table is refused before anything changes ($(echo "$r" | sed -n 's/^STAGE=//p'))"
-sh "$TOP/tools/android-online-shrink.sh" cleanup $TOK >/dev/null
+sh "$TOP/installer/android/android-online-shrink.sh" cleanup $TOK >/dev/null
 echo "PASS ($MAPPING)"

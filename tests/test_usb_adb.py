@@ -1,6 +1,6 @@
 """MTP off while an installer works over adb (reported by kanoqwq: an F50's stock MTP hangs, and Windows then resets
-the USB device about every ten seconds, which ends the adb session each time). tools/android-usb.sh on the device,
-against getprop/setprop stubs that behave like Android's init (sys.usb.state follows sys.usb.config); tools/usb-adb.sh
+the USB device about every ten seconds, which ends the adb session each time). installer/android/android-usb.sh on the device,
+against getprop/setprop stubs that behave like Android's init (sys.usb.state follows sys.usb.config); installer/lib/usb-adb.sh
 in install.sh and uninstall.sh against the fake adb (tests/fakeadb.py)."""
 import json
 import subprocess
@@ -11,7 +11,7 @@ from pathlib import Path
 from helpers import TOP, ShellTest
 from test_answers import Device, events
 
-SCRIPT = TOP / 'tools/android-usb.sh'
+SCRIPT = TOP / 'installer/android/android-usb.sh'
 BOOT = '6f1d2c3b-aaaa-4bbb-8ccc-000000000001'
 
 
@@ -109,7 +109,7 @@ class DeviceSide(ShellTest):
             self.assertEqual(self.setprops(), ['sys.usb.config=none', 'sys.usb.config=adb'])
 
     def test_the_stock_f50_has_the_adb_configuration(self):
-        # what the choice rests on (tools/android-usb.sh's header), not a file this repository has: the F50's stock
+        # what the choice rests on (installer/android/android-usb.sh's header), not a file this repository has: the F50's stock
         # vendor rc builds "adb" as ffs.adb alone, and Android's default property for it is "disable"
         src = SCRIPT.read_text()
         self.assertIn('setprop', src)
@@ -216,7 +216,7 @@ class LinuxSide(unittest.TestCase):
     """Our own gadget (boot/init, mu300-adbd): network, the ACM console and adb - no MTP or PTP function anywhere."""
 
     def test_no_mtp_in_our_gadget(self):
-        for path in [TOP / 'boot/init'] + sorted((TOP / 'rootfs/overlay/opt/mu300/bin').glob('mu300-*')):
+        for path in [TOP / 'boot/init'] + sorted((TOP / 'systems/base/overlay/opt/mu300/bin').glob('mu300-*')):
             if path.is_file():
                 text = path.read_text(errors='replace')
                 self.assertNotRegex(text, r'functions/(ffs\.)?(mtp|ptp)', str(path))

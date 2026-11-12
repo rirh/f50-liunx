@@ -1,4 +1,4 @@
-"""mu300_thermal's trend for step_wise (upstream/modules/mu300_thermal/mu300_trend.h, FINDINGS 166), compiled on the
+"""mu300_thermal's trend for step_wise (kernel/mainline/modules/mu300_thermal/mu300_trend.h, FINDINGS 166), compiled on the
 host: the slope over about a second instead of reading against reading, a dead band, the cooling up fast and down at
 most a step a second in the throttling band. Plus a small plant: step_wise as 6.18/7.2 run it (one step per 100 ms
 poll), a die that follows the CPU power within a poll and creeps up slowly, and sensor noise of +-1.5 C - with the
@@ -12,7 +12,7 @@ from pathlib import Path
 
 from helpers import TOP
 
-HEADER = TOP / 'upstream/modules/mu300_thermal/mu300_trend.h'
+HEADER = TOP / 'kernel/mainline/modules/mu300_thermal/mu300_trend.h'
 HZ = 250
 
 # commands on stdin, one per line: "r WHEN TEMP" records a reading; "t TRIP HYST WHEN DROP_EVERY" prints the trend

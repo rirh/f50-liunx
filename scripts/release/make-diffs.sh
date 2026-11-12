@@ -1,27 +1,27 @@
 #!/bin/sh
-# Maintainer: the diffs of a release, run by tools/make-release.sh before it writes and signs SHA256SUMS.
-#   tools/make-diffs.sh DIR TAG
+# Maintainer: the diffs of a release, run by scripts/release/make-release.sh before it writes and signs SHA256SUMS.
+#   scripts/release/make-diffs.sh DIR TAG
 # For each image in DIR (mu300-*-rootfs.tar.gz) and each of the MU300_DIFF_BASES releases before TAG (5) that
-# published that image's manifest: DIR/mu300-<image>-rootfs.diff-<BASE>.tar.gz (tools/image-diff.py). SHA256SUMS lists
+# published that image's manifest: DIR/mu300-<image>-rootfs.diff-<BASE>.tar.gz (scripts/release/image-diff.py). SHA256SUMS lists
 # them with the rest, so the release key signs them; mu300-update downloads one instead of the whole image when the
 # device runs its base release, and installs only what the release's signed manifest says the image is.
 # The bases come from this repository's own releases on GitHub (gh), or from MU300_DIFF_BASES_DIR/<tag>/ (tests, a
 # build without the network): each base's manifests are taken only as its SHA256SUMS lists them, and where the tree
 # has the release key, only when that SHA256SUMS is signed with it (mu300-update's own sums_verdict). A diff that
 # saves less than a fifth of the image is not published. Ported from kanoqwq/mu300-linux fb0b28e7 and b9f71e72 (diffs
-# made from an old release's index, tools/release-index.py): his diffs are made on demand from any index; here the
+# made from an old release's index): his diffs are made on demand from any index; here the
 # release makes them, from the five releases before it.
 set -eu
-D=${1:?usage: tools/make-diffs.sh DIR TAG}
-TAG=${2:?usage: tools/make-diffs.sh DIR TAG}
-TOP=$(cd "$(dirname "$0")/.." && pwd)
+D=${1:?usage: scripts/release/make-diffs.sh DIR TAG}
+TAG=${2:?usage: scripts/release/make-diffs.sh DIR TAG}
+TOP=$(cd "$(dirname "$0")/../.." && pwd)
 REPO=${MU300_REPO:-dikeckaan/mu300-linux}
 N=${MU300_DIFF_BASES:-5}
 case $N in ''|*[!0-9]*) echo "MU300_DIFF_BASES=$N is not a number" >&2; exit 1 ;; esac
 [ "$N" -gt 0 ] || { echo "no diffs (MU300_DIFF_BASES=0)"; exit 0; }
-. "$TOP/tools/releases.sh"
+. "$TOP/installer/lib/releases.sh"
 # (MU300_DIFF_PUB: another key, for tests)
-PUB=${MU300_DIFF_PUB:-$TOP/rootfs/overlay/opt/mu300/lib/release.pub}
+PUB=${MU300_DIFF_PUB:-$TOP/systems/base/overlay/opt/mu300/lib/release.pub}
 W=$(umask 077; mktemp -d "${TMPDIR:-/tmp}/mu300-diffs.XXXXXX")
 trap 'rm -rf "${W:?}"' EXIT
 # the key as a file of our own (mu300-update's key_state: root's own, written by nobody else; sudo -E runs this)
@@ -37,7 +37,7 @@ fi
 older=$(for t in $tags; do tag_ok "$t" && newer "$TAG" "$t" && printf '%s %s\n' "$(tag_key "$t")" "$t"; done | sort -rn | cut -d' ' -f2)
 
 # the signatures are checked with mu300-update's own code, which calls "openssl": the one the release is signed with
-# (MU300_OPENSSL, tools/sign-release.sh) comes first, since macOS's own (LibreSSL) cannot check Ed25519
+# (MU300_OPENSSL, scripts/release/sign-release.sh) comes first, since macOS's own (LibreSSL) cannot check Ed25519
 case ${MU300_OPENSSL:-} in */*) PATH=${MU300_OPENSSL%/*}:$PATH; export PATH ;; esac
 # base_ok TAG DIR: DIR/SHA256SUMS is TAG's and as trusted as an update trusts it (signed, where the tree has the key).
 # Status 2 when nothing here can check a signature: then no base is trusted, and a release would go out without
@@ -47,7 +47,7 @@ base_ok() (
     MU300_LIB=1 MU300_RELEASE_PUB=$W/release.pub
     [ -s "$W/release.pub" ] || MU300_RELEASE_PUB=$W/none
     export MU300_LIB MU300_RELEASE_PUB
-    . "$TOP/rootfs/overlay/opt/mu300/bin/mu300-update"
+    . "$TOP/systems/base/overlay/opt/mu300/bin/mu300-update"
     _bs=$(sig_state "$2/SHA256SUMS" "$2/SHA256SUMS.sig")
     [ "$_bs" != notool ] || [ ! -s "$W/release.pub" ] || return 2
     sums_verdict "$1" "$_bs" "release $1" "$2/SHA256SUMS" >/dev/null
@@ -76,8 +76,8 @@ for b in $older; do
         [ -n "$want" ] && [ "$(sha "$m")" = "$want" ] ||
             { echo "$b: $s.manifest.gz does not match its SHA256SUMS" >&2; exit 1; }
         out=$D/$s.diff-$b.tar.gz
-        python3 "$TOP/tools/image-diff.py" make "$m" "$img" "$out"
-        python3 "$TOP/tools/image-diff.py" check "$m" "$img" "$out"
+        python3 "$TOP/scripts/release/image-diff.py" make "$m" "$img" "$out"
+        python3 "$TOP/scripts/release/image-diff.py" check "$m" "$img" "$out"
         if [ $(( $(wc -c < "$out") * 5 )) -gt $(( $(wc -c < "$img") * 4 )) ]; then
             echo "$s from $b: the diff saves less than a fifth, not published"
             rm -f "$out"

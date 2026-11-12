@@ -18,13 +18,13 @@ import unittest
 from helpers import TOP, ShellTest
 from test_mu300dash_security import DASH, JSONFILTER
 
-LUCI = TOP / 'openwrt' / 'luci-overlay'
+LUCI = TOP / 'systems' / 'openwrt' / 'luci-overlay'
 SMS = LUCI / 'opt' / 'mu300' / 'bin' / 'mu300-sms'
 SMSD = LUCI / 'opt' / 'mu300' / 'bin' / 'mu300-smsd'
 INITD = LUCI / 'etc' / 'init.d' / 'mu300-smsd'
-AWK = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'sms-pdu.awk'
-BUILD = TOP / 'openwrt' / 'build-rootfs.sh'
-APP = TOP / 'openwrt' / 'luci-app-mu300'
+AWK = TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'sms-pdu.awk'
+BUILD = TOP / 'systems' / 'openwrt' / 'build-rootfs.sh'
+APP = TOP / 'systems' / 'openwrt' / 'luci-app-mu300'
 
 # Two SMS-DELIVER PDUs, checked against sms-pdu.awk: the GSM 7-bit textbook example (from +31641600986, unread on the
 # SIM) and a UCS-2 one from an alphanumeric sender (ADANA BLD, the case text mode mangles - FINDINGS 26c), already read
@@ -1223,7 +1223,7 @@ class Pool(ShellTest):
 class Spool(ShellTest):
     """mu300-cmt-spool (every system): the two lines of a +CMT frame on stdin, the PDU into the pool's spool."""
 
-    SPOOLER = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'bin' / 'mu300-cmt-spool'
+    SPOOLER = TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'bin' / 'mu300-cmt-spool'
 
     def setUp(self):
         super().setUp()
@@ -1388,7 +1388,7 @@ class Listing(ShellTest):
                 part(0x42, 2, 2, 'evening', at='2026-10-13 20:00:01'), part(0x42, 2, 1, 'tuesday ', at='2026-10-13 20:00:00'))
         (self.tmp / 'at' / 'CMGL4').write_text(''.join(f'+CMGL: {i + 1},1,,30\n{p}\n' for i, p in enumerate(pdus)) + 'OK\n')
         for shell in self.each_shell():
-            r = subprocess.run(shell + [str(TOP / 'rootfs/overlay/opt/mu300/bin/sms'), 'json'],
+            r = subprocess.run(shell + [str(TOP / 'systems/base/overlay/opt/mu300/bin/sms'), 'json'],
                                capture_output=True, text=True, timeout=30,
                                env=self.env(MU300_SMS_AWK=AWK, MU300_SMS_STATE=self.tmp / 'state'))
             self.assertEqual(r.returncode, 0, r.stderr)
@@ -1410,13 +1410,13 @@ class Delete(ShellTest):
         for shell in self.each_shell():
             for bad in ('1;AT+CFUN=0', '1,4', '-1', '1 2', 'x', '1\rAT'):
                 (self.tmp / 'at.log').unlink(missing_ok=True)
-                r = subprocess.run(shell + [str(TOP / 'rootfs/overlay/opt/mu300/bin/sms'), 'delete', bad],
+                r = subprocess.run(shell + [str(TOP / 'systems/base/overlay/opt/mu300/bin/sms'), 'delete', bad],
                                    capture_output=True, text=True, timeout=30,
                                    env=self.env(MU300_SMS_AWK=AWK, MU300_SMS_STATE=self.tmp / 'state'))
                 self.assertEqual(r.returncode, 2, (bad, r.stderr))
                 log = (self.tmp / 'at.log').read_text() if (self.tmp / 'at.log').exists() else ''
                 self.assertNotIn('CMGD', log, bad)
-            r = subprocess.run(shell + [str(TOP / 'rootfs/overlay/opt/mu300/bin/sms'), 'delete', '7'],
+            r = subprocess.run(shell + [str(TOP / 'systems/base/overlay/opt/mu300/bin/sms'), 'delete', '7'],
                                capture_output=True, text=True, timeout=30,
                                env=self.env(MU300_SMS_AWK=AWK, MU300_SMS_STATE=self.tmp / 'state'))
             self.assertEqual(r.returncode, 0, r.stderr)
@@ -1427,7 +1427,7 @@ class Send(ShellTest):
     """`sms send` (every system, its own send path): one transaction under mu300-at's client lock, the modem's SMSC
     written back unchanged first, and the submission as the one request mu300-sms sends (FINDINGS 46)."""
 
-    SMS_CMD = TOP / 'rootfs/overlay/opt/mu300/bin/sms'
+    SMS_CMD = TOP / 'systems/base/overlay/opt/mu300/bin/sms'
 
     def setUp(self):
         super().setUp()
@@ -1588,7 +1588,7 @@ class Watch(ShellTest):
         # A busybox that runs sleep as its own applet never calls the stub, so the loop sleeps for real: one round
         # takes well under the timeout, which then ends it.
         try:
-            return subprocess.run(shell + [str(TOP / 'rootfs/overlay/opt/mu300/bin/sms'), 'watch', hook],
+            return subprocess.run(shell + [str(TOP / 'systems/base/overlay/opt/mu300/bin/sms'), 'watch', hook],
                                   capture_output=True, text=True, timeout=8,
                                   env=self.env(MU300_SMS_AWK=AWK, MU300_SMS_STATE=self.tmp / 'state', **env))
         except subprocess.TimeoutExpired as e:
@@ -1918,11 +1918,11 @@ class Wiring(unittest.TestCase):
     def test_the_spooler_is_on_every_system_and_the_at_daemon_knows_it(self):
         # mu300-atd runs on Ubuntu too, and a +CMT frame must never end in its log or be lost: the spooler is in the
         # shared tree, the pool and spool paths are the pool's everywhere
-        spooler = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'bin' / 'mu300-cmt-spool'
+        spooler = TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'bin' / 'mu300-cmt-spool'
         self.assertTrue(spooler.stat().st_mode & 0o111, 'not executable')
         self.assertIn('POOL=${MU300_SMS_POOL:-/etc/mu300/sms-pool}\n', spooler.read_text())
         self.assertIn('SPOOL=$POOL/incoming\n', spooler.read_text())
-        atd = (TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'bin' / 'mu300-atd').read_text()
+        atd = (TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'bin' / 'mu300-atd').read_text()
         self.assertIn('CMT_SPOOL=${MU300_CMT_SPOOL_BIN:-/opt/mu300/bin/mu300-cmt-spool}\n', atd)
         self.assertIn('SPOOL=$POOL/incoming\n', SMSD.read_text())
         self.assertIn('PARTS=$POOL/parts', SMS.read_text())
@@ -1950,12 +1950,12 @@ class Wiring(unittest.TestCase):
         self.assertNotIn('smsd', common)
         # the commands every system links come from the shared list
         self.assertIn('for c in $(cat /in/opt-mu300/lib/path-commands)', src)
-        common = (TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'path-commands').read_text().split()
+        common = (TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'path-commands').read_text().split()
         self.assertNotIn('mu300-sms', common)
         # the pool programs come from the luci overlay; the shared tree (every system) has none of them
         for name in ('mu300-sms', 'mu300-smsd'):
-            self.assertFalse((TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'bin' / name).exists())
-        self.assertFalse((TOP / 'openwrt' / 'overlay' / 'etc' / 'init.d' / 'mu300-smsd').exists())
+            self.assertFalse((TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'bin' / name).exists())
+        self.assertFalse((TOP / 'systems' / 'openwrt' / 'overlay' / 'etc' / 'init.d' / 'mu300-smsd').exists())
 
 
 if __name__ == '__main__':

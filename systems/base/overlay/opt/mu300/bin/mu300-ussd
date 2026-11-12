@@ -20,7 +20,7 @@
 #
 # Waiting happens on the log file, never on the modem. Polling this with AT commands is what wedged the channel
 # the first time: each mu300-at takes the client lock, so a loop of them queues up behind whichever command is
-# still waiting for its own answer and the whole channel looks dead (docs/FINDINGS.md 26d).
+# still waiting for its own answer and the whole channel looks dead (docs/research/FINDINGS.md 26d).
 set -u
 export PATH="$PATH:/opt/mu300/bin:/opt/mu300/busybox-bin:/usr/sbin:/sbin"
 

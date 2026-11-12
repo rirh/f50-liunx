@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Making room on an encrypted Android by a reset, and the installation that resumes afterwards (EXPERIMENTAL; the
-installers' make-room path, docs/FINDINGS.md 112). Ported from kano's desktop installer (kanoqwq/mu300-linux, branch
+installers' make-room path, docs/research/FINDINGS.md 112). Ported from kano's desktop installer (kanoqwq/mu300-linux, branch
 clean-tf-7.2, desktop/installer.py and desktop/boot/part-prepare.sh, f6b0668d and 0e19fe32): a transaction saved on
 the computer before anything is written, Android's own recovery formatting the smaller userdata, and a second run that
 continues only when the device, its slot, its partition geometry, a token written to the device and the installer's
 tools are still the ones the transaction was made with.
 
-install.sh and install.ps1 call this file; the graphical installer and tests/ import it.
+install.sh call this file; the graphical installer and tests/ import it.
 
     resume.py token                              a new token (32 hex digits)
     resume.py marker TOKEN OUT                   the 4096-byte block written at the start of the prepared region
@@ -26,7 +26,7 @@ install.sh and install.ps1 call this file; the graphical installer and tests/ im
                                                  how far an online shrink got: STATE=unchanged|shrunk|committed|unknown
 
 The online way (method=online in the transaction; EXPERIMENTAL): Android keeps its data. The F2FS mounted on /data is
-shrunk while Android runs, by the kernel's F2FS_IOC_RESIZE_FS (tools/f2fs-online, tools/android-online-shrink.sh),
+shrunk while Android runs, by the kernel's F2FS_IOC_RESIZE_FS (device-tools/f2fs-online, installer/android/android-online-shrink.sh),
 and the smaller table is written after it; Android then restarts normally and nothing is reset. The method is
 dikeckaan's; kanoqwq implemented it (kanoqwq/mu300-linux fe52afe3, c69be3a3, dad8224b: installer/backend/
 online_shrink.py), and these are his rules: a target on a section boundary and well above what is used, the table
@@ -57,8 +57,8 @@ BCB_RECOVERY = b'recovery\n--wipe_data\n--reason=mu300-make-room\n'
 # region's arithmetic, what formats and fills the region on the device, and what boots it. kano binds his
 # transaction to his boot image, rootfs and filesystem tools in the same way (resume_payload_id): a repaired prompt
 # may change, these may not.
-TOOLS = ('tools/resize-last-partition.py', 'tools/storage.sh', 'tools/android-install.sh',
-         'tools/android-mount-mu300root.sh', 'boot/init')
+TOOLS = ('installer/lib/resize-last-partition.py', 'installer/lib/storage.sh', 'installer/android/android-install.sh',
+         'installer/android/android-mount-mu300root.sh', 'boot/init')
 INTS = ('start', 'size', 'disk', 'target', 'need', 'gpt_first', 'gpt_end', 'usable_end', 'region_start', 'region_end',
         'fs_blocks', 'fs_target', 'new_size', 'section_blocks', 'used_bytes', 'blocks')
 # kano's margin (online_shrink.allocation): the shrunk F2FS keeps 2 GiB more than what is used now
@@ -114,7 +114,7 @@ def encrypted(state, type_, source, magic):
 
 def identity(top, manifest=None):
     """The payload identity: the checksums of TOOLS, and of a package's two payload files when it has a manifest
-    (tools/package.sh). Canonical JSON, hashed, as kano's resume_payload_id."""
+    (installer/lib/package.sh). Canonical JSON, hashed, as kano's resume_payload_id."""
     top = Path(top)
     files = {}
     for name in TOOLS:

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Pull Android's Mali GPU userspace (OpenCL, EGL/GLES, Vulkan ICD) and its library closure from a rooted device.
-# The result is merged into the vendor chroot (/opt/mu300/android) by rootfs/assemble.sh. Proprietary: not in this repo.
+# The result is merged into the vendor chroot (/opt/mu300/android) by systems/base/assemble.sh. Proprietary: not in this repo.
 set -eu
 OUT=${1:-android-gpu-subset}
 mkdir -p "$OUT"

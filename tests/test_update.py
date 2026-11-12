@@ -282,7 +282,7 @@ class Update(UpdateBase):
             # dropped them and cron's own init refused to start (FINDINGS 83)
             self.assertIn('etc/crontabs', self.up(shell, 'keep_list openwrt-luci').stdout.split())
             # the installer on Android carries the same things over (its own copy of the lists)
-            ai = (TOP / 'tools/android-install.sh').read_text()
+            ai = (TOP / 'installer/android/android-install.sh').read_text()
             for kind, pattern in (('ubuntu', r'ubuntu\) keep="([^"]*)"'), ('openwrt', r'openwrt\|openwrt-\*\) keep="([^"]*)"')):
                 self.assertEqual(re.search(pattern, ai).group(1), self.up(shell, f'keep_list {kind}').stdout.strip())
             self.assertEqual(self.up(shell, 'vendor_list openwrt-luci').stdout, self.up(shell, 'vendor_list openwrt').stdout)
@@ -635,7 +635,7 @@ class FromStock(UpdateBase):
         r = subprocess.run([sys.executable, str(BOOT / 'build-boot-image.py'), '--stock-boot', str(stock),
                             '--misc-head', str(self.tmp / 'misc.bin'), '--kernel', str(self.tmp / 'Image'),
                             '--modules', str(mods), '--busybox', str(self.tmp / 'busybox'), '--logdw', str(self.tmp / 'logdw'),
-                            '--ueventd-perms', str(TOP / 'android-vendor' / 'ueventd-perms.sh'), '--out', str(out)],
+                            '--ueventd-perms', str(TOP / 'android' / 'vendor' / 'ueventd-perms.sh'), '--out', str(out)],
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         img = out.read_bytes()
@@ -1648,7 +1648,7 @@ class Lock(UpdateBase):
         the updater before the exec left behind - its keep-alive's ping or sleep, started after lock_take with the
         lock's descriptor - holds the flock for a few seconds more, and the continued run then said "another
         mu300-update is running" with its own pid and ended: every update to a release with another updater
-        (v2026.10.23 to v2026.10.24 on a device, docs/FINDINGS.md 81). A stranger's lock is still refused."""
+        (v2026.10.23 to v2026.10.24 on a device, docs/research/FINDINGS.md 81). A stranger's lock is still refused."""
         for shell in self.each_shell():
             with self.subTest(shell=shell[0]):
                 if not shutil.which('flock'):

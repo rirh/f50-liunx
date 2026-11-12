@@ -10,7 +10,7 @@ import unittest
 
 from helpers import ShellTest, TOP
 
-MODEM = TOP / 'openwrt' / 'luci-app-mu300' / 'root' / 'usr' / 'libexec' / 'unisoc-modem'
+MODEM = TOP / 'systems' / 'openwrt' / 'luci-app-mu300' / 'root' / 'usr' / 'libexec' / 'unisoc-modem'
 DIAG = MODEM / 'imei-diag'
 CELL = MODEM / 'cell'
 

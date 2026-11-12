@@ -1,4 +1,4 @@
-"""tools/usign-verify.py and openwrt/build-rootfs.sh's use of it: OpenWrt's sha256sums counts only with a valid usign
+"""scripts/release/usign-verify.py and systems/openwrt/build-rootfs.sh's use of it: OpenWrt's sha256sums counts only with a valid usign
 signature by the release's pinned key, before any hash is taken from it.
 
 The real 25.12.6 sha256sums of armsr/armv8 and its signature (tests/fixtures/openwrt-25.12.6) verify against the
@@ -16,8 +16,8 @@ import unittest
 
 from helpers import TOP
 
-TOOL = TOP / 'tools' / 'usign-verify.py'
-KEYS = TOP / 'openwrt' / 'keys' / 'usign'
+TOOL = TOP / 'scripts' / 'release' / 'usign-verify.py'
+KEYS = TOP / 'systems' / 'openwrt' / 'keys' / 'usign'
 FIX = TOP / 'tests' / 'fixtures' / 'openwrt-25.12.6'
 OPENWRT_KEY = 'b5043e70f9a75cde'      # OpenWrt's 25.12 release builds
 IMMORTALWRT_KEY = '467a35c14d7fbc5c'  # ImmortalWrt's 25.12 release builds
@@ -95,7 +95,7 @@ class PinnedKeys(unittest.TestCase):
             self.assertEqual(raw[2:10].hex(), name)
 
     def test_build_rootfs_pins_them_per_flavour(self):
-        t = (TOP / 'openwrt' / 'build-rootfs.sh').read_text()
+        t = (TOP / 'systems' / 'openwrt' / 'build-rootfs.sh').read_text()
         self.assertIn('openwrt:25.12.*)     USIGN_KEY=%s' % OPENWRT_KEY, t)
         self.assertIn('immortalwrt:25.12.*) USIGN_KEY=%s' % IMMORTALWRT_KEY, t)
 
@@ -155,17 +155,17 @@ class BuildRootfs(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)
         top = self.top = os.path.join(self.tmp, 'top')
-        for d in ('openwrt/overlay/lib/netifd/proto', 'openwrt/patches', 'openwrt/keys/usign', 'tools'):
+        for d in ('systems/openwrt/overlay/lib/netifd/proto', 'systems/openwrt/patches', 'systems/openwrt/keys/usign', 'scripts/release'):
             os.makedirs(os.path.join(top, d))
-        shutil.copy(TOP / 'openwrt' / 'build-rootfs.sh', os.path.join(top, 'openwrt'))
-        shutil.copy(TOOL, os.path.join(top, 'tools'))
+        shutil.copy(TOP / 'systems' / 'openwrt' / 'build-rootfs.sh', os.path.join(top, 'systems', 'openwrt'))
+        shutil.copy(TOOL, os.path.join(top, 'scripts', 'release'))
         for f in ('overlay/lib/netifd/proto/mu300cell.sh', 'patches/fw4-sipa-offload.patch',
                   'patches/fw4-old-kernel-flowtable.patch', 'patches/wifi-scripts-no-dfs.patch',
                   'patches/wifi-scripts-wpa2-only.patch'):
-            with open(os.path.join(top, 'openwrt', f), 'w') as fh:
+            with open(os.path.join(top, 'systems', 'openwrt', f), 'w') as fh:
                 fh.write('x\n')
         self.tarball = b'not really a rootfs\n'
-        with open(os.path.join(top, 'openwrt', TARBALL), 'wb') as fh:
+        with open(os.path.join(top, 'systems', 'openwrt', TARBALL), 'wb') as fh:
             fh.write(self.tarball)
         self.key(OPENWRT_KEY)
         self.srv = os.path.join(self.tmp, 'srv')
@@ -185,7 +185,7 @@ class BuildRootfs(unittest.TestCase):
 
     def key(self, number, seed=None):
         pub = keypair(seed or self.SEED)[2]
-        usign_file(os.path.join(self.top, 'openwrt', 'keys', 'usign', OPENWRT_KEY),
+        usign_file(os.path.join(self.top, 'systems', 'openwrt', 'keys', 'usign', OPENWRT_KEY),
                    b'Ed' + bytes.fromhex(number) + pub, 'test key')
 
     def publish(self, sums, number=OPENWRT_KEY, seed=None, signed=None):
@@ -204,7 +204,7 @@ class BuildRootfs(unittest.TestCase):
         e.update(env)
         e.pop('MU300_SYSTEM', None)
         e.pop('MU300_FLAVOUR', None)
-        return subprocess.run(['sh', os.path.join(self.top, 'openwrt', 'build-rootfs.sh'), 'out.tar.gz'],
+        return subprocess.run(['sh', os.path.join(self.top, 'systems', 'openwrt', 'build-rootfs.sh'), 'out.tar.gz'],
                               capture_output=True, text=True, env=e, timeout=120)
 
     def test_a_signed_hash_that_matches_reaches_docker(self):

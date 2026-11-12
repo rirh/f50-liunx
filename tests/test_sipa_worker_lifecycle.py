@@ -1,4 +1,4 @@
-"""The SIPA sender and receiver threads (upstream/modules/sprd_modem/sipa_v3/sipa_skb_send.c, sipa_skb_recv.c), their
+"""The SIPA sender and receiver threads (kernel/mainline/modules/sprd_modem/sipa_v3/sipa_skb_send.c, sipa_skb_recv.c), their
 real bodies run with host pthread wait queues (no MMIO): before the IPA's first resume they touch nothing, whatever
 wakes them; after it they do the vendor's work; a stop ends them while they wait, also in the main loop, where the
 vendor's wait did not look at it (kthread_stop() then waited for ever). The threads are stopped by devm before their
@@ -13,7 +13,7 @@ from pathlib import Path
 
 from helpers import TOP
 
-SIPA = TOP / 'upstream/modules/sprd_modem/sipa_v3'
+SIPA = TOP / 'kernel/mainline/modules/sprd_modem/sipa_v3'
 
 
 def function(source, signature):

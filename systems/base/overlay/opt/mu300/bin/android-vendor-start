@@ -1,6 +1,6 @@
 #!/bin/sh
 # Start Android's modem_control in a chroot. It (re)loads pm_sys/modem through Trusty; without it the
-# PM co-processor watchdog cuts power ~290 s after boot. See linux-boot/STATUS.md (v9).
+# PM co-processor watchdog cuts power ~290 s after boot.
 set -e
 A=/opt/mu300/android
 # boot timeline marks (bootmark never fails; the guard covers an image without it)

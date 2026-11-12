@@ -1,0 +1,269 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ZTE F50 原厂 Goform（仓库已使用子集）",
+    "version": "2026-11-12",
+    "description": "根据 scripts/device/f50-enable-adb-macos.sh 提取客户端调用契约，未获取完整原厂服务端源码，未进行设备请求或验证。仅用于原厂 Android 的 8080 管理服务，与 MU300 OpenWrt API 分离。记录 2 个 HTTP 路径、3 个读取命令组合和 3 个写入动作；不声称这是原厂所有 API。 认证 Cookie 的名称由 LOGIN 的 Set-Cookie 返回，源码未固定；受保护调用需原样携带首个 Cookie 对。"
+  },
+  "servers": [
+    {
+      "url": "http://{host}:8080",
+      "variables": {
+        "host": {
+          "default": "192.168.0.1"
+        }
+      },
+      "description": "替换为原厂固件的实际管理 IP（示例）"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "StockLogin": {
+        "type": "object",
+        "properties": {
+          "goformId": {
+            "type": "string",
+            "enum": [
+              "LOGIN"
+            ]
+          },
+          "isTest": {
+            "type": "string",
+            "enum": [
+              "false"
+            ]
+          },
+          "password": {
+            "type": "string",
+            "pattern": "^[0-9A-F]{64}$",
+            "writeOnly": true,
+            "description": "大写 SHA256(大写 SHA256(后台明文密码) + LD)。"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "goformId",
+          "isTest",
+          "password"
+        ]
+      },
+      "StockUsbSetting": {
+        "type": "object",
+        "properties": {
+          "goformId": {
+            "type": "string",
+            "enum": [
+              "USB_PORT_SETTING"
+            ]
+          },
+          "isTest": {
+            "type": "string",
+            "enum": [
+              "false"
+            ]
+          },
+          "AD": {
+            "type": "string",
+            "pattern": "^[0-9A-F]{64}$"
+          },
+          "usb_port_switch": {
+            "type": "string",
+            "enum": [
+              "0",
+              "1"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "goformId",
+          "isTest",
+          "AD",
+          "usb_port_switch"
+        ]
+      },
+      "StockReboot": {
+        "type": "object",
+        "properties": {
+          "goformId": {
+            "type": "string",
+            "enum": [
+              "REBOOT_DEVICE"
+            ]
+          },
+          "isTest": {
+            "type": "string",
+            "enum": [
+              "false"
+            ]
+          },
+          "AD": {
+            "type": "string",
+            "pattern": "^[0-9A-F]{64}$"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "goformId",
+          "isTest",
+          "AD"
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/goform/goform_get_cmd_process": {
+      "get": {
+        "tags": [
+          "原厂读取"
+        ],
+        "summary": "读取登录挑战、版本信息或写入挑战",
+        "operationId": "stockGetCommand",
+        "parameters": [
+          {
+            "name": "cmd",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "LD",
+                "Language,cr_version,wa_inner_version",
+                "RD"
+              ]
+            }
+          },
+          {
+            "name": "multi_data",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "cmd 为版本字段组合时传 1。"
+          },
+          {
+            "name": "isTest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "_",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "当前 Unix 毫秒时间戳，用于避免缓存。"
+          }
+        ],
+        "description": "LD 为登录前挑战；版本字段组合与 RD 使用登录后 Cookie。脚本还发送 Referer: http://<host>:8080/index.html。",
+        "responses": {
+          "200": {
+            "description": "对应查询字段；缺失字段含义未知，不按空值或 0 补齐。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "LD": {
+                      "type": "string"
+                    },
+                    "Language": {
+                      "type": "string"
+                    },
+                    "cr_version": {
+                      "type": "string"
+                    },
+                    "wa_inner_version": {
+                      "type": "string"
+                    },
+                    "RD": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/goform/goform_set_cmd_process": {
+      "post": {
+        "tags": [
+          "原厂写入"
+        ],
+        "summary": "登录、切换 USB 开关或重启原厂固件",
+        "operationId": "stockSetCommand",
+        "description": "LOGIN 使用 LD 计算 password 并返回 Set-Cookie；之后每次写入重新获取 RD，AD = 大写 SHA256(大写 SHA256(wa_inner_version + cr_version) + RD)，并携带登录 Cookie。脚本使用 form-urlencoded UTF-8 和 Referer。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/StockLogin"
+                  },
+                  {
+                    "$ref": "#/components/schemas/StockUsbSetting"
+                  },
+                  {
+                    "$ref": "#/components/schemas/StockReboot"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "原厂 JSON 回复；LOGIN 同时返回会话 Cookie。",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "使用首个 Cookie 名值对；名称由实际响应决定。"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "result": {
+                      "type": [
+                        "string",
+                        "integer"
+                      ],
+                      "description": "工具接受 0 / \"0\" / \"success\"（大小写不敏感）；其他原厂结果未推断。"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-source": {
+    "file": "scripts/device/f50-enable-adb-macos.sh",
+    "line": 92,
+    "sha256": "136d252f0e8d949b74c967a49b9658268e870833d4febe13b35052cadf95b09a"
+  },
+  "x-validationExecuted": false
+}

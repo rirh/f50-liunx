@@ -1,7 +1,7 @@
 #!/bin/sh
 # Early boot recorder: for the first minutes after switch_root, copy dmesg + unit states into the persistent
 # log area inside the Linux slot's boot partition (48 MiB, 8 MiB) every few seconds, so a power cut before journald
-# flushes still leaves evidence that tools/collect-logs.sh can read from Android.
+# flushes still leaves evidence that scripts/device/collect-logs.sh can read from Android.
 # OpenWrt: od/timeout come from the static busybox in /opt/mu300/busybox-bin
 export PATH="$PATH:/opt/mu300/busybox-bin"
 # --- slot begin

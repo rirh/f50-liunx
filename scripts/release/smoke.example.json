@@ -1,5 +1,5 @@
 {
-  "_comment": "Copy to tools/smoke.json (git ignores it) and fill in your boards. Fields starting with _ are comments. docs/RELEASING.md says what each field does.",
+  "_comment": "Copy to scripts/release/smoke.json (git ignores it) and fill in your boards. Fields starting with _ are comments. docs/guides/RELEASING.md says what each field does.",
   "timeouts": {
     "_comment": "seconds; these are the defaults",
     "command": 120,

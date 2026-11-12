@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Check the installer translations in i18n/<lang>.tsv against the messages the scripts use.
+"""Check the installer translations in installer/i18n/<lang>.tsv against the messages the scripts use.
 
-  tools/check-i18n.py            list, per language, the messages without a translation and the stale lines
-  tools/check-i18n.py --keys     print every message key once (to start a new language)
+  scripts/i18n/check-i18n.py            list, per language, the messages without a translation and the stale lines
+  scripts/i18n/check-i18n.py --keys     print every message key once (to start a new language)
 
 A message is the first argument of t '...' / t "..." in the shell scripts and of T '...' / T "..." in install.ps1,
 and of _('...') / N_('...') in the graphical installer (gui/, read with Python's own parser, so a message there is
@@ -14,9 +14,9 @@ import re
 import sys
 from pathlib import Path
 
-TOP = Path(__file__).resolve().parent.parent
-SOURCES = ['install.sh', 'tools/linux-mode.sh', 'tools/usb-adb.sh', 'tools/self-update.sh', 'tools/storage.sh',
-           'tools/releases.sh', 'tools/package.sh', 'tools/resume.sh', 'tools/answers.sh', 'tools/gui-launch.sh']
+TOP = Path(__file__).resolve().parents[2]
+SOURCES = ['install.sh', 'installer/lib/linux-mode.sh', 'installer/lib/usb-adb.sh', 'installer/lib/storage.sh',
+           'installer/lib/releases.sh', 'installer/lib/package.sh', 'installer/lib/resume.sh', 'installer/lib/answers.sh', 'installer/lib/gui-launch.sh']
 # single- or double-quoted first argument; the PowerShell side writes '' for a quote inside '...'
 PATTERNS = [re.compile(r"""\b[tT] '((?:[^']|'')*)'"""), re.compile(r'''\b[tT] "([^"$`]*)"''')]
 # shown as defaults of yes/no questions, the answers of the region check, and the error prefix
@@ -26,7 +26,7 @@ EXTRA = ['yes', 'no', 'update', 'ERROR:']
 def gui_keys():
     """The messages of the graphical installer: the first argument of _() and N_(), where it is a plain string."""
     found = []
-    for path in sorted((TOP / 'gui').rglob('*.py')):
+    for path in sorted((TOP / 'installer' / 'gui').rglob('*.py')):
         for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
             if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in ('_', 'N_') and node.args
                     and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str)):
@@ -53,7 +53,7 @@ def keys():
 
 def load(lang):
     table = {}
-    for line in (TOP / 'i18n' / f'{lang}.tsv').read_text(encoding='utf-8').splitlines():
+    for line in (TOP / 'installer' / 'i18n' / f'{lang}.tsv').read_text(encoding='utf-8').splitlines():
         if not line or line.startswith('#') or '\t' not in line:
             continue
         k, v = line.split('\t', 1)
@@ -67,7 +67,7 @@ def main():
         print('\n'.join(all_keys))
         return 0
     bad = 0
-    for f in sorted((TOP / 'i18n').glob('*.tsv')):
+    for f in sorted((TOP / 'installer' / 'i18n').glob('*.tsv')):
         table = load(f.stem)
         missing = [k for k in all_keys if k not in table]
         stale = [k for k in table if k not in all_keys]

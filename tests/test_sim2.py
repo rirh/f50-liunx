@@ -48,7 +48,7 @@ esac''')
     elif [ -e "$STUBLOG/wan-held-down" ]; then printf '{ "up": false, "autostart": false, "ipv4-address": [ ] }\n'
     else printf '{ "up": false, "autostart": true, "ipv4-address": [ ] }\n'; fi ;;
 esac''')
-        # The modem as our U30 Air answered (docs/FINDINGS.md 74). T_UNPOWERED=1: the card's SIM power is off at
+        # The modem as our U30 Air answered (docs/research/FINDINGS.md 74). T_UNPOWERED=1: the card's SIM power is off at
         # boot ("+CME ERROR: 10" until AT+SPACTCARD=<n>;+SFUN=2); T_NOCARD=1: nothing answers in the position at
         # all; T_PIN: what the card says of itself; T_MODES: the work modes; T_ROUTE: what AT+SPSWDATA? answers
         # (default: the card the route was given to; "none": the question is not answered).
@@ -87,7 +87,7 @@ echo OK
     def env(self, **extra):
         extra.setdefault('MU300_SIM_ROOT', self.tmp)
         extra.setdefault('MU300_DEVICE_CMD', self.stubs / 'mu300-device')
-        extra.setdefault('MU300_SIM_CONFIG_LIB', TOP / 'rootfs/overlay/opt/mu300/lib/sim-config.sh')
+        extra.setdefault('MU300_SIM_CONFIG_LIB', TOP / 'systems/base/overlay/opt/mu300/lib/sim-config.sh')
         extra.setdefault('MU300_REBOOT_CMD', self.stubs / 'reboot')
         extra.setdefault('MU300_SIM_REBOOT_AFTER', '0')
         extra.setdefault('MU300_ATD_INIT', self.stubs / 'atd-init')
@@ -444,7 +444,7 @@ echo OK
                 self.assertFalse((self.tmp / 'reboot').exists())
 
     def test_data_wait_setting(self):
-        lib = TOP / 'rootfs/overlay/opt/mu300/lib/sim-config.sh'
+        lib = TOP / 'systems/base/overlay/opt/mu300/lib/sim-config.sh'
         for value, want in ((None, '300'), ('0', '0'), ('45', '45'), ('', '300'), ('soon', '300'), ('-5', '300'),
                             ('999999', '300'), ('30; reboot', '300')):
             with self.subTest(value=value):
@@ -634,14 +634,14 @@ echo OK
             with self.subTest(name=name):
                 text = (BIN / name).read_text()
                 self.assertNotIn('cat /etc/mu300-sim-slot', text)
-        for rel in ('openwrt/overlay/lib/netifd/proto/mu300cell.sh', 'openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/lock',
-                    'openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/cell', 'openwrt/luci-overlay/etc/init.d/mu300-atd-dash'):
+        for rel in ('systems/openwrt/overlay/lib/netifd/proto/mu300cell.sh', 'systems/openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/lock',
+                    'systems/openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/cell', 'systems/openwrt/luci-overlay/etc/init.d/mu300-atd-dash'):
             with self.subTest(rel=rel):
                 self.assertNotIn('cat /etc/mu300-sim-slot', (TOP / rel).read_text())
 
     # --- init.d/mu300-atd
     def init_service(self, tail='start_service', device='u30air', pending=None, **env):
-        source = TOP / 'openwrt/overlay/etc/init.d/mu300-atd'
+        source = TOP / 'systems/openwrt/overlay/etc/init.d/mu300-atd'
         text = source.read_text().replace('/run/', str(self.run) + '/')
         text = text.replace('/etc/mu300-sim-slot', str(self.etc / 'uci-slot'))
         text = text.replace('/etc/mu300-sim-hot', str(self.etc / 'uci-hot'))

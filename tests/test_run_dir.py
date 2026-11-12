@@ -7,8 +7,8 @@ from pathlib import Path
 
 from helpers import TOP
 
-RUN_DIR_LIB = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'run-dir.sh'
-ATD = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'bin' / 'mu300-atd'
+RUN_DIR_LIB = TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'run-dir.sh'
+ATD = TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'bin' / 'mu300-atd'
 
 
 class RunDirectory(unittest.TestCase):

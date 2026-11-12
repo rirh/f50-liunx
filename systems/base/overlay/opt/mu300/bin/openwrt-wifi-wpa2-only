@@ -1,6 +1,6 @@
 #!/bin/sh
 # OpenWrt only: the hotspot is WPA2-PSK, never WPA3/SAE, on every device of this project (ZTE F50, U30 Air, V50: the
-# SC2355 Wi-Fi). The U30 Air's firmware SAE offload is disabled (docs/U30AIR-SAE.md, FINDINGS 80): the PMK record the
+# SC2355 Wi-Fi). The U30 Air's firmware SAE offload is disabled (docs/research/U30AIR-SAE.md, FINDINGS 80): the PMK record the
 # firmware hands back came in the same element list as the client's own association request, with no boundary, so a
 # client could forge it and join without the password. Plain hostapd SAE never worked on this chip either.
 #   openwrt-wifi-wpa2-only migrate   at boot (mu300-hw, before its "wifi down; wifi up"): every access point that asks
@@ -10,7 +10,7 @@
 # the log, and /etc/mu300/wpa3-disabled tells LuCI and the control panel to show why (until dismissed there).
 # Without a usable WPA2 password (8-63 printable ASCII or 64 hex digits) that access point is switched off instead -
 # never left open - and the line and the notice say so. The wifi-scripts refuse to start an SAE access point all the
-# same (openwrt/patches/wifi-scripts-wpa2-only.patch), so a migration that did not happen leaves it down, not open.
+# same (systems/openwrt/patches/wifi-scripts-wpa2-only.patch), so a migration that did not happen leaves it down, not open.
 # Nothing is done, asked or written when no access point asks for SAE. The password is never printed.
 # (MU300_SYSROOT: for tests/)
 R=${MU300_SYSROOT:-}

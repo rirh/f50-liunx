@@ -8,7 +8,7 @@ table inet mu300_filter {
         type filter hook input priority filter; policy accept;
         # Docker's networks (docker0, the br-<id> of docker network create and compose; never the LAN's br-lan): a
         # container opens nothing on the device itself - no SSH, no web panel. Their DNS does not need it: Docker's
-        # resolver asks from the device's own side (docs/FINDINGS.md 130)
+        # resolver asks from the device's own side (docs/research/FINDINGS.md 130)
         iifname "docker0" ct state established,related accept
         iifname "docker0" counter drop
         iifname "br-*" iifname != "br-lan" ct state established,related accept

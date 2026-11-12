@@ -1,4 +1,4 @@
-"""A release's diffs (tools/image-diff.py, tools/make-diffs.sh; mu300-update's diff block; ported from kanoqwq's OTA diff
+"""A release's diffs (scripts/release/image-diff.py, scripts/release/make-diffs.sh; mu300-update's diff block; ported from kanoqwq's OTA diff
 with our release signature over it): a diff is made only from a base the release key vouches for, is listed in the
 signed SHA256SUMS, is used on a device only after that signature and its checksum are checked, and gives the new
 system only when the result is the release's signed manifest of the image entry for entry - else the whole image is
@@ -23,7 +23,7 @@ import test_delta
 from test_delta import BUSYBOX, CC, LINUX, build, elf, inode_shared, untar
 from test_update_page import OPENSSL, Key
 
-TOOL = [sys.executable, str(TOP / 'tools/image-diff.py')]
+TOOL = [sys.executable, str(TOP / 'scripts/release/image-diff.py')]
 BASE, TAG = 'v2026.10.20.1', 'v2026.10.27.1'
 ASSET = 'mu300-ubuntu-rootfs.tar.gz'
 MANIFEST = 'mu300-ubuntu-rootfs.manifest.gz'
@@ -357,10 +357,10 @@ class FixedUp(unittest.TestCase):
     """the files rootfs-fixups changes on the device are never left out of a diff"""
 
     def test_the_list_is_rootfs_fixups_own(self):
-        spec = importlib.util.spec_from_file_location('image_diff', TOP / 'tools/image-diff.py')
+        spec = importlib.util.spec_from_file_location('image_diff', TOP / 'scripts/release/image-diff.py')
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        fix = (TOP / 'rootfs/overlay/opt/mu300/bin/rootfs-fixups').read_text()
+        fix = (TOP / 'systems/base/overlay/opt/mu300/bin/rootfs-fixups').read_text()
         loop = re.search(r'^for f in (.*); do\n(.*\n){1,2}.*setcap', fix, re.M)
         self.assertIsNotNone(loop, 'rootfs-fixups no longer sets file capabilities in a "for f in" loop')
         self.assertEqual({f.lstrip('/') for f in loop.group(1).split()}, mod.FIXED_UP)
@@ -385,7 +385,7 @@ class FixedUp(unittest.TestCase):
 
 @unittest.skipUnless(CC and LINUX and BUSYBOX and OPENSSL, 'needs a C compiler, busybox and OpenSSL 3 on Linux')
 class MakeDiffs(ShellTest):
-    """tools/make-diffs.sh: the bases a release is diffed from, and only signed ones"""
+    """scripts/release/make-diffs.sh: the bases a release is diffed from, and only signed ones"""
 
     def setUp(self):
         super().setUp()
@@ -411,7 +411,7 @@ class MakeDiffs(ShellTest):
     def run_it(self, shell, **env):
         e = dict(MU300_DIFF_BASES_DIR=self.bases, MU300_DIFF_PUB=self.key.pub, TMPDIR=self.tmp)
         e.update(env)
-        return self.script(shell, TOP / 'tools/make-diffs.sh', self.d, TAG, **e)
+        return self.script(shell, TOP / 'scripts/release/make-diffs.sh', self.d, TAG, **e)
 
     def made(self):
         return sorted(p.name.split('.diff-')[1][:-len('.tar.gz')] for p in self.d.glob('*.diff-*'))
@@ -455,8 +455,8 @@ class MakeDiffs(ShellTest):
             self.assertEqual(self.made(), ['v2026.10.13.1', 'v2026.10.14.1', 'v2026.10.15.1', 'v2026.10.16.1', BASE])
 
     def test_make_release_lists_the_diffs_in_the_signed_sums(self):
-        rel = (TOP / 'tools/make-release.sh').read_text()
-        self.assertLess(rel.index('tools/make-diffs.sh" "$D" "$TAG"'), rel.index('> SHA256SUMS)'))
+        rel = (TOP / 'scripts/release/make-release.sh').read_text()
+        self.assertLess(rel.index('scripts/release/make-diffs.sh" "$D" "$TAG"'), rel.index('> SHA256SUMS)'))
         self.assertIn('shasum -a 256 *.tar.gz', rel)
         wf = (TOP / '.github/workflows/magisk.yml').read_text()
         self.assertNotIn("-p 'mu300-*.tar.gz'", wf)

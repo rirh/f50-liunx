@@ -197,40 +197,40 @@ class OnOff(ZramBase):
 
 class Wiring(unittest.TestCase):
     def test_every_system_starts_it_at_boot(self):
-        unit = (TOP / 'rootfs/overlay/etc/systemd/system/mu300-zram.service').read_text()
+        unit = (TOP / 'systems/base/overlay/etc/systemd/system/mu300-zram.service').read_text()
         self.assertIn('ExecStart=/opt/mu300/bin/mu300-zram start', unit)
         self.assertIn('ExecStop=-/opt/mu300/bin/mu300-zram stop', unit)
-        for f in ('rootfs/assemble.sh', 'arch/build-rootfs.sh'):
+        for f in ('systems/base/assemble.sh', 'systems/arch/build-rootfs.sh'):
             self.assertIn('mu300-zram.service:swap.target', (TOP / f).read_text(), f)
         # OpenWrt: mu300-hw runs the old name, which hands over to mu300-zram
-        self.assertIn('/opt/mu300/bin/zram-start', (TOP / 'openwrt/overlay/etc/init.d/mu300-hw').read_text())
+        self.assertIn('/opt/mu300/bin/zram-start', (TOP / 'systems/openwrt/overlay/etc/init.d/mu300-hw').read_text())
         self.assertIn('exec /opt/mu300/bin/mu300-zram start', (BIN / 'zram-start').read_text())
-        self.assertIn('mu300-zram', (TOP / 'rootfs/overlay/opt/mu300/lib/path-commands').read_text().split())
+        self.assertIn('mu300-zram', (TOP / 'systems/base/overlay/opt/mu300/lib/path-commands').read_text().split())
 
     def test_no_second_zram_setup_in_the_images(self):
         # Ubuntu's zram-tools / zram-config / systemd-zram-generator would set up zram0 a second time
-        for f in ('rootfs/Dockerfile', 'rootfs/assemble.sh', 'arch/build-rootfs.sh', 'openwrt/build-rootfs.sh'):
+        for f in ('systems/base/Dockerfile', 'systems/base/assemble.sh', 'systems/arch/build-rootfs.sh', 'systems/openwrt/build-rootfs.sh'):
             src = (TOP / f).read_text()
             for pkg in ('zram-tools', 'zram-config', 'zram-generator', 'zram-swap', 'kmod-zram'):
                 self.assertNotIn(pkg, src, f'{f}: {pkg}')
 
     def test_the_settings_example_names_every_key_the_script_reads(self):
         keys = set(re.findall(r'conf (ZRAM_[A-Z_]+)', (BIN / 'mu300-zram').read_text()))
-        example = (TOP / 'rootfs/overlay/opt/mu300/lib/zram.conf.example').read_text()
+        example = (TOP / 'systems/base/overlay/opt/mu300/lib/zram.conf.example').read_text()
         self.assertEqual(keys, {'ZRAM_ENABLE', 'ZRAM_SIZE_PERCENT', 'ZRAM_ALGORITHM', 'ZRAM_PRIORITY',
                                 'ZRAM_SWAPPINESS'})
         for k in keys:
             self.assertIn(f'#{k}=', example)
 
     def test_mainline_has_zram_with_lz4_and_zstd(self):
-        cfg = (TOP / 'upstream/mu300-mainline.config').read_text().splitlines()
+        cfg = (TOP / 'kernel/mainline/mu300-mainline.config').read_text().splitlines()
         for opt in ('SWAP', 'ZRAM', 'ZSMALLOC', 'ZRAM_BACKEND_LZ4', 'ZRAM_BACKEND_ZSTD', 'ZRAM_DEF_COMP_LZ4',
                     'CRYPTO_LZ4', 'CRYPTO_ZSTD'):
             self.assertIn(f'CONFIG_{opt}=y', cfg)
 
     def test_vendor_54_has_zram_and_both_compressors(self):
         # 5.4 is left as it is: zram a module (the fragment's =y is refused), the crypto API compressors built in
-        cfg = (TOP / 'kernel/linux.config').read_text().splitlines()
+        cfg = (TOP / 'kernel/vendor/linux.config').read_text().splitlines()
         for line in ('CONFIG_ZRAM=m', 'CONFIG_ZSMALLOC=m', 'CONFIG_CRYPTO_LZ4=y', 'CONFIG_CRYPTO_ZSTD=y'):
             self.assertIn(line, cfg)
 

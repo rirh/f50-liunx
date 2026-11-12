@@ -9,7 +9,7 @@
  * a profile is a governor and a per-cluster scaling_min/max inside the hardware frequency table. It never changes
  * voltage and never touches the kernel thermal trips, so the device still throttles at its limit in every profile. */
 /* The CPU voltage offset (EXPERIMENTAL: it can damage the device for good; mu300dash cpu_voltage_get/cpu_voltage_set,
- * mu300-cpu voltage, docs/FINDINGS.md 133). The firmware applies an offset once per boot, so a saved value waits for the
+ * mu300-cpu voltage, docs/research/FINDINGS.md 133). The firmware applies an offset once per boot, so a saved value waits for the
  * next reboot; that boot is its trial, and the initramfs drops it (back to 0) after a boot that ends without a clean
  * shutdown. Saving anything but 0,0,0 needs the confirmation word typed; the backend and the kernel check every value
  * again. */
@@ -165,7 +165,7 @@ return view.extend({
 		}
 
 		/* 3. the kernel's thermal zones, read only (mu300-cpu status --json "thermal": /sys/class/thermal; on mainline the
-		 * stock soc-thmzone with its trips and the cpufreq cooling devices, docs/FINDINGS.md 48). Nothing here writes. */
+		 * stock soc-thmzone with its trips and the cpufreq cooling devices, docs/research/FINDINGS.md 48). Nothing here writes. */
 		if (Array.isArray(st.thermal) && st.thermal.length) {
 			var deg = function(mc) { return num(mc) == null ? '--' : (mc / 1000).toFixed(1) + ' \u00b0C'; };
 			var cnt = function(x) { return num(x) == null ? '--' : String(x); };

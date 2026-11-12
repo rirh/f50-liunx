@@ -1,4 +1,4 @@
-"""tools/smoke.py, the release smoke test, against fake boards: the config and its validation (hostile values
+"""scripts/release/smoke.py, the release smoke test, against fake boards: the config and its validation (hostile values
 refused), the identity check before anything runs, Android only where the config allows it, the before/after
 comparison (the VPN's files by hash, never their contents), the reboot's bounded waits, the dry run, the report."""
 import base64
@@ -16,7 +16,7 @@ from pathlib import Path
 
 from helpers import TOP, shells
 
-spec = importlib.util.spec_from_file_location('smoke', TOP / 'tools' / 'smoke.py')
+spec = importlib.util.spec_from_file_location('smoke', TOP / 'scripts' / 'release' / 'smoke.py')
 smoke = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(smoke)
 
@@ -241,14 +241,14 @@ def by_name(checks):
 
 class Config(unittest.TestCase):
     def test_the_example_is_valid(self):
-        bs, t = smoke.load_config(TOP / 'tools' / 'smoke.example.json')
+        bs, t = smoke.load_config(TOP / 'scripts' / 'release' / 'smoke.example.json')
         self.assertEqual([b.name for b in bs], ['f50-ubuntu', 'u30-openwrt', 'f50-openwrt', 'f50-magisk'])
         self.assertEqual(t, smoke.TIMEOUTS)
         u30 = bs[1]
         self.assertEqual((u30.device, u30.allow_android, u30.update), ('u30air', False, 'mirror'))
 
     def test_the_local_config_is_ignored_by_git(self):
-        self.assertIn('/tools/smoke.json', (TOP / '.gitignore').read_text().split())
+        self.assertIn('/scripts/release/smoke.json', (TOP / '.gitignore').read_text().split())
 
     def test_defaults(self):
         b = boards(board_dict())[0][0]

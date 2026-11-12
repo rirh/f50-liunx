@@ -1,10 +1,10 @@
 wlan_combo (5.4): quiet the per-packet TX ring, command response and beacon update lines
 
-docs/FINDINGS.md 191. The softAP's TX path printed seven lines per transmit-complete round (free/data counts,
+docs/research/FINDINGS.md 191. The softAP's TX path printed seven lines per transmit-complete round (free/data counts,
 "to free list empty", ring reference counts), every command response ("ctx_id 0 recv rsp[CMD_SET_IE]"), every
 multicast frame and every beacon update, and rx.c printed "out of time" with pr_err whenever two TX completions
 were more than a second apart, which is every idle second. About 170 lines a minute on an idle F50 hotspot. Only
-printk levels change, to what the 6.18/7.2 port (upstream/modules/sprd_wlan_combo) already uses; the full-ring
+printk levels change, to what the 6.18/7.2 port (kernel/mainline/modules/sprd_wlan_combo) already uses; the full-ring
 line in sc2355_pcie_fc_test_send_num() becomes pr_debug_ratelimited there too.
 
 diff --git a/common/cfg80211.c b/common/cfg80211.c

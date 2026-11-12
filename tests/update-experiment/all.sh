@@ -7,7 +7,7 @@
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 old=$1 new=$2 tag=$3 out=$4 label=$5
-script=${6:-$HERE/../../tools/android-install.sh}
+script=${6:-$HERE/../../installer/android/android-install.sh}
 images=${7:-ubuntu ubuntu-26.04 openwrt openwrt-luci}
 zips=${8:-}
 mkdir -p "$out"

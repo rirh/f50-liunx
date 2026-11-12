@@ -18,7 +18,7 @@ The Terminal page (System) frames ttyd: `rpcd/mu300term` hands a LuCI session wi
 the `luci-app-mu300-terminal` ACL a one-time token (one connection, 60 s), and ttyd's
 command, `/usr/libexec/mu300-terminal-login`, opens a root login for that token and
 nothing else, closing it after `ttyd.mu300.idle` seconds without activity. The image
-configures ttyd for it (`openwrt/luci-overlay/etc/config/ttyd`: the LAN address only,
+configures ttyd for it (`systems/openwrt/luci-overlay/etc/config/ttyd`: the LAN address only,
 origin check, `url_arg`); the package alone does not install ttyd, and the page then
 says so.
 
@@ -29,9 +29,9 @@ JavaScript, `po/<language>/mu300.po` as the editable source. Turkish and
 Simplified Chinese are in the image; the other languages (`po/*` besides those
 two: machine/AI translations, corrections welcome) are in the lang extra
 (`mu300-extra install lang`, or the Languages page under System), named by
-`openwrt/luci-languages.tsv`.
+`systems/openwrt/luci-languages.tsv`.
 `lmo/` is not kept in the tree; the image build compiles the catalogs with
-`tools/po2lmo.py`, so the top-level menu and submenu stay translated on
+`scripts/i18n/po2lmo.py`, so the top-level menu and submenu stay translated on
 unrelated LuCI pages where the dashboard JavaScript is not loaded.
 
 The package does not start or own the modem. Platform-specific access is behind
@@ -79,7 +79,7 @@ without internet takes a release's Magisk zip: uploaded through cgi-io to
 at with `mu300-update inspect` and installed with `mu300-update apply --from`. Reads (`update_get`, `update_job`)
 are in the read grant, every change (`update_act`) in the write grant, and each parameter is a fixed word, a release
 tag, a size or a SHA-256. The design, the trust model for uploaded files and release signatures are in
-docs/FINDINGS.md 86. Without `mu300-update` the page says updating is not available.
+docs/research/FINDINGS.md 86. Without `mu300-update` the page says updating is not available.
 
 ## AT adapters
 
@@ -204,8 +204,8 @@ Port 27547 is reserved for this local development service in `~/.cloudflare/conf
 The proxy requires Python 3.8+ and uses only its standard library. It binds to `127.0.0.1`; Ctrl+C stops it.
 No SSH tunnel, Node dependencies or firmware build is needed.
 
-Requests under `/luci-static/` use files from `openwrt/luci-app-mu300/htdocs/` first, then
-`openwrt/overlay/www/`, when present. Everything else goes to the device's HTTP server, including the LuCI
+Requests under `/luci-static/` use files from `systems/openwrt/luci-app-mu300/htdocs/` first, then
+`systems/openwrt/overlay/www/`, when present. Everything else goes to the device's HTTP server, including the LuCI
 framework, theme, login and RPC. Edit `htdocs/luci-static/resources/view/mu300/home.js` for the home page or
 `htdocs/luci-static/resources/mu300/common.js` for the shared styles and helpers; save and refresh the browser.
 Responses are not cached. Disable any Chrome Local Overrides for these files so they do not hide repository edits.
@@ -215,7 +215,7 @@ from the theme template so it also disappears on standard LuCI pages. The affect
 files are backed up first. `make deploy-backend`
 copies this plugin's `root/usr/` (RPC, menu and ACL files); `make restart` clears the LuCI cache and restarts
 rpcd/uhttpd. Neither deployment copies device configuration or flashes firmware. `make logs`, `make debug`
-and `make rpc` provide device diagnostics. See the [Make command guide](../../make/README.md) for all targets,
+and `make rpc` provide device diagnostics. See the [Make command guide](../../../make/README.md) for all targets,
 SSH configuration and the difference between restarting web services and rebooting the device.
 
 The local proxy serves files without uploading them. API actions still operate on the real F50. Files under `root/`

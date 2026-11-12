@@ -2,14 +2,14 @@
 #   MU300_RELEASE=<tag>       that release, and nothing is asked
 #   MU300_RELEASE_URL=<url>   another place with the same files (the release is then called "custom"); nothing asked
 # Otherwise the newest full release. When GitHub also has a prerelease published after it, release_resolve asks
-# whether to install that beta instead (default: no). tools/release_pick.py decides which is which, for install.ps1
+# whether to install that beta instead (default: no). installer/lib/release_pick.py decides which is which, for the installers
 # and the graphical installer too.
 
 # --- release-tag begin
-# The release tags (docs/FINDINGS.md 125): vYYYY.MM.DD up to v2026.10.27, where the "day" was a counter, and from then
+# The release tags (docs/research/FINDINGS.md 125): vYYYY.MM.DD up to v2026.10.27, where the "day" was a counter, and from then
 # on vYYYY.MM.DD.N: the real (UTC) day the release was built, N = 1..99 for the releases of that day. Every four-field
 # tag is newer than every three-field one; four-field tags compare by the date, then by N, as numbers. The same block,
-# word for word, is in tools/releases.sh (install.sh, make-release.sh), mu300-update and tools/android-install.sh
+# word for word, is in installer/lib/releases.sh (install.sh, make-release.sh), mu300-update and installer/android/android-install.sh
 # (tests/test_releases.py holds the copies to each other and to tests/fixtures/release-tags.tsv).
 # tag_ok TAG: TAG is a release tag (in the shell's own patterns: no grep, no locale, no regex engine to differ)
 tag_ok() {
@@ -47,7 +47,7 @@ newer() {
 # needed. Nothing at all when the list does not come (no network, the API's rate limit, a proxy's page).
 release_list() {
     curl -fsSL --connect-timeout 10 --max-time 30 "https://api.github.com/repos/$REPO/releases?per_page=15" 2>/dev/null |
-        python3 "$TOP/tools/release_pick.py" 2>/dev/null || true
+        python3 "$TOP/installer/lib/release_pick.py" 2>/dev/null || true
 }
 
 # release_resolve: RELEASE, when it is not set yet. BETA_OFFERED is the prerelease that was offered (empty: none).

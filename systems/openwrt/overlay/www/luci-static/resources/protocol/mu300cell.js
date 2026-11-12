@@ -99,7 +99,7 @@ return network.registerProtocol('mu300cell', {
 		o.depends('sim_slot', '1');
 		o.retain = true;
 
-		/* data roaming, one setting per card (mobile-data, docs/FINDINGS.md 120): unset is allowed, as every release
+		/* data roaming, one setting per card (mobile-data, docs/research/FINDINGS.md 120): unset is allowed, as every release
 		   before it did; the dial and its watchdog read it, so a change applies within half a minute */
 		o = s.taboption('general', form.Flag, 'roaming_internal', _('Internal SIM data roaming'),
 			_('Off: no mobile data while the SIM is registered on a roaming network (SMS and calls are not affected). Some SIMs report roaming at home (an MVNO, national roaming): those need it on.'));
@@ -121,7 +121,7 @@ return network.registerProtocol('mu300cell', {
 		o.depends('sim_slot', '0');
 		o.retain = true;
 
-		/* data roaming, one setting per card (mobile-data, docs/FINDINGS.md 120): unset is allowed, as every release
+		/* data roaming, one setting per card (mobile-data, docs/research/FINDINGS.md 120): unset is allowed, as every release
 		   before it did; the dial and its watchdog read it, so a change applies within half a minute */
 		o = s.taboption('general', form.Flag, 'roaming', _('Data roaming'),
 			_('Off: no mobile data while the SIM is registered on a roaming network (SMS and calls are not affected). Some SIMs report roaming at home (an MVNO, national roaming): those need it on.'));

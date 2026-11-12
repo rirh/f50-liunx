@@ -1,7 +1,7 @@
 # Driving the installers from a program
 
-`install.sh`, `install.ps1` and the two uninstallers are made for a person at a terminal. They can also be run by a
-program - a CI job, the graphical installer in `gui/`, a web installer - without changing what they do: the
+`install.sh` and `uninstall.sh` are made for a person at a terminal. They can also be run by a
+program - a CI job, the graphical installer in `installer/gui/`, a web installer - without changing what they do: the
 program supplies the answers, and reads what happens from a progress stream. Nothing of the install logic is
 duplicated outside the scripts.
 
@@ -10,9 +10,8 @@ Two things, independent of each other:
 * **answers mode**: nothing is read from the terminal; every question is answered by a variable;
 * **the progress stream**: one line of JSON per event, next to the text for people.
 
-The code is `tools/answers.sh` (for `install.sh`, `uninstall.sh`) and `tools/answers.ps1` (for `install.ps1`,
-`uninstall.ps1`). Tests: `tests/test_answers.py` and `tests/answers.Tests.ps1`, against the fake adb of
-`tests/fakeadb.py`.
+The code is `installer/lib/answers.sh` (for `install.sh`, `uninstall.sh`). Tests: `tests/test_answers.py`, against the
+fake adb of `tests/fakeadb.py`.
 
 ## Answers mode
 
@@ -44,14 +43,14 @@ file are exported to the programs the installer starts (adb reads `ANDROID_SERIA
 
 The passwords are secrets: `MU300_ANS_PASSWORD`, `MU300_ANS_CURRENT_PASSWORD` and
 `MU300_ANS_CURRENT_PASSWORD_UBUNTU`, `_OPENWRT`, `_OPENWRT_LUCI`. The scripts keep the list in one place (`ANSWERS_SECRET` in
-`tools/answers.sh`, `$script:MuSecrets` in `tools/answers.ps1`), and for every name in it:
+`installer/lib/answers.sh`), and for every name in it:
 
 * the value is never printed: the transcript shows `******`, an event carries `"secret":"1"` and no answer, and an
   error message about it shows `******`;
 * it is not handed to the programs the installer starts. From a file it is never exported; given in the
   environment it is taken out of the environment before anything is started, so adb, curl and python do not
   inherit it. It reaches one command only, on its standard input: the one that hashes it. The device gets the hash;
-  a current password goes to the device in a file of the user's alone, which `tools/android-pwcheck.sh` reads on its
+  a current password goes to the device in a file of the user's alone, which `installer/android/android-pwcheck.sh` reads on its
   standard input and the same command removes, and only its one-word verdict comes back;
 * a line of the file that is not `NAME=value` is reported by its number, not by its text.
 
@@ -105,7 +104,7 @@ A question is asked only where the installer asks it by hand too.
 | `MU300_ANS_CONFIRM` | `INSTALL` | the summary's question |
 
 The variables that were there before work as they did (`MU300_WORK`, `MU300_RELEASE_URL`, `MU300_SYNC_BOOTCHAIN`,
-`MU300_VPN_URL`, `MU300_VPN_MODULE`, `MU300_FETCH_JOBS`, `MU300_NO_SELF_UPDATE`); `install.ps1` now reads
+`MU300_VPN_URL`, `MU300_VPN_MODULE`, `MU300_FETCH_JOBS`); `install.ps1` now reads
 `MU300_LANG`, `MU300_RELEASE`, `MU300_RELEASE_URL` and `MU300_WORK` where its parameters are not given.
 Early in every run the installers and uninstallers switch Android's USB to adb alone for that boot (a stuck MTP
 has Windows reset the device every ten seconds); `MU300_USB_ADB_ONLY=0` leaves it, `MU300_USB_WAIT` (seconds, 60)
@@ -113,20 +112,20 @@ bounds the wait for adb after the switch.
 
 **The Magisk zip on the device** asks nothing (nothing can be typed while Magisk installs it). Its answers are a
 `mu300-install.conf` (README, "Choosing something else"); for the password of an update only one inside the zip
-counts - at the top of the zip, or `MU300_ANSWERS` of a caller such as `tools/android-web.sh`: `MU300_KEEP_PASSWORD`
+counts - at the top of the zip, or `MU300_ANSWERS` of a caller: `MU300_KEEP_PASSWORD`
 (`yes`, `no`), `MU300_CURRENT_PASSWORD`, `MU300_PASSWORD`, `MU300_PASSWORD_RESET`. Without them an update keeps the
 password unchecked. The plan line `MU300-PLAN password=kept` is followed by `password_checked=1` when the current one
 was checked.
 
 **An unpacked Magisk zip** (`MU300_PACKAGE=DIR`, `--package DIR` / `-Package DIR`, or the zip's own `computer/`
-with its `.mu300-package`; `tools/package.sh`): the system, the Ubuntu, the kernel and the release are the zip's, so
+with its `.mu300-package`; `installer/lib/package.sh`): the system, the Ubuntu, the kernel and the release are the zip's, so
 `MU300_ANS_SYSTEMS`, `MU300_OPENWRT`, `MU300_ANS_BOOT_OS`, `MU300_ANS_UBUNTU`, `MU300_ANS_KERNEL`, `MU300_ANS_BETA` and
 `MU300_ANS_PANEL` are never asked (and `MU300_RELEASE`, `MU300_RELEASE_URL` are not used): a program sets only the
 others. The `download` step checks the two files of the zip instead (`verify` events, `ok` or `mismatch`), and a
 manifest that is not one of a release's stops the run before the device is asked anything. The graphical installer
 started from such a folder offers that system and kernel only.
 
-**A prepared installation** (making room by a reset, EXPERIMENTAL; `tools/resume.sh`, `tools/resume.py`):
+**A prepared installation** (making room by a reset, EXPERIMENTAL; `installer/lib/resume.sh`, `installer/lib/resume.py`):
 `MU300_BACKUP_DIR` (default `~/mu300-backups`) is where the transaction and the backup go; `MU300_RESUME=0`
 (`--no-resume` / `-NoResume`) ignores a waiting transaction, `MU300_RESUME=1` (`--resume` / `-Resume`) stops when
 there is none for the device, `MU300_TRANSACTION=FILE` (`--transaction` / `-Transaction`) names one. A resumed run
@@ -185,7 +184,7 @@ The stages of an installation, in order: `preflight` 2, `storage` 6, `choices` 1
 | `bootloader.verified` | `ro.boot.verifiedbootstate`: `green`, `yellow`, `orange`, `red` |
 | `root` | `yes`, `no`: whether `su` works |
 | `root.su` | what `su -v` says, for example `27.0:MAGISKSU` |
-| `usb.functions`, `usb.was` | Android's USB functions for the run (`adb` once MTP/PTP were switched off) and the ones before (only after a switch); see `tools/android-usb.sh` |
+| `usb.functions`, `usb.was` | Android's USB functions for the run (`adb` once MTP/PTP were switched off) and the ones before (only after a switch); see `installer/android/android-usb.sh` |
 | `slot.android`, `slot.linux` | `a`, `b` |
 | `work` | the work directory on this computer |
 | `bootchain` | the boot chain line of the plan |
@@ -216,7 +215,7 @@ what it is and how its bootloader stands.
 | look at the device | `./install.sh --check` | `.\install.ps1 -Check` | writes nothing; with the stream, the facts above |
 | back up | `./install.sh --backup` | `.\install.ps1 -Backup` | copies Android's boot image (`boot_a`, or `boot_b` when Android runs from b) and the first block of `misc` into `work/dumps`, and compares the image with the device's. Nothing else is read: the NV and calibration partitions are never copied by the installers |
 | which adb | `./install.sh --adb-path` | `.\install.ps1 -AdbPath` | prints the adb the installer would use (PATH, then platform-tools next to the project and in the usual places); exit 1 without one |
-| which release | `python3 tools/release_pick.py --json < releases.json` | the same | the newest release and the beta, if any, from GitHub's `GET /repos/<repo>/releases` |
+| which release | `python3 installer/lib/release_pick.py --json < releases.json` | the same | the newest release and the beta, if any, from GitHub's `GET /repos/<repo>/releases` |
 
 ## Examples
 

@@ -1,5 +1,5 @@
 """Not a test: an `adb` for the tests of the installers' answers mode and of the graphical installer. It answers
-what install.sh, install.ps1 and the uninstallers send to a rooted F50 or U30 Air in Android - from a description
+what install.sh and uninstall.sh send to a rooted F50 or U30 Air in Android - from a description
 of the device in a JSON file - and writes nothing anywhere but its own log, so a run of an installer against it
 shows every question it asks and every command it would have sent.
 
@@ -61,16 +61,16 @@ DEFAULT = {
     'crypto_state': 'encrypted',     # ro.crypto.state (the F50's Android 13: file-based encryption)
     'crypto_type': 'file',           # ro.crypto.type
     'data_source': '/dev/block/dm-6',    # what /data is mounted from
-    'disk_name': 'mmcblk0',      # the internal disk tools/storage.sh's internal_disk is told (sda: a UFS unit)
+    'disk_name': 'mmcblk0',      # the internal disk installer/lib/storage.sh's internal_disk is told (sda: a UFS unit)
     'disk_lbs': 512,             # and its logical block size (4096: a UFS)
     'emmc': None,                # a directory standing for the device's storage (tests/fakeemmc.py): see above
-    'online': '',                # what tools/android-online-shrink.sh inspect says (the online way of making room);
+    'online': '',                # what installer/android/android-online-shrink.sh inspect says (the online way of making room);
                                  # empty: ONLINE=no, as on a device whose kernel cannot
     'passwords': None,           # the current passwords of the installed systems' own accounts, for android-pwcheck.sh:
                                  # {"openwrt": "", "ubuntu": "secret1"}; "" is none (EMPTY), "!" a locked account, a
                                  # system not named has no account (NOUSER)
     'pwcheck': '',               # what every check of a password answers instead (UNVERIFIABLE, say)
-    'usb_config': 'adb',         # sys.usb.config (and sys.usb.state): the stock F50's is "ecm,mtp,adb"; tools/android-usb.sh
+    'usb_config': 'adb',         # sys.usb.config (and sys.usb.state): the stock F50's is "ecm,mtp,adb"; installer/android/android-usb.sh
                                  # adb-only makes it "adb" (or usb_revert's value), restore puts the old one back
     'usb_back': True,            # after that switch the device is on adb again; false: it never comes back
     'usb_revert': '',            # Android sets these functions again right after the switch
@@ -158,7 +158,7 @@ def save(**keys):
 
 
 def usb(st, args):
-    """tools/android-usb.sh as the device runs it; (text, kind). kind "usb": changes no storage."""
+    """installer/android/android-usb.sh as the device runs it; (text, kind). kind "usb": changes no storage."""
     cfg, boot = st['usb_config'], st['boot_id']
     has = lambda f: f in cfg.split(',')
     # a reboot under way: asked for, and (with reboot_boots) not yet come back as a new boot
@@ -250,7 +250,7 @@ def emmc_cmd(cmd):
 
 
 def facts(st):
-    """What resume_facts reads (tools/resume.sh, install.ps1's ResumeFacts): userdata's node, first sector and sectors,
+    """What resume_facts reads (installer/lib/resume.sh, install.ps1's ResumeFacts): userdata's node, first sector and sectors,
     the eMMC's CID, the crypto properties and what /data is mounted from."""
     disk, parts, last_end, off, size = geometry(st)
     names = [n for n, _, _ in parts]
@@ -278,7 +278,7 @@ def su(st, cmd, argv):
         return '0', 'read'
     if cmd.startswith(FACTS_CMD):
         return facts(st), 'read'
-    if cmd.startswith(DISK_CMD):     # tools/storage.sh's internal_disk: the disk that holds misc
+    if cmd.startswith(DISK_CMD):     # installer/lib/storage.sh's internal_disk: the disk that holds misc
         return '%s %d' % (st['disk_name'], st['disk_lbs']), 'read'
     m = re.fullmatch(r'getprop (\S+)', cmd)
     if m:
@@ -336,7 +336,7 @@ def su(st, cmd, argv):
     m = re.fullmatch(r'\[ -d (\S+) \] && echo y', cmd)
     if m:
         return '', 'read'
-    # android-pwcheck.sh (tools/storage.sh's pw_states and pw_check): the password a pw_check pushed is read back here
+    # android-pwcheck.sh (installer/lib/storage.sh's pw_states and pw_check): the password a pw_check pushed is read back here
     if 'android-pwcheck.sh -s ' in cmd:
         pws = st.get('passwords') or {}
         oses = re.search(r'for o in (.*?); do', cmd).group(1).split()
@@ -357,7 +357,7 @@ def su(st, cmd, argv):
         want = pws.get(m.group(1))
         return ('NOUSER' if want is None else 'LOCKED' if want == '!' else 'MATCH' if given == want else 'NOMATCH'), 'read'
     if cmd == 'chmod 755 %s/mu300-pwcheck %s/mu300-pwbb; true' % (T, T):
-        return '', 'read'       # the check's own tools, pushed (tools/storage.sh's pw_tools_push)
+        return '', 'read'       # the check's own tools, pushed (installer/lib/storage.sh's pw_tools_push)
     if 'android-mount-mu300root.sh' in cmd and 'MU300_RO=1' in cmd:
         return st['vpn_on'], 'read'
     # what a pull of the file written on the device will give
@@ -382,7 +382,7 @@ def su(st, cmd, argv):
             pending(st, data)
             pending_is_gpt(True)
         return '', 'read'
-    # the online way's inspection (tools/resume.sh online_inspect, install.ps1's OnlineInspect): its files in the
+    # the online way's inspection (installer/lib/resume.sh online_inspect, install.ps1's OnlineInspect): its files in the
     # installer's own directory under /data/local/tmp, and what the device script says
     OT = T + '/mu300-online'
     if cmd in ('rm -rf %s; mkdir -p %s; chmod 777 %s' % (OT, OT, OT), 'chmod 700 %s/mu300-f2fs-online' % OT):

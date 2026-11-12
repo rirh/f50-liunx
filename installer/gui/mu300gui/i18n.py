@@ -1,6 +1,6 @@
-"""The window's messages in the installers' languages. They live where the installers' own do: i18n/<lang>.tsv, one
-"English<TAB>translation" line per message, {1}.. for the arguments (i18n/README.md). A message without a line stays
-English. tools/check-i18n.py reads the messages out of this package: the first argument of _() and N_(), which has
+"""The window's messages in the installers' languages. They live where the installers' own do: installer/i18n/<lang>.tsv, one
+"English<TAB>translation" line per message, {1}.. for the arguments (installer/i18n/README.md). A message without a line stays
+English. scripts/i18n/check-i18n.py reads the messages out of this package: the first argument of _() and N_(), which has
 to be a plain string for that.
 """
 import locale
@@ -15,12 +15,12 @@ _lang = 'en'
 
 
 def load(lang, top=TOP):
-    """{message: translation} of i18n/<lang>.tsv; empty for English or a file that is not there."""
+    """{message: translation} of installer/i18n/<lang>.tsv; empty for English or a file that is not there."""
     table = {}
     if lang == 'en':
         return table
     try:
-        with open(os.path.join(top, 'i18n', lang + '.tsv'), encoding='utf-8') as f:
+        with open(os.path.join(top, 'installer', 'i18n', lang + '.tsv'), encoding='utf-8') as f:
             for line in f:
                 line = line.rstrip('\n').rstrip('\r')
                 if not line or line.startswith('#') or '\t' not in line:

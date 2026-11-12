@@ -2,12 +2,12 @@
 """Pack the proprietary files pulled from the user's own device into an overlay tarball for a prebuilt root filesystem.
 
 The published images contain no vendor files; install.sh builds this overlay on the host and android-install.sh
-unpacks it over the system. The layout matches rootfs/assemble.sh and openwrt/build-rootfs.sh:
+unpacks it over the system. The layout matches systems/base/assemble.sh and systems/openwrt/build-rootfs.sh:
   firmware/            -> usr/lib/firmware (Ubuntu) or lib/firmware (OpenWrt)
   android-subset/      -> opt/mu300/android (dev/__properties__ becomes dev-properties)
   android-gpu-subset/  -> opt/mu300/android (files already taken from android-subset win)
 
-A subset pulled on Windows holds a file called windows-source.tar.gz (android-vendor/extract_subset.py): the
+A subset pulled on Windows holds a file called windows-source.tar.gz (android/vendor/extract_subset.py): the
 property area is a set of files named u:object_r:<context>:s0, which that file system cannot store, so the whole
 device archive is kept there instead. When it is present the subset is taken from it, not from the tree, so the
 installed system gets the same names and modes a Linux host would have extracted.
@@ -23,7 +23,7 @@ import os
 import tarfile
 from pathlib import Path
 
-# written by android-vendor/extract_subset.py on a host whose file system cannot hold every name from the device
+# written by android/vendor/extract_subset.py on a host whose file system cannot hold every name from the device
 WINDOWS_TAR = 'windows-source.tar.gz'
 
 

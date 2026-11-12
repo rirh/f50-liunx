@@ -1,7 +1,7 @@
 # USB-C DisplayPort / HDMI (5.4 kernel, experimental)
 
 The F50/MU300 device tree ships with the USB-PD block (`pd@e00`) and the DisplayPort controller (`dptx@31890000`)
-disabled, and ZTE's kernel config leaves the Unisoc display driver out. `kernel/build-display.sh` builds:
+disabled, and ZTE's kernel config leaves the Unisoc display driver out. `kernel/vendor/build-display.sh` builds:
 
 - `sprd-drm.ko`: Unisoc DRM (DPU1 + DPTX; DPU0/DSI linked but disabled at runtime)
 - `sc27xx_pd.ko`: PMIC USB-PD PHY for the TCPM; the missing `connector` node is replaced by a dual-role software node

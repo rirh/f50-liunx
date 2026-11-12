@@ -1,5 +1,5 @@
 """Not a test: the storage of a fake F50 as a directory, for tests/fakeadb.py's "emmc" mode - the make-room path's
-writes (tools/resume.sh) and the checks of the installation that resumes after the reset, on what was written.
+writes (installer/lib/resume.sh) and the checks of the installation that resumes after the reset, on what was written.
 
     dev/block/mmcblk0          the whole eMMC: a sparse file of the layout's size, with its partition table
                                (tests/fakegpt.py) in its first 34 and last 33 sectors

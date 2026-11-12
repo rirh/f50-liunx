@@ -8,8 +8,8 @@ import unittest
 
 from helpers import BIN, TOP, ShellTest
 
-LIB = TOP / 'rootfs/overlay/opt/mu300/lib/hotspot-ap.sh'
-ACTION = TOP / 'openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/action'
+LIB = TOP / 'systems/base/overlay/opt/mu300/lib/hotspot-ap.sh'
+ACTION = TOP / 'systems/openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/action'
 
 # uci over a JSON file: "committed" (option -> value, section -> type) and "staged" (uci's own deltas)
 FAKE_UCI = r'''

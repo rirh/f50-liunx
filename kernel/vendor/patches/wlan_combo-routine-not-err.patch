@@ -1,6 +1,6 @@
 wlan_combo (5.4): routine per-packet, per-poll and per-peer events are not errors (issue #140)
 
-The same change as the mainline module (upstream/modules/sprd_wlan_combo); only printk levels change. The rest of
+The same change as the mainline module (kernel/mainline/modules/sprd_wlan_combo); only printk levels change. The rest of
 dump_survey (every poll of cfg80211's survey prints the data at KERN_ERR, after wlan_combo-logspam-quiet took the
 idx/time/count lines), the per-mode default of find_lut_index for multicast frames, the short-frame copy path of
 mm_normal_data_process, the defrag cache sweep on a peer's departure, EAPOL frames sent by command, reordering

@@ -170,9 +170,9 @@ what replaced it. The table below gives each section's state.
 | 152 | The U30 Air's Wi-Fi LED: white on 5 GHz, blue on 2.4 GHz, as ZTE's firmware and its guide (it was the other way round); stock's network light shows the SIM in use, not 4G/5G (not changed) | current (read from the stock firmware and ZTE's guide; not yet looked at on a device) |
 | 154 | The U30 Air's network LED shows the SIM in use, as ZTE's firmware and its guide: white the nano-SIM (slot 0), blue the eSIM (slot 1), red no service, the target's colour blinking during a live switch; no longer 4G/5G | current (read from the stock firmware and ZTE's guide; unit tests; not yet looked at on a device) |
 | 155 | The settings as one file and back: `mu300-backup export|import|show` (Ubuntu and OpenWrt), `mu300-api backup.export/backup.import`, System > Backup of settings in the panel; a passphrase seals it (openssl enc has no GCM: AES-256-CBC with the SHA-256 of the contents inside), every value checked by its setter's own rules before anything changes | current (unit tests on the fake device of test_api, hostile files included; not yet run on a device) |
-| 156 | The release smoke test, `tools/smoke.py`: identity first (SSH host key fingerprint, hostname, device, system, adb serial), the state before and after an update by each path (online, mirror, `--from`, the Magisk zip), the VPN's files compared by hash on the device | current (unit tests with fakes; not yet run against a device) |
+| 156 | The release smoke test, `scripts/release/smoke.py`: identity first (SSH host key fingerprint, hostname, device, system, adb serial), the state before and after an update by each path (online, mirror, `--from`, the Magisk zip), the VPN's files compared by hash on the device | current (unit tests with fakes; not yet run against a device) |
 | 160 | The eMMC at a cold boot: a failed HS400ES (`error -84`, issue #226) no longer leaves the board without `mmcblk0`; the core drops the failed timing and the next attempt takes HS200, then HS/DDR52, then HS; a test hook `sdhci_sprd.fail_hs400es` | current (unit tests; both mainline kernels built; not run on a device) |
-| 161 | Mainline kernel sources: unpacked only after two OpenPGP signatures check out (kernel.org's autosigner over `sha256sums.asc`, the releaser over the tar) against keyrings pinned in `upstream/keys/`, fail closed | current (unit tests with throwaway keys; 6.18.56 and 7.2.10 from kernel.org and seven kinds of tampering checked in the build image, 2026-10-16) |
+| 161 | Mainline kernel sources: unpacked only after two OpenPGP signatures check out (kernel.org's autosigner over `sha256sums.asc`, the releaser over the tar) against keyrings pinned in `kernel/mainline/keys/`, fail closed | current (unit tests with throwaway keys; 6.18.56 and 7.2.10 from kernel.org and seven kinds of tampering checked in the build image, 2026-10-16) |
 | 163 | Linux 6.18.57 and 7.2.11 with every module the boards can use (`all-modules.py`, with a device-tree check), KVM in VHE mode with a guest, Docker's check-config and dockur/windows-arm; rare protocols, filesystems and line disciplines not loaded on demand, refused by module (`mu300-modprobe-guard`, three reviews of #256) | current (built here; F50-B Ubuntu and the U30 Air openwrt-luci, both kernels each, the guard on both, 2026-10-16; dockur stops at its own RAM check: the boards have 1.4 GB; reboot soak of the mobile downlink, 2026-10-17: 6.18.57 20/20 boots on F50-C and the U30 Air, 6.18.56 12/12 on F50-C) |
 | 166 | Mainline's soc-thmzone did not hold a full CPU load (38 to 98 C in three minutes): step_wise followed the sensors' noise. `mu300_thermal` gives it a trend over a second; `thermal-guard` caps on top of a kernel that does not hold the SoC from 92 C; the toolkit's stress test stops itself at 95 C | current (host tests of the trend and a plant model; F50-C, OpenWrt, 6.18.56, 10-minute runs; 7.2.10 built, not run) |
 | 170 | "Failed to send request: Operation not permitted" behind the VPN's kill switch: uclient's connect error, the tunnel down; the failure now names the kill switch, one try instead of four; vpn-dae refused before the download on a kernel that cannot run it | current (reproduced in an OpenWrt 25.12 container with sing-box and the kill switch, 2026-10-17) |
@@ -278,7 +278,7 @@ The UDC only appears when the whole chain probes, in this order:
   4. **Exec the binary directly.** `sprd_modem_loader` rejects every ioctl/write unless `current->comm` is
      exactly `modem_control` (`drivers/unisoc_platform/modem_loader`); running it as
      `linker64 /vendor/bin/modem_control` makes the task name `linker64`.
-  5. Provide a sink for liblog (`tools/logdw`, listens on `/dev/socket/logdw`), otherwise the daemon's logs vanish.
+  5. Provide a sink for liblog (`device-tools/logdw`, listens on `/dev/socket/logdw`), otherwise the daemon's logs vanish.
 * Result: `kbc_verify_all_avb2() ret = 0`, `SEC_KBC_START_CP() ret = 0`,
   `sprd-pmic-wdt: sbuf ready for pmic wdt init!`, `Modem Alive`, and no more power cut.
 
@@ -298,7 +298,7 @@ average. `top` shows about 98 % idle.
 
 ### 8. Build notes
 * Full LTO needs more than 8 GiB in the linker step; ThinLTO keeps CFI and links fine.
-* Stock config + `kernel/mu300-linux.fragment` adds devtmpfs, fhandle, autofs, SysV IPC, namespaces, nftables,
+* Stock config + `kernel/vendor/mu300-linux.fragment` adds devtmpfs, fhandle, autofs, SysV IPC, namespaces, nftables,
   btrfs/xfs/squashfs, NFS/CIFS, USB serial/modem/audio host drivers, crypto user API, CDC-ACM gadget, and removes
   `STATIC_USERMODEHELPER` and forced module signatures.
 * All vendor modules must be rebuilt from the same tree (symbol CRCs change).
@@ -338,12 +338,12 @@ Asked for often, because a smaller eMMC variant leaves less free space behind `u
   * `install.sh` (and `install.ps1`, #57) offers it when there is no room, asks how many GiB to give Linux and
     keeps at least 4 GiB for Android and 800 MiB for Linux, and requires ERASE to be typed. `uninstall.sh` offers to grow it back, off
     by default because on the 64 GB variant that would hand the factory gap to Android.
-    `tools/resize-last-partition.py` does the edit: it validates both GPT copies and every CRC first, refuses
+    `installer/lib/resize-last-partition.py` does the edit: it validates both GPT copies and every CRC first, refuses
     if the named partition is not the last one, and re-reads what it produced before handing it over. The
     backup GPT is written before the primary, so a power cut between the two leaves the old table and a device
     that still boots.
   * **It rewrites the partition table and erases everything in Android.** Take a full backup first
-    (`tools/backup-device.sh`), and treat the path as experimental: it has been done by hand on one device.
+    (`scripts/device/backup-device.sh`), and treat the path as experimental: it has been done by hand on one device.
   * (2026-10-15) Android's data is no longer cleared by the installer: Android's own recovery is asked to reset it,
     and the installation resumes after the reset (§112).
 
@@ -651,7 +651,7 @@ Our order made that likely. The initramfs loaded `sipa-dele.ko` with the rest of
 twenty seconds, while `modem_control` does not have the CP talking until about sixty - measured on this device,
 `sprd-sbuf: channel 5-*` and `sbuf ready for pmic wdt init` both land at 60.8 s. Android loads it the other way
 round. `sipa-dele-start` now waits for one of those two lines before inserting the module, and
-`boot/module-order.txt` and `upstream/module-order.txt` no longer carry it. Nothing regresses if the theory is
+`boot/module-order.txt` and `kernel/mainline/module-order.txt` no longer carry it. Nothing regresses if the theory is
 wrong: `sipa_core` creates every consumer resource itself, and the delegator only adds `PROD_CP` and the
 `CONS_WWAN_UL -> PROD_CP` edge, so `sipa_eth0` still opens exactly as before.
 
@@ -702,7 +702,7 @@ delegate or the kernel was involved.
 **An idle link reads as a broken one.** SIPA runtime-suspends a few seconds after the last packet. Suspended,
 `suspend_stage` is `0x3f` (`SIPA_SUSPEND_MASK`, the value `sipa_probe` starts from), every resource is
 Released and `alloc_skb_cnt` is 0, because the receive buffers are posted on resume and handed back on
-suspend. That is the normal idle state, not a fault: `docs/reference/android-ipa-state.txt` section 15 shows
+suspend. That is the normal idle state, not a fault: `docs/research/reference/android-ipa-state.txt` section 15 shows
 Android cycling through it every few seconds. In `sipa/nic`, `rc` and `sc` count resumes and suspends - awake
 is `rc == sc + 1`, and `rc == sc` only means nothing has been sent lately. **None of these counters mean
 anything unless traffic is actually leaving while you read them.** Drive the link first, then look.
@@ -888,11 +888,11 @@ through fw4; that happens after an `apk add` on the device).
 **Kernels (moby's `check-config.sh`).** Every "generally necessary" option is there in the three kernels (namespaces,
 cgroups v2 with cpu, cpuset, io, memory and pids, veth, bridge, overlayfs, nf_tables with NAT, masquerade, fib and ct,
 seccomp, keys). What is missing matters for the iptables backend, which the images do not use, or is optional:
-* 5.4 (`kernel/linux.config`): `NETFILTER_XT_MATCH_ADDRTYPE` (Docker's iptables rules need it: dockerd with the iptables
+* 5.4 (`kernel/vendor/linux.config`): `NETFILTER_XT_MATCH_ADDRTYPE` (Docker's iptables rules need it: dockerd with the iptables
   backend cannot start on 5.4), `BRIDGE_NETFILTER`, `IP6_NF_NAT`, `IP6_NF_TARGET_MASQUERADE`, `NETFILTER_XT_MATCH_IPVS`;
   optional `CGROUP_HUGETLB`, `NET_CLS_CGROUP`, `CFS_BANDWIDTH` (`docker run --cpus`), `IP_VS*` (swarm), `IP_SCTP`.
   Not changed here.
-* 6.18 and 7.2 (the v2026.10.16.1 builds of `upstream/mu300-mainline.config`): the legacy iptables tables
+* 6.18 and 7.2 (the v2026.10.16.1 builds of `kernel/mainline/mu300-mainline.config`): the legacy iptables tables
   (`IP_NF_FILTER`, `IP_NF_NAT`, `IP_NF_MANGLE`, `IP_NF_RAW`, `IP_NF_TARGET_MASQUERADE`, `IP_NF_TARGET_REDIRECT` and the
   IPv6 ones; the images' iptables is iptables-nft, which does not use them) and `NETFILTER_XT_NAT` (iptables-nft's
   DNAT and SNAT: `docker run -p` with the iptables backend); optional `CGROUP_PERF`, `IP_SCTP`, `CRYPTO_GHASH`
@@ -963,10 +963,10 @@ driver starts DVFS at the stock voltages by itself; the rescue path (no Linux di
   the CPUs stay at the bootloader's clocks for an estimated 4 s more than before, in every boot, offset or not. The
   stock Android and our 5.4 kernel already load `sprd-cpufreq-v2.ko` from the initramfs (module 20 of
   `boot/module-order.txt`), so the vendor's own gap is of this kind; nothing that needs cpufreq loads earlier on
-  mainline (`upstream/module-order.txt` has no cpufreq user; `wcn_bsp`'s frequency QoS and `mu300_thermal` load after
+  mainline (`kernel/mainline/module-order.txt` has no cpufreq user; `wcn_bsp`'s frequency QoS and `mu300_thermal` load after
   switch_root). Not measured yet: the device test reads the `DVFS waits for voltage_offset_uv` and
   `register cpufreq driver success` timestamps, and compares with a 6.18.57 kernel without this change.
-* **Kernel and init travel together.** `upstream/make-bundle.sh` puts boot/init into the kernel's generic ramdisk, and
+* **Kernel and init travel together.** `kernel/mainline/make-bundle.sh` puts boot/init into the kernel's generic ramdisk, and
   every way a mainline kernel is installed writes that ramdisk with it; an older initramfs with this kernel would only
   cost the 45 s wait, never an offset.
 
@@ -1162,18 +1162,18 @@ the vendor driver did, brings the modem up: `fail SIZE` goes to 0 and "Modem Ali
   `wifi_board_config.ini`, `wifi_board_config_ab.ini`. Place them in `/usr/lib/firmware`.
 * The realme `wlan_combo` driver falls back to `wifi_board_config_hulk.ini` for unknown projects; the firmware then
   asserts with `CMD_DOWNLOAD_INI / LOAD_INI_DATA_FAILED` and the chip stays in "card dump" state, so `wlan0` cannot
-  be brought up (`RTNETLINK answers: No such device`). `kernel/patches/wlan_combo-default-board-config.patch` fixes it.
+  be brought up (`RTNETLINK answers: No such device`). `kernel/vendor/patches/wlan_combo-default-board-config.patch` fixes it.
 * `rmmod wcn_bsp` crashes the kernel; reboot instead of reloading the Wi-Fi stack.
 * The driver logs `API version not match` for a few command IDs (the realme driver is slightly older than the ZTE
   firmware) and a `WARNING` in `sc2355_free_cmd_buf` (spin_unlock_bh in IRQ context).
 
   **Update 2026-10-07:** the warning was a real lock bug and is fixed on both kernels
-  (`kernel/patches/wlan_combo-tx-complock-irqsave.patch`, §31g).
+  (`kernel/vendor/patches/wlan_combo-tx-complock-irqsave.patch`, §31g).
 * Verified after the fix: the driver parses `wifi_board_config.ini`, `wlan0` comes up, `iw dev wlan0 scan` lists
   nearby networks and `hostapd` (nl80211, WPA2) reaches `AP-ENABLED`. The MAC address is randomized on each load.
 
   **Update 2026-10-07:** not any more. The 5.4 driver reads LK's `androidboot.wifimac`, as the mainline port does
-  (`kernel/patches/wlan_combo-bootargs-mac.patch`, §34).
+  (`kernel/vendor/patches/wlan_combo-bootargs-mac.patch`, §34).
 * A crash right after installing a module can leave a 0-byte `.ko` on ext4; run `sync` after installing files.
 
 ## Mobile data without Android RIL
@@ -1499,7 +1499,7 @@ there go to Android.
 
   **Update 2026-10-07:** it now writes every 2 s for the first 90 s, then every 10 s (§31d). It runs up to 300 s on
   Ubuntu (`mu300-early-recorder.service`) and up to 420 s from OpenWrt's preinit
-  (`openwrt/overlay/lib/preinit/05_mu300_early_recorder`). It writes only what it has collected, not the full
+  (`systems/openwrt/overlay/lib/preinit/05_mu300_early_recorder`). It writes only what it has collected, not the full
   8 MiB.
 
 ### 20b. Telling a userspace reboot from a power cut, and finding who asked for it
@@ -1544,14 +1544,14 @@ would log as "Power down" rather than "Restarting system".
   `lan.conf` or LuCI can change either.
 * cfg80211 refuses to bridge `wlan0` ("Device does not allow enslaving to a bridge") because `IFF_DONT_BRIDGE` stays set:
   the SC2355 driver marks the interface as AP but returns an error from `change_virtual_intf` when tearing down the
-  previous firmware mode fails, so cfg80211 skips clearing the flag. `kernel/patches/wlan_combo-allow-bridging-ap.patch`.
+  previous firmware mode fails, so cfg80211 skips clearing the flag. `kernel/vendor/patches/wlan_combo-allow-bridging-ap.patch`.
 * After moving modules, delete old copies: `depmod` indexes every subdirectory and `modprobe` loaded stale drivers from
   an `extra.old/` directory for several boots.
 
 ### 22. Regulatory database
 * This 5.4 kernel only has the `sforshee` regdb certificate; current `wireless-regdb` is signed by `wens`, so
   `iw reg reload` fails with `-ENODATA`, the domain stays `00` and 5 GHz is `NO-IR`. Android's own `regulatory.db` is
-  signed by a different certificate and is rejected too. `kernel/patches/regdb-wens-certificate.patch` adds mainline's
+  signed by a different certificate and is rejected too. `kernel/vendor/patches/regdb-wens-certificate.patch` adds mainline's
   `wens.hex`. cfg80211 tries to load the database before the rootfs is mounted, so userspace runs `iw reg reload` first.
 
 ### 23. Only one AP; 5 GHz AP needs the DS Parameter Set element
@@ -1563,7 +1563,7 @@ would log as "Power down" rather than "Restarting system".
   on `sc2355_send_cmd_recv_rsp` (`msg->data` at +24, command id at data-11). Android's beacon contains a DS Parameter Set
   element (`03 01 24`) on 5 GHz — Unisoc's hostapd adds it — while upstream hostapd only adds it on 2.4 GHz. The
   firmware takes the AP channel from that element.
-* `kernel/patches/wlan_combo-5ghz-ap-ds-params.patch` inserts the element when hostapd omits it. Verified: 802.11a/n/ac
+* `kernel/vendor/patches/wlan_combo-5ghz-ap-ds-params.patch` inserts the element when hostapd omits it. Verified: 802.11a/n/ac
   AP on channel 36 at 80 MHz (seen by a client, disappears when hostapd stops). The firmware offers 5 GHz AP only on
   36-48 and 149-165 (its ACS channel list); `hotspot-start` uses HT40/VHT80 there, and `hotspot-verify` still falls back
   to 2.4 GHz if the firmware refuses.
@@ -1621,7 +1621,7 @@ Three separate traps, and the first one hid the other two for an evening. `mu300
   data and a few small areas; the kernel image (~35 MiB) and the page tables for 2 GiB (~32 MiB) make up the rest.
   `cma_share` (48 MiB) is still usable for movable pages.
 * Not needed on Linux: `logobuffer` (9 MiB, there is no display) and `sysdump-uboot` (16 MiB, bootloader crash dumps).
-  `kernel/patches/of-reserved-mem-skip.patch` adds `CONFIG_OF_RESERVED_MEM_SKIP` (the boot image command line is not
+  `kernel/vendor/patches/of-reserved-mem-skip.patch` adds `CONFIG_OF_RESERVED_MEM_SKIP` (the boot image command line is not
   passed on by LK, so a cmdline option alone would not work); MemTotal grew from 1447 to 1473 MiB.
 * `mu300-zram.service` adds lz4 zram swap of half the RAM (swappiness 100); settings and the off switch: 162.
 
@@ -1630,12 +1630,12 @@ Three separate traps, and the first one hid the other two for an evening. `mu300
 * The stock `mali_kbase.ko` (DDK r40p0) does not load: 166 of its 335 imported symbol CRCs differ from this kernel.
   realme's `kernel_modules` master branch has the same DDK (`gpu/natt/mali`, r40p0-01eac0, UK 11.36, platform
   `qogirn6pro`); an older checkout of the tree has r34p0 (UK 11.31), which Android's r40p0 userspace would not accept.
-  `kernel/build-mali.sh` builds it; it probes `23140000.gpu` as "arch 9.0.9 r0p1" and creates `/dev/mali0`.
+  `kernel/vendor/build-mali.sh` builds it; it probes `23140000.gpu` as "arch 9.0.9 r0p1" and creates `/dev/mali0`.
 * Userspace is Android's `libGLES_mali.so` (it is also `libOpenCL.so` and the Vulkan ICD), a bionic library with a
   37-library closure (VNDK apex, bionic, gralloc/mapper HIDL stubs). It runs in the existing vendor chroot with
   `LD_LIBRARY_PATH` covering vendor, egl, VNDK and bionic; `/dev/ion` is enough for OpenCL buffers.
 * Test programs are built for bionic with plain clang (`--target=aarch64-linux-android29`, linked against the device's
-  `libc.so`/`libdl.so`/`libOpenCL.so`) and a small `_start` that calls `__libc_init` (`tools/gpu/`), so no NDK is needed.
+  `libc.so`/`libdl.so`/`libOpenCL.so`) and a small `_start` that calls `__libc_init` (`device-tools/gpu/`), so no NDK is needed.
   `android-gpu-run /system/bin/cltest`: "OpenCL 3.0 v1.r40p0-01eac0", device "Mali-G57 r0p1", 4M-element kernel
   verified correct.
 * There is no display, so GLES/Vulkan are only usable off-screen. The driver adds about 45 MiB of memory use.
@@ -1647,7 +1647,7 @@ Three separate traps, and the first one hid the other two for an evening. `mu300
   `/.mu300/boot-os` selects the system and `init` starts `/lib/systemd/systemd` or procd's `/sbin/init`. The disk stays
   mounted at `/mnt/mu300-disk`; `mu300-os ubuntu|openwrt` switches. (**Update 2026-10-07:** a third system,
   `openwrt-luci`, OpenWrt with the MU300 control panel, sits next to them (§35). `mu300-os` switches to any system
-  directory on the disk.) `openwrt/build-rootfs.sh` builds the rootfs from the
+  directory on the disk.) `systems/openwrt/build-rootfs.sh` builds the rootfs from the
   official armsr/armv8 tarball (checksum-verified) with apk, our kernel modules flat in `/lib/modules/<release>`
   (ubox kmodloader), the vendor chroot and procd services (`mu300-vendor`, `mu300-hw`, `mu300-post`).
 * Cellular WAN is a netifd protocol (`proto mu300cell`, option `apn`), so LuCI/fw4 handle routing, DNS and NAT;
@@ -1679,7 +1679,7 @@ Three separate traps, and the first one hid the other two for an evening. `mu300
 * Verified after reboots: 5 GHz AP (channel 36), cellular WAN, a USB client's traffic leaves with the modem's public IP;
   memory use about 140 MiB.
 * The early recorder runs from preinit, so a failed OpenWrt boot leaves dmesg, `ps`, `logread` and the Android logcat in
-  boot_b for `tools/collect-logs.sh`.
+  boot_b for `scripts/device/collect-logs.sh`.
 
 
 ### 30. Installer notes
@@ -1700,12 +1700,12 @@ Three separate traps, and the first one hid the other two for an evening. `mu300
   `btattach -B /dev/ttyBT0 -P h4` creates `hci0`.
 * Vendor init (Android `libbt-sprd_suite`, Marlin3): before the stack starts, send `0xFCA0` with the 176-byte PSKey block
   from `bt_configure_pskey.ini` (BD address at bytes 20..25, little endian), `0xFCA2` with the 252-byte RF block from
-  `bt_configure_rf.ini`, then `0xFCA1 00 00 01` (dual mode, enable). `tools/bt-init/mu300-bt-init.c` does this. Without the
+  `bt_configure_rf.ini`, then `0xFCA1 00 00 01` (dual mode, enable). `device-tools/bt-init/mu300-bt-init.c` does this. Without the
   PSKey upload the controller reports a fixed placeholder address.
 * The firmware advertises Hold Mode and Park State in its LMP features, but `Write Default Link Policy Settings` returns
   `Invalid HCI Command Parameters` for any value that includes them (0x0000/0x0001/0x0004/0x0005 accepted, 0x0007 rejected).
   The 5.4 kernel sets every advertised mode, so the init sequence aborts and `hciconfig hci0 up` fails with `EINVAL`.
-  `kernel/patches/bluetooth-marlin3-link-policy.patch` requests only Role Switch and Sniff (Bluetooth is built in, so this
+  `kernel/vendor/patches/bluetooth-marlin3-link-policy.patch` requests only Role Switch and Sniff (Bluetooth is built in, so this
   needs the kernel rebuild).
 * Android keeps the real BT address in `/data/vendor/bluetooth/btmac.txt` on encrypted `/data`; Linux uses
   `BDADDR=` from `/etc/mu300/bluetooth.conf` or a stable locally administered address derived from `machine-id`.
@@ -1718,11 +1718,11 @@ Three separate traps, and the first one hid the other two for an evening. `mu300
 Everything here was measured on the test device (64 GB F50, Vodafone TR, 5G NSA) with 6.18.54 and the
 upstream/ modules, running the release's Ubuntu and OpenWrt images.
 
-**Update 2026-10-07:** the port has been on 6.18.55 since PR #26 (`KV` in `upstream/build.sh`), and it also builds
+**Update 2026-10-07:** the port has been on 6.18.55 since PR #26 (`KV` in `kernel/mainline/build.sh`), and it also builds
 against 7.2.9, shipped as `mu300-kernel-7.2.tar.gz`. Sections 31e onwards were mostly measured on 6.18.55 and 7.2.9.
 
 ### 31. Ubuntu on 6.18, and what it takes
-Ubuntu had never been booted on the mainline kernel. With the kernel bundle from `upstream/make-bundle.sh`,
+Ubuntu had never been booted on the mainline kernel. With the kernel bundle from `kernel/mainline/make-bundle.sh`,
 installed by `mu300-update` (modules into every system, the boot image built on the device), it boots in under
 45 s and runs the hotspot, USB NCM, Bluetooth, the modem with SMS, the VPN and mobile data - the downlink
 included, which had never been shown on 6.18: the delegate's handshake completes and a 20 MB download goes
@@ -1808,7 +1808,7 @@ the call returns 0, and none of this happens. Fixed in the module: `-EINPROGRESS
 `sipa_delegator_start()` is checked, the Wi-Fi offload dependencies (unused here) are warnings, and the delegator
 is no longer devm-allocated. The 5.4 kernel has the same driver in its own tree and the same crash on OpenWrt ("Kernel
 panic - not syncing: CFI failure (target: 0x0)" in `dele-4-5`, caught while testing v2026.09.29); it gets the same
-fix as `kernel/patches/sipa-delegate-einprogress.patch`.
+fix as `kernel/vendor/patches/sipa-delegate-einprogress.patch`.
 
 ### 31g. Three warnings on every boot, three vendor bugs
 6.18 printed three `WARNING:`s on every boot; each one is a bug in the vendor drivers:
@@ -1837,7 +1837,7 @@ too, or `WQ_UNBOUND`), and `trusty` and six Mali queues said neither ("trusty-no
 WQ_UNBOUND"). They say `WQ_PERCPU` now - what the kernel picked for them anyway.
 
 The Wi-Fi lock and the Bluetooth port come from the same vendor sources as the 5.4 modules, so the 5.4 build
-patches them as well (`kernel/patches/wlan_combo-tx-complock-irqsave.patch`, `sprdbt-tty-one-port.patch`); there
+patches them as well (`kernel/vendor/patches/wlan_combo-tx-complock-irqsave.patch`, `sprdbt-tty-one-port.patch`); there
 the second port really was written past the end of `ports[]`, since 5.4 does not check.
 
 The 6.18 bundle also carries `modules.builtin` and `modules.builtin.modinfo` now: without them depmod warned and
@@ -1872,7 +1872,7 @@ show up on the PCIe bus within the 5 s the vendor driver waits; the timeout then
 `sprd_pcie_remove()` completes `remove_done`, which only `sprd_pcie_remove_card()` initialises - a completion that
 was never set up. It is initialised before every scan now, `remove` checks for a probe that never set its data, and
 a timed-out scan is tried once more before Wi-Fi and Bluetooth are given up. Both copies of the driver: the 5.4
-tree (`kernel/patches/wcn-pcie-scan-timeout.patch`) and `upstream/modules/wcn_bsp`.
+tree (`kernel/vendor/patches/wcn-pcie-scan-timeout.patch`) and `kernel/mainline/modules/wcn_bsp`.
 
 ### 31j. SD host under mainline
 The stock device tree of the F50 (read from `/proc/device-tree/soc/ap-ahb` under 6.18) describes three
@@ -1966,7 +1966,7 @@ against nothing; a command the controller gives up on still produces a late comm
 finished the request, and `sdhci_cmd_irq()` logs those at error level with a register dump ("Got command interrupt
 0x00000001 even though no command operation was in progress", `Cmd 0x371a` = CMD55, `0x081a` = CMD8, `Resp[0]
 0xffffffff`): 19 dumps in 9 minutes on the F50 under 7.2.10, none with a card in, none on the U30 Air (no slot).
-`upstream/patches/0014-gpio-eic-sprd-eight-EIC-banks.patch` raises the limit to Unisoc's 8 (nothing else in the
+`kernel/mainline/patches/0014-gpio-eic-sprd-eight-EIC-banks.patch` raises the limit to Unisoc's 8 (nothing else in the
 driver depends on it: the bank count comes from `reg`, the interrupt handler walks the banks the chip has), so
 `mmc_of_parse()` finds the line at the first try, the port's fallback does not run, and the core requests the EIC
 line's interrupt (both edges; the sync EIC supports `IRQ_TYPE_EDGE_BOTH`) instead of polling: an empty slot is not
@@ -2061,7 +2061,7 @@ Both sdhci-sprd hosts probe asynchronously (`PROBE_PREFER_ASYNCHRONOUS`) and the
 20 ms apart (the slot's first in one of them, already holding index 1). Before the polled card slot (31j) the slot's
 host deferred on its card-detect GPIO and always came second.
 
-* Kernel port (`upstream/port/install.py`): the card slot's host returns `-EPROBE_DEFER` until the eMMC's host is
+* Kernel port (`kernel/mainline/port/install.py`): the card slot's host returns `-EPROBE_DEFER` until the eMMC's host is
   added (checked before `sdhci_pltfm_init()`, which allocates the index). The slot registers about 0.28 s after the
   eMMC now, the card is set up at about 2.75 s instead of 2.45 s and `stage=sd-root` comes at 5.10 to 5.16 s instead
   of 5.04 to 5.07 s.
@@ -2159,7 +2159,7 @@ this; only the probe and remove can. main's PCIe post-init change (`wlan_combo-p
 restores the static channel table and did not widen the window. The 5.4 driver has the same code; Ubuntu's hostapd
 opens wlan0 about 10 s after the probe, which is why the Ubuntu boots never showed it.
 
-Fix, both kernels (`upstream/modules/sprd_wlan_combo`, `kernel/patches/wlan_combo-wcn-power-serialise.patch`):
+Fix, both kernels (`kernel/mainline/modules/sprd_wlan_combo`, `kernel/vendor/patches/wlan_combo-wcn-power-serialise.patch`):
 - `sprd_iface_set_power` holds a mutex (`hif->power_lock`) across the whole transition, so an open waits for the
   probe's power-off and then powers on from scratch.
 - `pcie_rx_handle` drops a list that arrives without a context (no hif or no `rx_mgmt`) and logs once ("RX on
@@ -2253,7 +2253,7 @@ make kmodloader load the matching mainline modules at boot. The images now carry
 luci-proto-wireguard, PPTP and L2TP (xl2tpd), 6in4/6rd/DS-Lite, GRE and VXLAN with their LuCI protocols, ipset,
 and SQM (sqm-scripts, luci-app-sqm; cake is built in on mainline and on 5.4, ifb a module on both); apk resolves
 the whole set together (65 kmods). xl2tpd starts at boot and listens on UDP 1701, which fw4 closes on WAN. The
-images also carry the 6.18 modules from `upstream/out` (about 20 MiB unpacked, some 6 MB more in the tarball), so
+images also carry the 6.18 modules from `kernel/mainline/out` (about 20 MiB unpacked, some 6 MB more in the tarball), so
 the switch to 6.18 needs nothing more. Not tried on an OpenWrt device in this round.
 
 ### 31p. BTF and eBPF for dae, and the tracing that broke boots
@@ -2397,7 +2397,7 @@ OpenWrt shadow hash matched the password in it.
 No password is generated and no password file is written. A password is made only for a new filesystem, a wipe,
 a system added beside another, or when `MU300_PASSWORD`/`MU300_PASSWORD_RESET=yes` asks for one. The install
 refuses a system that would be left with an empty password or the image's default. See
-`android/magisk/installer/mu300-install.sh` and `tools/android-install.sh`. No device test of that change is
+`android/magisk/installer/mu300-install.sh` and `installer/android/android-install.sh`. No device test of that change is
 recorded.
 
 ### 32c. Packages installed on the device, and the settings they left behind (#116)
@@ -2442,7 +2442,7 @@ The first boot with the F50 modules (one-shot trial) reached switch_root and ran
 manager, and the F50 build of that module is `charger-manager.c` while `VENDOR_SQC_CHARGER` swaps in
 `charger-manager-sqc-comm.c`. The USB PHY and dwc3 wait on the charger/Type-C side, so no gadget.
 
-`kernel/build-u30air.sh` builds the F50 config plus `kernel/u30air.fragment` in a second build directory and keeps
+`kernel/vendor/build-u30air.sh` builds the F50 config plus `kernel/vendor/u30air.fragment` in a second build directory and keeps
 what differs. The Image has to stay the F50 one, so the check is the set of symbols vmlinux exports: `I2C_SMBUS=m`
 changed it (the i2c core gains `of_i2c_setup_smbus_alert`), and no U30 Air driver needs it, so it is left out;
 `I2C_CHARDEV` is a module. Comparing whole files marks nearly every module as different (build id, symbol table
@@ -2489,7 +2489,7 @@ initialize core`. After LK's dtbo merge the PHY's `extcon` on the F50 is `/extco
 which mainline has), on the U30 Air `typec@380` - the PMIC's Type-C block, `sprd,sc27xx-typec`, which has no driver
 under mainline, so `usb_add_phy_dev()` deferred for ever. Both boards have the VBUS GPIO node: the ssphy driver now
 points the property at it when it names the Type-C block. Found with the device's own log, since there was no USB to
-look through: init persists it into boot_b, and it was read from Android afterwards (`tools/collect-logs.sh`).
+look through: init persists it into boot_b, and it was read from Android afterwards (`scripts/device/collect-logs.sh`).
 
 A boot without USB is also a boot you cannot end: it counted as good, so only failing five boots by hand brought
 the device back. `build-boot-image.py --trial-guard SECONDS` is for such experiments: init leaves a timer running
@@ -2674,7 +2674,7 @@ The device tree's six other GPIO LEDs (`pwr_green`, `net_red`, `net_green`, `net
 `wifi_white`) light nothing; they come from a ZTE board file shared with other products, and Android never writes
 them either. The lights that never went out were the LDO ones: ZTE's `zte_ldo_leds` switches the camera supplies
 VDDCAMA0-2 (3.3 V) through `vddcamaN_status`, mainline had no consumer for them, and `regulator_ignore_unused`
-kept the bootloader's "on". `leds-zte-ldo` (upstream/port) makes them `zte-ldo0..2` and starts them dark, and
+kept the bootloader's "on". `leds-zte-ldo` (kernel/mainline/port) makes them `zte-ldo0..2` and starts them dark, and
 `leds-sc27xx-kpled` (after Unisoc's keypad driver, current mode) brings the red back under its Android name. What
 each colour means was read from Android: sampling `/sys/class/leds` with the radio off shows the network LED
 cycling red / white / off, and `vddcama0` lit on 5G. mu300-led now follows it (blue on 4G, white on 5G, red
@@ -2821,7 +2821,7 @@ reads prove nothing about this bus; only the driver's bind does.
 
 What the two stacks do with the bus-6 pads (SCL6/SDA6, pins 188/189 of the pin controller at 0x642e0000):
 
-- Mainline boots with the vendor DTB unchanged (upstream/README.md), so the DT the kernel sees is Unisoc's: the pin
+- Mainline boots with the vendor DTB unchanged (kernel/mainline/README.md), so the DT the kernel sees is Unisoc's: the pin
   controller `/soc/aon/pinctrl@2e0000` (`sprd,qogirn6pro-pinctrl`) with the board's groups, and `i2c@22a0000`
   without `pinctrl-names`/`pinctrl-0`. No group names SCL6/SDA6 at all (42 groups: audio, eMMC, SIM, keypad), and
   the board's own states on the controller are hogs named `gpio_4` ... `gpio_124`, not `default`, so the vendor
@@ -2854,7 +2854,7 @@ The reporter's boot of that kernel settled the pads: SCL6/SDA6 were on func1 alr
 charger still fails its first read (`no charger: -5`). So the pads are not the difference.
 
 **What reading ZTE's charger driver gives instead: the chip may not be at 0x6b at all.** The U30 Air's 5.4 kernel
-builds `drivers/vendor/common/sqc_v8/sqc_bq2560x.c` (`CONFIG_VENDOR_SQC_BQ2560X=m` in `kernel/u30air.fragment`;
+builds `drivers/vendor/common/sqc_v8/sqc_bq2560x.c` (`CONFIG_VENDOR_SQC_BQ2560X=m` in `kernel/vendor/u30air.fragment`;
 its `bq2560x:bq2560x_charger_probe enter` is the line in the reporter's 5.4 log), not
 `drivers/power/supply/bq2560x-charger.c`. Its `bq2560x_get_chip_vendor_id()` reads REG0B at the node's address
 and, when that read fails, sets `info->client->addr = SGM41513_I2C_ADDR` (0x1a) and reads again; part 0 there is
@@ -3398,7 +3398,7 @@ partitions of Android's slot into the other slot; it solves 99% of the problems.
   checked against the signature chain before it is written, `download slot: trustos_b`), and at every boot LK finds
   them already in place (`fdtdec_decode_region: sml-mem@bd000000`, `tos-mem@bd020000`, `zte_tee smc get tos addr`,
   `uboot_set_root_of_trust succeeded`, `pass_chip_uid_to_tos()`): the SPL loaded the selected slot's set before LK.
-  `stock/README.md` already treats `trustos` as verified together with `sml`, `uboot` and `vbmeta`, one chain per
+  `android/stock/README.md` already treats `trustos` as verified together with `sml`, `uboot` and `vbmeta`, one chain per
   firmware build.
 * `vbmeta`: LK's `avb_slot_verify()` reads `vbmeta_<slot>` and through it `boot`, `dtbo`, `vendor_boot`,
   `nr_modem`, `nr_phy`, `pm_sys` (`Loading vbmeta struct in footer from partition nr_modem_b`, ...) and the chained
@@ -3410,7 +3410,7 @@ partitions of Android's slot into the other slot; it solves 99% of the problems.
   reboot into normal`, `exchange boot slot!!!`).
 
 **What the installers copy:** `uboot`, `sml`, `teecfg`, `trustos` and `vbmeta` - the four of kano's list and the
-`vbmeta` that is verified with them - from Android's slot to the Linux slot (`tools/android-bootchain.sh`; the copy
+`vbmeta` that is verified with them - from Android's slot to the Linux slot (`installer/android/android-bootchain.sh`; the copy
 in the switch module is kept identical by a test). Nothing else, by a fixed list that also refuses any NV-like name:
 
 * never the NV and calibration partitions (`nr_fixnv1/2`, `nr_runtimenv1/2`, `nr_deltanv`, `prodnv`, `miscdata`,
@@ -3470,8 +3470,8 @@ held the SoC at 97 °C in #65 until a reboot. #52 (the Magisk installer, OpenWrt
 `region_find_existing` without seeing why. The legacy offset is the same trap on the 32 GB variant: it lies
 beyond that eMMC altogether and was read all the same.
 
-Fixed in `tools/storage.sh` (`region_find_existing`, which `install.sh` and the Magisk installer share, and
-`region_on_disk`, which the probe loops of `uninstall.sh` and `tools/reset-password.sh` call), in `install.ps1` and
+Fixed in `installer/lib/storage.sh` (`region_find_existing`, which `install.sh` and the Magisk installer share, and
+`region_on_disk`, which the probe loops of `uninstall.sh` and `scripts/device/reset-password.sh` call), in `install.ps1` and
 in `uninstall.ps1` (`RegionOnDisk`): a region whose boundaries cross is an empty one (`SIZE=0`; the installers
 then offer the card or the repartitioning, as they do for any region that is too small), and a candidate
 superblock is read only when it lies on the disk. The SD-card installation of
@@ -3479,7 +3479,7 @@ superblock is read only when it lies on the disk. The SD-card installation of
 layout of #65 against the functions and checks that no `dd` crosses the disk's last byte.
 
 Not taken from #65: a wall-clock limit around every device command in `install.ps1`, and a port of
-`sd_release` to the host side. The card is released on the device, by `tools/android-install.sh`, before
+`sd_release` to the host side. The card is released on the device, by `installer/android/android-install.sh`, before
 anything is written to it (both installers run that script); the reads before it only look at the card. The
 limit is worth having for the day another request is lost, but it is the larger change and is not needed once
 nothing is read past the end.
@@ -3520,7 +3520,7 @@ renders both. Two things stack:
    ... } Error: Resource busy`, the whole transaction is rejected, and the S19 ruleset stays. The flowtable exists
    from S19 on because the `earlyusb` zone names `usb0`, which init has made by then, and fw4 puts every zone
    device that exists into `ft` (a device without a `/sys/class/net` entry is left out, see
-   `openwrt/patches/fw4-sipa-offload.patch`; that is what makes naming `br-lan` and `sipa_eth0` in the zones
+   `systems/openwrt/patches/fw4-sipa-offload.patch`; that is what makes naming `br-lan` and `sipa_eth0` in the zones
    safe at S19). The first ruleset is therefore the one with the flowtable and without the LAN, and nothing
    after it can replace it. Deleting the flowtable on its own (`nft delete flowtable inet fw4 ft`), in a
    transaction that is committed before the reload, is enough: the reload then creates it afresh.
@@ -3531,7 +3531,7 @@ connects; the serial console at `ttyGS0` is the way to `mu300-next-boot android`
 kernels update a flowtable in place and were never affected, which is why the maintainer's own tests (31, 35,
 on 6.18 and 7.2) did not see it.
 
-Two fixes, both in `openwrt/overlay`:
+Two fixes, both in `systems/openwrt/overlay`:
 
 * `uci-defaults/90-mu300` names the devices of the `lan` and `wan` zones (`br-lan`, `sipa_eth0`) next to their
   networks, once, on every system (the reporter's workaround, the pattern of the `earlyusb` zone): the S19
@@ -3543,7 +3543,7 @@ Two fixes, both in `openwrt/overlay`:
 Not covered by those two on 5.4: a reload that is not an ifup's - the firewall saved in LuCI, `fw4 reload` or
 `fw4 restart` by hand, a package's reload (PassWall2, #95), and `mu300-vpn`'s own `/etc/init.d/firewall reload`
 after it adds the tunnel to the wan zone. Since #95 the flowtable is deleted from fw4's own path:
-`openwrt/patches/fw4-old-kernel-flowtable.patch` makes `/sbin/fw4` delete `inet fw4 ft` in a transaction of its
+`systems/openwrt/patches/fw4-old-kernel-flowtable.patch` makes `/sbin/fw4` delete `inet fw4 ft` in a transaction of its
 own before `start`/`reload` apply the ruleset and before `restart` checks it, on kernels before 5.13 only. Turning
 software flow offloading off is no longer needed for that; it would cost the fast path on the one kernel that has
 none other.
@@ -3667,7 +3667,7 @@ where the kernel has them. `modem_control` and `refnotify` ran as `ubuntu` too: 
   3010), `prctl(PR_SET_KEEPCAPS)`, `setuid(0x3e8)` (an immediate in the code, `mov w0, #0x3e8`), then `capset` down to
   what they keep. They never call `setgid` (they ran with gid 0) and nothing else checks the uid (`getuid` is not
   even imported). A failed `setgroups` or `setuid` is logged (`setgroups failed`, `uidset failed`) and they carry on.
-* Fix: a system account `mu300vnd` (the images: `rootfs/assemble.sh`, `arch/build-rootfs.sh`; a system without it:
+* Fix: a system account `mu300vnd` (the images: `systems/base/assemble.sh`, `systems/arch/build-rootfs.sh`; a system without it:
   `android-vendor-start` makes it before anything else uses it). `android-run` starts the two daemons as it with
   `setpriv`: no other groups, no new privileges, and only the capabilities they keep on Android plus `CAP_SYS_CHROOT`
   for `chroot`, which their own `capset` drops - their `setuid(1000)` then fails, harmlessly. `android-vendor-start`
@@ -3687,7 +3687,7 @@ where the kernel has them. `modem_control` and `refnotify` ran as `ubuntu` too: 
   they name (a glob as one name) and fails if `ubuntu`, a second login user in the usual groups (`video`, `render`,
   `input`, `dialout`, ...) or everyone else can do anything with a node they could not before. 333 of 349 nodes
   changed; the only one more open is the RTC, for the vendor group (it was not touched before).
-* The generator's inputs are in `android-vendor/ueventd/` now (the `/dev` rules of the device's `ueventd.rc` and the
+* The generator's inputs are in `android/vendor/ueventd/` now (the `/dev` rules of the device's `ueventd.rc` and the
   `chown`/`chmod` lines of its vendor init `*.rc`), and a test checks the committed script is the generator's.
 * Updates: `mu300-update` takes the new image's `/etc/passwd` and adds the old system's human accounts, so an updated
   system has the image's `mu300vnd`; the nodes are handed out by name at every boot, so its uid does not matter.
@@ -3752,7 +3752,7 @@ channel 149 works.
   kernel `radar detection`; a few countries also have 36-48 or 149-165 so). An access point there must first listen
   for radar (CAC); hostapd asks the driver through `NL80211_CMD_RADAR_DETECT`, and cfg80211 answers `-EOPNOTSUPP`
   when the driver has no `start_radar_detection` op. Neither SC2355 driver has one: not `sprd_cfg80211_ops`
-  (`common/cfg80211.c`) nor the sc2355 ops (`sc2355/init.c`) of `upstream/modules/sprd_wlan_combo`, and not the
+  (`common/cfg80211.c`) nor the sc2355 ops (`sc2355/init.c`) of `kernel/mainline/modules/sprd_wlan_combo`, and not the
   vendor tree the 5.4 module is built from. No interface combination of the wiphy carries `radar_detect_widths`
   either. The firmware does define the commands - `CMD_RADAR_DETECT` (77) and `EVT_RADAR_DETECTED` (0xA1) are in
   `sc2355/cmdevt.h` and the API version table - but nothing in the driver sends or handles them. (The vendor tree's
@@ -3775,7 +3775,7 @@ channel 149 works.
     At every later boot it rewrites a DFS channel set in LuCI to the default (the htmode narrowed to what fits),
     so LuCI shows the channel the hotspot really uses. `mu300-wifi-band 5` writes the same. The Android import keeps
     writing `CHANNEL=auto`.
-  * wifi-scripts (`openwrt/patches/wifi-scripts-no-dfs.patch`, applied by `openwrt/build-rootfs.sh` with
+  * wifi-scripts (`systems/openwrt/patches/wifi-scripts-no-dfs.patch`, applied by `systems/openwrt/build-rootfs.sh` with
     `--fuzz=0` like the fw4 patches, the build stops if it no longer applies): `hostapd.uc` reads the capability
     from the driver - no interface combination with `radar_detect_widths` - and for such a driver, on 5 GHz, an
     explicit channel the kernel flags `radar` becomes 36, else 149, else the first allowed one, with the width
@@ -3816,7 +3816,7 @@ stands; "off by default", "`auth_required = true` on Linux, always" and "no sett
 **Which adbd.** Ubuntu 26.04 (not 24.04) packages Debian's `adbd` 34.0.5, but Debian patches it to require no
 authorisation at all on Linux (`adbd-don-t-require-authorization-on-Linux.patch`) and it listens on TCP 5555 when it
 finds no FunctionFS: a root shell for anyone on the LAN and the hotspot. It is also glibc-only. Alpine's and nmeum's
-`android-tools` build the host tools, not the daemon. So `tools/adbd/build.sh` builds it: the daemon's sources from
+`android-tools` build the host tools, not the daemon. So `device-tools/adbd/build.sh` builds it: the daemon's sources from
 nmeum's `android-tools` 34.0.5 release tarball (AOSP with BoringSSL vendored; SHA-256 pinned), a CMakeLists of its
 own for adbd alone, static against musl in Alpine 3.20: one aarch64 binary of 2.49 MB (stripped) for Ubuntu and
 OpenWrt, built in under two minutes, shipped in the images (`/opt/mu300/bin/adbd`). JDWP, adb over Wi-Fi (pairing)
@@ -3906,7 +3906,7 @@ wrong. A failed second registration also freed the first table while leaving it 
 unlike the four `xfrm_*` entries next to it, not hidden from namespaces owned by an unprivileged user namespace,
 whose "root" has CAP_NET_ADMIN over them: a global kernel switch writable from `unshare -Urn`.
 
-**Fix** (`kernel/patches/xfrm-sysctl-fragment-per-netns.patch`, the reporter's candidate taken as proposed): the
+**Fix** (`kernel/vendor/patches/xfrm-sysctl-fragment-per-netns.patch`, the reporter's candidate taken as proposed): the
 entry becomes the fifth member of `xfrm_table`, so each namespace's copy is registered and torn down with that
 namespace's own `net->xfrm.sysctl_hdr`, exactly like the four upstream entries; the second header, its table and
 their error path are gone. The switch stays one global `int` with default 1, `get_xfrm_fragment()` (used by the ESP
@@ -3935,7 +3935,7 @@ wiphy, `wlan0`, the WCN reset notifier, the misc device and the inetaddr notifie
 freed `priv`: the watchdog's timer is the first to go off. The vendor 5.4 driver still has the call (and no
 watchdog), so only the mainline module was affected.
 
-Fix (`upstream/modules/sprd_wlan_combo`):
+Fix (`kernel/mainline/modules/sprd_wlan_combo`):
 - `sprd_wlan_remove` calls `sprd_iface_remove()` for the PCIe variant again: watchdog stopped first, the chip
   powered on for the close commands, the notifiers, the interfaces and the wiphy unregistered, the chip powered off,
   TX/RX torn down, `priv` freed.
@@ -4022,7 +4022,7 @@ reading them: each added system's `root` had a proper SHA-512 hash - of a **rand
 a root-only file, and shown once in Magisk's output; every later zip replaced the file, so the second added system's
 password was in no file at all. The `ubuntu` account still had the password the user knew, and the panel's
 `mu300-os <os>` switch booted a system nobody could log in to. (`dropbear`/`rpcd` refusing *empty* passwords was not
-it.) The board was recovered with `tools/reset-password.sh openwrt-luci` from Android, which works for an added
+it.) The board was recovered with `scripts/device/reset-password.sh openwrt-luci` from Android, which works for an added
 system too.
 
 Decision (the project owner's): the zip's password for a system it installs is **fixed and well known, like the
@@ -4076,9 +4076,9 @@ that work.
 6.18.56 nor 7.2.10 has a driver matching `virtual-thermal` or any aggregating ("hottest of") thermal sensor
 (`grep -rl 'virtual-thermal\|aggregat' drivers/thermal/` is empty in both trees), and the trips cannot be moved onto a
 physical zone, because the kernel boots the vendor DTB as LK hands it over (a custom DTB hung in `setup_machine_fdt`,
-`upstream/README.md`). What is needed is a driver for that one sensor node; it can live in `upstream/port/` (built in,
-a new `Image`) or in `upstream/modules/` (loaded from the rootfs like the vendor modules). **Chosen: the module**,
-`upstream/modules/mu300_thermal` (after kanoqwq's, GPL-2.0, rewritten with the DT facts above and a probe that defers
+`kernel/mainline/README.md`). What is needed is a driver for that one sensor node; it can live in `kernel/mainline/port/` (built in,
+a new `Image`) or in `kernel/mainline/modules/` (loaded from the rootfs like the vendor modules). **Chosen: the module**,
+`kernel/mainline/modules/mu300_thermal` (after kanoqwq's, GPL-2.0, rewritten with the DT facts above and a probe that defers
 only while a physical zone is not registered yet and fails on a wrong tree): it needs no kernel image change, so no
 untested boot image on anyone's board; `build-modules.sh` builds it for both kernels and the bundles carry it; it is
 tested with `insmod`/`rmmod` on the release kernel; and the seconds between boot and `extra-modules` are covered by
@@ -4214,7 +4214,7 @@ the `cdev*` links and `cooling_device*/type`) and which way the guard goes there
 **Why.** An update keeps the settings (§85), a new installation, a second device or a lost card do not: the hotspot,
 the APN, the locks, the VPN profiles, SMS forwarding, the keys were typed in again by hand.
 
-**What.** `rootfs/overlay/opt/mu300/bin/mu300-backup` (one program for Ubuntu and OpenWrt; it takes mu300-api's helpers
+**What.** `systems/base/overlay/opt/mu300/bin/mu300-backup` (one program for Ubuntu and OpenWrt; it takes mu300-api's helpers
 by sourcing it as a library, `MU300_LIB=1`):
 
 - `export [-o FILE|-] [--encrypt] [--with-password] [--only S,...]`: one JSON document,
@@ -4365,7 +4365,7 @@ and the CRC does not match. Why only at a cold start (the PHY's DLL, a delay val
 still settling) is not known; it is not looked into here. The four lines are `mmc_rescan`'s four attempts (400, 300,
 200, 100 kHz initial clocks), each with a power cycle of the card, and every one went to HS400ES again.
 
-**Changed** (`upstream/patches/0021-mmc-HS400ES-failure-falls-back-to-HS200.patch`, both mainline kernels): when the
+**Changed** (`kernel/mainline/patches/0021-mmc-HS400ES-failure-falls-back-to-HS200.patch`, both mainline kernels): when the
 timing selection of `mmc_init_card` fails (the selection itself, HS200 tuning or HS400 after it, HS400ES tuning,
 DDR52), the failed timing is taken out of the host's caps, with one warning (`mmc0: HS400ES failed (-84), the next
 initialisation uses HS200`), and the next attempt takes the next slower one: HS400ES (HS400 goes with it) -> HS200 ->
@@ -4390,7 +4390,7 @@ the eMMC itself. Only on a boot that fell back.
 CMD13, only while a new card is set up at HS400ES - the failure of the report, at the place the log points to.
 Mainline forces its command line (`CONFIG_CMDLINE_FORCE`; the bootloader's and the boot image's `loglevel=5` are not
 read), so a test kernel gets it at build time: `MU300_CMDLINE_EXTRA=sdhci_sprd.fail_hs400es=1` for
-`upstream/build.sh` appends it to `CONFIG_CMDLINE` after the config check. Releases never set it (a unit test checks
+`kernel/mainline/build.sh` appends it to `CONFIG_CMDLINE` after the config check. Releases never set it (a unit test checks
 the workflows).
 
 **Unit tests:** `tests/test_static.py` (`test_mainline_emmc_timing_falls_back`): the ladder, exactly the four timing
@@ -4431,10 +4431,10 @@ runtime rebind, throughput at HS200. Before that, the plan as written:
 OpenWrt's busybox (`FEATURE_SWAPON_PRI` default y in 25.12's `Config-defaults.in`), as are `mkswap` and `swapoff`.
 
 **Kernels.**
-- 5.4 vendor (`kernel/linux.config`): `ZRAM=m` (the fragment's `=y` is refused, `fragment-rejected.txt`), `ZSMALLOC=m`,
+- 5.4 vendor (`kernel/vendor/linux.config`): `ZRAM=m` (the fragment's `=y` is refused, `fragment-rejected.txt`), `ZSMALLOC=m`,
   `ZRAM_WRITEBACK`/`ZRAM_DEDUP`; zram there compresses through the crypto API, and `CRYPTO_LZ4`, `CRYPTO_ZSTD` are
   built in, `CRYPTO_LZO` a module: every compressor is offered. Left as it is.
-- 6.18.56 and 7.2.10 as shipped (`upstream/out*/kernel.config`): `SWAP`, `ZRAM`, `ZSMALLOC`, `ZRAM_BACKEND_LZ4`,
+- 6.18.56 and 7.2.10 as shipped (`kernel/mainline/out*/kernel.config`): `SWAP`, `ZRAM`, `ZSMALLOC`, `ZRAM_BACKEND_LZ4`,
   default lz4, all built in; `ZSTD_COMPRESS`/`ZSTD_DECOMPRESS` built in already (for `CRYPTO_ZSTD`) but
   `ZRAM_BACKEND_ZSTD` not set, so `comp_algorithm` offered `[lz4]` alone. `mu300-mainline.config` now sets
   `ZRAM_BACKEND_ZSTD=y`: a bool, the library is there, so the Image grows by the backend's glue only (a few KiB).
@@ -4508,7 +4508,7 @@ same zone with the power allocator (IPA, `sustainable-power 3000`) and cluster h
 devices); mainline has neither for this SoC (IPA would need a kernel with the governor and an energy model for
 `sprd-cpufreq-v2`, i.e. new kernel images).
 
-**The fix, in the module** (`upstream/modules/mu300_thermal`, no new kernel image; built for 6.18.56 and 7.2.10, no
+**The fix, in the module** (`kernel/mainline/modules/mu300_thermal`, no new kernel image; built for 6.18.56 and 7.2.10, no
 warning): `mu300_thermal` gives the zone a `get_trend` (`mu300_trend.h`, plain C the tests compile on the host). It
 keeps the last 32 readings and takes the slope between the mean of the last half second and the mean of half a second
 about a second earlier, with a dead band of 1 C/s:
@@ -4591,7 +4591,7 @@ in the fast tier"), measured so far on this machine only (unit tests; the device
   (`+905****567`) until "Show SIM identifiers", and the row is not there at all when neither source has one. It is
   never written to flash: `sim.json` stays IMEI/IMSI/ICCID, the runtime files are root's only (`umask 077`), the
   collector prints nothing, and the panel's operations log keeps its rule (method, time, outcome - no IMSI or
-  numbers). Translations: `Own number` in all 31 catalogs (`tools/luci-i18n.py update`).
+  numbers). Translations: `Own number` in all 31 catalogs (`scripts/i18n/luci-i18n.py update`).
 ### 50. Three guards for the installers: the boot image read back from the medium, bounded SD-card stages, no re-run in the same boot
 
 What #52 looked like from the outside (§38a): the Magisk installer, OpenWrt to the card, silent for good, a `dd` at
@@ -4761,7 +4761,7 @@ gone and the page reading back whatever the modem had. kanoqwq's fork (23361ce, 
 lock-job queue (`lock-apply.sh`, `lock-jobs.sh`) that was not wanted here. The semantics are ported onto our
 synchronous tool; the job queue is not.
 
-**What `lock reset` does now** (`openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/lock`):
+**What `lock reset` does now** (`systems/openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/lock`):
 
 1. One reset at a time, as before (the apply directory; a dead holder's directory is taken over). A tombstone an
    earlier reset left (below) is finished first.
@@ -4860,7 +4860,7 @@ at the PLMN. Not measured on our boards (no such SIM): the report, the code and 
   name is not one of those five (`CMCC`, `CHN-CT`) is now named by its PLMN, as it was when COPS gave the numeric
   format. Networks outside that table are untouched (`vodafone TR` stays `vodafone TR`).
 * The lookup is an own-property test, so a name like `constructor` is not answered from the object's prototype.
-* `tools/luci-i18n.py` allows a non-literal `_()` argument only for the names it lists; the call stays
+* `scripts/i18n/luci-i18n.py` allows a non-literal `_()` argument only for the names it lists; the call stays
   `_(carrier.name)`, the one that list has.
 
 Test: `tests/test_luci_i18n.py` `Languages.test_carrier_name_whatever_its_case`, English and Simplified Chinese.
@@ -4923,7 +4923,7 @@ system has the account (§41), else their own `setuid(1000)`. They keep `CAP_CHO
 `CAP_SYS_TIME`, nothing that reads past a mode. `cp_diskserver` stays root and does not care.
 
 **Where 0700 came from.** `install.sh` on macOS with its folder on FAT or exFAT. Measured on this Mac (an exFAT
-image, `android-vendor/extract-subset.sh` from the F50-B, then `tools/vendor-overlay.py`): the volume shows every
+image, `android/vendor/extract-subset.sh` from the F50-B, then `installer/lib/vendor-overlay.py`): the volume shows every
 file and directory as `rwx------` owned by the user, the empty `ld.config.txt` made by `: >` included; `gettarinfo`
 stored that, the tool sets the owner to root, and the overlay's 390 entries were 375 `-rwx------ root`, 14
 `drwx------ root` and the link. A time before 1980 is clamped there too: `linker64` (1970 on the device) came out as
@@ -4973,10 +4973,10 @@ do not depend on it.) Under a umask of 077 the same code makes `vendor/etc` 0700
   one line says how many entries and the first - to stderr and to `/dev/kmsg`, because OpenWrt starts this service
   before its log daemon - with a `vendor-modes-repaired` (or `vendor-modes-wrong`) mark in the boot timeline. This
   is the part that repairs an installed system: `mu300-update` carries the vendor files over as they are.
-* `tools/vendor-overlay.py`: `host_free_mode` - the mode of an entry from where it goes (the same rule), never
+* `installer/lib/vendor-overlay.py`: `host_free_mode` - the mode of an entry from where it goes (the same rule), never
   from the host. The same exFAT volume now gives `drwxr-xr-x`, `-rwxr-xr-x` in `bin`, `-r--r--r--` properties,
   `-rw-r--r--` for the rest.
-* `tools/android-boot-image.sh`: `collect_subset`, `collect_gpu`, `collect_firmware` and `vendor_overlay` run under
+* `installer/android/android-boot-image.sh`: `collect_subset`, `collect_gpu`, `collect_firmware` and `vendor_overlay` run under
   umask 022 whatever the caller has (the caller's is not changed), and the overlay is `chown -hR 0:0` before it is
   packed. `mu300-install.sh` and `android-install.sh` set umask 022 at the top. On the F50-B under Magisk's busybox,
   with the caller's umask 000 and 077: 334 `-r--r--r--`, 73 `-rw-r--r--`, 7 `-rwxr-xr-x`, 19 `drwxr-xr-x`, the
@@ -5052,7 +5052,7 @@ What the code says about it:
 * **The -4 MiB is the region arithmetic, and it is what a table that ends at the end of the eMMC gives.** Both
   installers take the free region from the first 4096-sector (2 MiB) boundary behind the last partition - the next
   one even when the partition ends on one - to the last boundary but one before the backup GPT (`region_probe` in
-  `tools/storage.sh`, the same two lines in `install.ps1`). With the figures of #9 (122159104 sectors, last usable
+  `installer/lib/storage.sh`, the same two lines in `install.ps1`). With the figures of #9 (122159104 sectors, last usable
   LBA 122155007) and `userdata` up to the last usable LBA, the partitions end at sector 122155008 = 29823 x 4096:
   the start is 29824 x 4096 = 122159104, the end of the disk, and the end is 29822 x 4096 = 122150912, which is
   8192 sectors or 4 MiB before it. Any table whose last partition ends in the last 2 MiB of this eMMC gives the
@@ -5064,7 +5064,7 @@ What the code says about it:
 * **`install.ps1` had no make-room path at all**; `offer_repartition` (#9b) existed in `install.sh` only. It now has
   `OfferRepartition`, the same steps in the same order: the first 34 and the last 33 sectors of the eMMC are copied
   to `work\gpt\gpt.head` and `gpt.tail` (that copy is the backup of the table) and nothing else is read;
-  `tools/resize-last-partition.py --show` checks both GPT copies and refuses when `userdata` is not the last
+  `installer/lib/resize-last-partition.py --show` checks both GPT copies and refuses when `userdata` is not the last
   partition; at least 4 GiB stay with Android and Linux gets at least 800 MiB; the questions are the same (yes/no
   with no as the default, the GiB for Linux, the word `ERASE` typed as it is); the backup GPT is written before the
   primary; the table is read back and compared; the first 32 MiB of `userdata` are cleared so that Android formats
@@ -5109,7 +5109,7 @@ tunnel"), which is what its text says: IPv6 outside the tunnel is refused. The c
 
 With a module from before this (v2.0.1 and earlier) the sentence is ahead of the device: there auto leaves those
 engines on IPv4, as the old sentence said. **Not looked at in a browser:** the page was not opened for this change
-(one string; `tools/luci-i18n.py check` passes), and the translations of the new sentence were written with it,
+(one string; `scripts/i18n/luci-i18n.py check` passes), and the translations of the new sentence were written with it,
 not read by a speaker of each language.
 
 ### 60. `/run` takes files from every user: the daemons' directories there are checked, and a squatted name is put out of the way
@@ -5121,7 +5121,7 @@ Found while checking daemon runtime directories on F50-B (2026-10-13).
   daemon that expects to own it: measured, an unprivileged user created a file there.
 * `mu300-atd` did `mkdir -p /run/mu300-at` and looked no further: in a stranger's directory, or behind his symlink, the command
   fifo is his to write (AT commands, as root's daemon) and every answer his to read.
-* `rootfs/overlay/opt/mu300/lib/run-dir.sh`, the shared runtime-directory helper: `run_dir_ours` (a real
+* `systems/base/overlay/opt/mu300/lib/run-dir.sh`, the shared runtime-directory helper: `run_dir_ours` (a real
   directory, not a symlink; the daemon's own uid; not writable by group or others) and `run_dir_take`, which makes
   the directory that - a plain `mkdir`, never `mkdir -p` (through a symlink that makes the directory where it
   points). The first version of the check refused a foreign directory and stayed down until somebody removed it,
@@ -5275,7 +5275,7 @@ is one of the page's check presets.
 
 ### 66. The OpenWrt image build tries a package download again
 
-`openwrt/build-rootfs.sh` installs the image's packages from the OpenWrt feed inside the build container, one
+`systems/openwrt/build-rootfs.sh` installs the image's packages from the OpenWrt feed inside the build container, one
 `apk update`, one `apk upgrade` and a handful of `apk add`. Each was run once under `sh -e`: a mirror that cut one
 connection in the middle of one package failed the whole image, and in CI the release with it.
 
@@ -5293,14 +5293,14 @@ Unit tests only (`tests/test_static.py` `ApkRetry`: the function cut out of the 
 with a stub `apk` that fails a number of times), and the same function once in busybox ash with a real `apk` (Alpine in a container: update, add, del, and a package that does not exist). Not run: an image build. To check, on the build machine and not on
 a device:
 
-    sh openwrt/build-rootfs.sh ...                  # as the release does: the image builds as before
+    sh systems/openwrt/build-rootfs.sh ...                  # as the release does: the image builds as before
     # and once with the network cut for a few seconds during "apk add": a "trying again (2 of 3)" line, then the image
 ### 64. An update dropped the panel's saved locks (`/etc/unisoc-modem`)
 
 The control panel of openwrt-luci keeps its state in `/etc/unisoc-modem`: `lock-state.d` (the network mode, band
 and cell locks it applied, which `boot-replay` applies again at boot), the SIM identity cache and the operations
 log. `mu300-update` builds the new system from the release's image and copies over what `keep_list` names; for
-OpenWrt that was `etc/config etc/mu300 etc/dropbear etc/rc.local root`, and `tools/android-install.sh` has its own
+OpenWrt that was `etc/config etc/mu300 etc/dropbear etc/rc.local root`, and `installer/android/android-install.sh` has its own
 copy of the list for an update from the computer. `/etc/unisoc-modem` was in neither, so every update left it
 behind in `<os>.old`.
 
@@ -5320,7 +5320,7 @@ the two lists are the same). To check on a device with openwrt-luci:
     mu300-update apply && reboot
     # after: the same files, the lock page shows the locks, and the log has the boot replay
     ls -l /etc/unisoc-modem/lock-state.d; /usr/libexec/unisoc-modem/lock get; logread -e unisoc-modem
-    # the same once from the computer: install.sh --update (tools/android-install.sh's list)
+    # the same once from the computer: install.sh --update (installer/android/android-install.sh's list)
 
 ### 63. A reused SMS reference number mixed long messages, or kept them from ever being joined
 
@@ -5576,7 +5576,7 @@ A state that somebody set and that was damaged afterwards is never read as the d
 
 **Where adb cannot be on.** A mainline kernel from before v2026.10.20 (no `CONFIG_USB_CONFIGFS_F_FS`; a system
 updated without its kernel: `mu300-update kernel` brings one); an image without `/opt/mu300/bin/adbd` (built without
-`tools/adbd/adbd`, or older than v2026.10.20); the U30 Air while its port is a USB host (`mu300-usb host`: there is
+`device-tools/adbd/adbd`, or older than v2026.10.20); the U30 Air while its port is a USB host (`mu300-usb host`: there is
 no gadget, `mu300-adbd` leaves it alone and binds again in the device role); and the seconds before the system's
 `mu300-adbd` service starts (boot/init makes the gadget without adb, so the fallback to Android and init's own
 recovery shell are as they were). In each case the network and the console are untouched and `mu300-usb adb
@@ -5599,7 +5599,7 @@ boot/init makes it.
 **The installers meet a device in Linux in `adb devices` now.** Its shell is root, so `su -c 'id -u'` says 0 there
 too: nothing but the installer's own check keeps it from being taken for a rooted Android (read from the code, not seen happen: it would wait two
 minutes for `sys.boot_completed`, ask "this does not look like an F50, continue?" and go on after a yes). Now
-(`tools/linux-mode.sh`, shared by `install.sh`, `uninstall.sh` and `tools/reset-password.sh`; the same in
+(`installer/lib/linux-mode.sh`, shared by `install.sh`, `uninstall.sh` and `scripts/device/reset-password.sh`; the same in
 `install.ps1` and `uninstall.ps1`): a serial that starts with `MU300LINUX` (boot/init) is a device in Linux; it is
 never on the list of devices to choose from, never the answer to "is an Android up", and `ANDROID_SERIAL` naming it
 is dropped. The installer says "The device is running MU300 Linux, not Android" and offers to reboot it into
@@ -5607,12 +5607,12 @@ Android: over adb where the device lets the computer in (`/opt/mu300/bin/mu300-n
 reboot`, after checking that `mu300-next-boot` is there; no password, and it works where SSH does not, e.g. RNDIS
 on a Mac), else over SSH as before; with neither (keys-only adb, no USB network) it stops with the two commands to
 run on the device. After a device was selected, `ls -d /opt/mu300/bin` on it must print nothing, whatever its serial
-says. `tools/backup-device.sh` refuses a `MU300LINUX` serial. `backup-full.sh`, `collect-logs.sh` and
+says. `scripts/device/backup-device.sh` refuses a `MU300LINUX` serial. `backup-full.sh`, `collect-logs.sh` and
 `boot/android-boot-linux.sh` take the device adb gives them and were not changed: the first two only read, the
 third compares `boot_b` first and stops.
 
 **For tools:** `adb shell /opt/mu300/bin/mu300-device --json`, one line with the device, the system, its release,
-the kernel, whether the caller is root and what adb does; the contract is `docs/ADB-INTERFACE.md`.
+the kernel, whether the caller is root and what adb does; the contract is `docs/guides/ADB-INTERFACE.md`.
 
 **Tested** (`tests/test_adb.py`, `test_installer.py`, `test_device_scripts.py`, `test_android_install.py`,
 `test_update.py`, `installer.Tests.ps1`; dash and bash here, busybox ash in CI): the patch's one switch and that
@@ -5620,7 +5620,7 @@ nothing else assigns `auth_required` or reads the environment; every row of the 
 whole and not through a symlink; the fake gadget joined with `MU300_ADB_AUTH` as the state says; the installers'
 device selection with a device in Linux alone, next to an F50 in Android, next to a tablet, in keys mode, with and
 without SSH, with a reboot that does not happen, and a Linux behind an Android-looking serial; the JSON line
-parsed, with values that try to break out of their quotes. The patched adbd was built (`tools/adbd/build.sh`,
+parsed, with values that try to break out of their quotes. The patched adbd was built (`device-tools/adbd/build.sh`,
 Alpine 3.20, arm64) and its strings checked; it was not run, because it needs FunctionFS.
 
 **Not measured on a device** (all test boards were in use; this is the checklist, to be run before a release
@@ -5819,12 +5819,12 @@ origin: its manifest and its checksums are its own, and say only that it is whol
 SHA-256 and what it says it is before anything, and installing it takes a tick with these words: nothing proves
 that it comes from the project. The real answer is a signature:
 
-* The release workflow signs `SHA256SUMS` (`tools/sign-release.sh`, from `make-release.sh`) with the key in the
+* The release workflow signs `SHA256SUMS` (`scripts/release/sign-release.sh`, from `make-release.sh`) with the key in the
   repository secret `MU300_RELEASE_KEY` and publishes `SHA256SUMS.sig`. The format is that of OpenWrt's `usign` and
   OpenBSD's `signify` (Ed25519). The signer uses openssl, so the runner needs no usign; what it writes was compared
   with what `usign -S` writes for the same key and file in the 25.12.5 image: the same bytes, and `usign -V` accepts
   it.
-* The public key is part of the system: `/opt/mu300/lib/release.pub`, from `rootfs/overlay/` like the updater
+* The public key is part of the system: `/opt/mu300/lib/release.pub`, from `systems/base/overlay/` like the updater
   itself, so both systems get it. Not `/etc/mu300/release.pub`, as first planned: an update carries `/etc/mu300`
   over from the old system as a whole, so a device would never receive the key, nor a later one.
 * `mu300-update` checks the signature where the system has the key: with `usign` on OpenWrt (it is in the image, 20
@@ -5928,7 +5928,7 @@ in the image's container,
 
     usign -G -c 'mu300-linux release key' -s release.sec -p release.pub
     gh secret set MU300_RELEASE_KEY -R dikeckaan/mu300-linux < release.sec     # then keep release.sec offline, or delete it
-    cp release.pub rootfs/overlay/opt/mu300/lib/release.pub                    # commit this file
+    cp release.pub systems/base/overlay/opt/mu300/lib/release.pub                    # commit this file
 
 (`signify-openbsd -G -n -c ... -s release.sec -p release.pub` on Debian or Ubuntu makes the same two files.) From
 the next release on, the release is signed and its images check. The secret alone signs releases that no device
@@ -5988,7 +5988,7 @@ update report are shown redacted: every URL reduced to its scheme (a mirror's ad
 follows a password, key, token or secret word, numbers of 15 to 20 digits (IMSI, ICCID, IMEI) and phone numbers
 (`+` and digits, or ten to fourteen digits after a 0). Sizes, dates and checksums stay.
 
-**For Ubuntu's page.** Cockpit's MU300 page (`rootfs/panel`, out of scope here) can be given the same section with
+**For Ubuntu's page.** Cockpit's MU300 page (`systems/base/panel`, out of scope here) can be given the same section with
 the same four commands: `status`, `releases` and `inspect` are plain JSON on stdout, and `apply --from` takes a path.
 What it would need of its own is the task (there `systemd-run` in place of `setsid` and the runtime directory) and
 the upload (Cockpit writes files through its own channel, as root, with no `/tmp` in between).
@@ -6026,8 +6026,8 @@ cannot be brought back without hands).
 computer's address as the device sees it, `DEV` the device's):
 
     # 0. the build under test, onto the device (or an image built from the branch)
-    A=openwrt/luci-app-mu300
-    scp rootfs/overlay/opt/mu300/bin/mu300-update root@$DEV:/opt/mu300/bin/mu300-update
+    A=systems/openwrt/luci-app-mu300
+    scp systems/base/overlay/opt/mu300/bin/mu300-update root@$DEV:/opt/mu300/bin/mu300-update
     scp $A/root/usr/libexec/unisoc-modem/update $A/root/usr/libexec/unisoc-modem/dashboard-info root@$DEV:/usr/libexec/unisoc-modem/
     scp $A/root/usr/libexec/rpcd/mu300dash root@$DEV:/usr/libexec/rpcd/
     scp $A/root/usr/share/rpcd/acl.d/luci-app-mu300.json root@$DEV:/usr/share/rpcd/acl.d/
@@ -6096,7 +6096,7 @@ computer's address as the device sees it, `DEV` the device's):
     #     (a release from before this change does not name itself in its SHA256SUMS: add the line a new one has)
     usign -G -s lab.sec -p lab.pub
     printf '%s  mu300-release\n' "$(printf '%s\n' $NEW | sha256sum | cut -d' ' -f1)" >> mirror/download/$NEW/SHA256SUMS
-    MU300_RELEASE_KEY_FILE=lab.sec sh tools/sign-release.sh mirror/download/$NEW/SHA256SUMS lab.pub
+    MU300_RELEASE_KEY_FILE=lab.sec sh scripts/release/sign-release.sh mirror/download/$NEW/SHA256SUMS lab.pub
     scp lab.pub root@$DEV:/opt/mu300/lib/release.pub
     #     then: the signed SHA256SUMS and .sig of NEW copied to mirror/download/v2099.01.01/ with NEW's files, and
     #     "latest" edited to that tag (refused: the checksums of another release); chmod 666 on the device's key
@@ -6417,7 +6417,7 @@ have them, and the page refuses those releases. *Measured on the F50:* a passwor
 `su -c '... android-web.sh password'` arrived (the plan said `password=given`, root's entry in the installed
 OpenWrt's `shadow` held a hash) and was in no line of the log; without one, Ubuntu has `ubuntu` and OpenWrt's root
 none. For Linux the page needs no key since §70 (adb on and open by default); it reads `mu300-device --json`
-(docs/ADB-INTERFACE.md) and offers "only this browser" as a choice, off by default, which sets the installed
+(docs/guides/ADB-INTERFACE.md) and offers "only this browser" as a choice, off by default, which sets the installed
 system to authorised keys with the browser's key (per system: a second system added without the choice was open).
 * *"Restart into Android" is `mu300-next-boot android`*, which makes Android the default boot from then on, not
   for one start. The page said "the next system to start"; it now says what it does and has "Make Linux the default
@@ -6587,13 +6587,13 @@ The owner's requirement: people must be able to update to a new release without 
 Until v2026.10.27 an update kept a list of places (`keep_list`: `/etc/mu300`, `/etc/ssh`, home directories,
 `/usr/local`, OpenWrt's `/etc/config`, a few more), the accounts, and the packages added on the device (installed
 again at the first boot, §32c); the image replaced everything else. **Measured in
-containers only: no device was free for this work.** The protocol for a device is docs/update-device-test.md.
+containers only: no device was free for this work.** The protocol for a device is docs/guides/update-device-test.md.
 
 **What was lost, measured.** `tests/update-experiment` installs a published image into an ext4 filesystem, plants
 user state in it (67 kinds on Ubuntu, 52 on OpenWrt: files in every place, odd names, owners, extended attributes,
 hard links, a sparse file, image files changed, deleted and of another kind, accounts, a package), updates it by
 the real code - the installed system's own `mu300-update apply` run inside that system (chroot), which fetches the
-new release's updater from a local server as on a device, and the install loop of `tools/android-install.sh` under
+new release's updater from a local server as on a device, and the install loop of `installer/android/android-install.sh` under
 mksh with toybox's commands and the one true awk first on `PATH`, as on Android - and compares every attribute.
 The two columns "before" are v2026.10.23 updated to v2026.10.25, both as published; the two columns "after" are
 the same old system updated with this change (what the new release is there: see "After the change" below). A row
@@ -6754,7 +6754,7 @@ the kept files only in `<os>.new`, which the next run deletes first.
 
 **The change: the question is asked the other way round.** Not "which places are the user's" but "which files came
 with the image". Every image now carries the manifest of its own files, `etc/mu300/image-manifest.gz`: one line per
-file, `TYPE MODE UID GID SIZE SHA256 PATH` (the hash of a link is that of its target; `tools/image-manifest.py` has the
+file, `TYPE MODE UID GID SIZE SHA256 PATH` (the hash of a link is that of its target; `scripts/release/image-manifest.py` has the
 format). With the manifest of the *old* image, everything in the old system that is not on it was made by the user
 (or by software they installed), and what is on it with other content was changed by them. The new system is the
 new image, plus all of that, by these rules (`mu300-update`, the block between `# --- carry begin` and `end`):
@@ -6828,7 +6828,7 @@ What is set aside goes to `/etc/mu300/update-kept/<old release>/user/<path>` (th
 `/etc/mu300/update-report`, which the update prints, `mu300-update report` shows again and a line at the next login
 points to (once; Ubuntu's motd, OpenWrt's `/etc/profile.d`); earlier reports stay below the new one.
 
-**Files are carried by a helper, not by `cp`.** `tools/carry/mu300-carry.c` (static, in every image as
+**Files are carried by a helper, not by `cp`.** `device-tools/carry/mu300-carry.c` (static, in every image as
 `opt/mu300/bin/mu300-carry`): `scan` (one line per entry, never leaving the filesystem), `sum` (sha256), `manifest`,
 and `copy`/`link`, which make a path in the new system what it is in the old one - content with its holes, owner,
 mode, every extended attribute, times to the nanosecond, names of one file as one file - and never write through a
@@ -6837,7 +6837,7 @@ and awk; hashing is done only where it decides something: a file of the manifest
 with another size is changed without it, and nothing is ever taken for the image's on its size or time alone.
 
 **One implementation for the three paths: the new image brings it.** `mu300-update apply` and
-`tools/android-install.sh` both run `busybox sh NEW/opt/mu300/bin/mu300-update carry OLD NEW OS MODE` - the new
+`installer/android/android-install.sh` both run `busybox sh NEW/opt/mu300/bin/mu300-update carry OLD NEW OS MODE` - the new
 image's own carry block, by the new image's static busybox (the same binary in all four images: `usr/bin/busybox`
 on Ubuntu, `opt/mu300/bin/busybox` on OpenWrt; it prefers its own applets, so the commands are the same on Ubuntu,
 OpenWrt and Android) and its `mu300-carry`. Nothing of it is copied into `android-install.sh`, and none of
@@ -6851,7 +6851,7 @@ updated the old way, with a line that says so; `MU300_UPDATE_KEEP=list` asks for
 **The old image's manifest.** A system from the first release with a four-field tag on has its own (taken only when its first line names the
 release the system says it is). For the releases before that, the new image has them:
 `opt/mu300/lib/image-manifests/<image>.gz`, made from the published images of v2026.09.21 to v2026.10.27 (36
-releases; `tools/image-manifest.py legacy` and `union`). Two releases of one image differ in a few dozen lines, so
+releases; `scripts/release/image-manifest.py legacy` and `union`). Two releases of one image differ in a few dozen lines, so
 each file holds every distinct line once, with the releases that have it in front: 97 kB (openwrt), 101 kB
 (openwrt-luci), 480 kB (ubuntu-24.04), 599 kB (ubuntu-26.04), where the manifests one by one are 30 MB. An image has
 those of its own system (Ubuntu: both releases, for `MU300_UBUNTU`). They are part of the image, so they are checked
@@ -6920,8 +6920,8 @@ The updates that are not the plain one (`tests/update-experiment/scenarios.sh`):
 | updated twice (to v2026.10.26, "rebooted", to v2026.10.27): the second update reads the first one's own manifest | 46 kept, 2 set aside, 1 installed again, 3 not carried by design |
 | `MU300_UPDATE_KEEP=list`: the update as it was | 27 kept, 1 installed again, 3 not carried by design, 2 changed, 34 lost |
 
-**On the devices (2026-10-16, `docs/update-device-test.md`).** Two releases built from this branch and never
-published, v2026.10.40 (T1) and v2026.10.41 (T2): `tools/make-release.sh` with the mainline kernels built at the
+**On the devices (2026-10-16, `docs/guides/update-device-test.md`).** Two releases built from this branch and never
+published, v2026.10.40 (T1) and v2026.10.41 (T2): `scripts/release/make-release.sh` with the mainline kernels built at the
 branch's commit, signed with the project's key (`SHA256SUMS.sig`), the Magisk zips of T2 by `make-magisk-zips.sh`.
 The mirror was on each device (busybox `uhttpd` on 127.0.0.1 on the U30 Air, `file://` on the F50: no server on the
 computer), with the API files of §86 for the page's *Check*. A U30 Air (openwrt-luci, kernel 6.18.56, the owner's
@@ -7019,7 +7019,7 @@ computer installer.
   removes by itself. Known and handled: uci-defaults, the package databases, `ld.so.cache`, `pam.d/common-*`,
   accounts. Others would show as lines of the report nobody caused (`Back, though you had deleted them`, `Yours is
   in use where the new release has another version`); the device test looks for them.
-* No release was built. `rootfs/assemble.sh` and `openwrt/build-rootfs.sh` were run as `tools/make-release.sh` runs them, for Ubuntu 24.04 and OpenWrt, with the kernel outputs of the main checkout: both images came out with the helper, their manifest (the same as `tools/image-manifest.py` makes from the tarball) and the older manifests of their own system, and v2026.10.23 updated to these two built images gave the rows of the tables above by both paths. `make-release.sh` itself (its audit, the manifests as assets, `SHA256SUMS`), the 26.04 and panel images and `install.sh`'s source build did not run.
+* No release was built. `systems/base/assemble.sh` and `systems/openwrt/build-rootfs.sh` were run as `scripts/release/make-release.sh` runs them, for Ubuntu 24.04 and OpenWrt, with the kernel outputs of the main checkout: both images came out with the helper, their manifest (the same as `scripts/release/image-manifest.py` makes from the tarball) and the older manifests of their own system, and v2026.10.23 updated to these two built images gave the rows of the tables above by both paths. `make-release.sh` itself (its audit, the manifests as assets, `SHA256SUMS`), the 26.04 and panel images and `install.sh`'s source build did not run.
 * What an update still does not keep, by decision: a package that cannot be installed again (not in a feed) -
   its files stay in `<os>.old`, `mu300-user-packages status` says so, as before; choices in `/etc/alternatives`; a
   kernel module built by hand on Ubuntu (OpenWrt's `lib/modules` is kept as before); what the running system
@@ -7040,9 +7040,9 @@ update to a release with this is counted only by the carry block's exact check a
 nothing when it fails - measured below). *The report on the page:* System > Update shows `/etc/mu300/update-report`
 as the carry block writes it, the newest update on top, cut at 6000 bytes with where the rest is, open while it is
 new. The manifests of v2026.10.26 and v2026.10.27, published while this waited, were added (36 releases of each
-image); one published before this is merged needs the same (`tools/image-manifest.py legacy`, `union`).
+image); one published before this is merged needs the same (`scripts/release/image-manifest.py legacy`, `union`).
 
-**On a release build** (2026-10-15: `tools/make-release.sh` from the branch under a three-field test tag after v2026.10.27, not published, signed with
+**On a release build** (2026-10-15: `scripts/release/make-release.sh` from the branch under a three-field test tag after v2026.10.27, not published, signed with
 the project's key; 5.4 and the mainline kernels of v2026.10.27; the Magisk zips by `tools/make-magisk-zips.sh`).
 The experiment from v2026.10.27 as published, now with a third path - the old system offline, given the new
 updater as a user of a release before `apply --from` does it, then `mu300-update apply --from` the release's zip of
@@ -7071,11 +7071,11 @@ the payload and uses only that copy). Made deterministic: 2 failures in 100 runs
 v2026.09.21 to v2026.10.27, with the tag's four images in `release/<tag>` as published:
 
 ```sh
-python3 tools/image-manifest.py assets release/<tag> manifests/<tag>
+python3 scripts/release/image-manifest.py assets release/<tag> manifests/<tag>
 gh release upload <tag> -R dikeckaan/mu300-linux manifests/<tag>/*.manifest.gz
 ```
 
-`rootfs/overlay/opt/mu300/lib/image-manifests/` was made from the same manifests (`tools/image-manifest.py legacy`,
+`systems/base/overlay/opt/mu300/lib/image-manifests/` was made from the same manifests (`scripts/release/image-manifest.py legacy`,
 then `union`), each image downloaded and checked against its release's `SHA256SUMS` first.
 
 ### 71. A graphical installer that drives the text installers: an answers mode, a progress stream, a window; a beta question; where a Python with a usable Tk is found
@@ -7090,7 +7090,7 @@ slot rule, the boot chain sync, the read-back of the boot image and the bounded 
 any such copy could have been made. So the window here has no install logic at all. It asks the questions, hands
 the answers to `install.sh` / `install.ps1`, and shows what they report.
 
-**The answers mode** (`tools/answers.sh`, `tools/answers.ps1`; `docs/INSTALLER-AUTOMATION.md` is the reference).
+**The answers mode** (`installer/lib/answers.sh`, `tools/answers.ps1`; `docs/guides/INSTALLER-AUTOMATION.md` is the reference).
 Each question has one variable, the last argument of its `ask`. Four rules carry the safety:
 
 * A question whose variable is not set stops the run and names the variable. It is never defaulted and nothing is
@@ -7139,7 +7139,7 @@ still says what it is.
   the installer's message.
 
 **The beta question.** The installers took `releases/latest`. They now read the list of releases and offer a
-prerelease only when it was published after the newest full release (`tools/release_pick.py`, one file for both
+prerelease only when it was published after the newest full release (`installer/lib/release_pick.py`, one file for both
 installers and the window). No token; when the list does not come - offline, the API's rate limit, a proxy's page -
 the newest release is looked up as before and nothing is asked. The release is resolved before the questions now,
 so a GitHub that does not answer stops the run before the password, not after the pulls. `install.ps1 -Answers`
@@ -7185,7 +7185,7 @@ them and are tested without a display; the widgets are built once per page from 
   the installer's own `MU300_ANS_ERASE_ANDROID`. **It has never been run from the window against a device.**
 * "Back up now" is `install.sh --backup`: Android's boot image and the first block of `misc`, compared with the
   device by sha256. The NV and calibration partitions are not read by it, by the installers or by the window; the
-  full backup of those stays `tools/backup-device.sh`, which the window names and does not run.
+  full backup of those stays `scripts/device/backup-device.sh`, which the window names and does not run.
 * A device in our Linux is recognised by its serial number (`MU300LINUX-...`, §70) and asked with
   `mu300-device --json`; update, kernel switch, restart and back to Android then go over adb as the project's own
   commands. Without adb to it the window shows the commands and opens an SSH session in the system's terminal.
@@ -7279,7 +7279,7 @@ Seen and left as they are:
 
 LuCI's System > Scheduled Tasks page writes `/etc/crontabs/root`, and busybox `crond` runs it (`init.d/cron`,
 START 50). `etc/crontabs` was in neither copy of the keep list - `keep_list` in `mu300-update` nor the one in
-`tools/android-install.sh` - so an update built the new system from the release's image and left the jobs behind
+`installer/android/android-install.sh` - so an update built the new system from the release's image and left the jobs behind
 in `<os>.old`. Two things follow, and the second is worse than the lost line: the page comes up empty after the
 reboot, and the image's own `/etc/crontabs` is an **empty directory**, while OpenWrt's `init.d/cron` begins with
 
@@ -7315,7 +7315,7 @@ safe: the PMK record hostapd imported comes in the same `EVT_NEW_STATION` elemen
 association-request elements, with no boundary, so a client could append a forged record and finish the 4-way
 handshake without the passphrase whenever the firmware does not append its own (the provenance points below). The
 recipe, the patch and the guard named below are gone from the tree (last in commit `2e5cf929`); the measurements stay
-as the record of what the firmware does. `docs/U30AIR-SAE.md` says why and what revisiting would need.
+as the record of what the firmware does. `docs/research/U30AIR-SAE.md` says why and what revisiting would need.
 
 The AP side of 14b's station finding. What the hardware showed, on one U30 Air (OpenWrt 25.12.5, Linux 7.2.9):
 
@@ -7493,7 +7493,7 @@ research".
   refused with the way out).
 * Kernel bundles: a mainline bundle names `v50` in `devices` only when its kernel has `CONFIG_LEDS_AW9523B=y`; the 5.4
   bundle never does, so `mu300-update` never puts 5.4 or an older kernel on a V50.
-* `leds-aw9523b` (kano's driver, `upstream/port/drivers/leds/`, built in): binds only `awinic,aw9523b` with ZTE's
+* `leds-aw9523b` (kano's driver, `kernel/mainline/port/drivers/leds/`, built in): binds only `awinic,aw9523b` with ZTE's
   binding (`led_enable` 1, `gpio_enable` 0), checks the whole binding and the chip ID 0x23 before it touches the chip;
   registers the DT groups, each wired pin (`aw9523b:pinN`) and, for exactly the V50's binding, the lamps
   (`v50:net1:white` ...). `mu300-led`: NET1 is the network lamp (blue 4G, white 5G, red no service), the Wi-Fi lamp
@@ -7537,7 +7537,7 @@ small view (status, update check, kernel, restart, back to Android, logs) made o
 
 **The design.** The page composes no command and reimplements nothing. The device has one entry point,
 `/opt/mu300/bin/mu300-api METHOD`, with a fixed list of methods and the request as one JSON object on stdin; it answers
-one JSON object. Its interface is documented as stable in `docs/ADB-INTERFACE.md` (field `api`, now `1`).
+one JSON object. Its interface is documented as stable in `docs/guides/ADB-INTERFACE.md` (field `api`, now `1`).
 
 * **Reading the request** without jq (Ubuntu has it, OpenWrt does not) or jsonfilter (the reverse): `lib/json.awk`, one
   program for busybox awk, mawk and gawk. A request is a flat object of strings, numbers, booleans and null, keys
@@ -7809,8 +7809,8 @@ holds and the module: equal (`tests/test_magisk_zip.py`, `MagiskPathUnchanged`).
 builds, also pass `ReleaseZips` (each zip's own installer, a dry run). The web installer's `zip.js` reads the central
 directory only for `mu300/manifest` and `mu300/install.sh`: a test reads the 11 built zips with it.
 
-**How the computer's side installs that zip's system and kernel.** `tools/package.sh` (and the same in `install.ps1`,
-and `gui/mu300gui/package.py` for the window): the package is `MU300_PACKAGE`, `--package DIR` / `-Package DIR`, or
+**How the computer's side installs that zip's system and kernel.** `installer/lib/package.sh` (and the same in `install.ps1`,
+and `installer/gui/mu300gui/package.py` for the window): the package is `MU300_PACKAGE`, `--package DIR` / `-Package DIR`, or
 the folder above `computer/` when `.mu300-package` is there (the launchers set `MU300_PACKAGE` to their own folder
 and put `platform-tools/` on the PATH when it is there). Its `mu300/manifest` is read as the zip's own installer reads
 it (only its nine keys, never sourced, every value exactly one a release has - they become file names; Ubuntu 26.04
@@ -7853,7 +7853,7 @@ duplicated. Not taken: his EXE, his own deployment modes, the bundled adb (above
 
 **Tests.** `tests/test_magisk_zip.py` (the computer's side: files, CRLF launchers, exec bits, `START-HERE.md`, no
 platform-tools, the list covers every file the installers name; `MagiskPathUnchanged`), `tests/test_package.py`
-(`tools/package.sh`; `computer/install.sh` of real built zips against the fake adb, as far as the first pull: no
+(`installer/lib/package.sh`; `computer/install.sh` of real built zips against the fake adb, as far as the first pull: no
 question about the system or kernel, the facts, a V50 and a 5.4 zip, a damaged manifest, `--build`, `start.sh`; the
 window's choices and answers), `tests/test_boot_image.py` (the image without the 5.4 bundle, and the refusals),
 `tests/web/logic.test.mjs` and `tests/test_web_installer.py` (zip.js), `tests/installer.Tests.ps1` and
@@ -7885,7 +7885,7 @@ block, zeroed in full". That is the one piece of device evidence he gives for th
 
 **What his flow does, and what this port does.**
 
-| kano (`desktop/installer.py`, `part-prepare.sh`) | here (`tools/resume.sh`, `tools/resume.py`, `install.ps1`) |
+| kano (`desktop/installer.py`, `part-prepare.sh`) | here (`installer/lib/resume.sh`, `installer/lib/resume.py`, `install.ps1`) |
 |---|---|
 | backup on the computer in `~/mu300-backups/<date>-<cid>`: both GPT copies, misc, boot and the boot chain of both slots, `SHA256SUMS` | the same, each file checked against `sha256sum` on the device; the NV and calibration partitions are never read |
 | `transaction.json` saved before the first write (`prepared-request`); serial, slot, `storage` (CID, node, start, size, disk), target, need, token, payload identity | the same fields, written atomically by `resume.py new`; `prepared` once everything is written |
@@ -7972,7 +7972,7 @@ only starts below 700 MiB of free region and without an SD card chosen, so it ca
 **The same F50, the same day: the layout made by hand, the prepare, and the reset (checks 1 and 2).** The owner
 decided to make the 32 GB situation on this unit: a full image of the eMMC first (kept on his computer only, the
 sha256 taken on the device and matched against the file's; 58.25 GiB read in 698 s over SSH, 16.2 GB as zstd -1),
-then `userdata` grown to the end of the usable area with `tools/resize-last-partition.py --fill`, as a vendor flash
+then `userdata` grown to the end of the usable area with `installer/lib/resize-last-partition.py --fill`, as a vendor flash
 leaves it (§57, issue #32): 12275712..122155007 (52.39 GiB), written from the SD card's Linux, the backup copy first,
 both read back. Android started on it without a word: `/data` stayed a 20 GiB f2fs on a 52.39 GiB partition (its
 fstab has no `resize`), `ro.crypto.state=encrypted`, `ro.crypto.type=file`, FBE v2 with metadata encryption
@@ -8080,7 +8080,7 @@ afterwards, sha256 before and after):
   it and says "a MU300 Linux installation is already present";
 * an `installed` copy, unchanged: `RESUME-OK` (kano's rule: an installed record is not asked for its token), and the
   same copy with the installer of current `main`: "this installer's tools or the package differ from the ones that
-  prepared the installation", because `tools/android-install.sh` changed since (the release-tag block). That is the
+  prepared the installation", because `installer/android/android-install.sh` changed since (the release-tag block). That is the
   design: a transaction is resumed with the installer that prepared it, and the installer does not update itself
   while one waits; one prepared before an update of these tools has to be finished with the old checkout.
 
@@ -8089,7 +8089,7 @@ restarted adb's server; every read of the region came back empty, and the instal
 filesystem: no", "data check:  of 16 samples", `[: : integer expression expected`, and "OK: free and empty" for a
 region that held the Linux just installed. A real run would have skipped the update-or-wipe question and the
 overwrite one. `region_find_existing` and `region_dirty` (and `install.ps1`'s copy) now take no answer for no
-answer and stop ("no answer from the device"), with a test. `tools/storage.sh` is one of the files a transaction is
+answer and stop ("no answer from the device"), with a test. `installer/lib/storage.sh` is one of the files a transaction is
 bound to, so this fix, too, refuses a transaction prepared before it.
 
 Not changed, noted: `--check` reports a refused transaction and goes on to the ordinary verdict (`exit 0`); only a
@@ -8237,7 +8237,7 @@ Device checklist (openwrt-luci, relay mode):
 ### 92. Three Wi-Fi TX log lines written once per frame; the AP multicast "endian fix" not taken
 
 kanoqwq's clean-tf-7.2 `3cbf37fc` brought two Wi-Fi changes from his T551M work to the SC2355 driver. Both were
-compared with our `upstream/modules/sprd_wlan_combo` (the mainline kernels' module) and with what our bridge does.
+compared with our `kernel/mainline/modules/sprd_wlan_combo` (the mainline kernels' module) and with what our bridge does.
 
 **Taken: per-frame logs bounded.** In AP mode the TX path wrote, for every frame, `pr_info("... group
 lut_index=...")` when a group-addressed frame found its LUT entry (every broadcast and multicast frame sent), and
@@ -8248,7 +8248,7 @@ credit"), the third is under `net_ratelimit()`. Nothing else changes: the frame 
 still freed with its message (`dev_kfree_skb`, `sprd_chip_free_msg`), the same return values. Both `pcie.c` and
 `sdio.c` (only the PCIe path runs on the F50 and the U30 Air). Not measured: how much of the kernel log these lines
 filled on our boards (no report of it); kanoqwq's concern is the CPU a burst of them costs when a busy client
-drops off. The 5.4 driver (`kernel/patches/wlan_combo-*`) is not changed here: his 5.4 patch was written against
+drops off. The 5.4 driver (`kernel/vendor/patches/wlan_combo-*`) is not changed here: his 5.4 patch was written against
 the realme source, which is not in this repository to check that it applies, and a hunk that fails stops the
 release build.
 
@@ -8314,10 +8314,10 @@ own rules, not as the fix of a symptom of ours.
 
 **Taken:** the four accessors' final access becomes `readl`/`writel`/`writew`/`writeb`; every special case stays
 (the reset bit's read in `writeb` keeps its relaxed read: it orders nothing against DMA memory, and the write after
-it is the ordered one). **Changed:** his edit lives in his `emmc.py`; here it is `upstream/port/sdhci_order.py`,
+it is the ordered one). **Changed:** his edit lives in his `emmc.py`; here it is `kernel/mainline/port/sdhci_order.py`,
 called from `install.py` next to the other sdhci-sprd edits, idempotent, and the port stops (`port: ...`) when the
 four lines are not exactly where they were - a kernel that changes them must be looked at again, as with the
-other anchors. Not taken: his 5.4 patch (`kernel/patches/sdhci-sprd-dma-ordering.patch`), his eMMC power and
+other anchors. Not taken: his 5.4 patch (`kernel/vendor/patches/sdhci-sprd-dma-ordering.patch`), his eMMC power and
 reliable-write changes (V50-specific, unproven by his own account), his CI C check.
 
 Cost: one barrier (`dmb oshst` / `dmb oshld`) per register access of these two hosts; a transfer takes a handful.
@@ -8481,7 +8481,7 @@ fake device the sysfs entry. Run in the `mu300-unit` container (busybox, as root
   `/data/local/tmp`. The initramfs then restored Android's block, as for every one-shot trial.
 ### 102. Mobile data TX: a full IPA FIFO pushed another Ethernet header at every retry
 
-From kanoqwq's clean-tf-7.2 `149c9d2a` ("preserve TX retries"), checked against our `upstream/modules/sprd_modem/
+From kanoqwq's clean-tf-7.2 `149c9d2a` ("preserve TX retries"), checked against our `kernel/mainline/modules/sprd_modem/
 sipa_v3` (mainline kernels' modem stack; the 5.4 build uses the vendor tree and is not changed). Three defects in
 `sipa_eth_start_xmit()`, the transmit function of the `sipa_eth` interfaces that carry mobile data:
 
@@ -8545,9 +8545,9 @@ the v2026.10.27 kernels:
 ### 103. Wi-Fi TX on the SC2355 (mainline): a freed skb used on, AP IPv6 multicast refused in bursts, a full EDMA ring counted as failure
 
 From kanoqwq's clean-tf-7.2 `149c9d2a`. His notes (`docs/WIFI-TX-RETRY-20261015.zh-CN.md` there) are measurements on
-an F50 with OpenWrt 25.12.5 and 7.2.8, with kprobes on the command path; our `upstream/modules/sprd_wlan_combo`
+an F50 with OpenWrt 25.12.5 and 7.2.8, with kprobes on the command path; our `kernel/mainline/modules/sprd_wlan_combo`
 and `wcn_bsp` have the same code at each point. Ported in our own words; his tests, docs and his 5.4 patches not
-taken (the 5.4 driver is built from `kernel/patches/wlan_combo-*`, against a vendor tree, as in §92).
+taken (the 5.4 driver is built from `kernel/vendor/patches/wlan_combo-*`, against a vendor tree, as in §92).
 
 * **A freed skb used on (both transports).** `sc2355_pcie_hif_fill_msdu_dscr()` / `sc2355_hif_fill_msdu_dscr()`,
   when the headroom was short, replaced the skb with `skb_realloc_headroom()` and `kfree_skb()`'d the original - but
@@ -8655,7 +8655,7 @@ real day of the release, then a number for the releases of that day.
 
 **The scheme.** A new release is `vYYYY.MM.DD.N`: YYYY.MM.DD the UTC date it is built, N = 1, 2, 3, ... for the
 releases of that day. N has no leading zero and is at most 99 (Magisk's `versionCode` below); the month is 01..12, the
-day 01..31. `tools/make-release.sh --next-tag` prints the next one: today's date and one more than the highest N of
+day 01..31. `scripts/release/make-release.sh --next-tag` prints the next one: today's date and one more than the highest N of
 today's tags among GitHub's releases (`gh release list`, drafts and prereleases included) and the tags (local and
 `git ls-remote origin`); without GitHub's answer it prints nothing and fails rather than guess. `make-release.sh TAG`
 takes only the four-field form for a new release and refuses a TAG whose date is not today unless `--any-date` is
@@ -8674,8 +8674,8 @@ ones that are not, and 31 pairs with their order; every implementation is tested
 
 | language | where | used by |
 |---|---|---|
-| sh | the `release-tag` block (`tag_ok`, `tag_key`, `newer`) of `tools/releases.sh`, word for word also in `mu300-update` and `tools/android-install.sh` (a test compares the three) | install.sh (the slot-a check), make-release.sh, make-magisk-zips.sh (`versionCode`), mu300-update (`notice`, `check`, `downgrade_ok`, `boot_downgrade_ok`, `--from`, `releases`, a module's `requires`), android-install.sh (for an update's downgrade check) |
-| Python | `tools/release_pick.py`: `tag_key`, `tag_ok`, `newer` | the installers' release and beta decision (install.sh, install.ps1, the graphical installer) |
+| sh | the `release-tag` block (`tag_ok`, `tag_key`, `newer`) of `installer/lib/releases.sh`, word for word also in `mu300-update` and `installer/android/android-install.sh` (a test compares the three) | install.sh (the slot-a check), make-release.sh, make-magisk-zips.sh (`versionCode`), mu300-update (`notice`, `check`, `downgrade_ok`, `boot_downgrade_ok`, `--from`, `releases`, a module's `requires`), android-install.sh (for an update's downgrade check) |
+| Python | `installer/lib/release_pick.py`: `tag_key`, `tag_ok`, `newer` | the installers' release and beta decision (install.sh, install.ps1, the graphical installer) |
 | JavaScript | `site/assets/web-installer/version.js`: `releaseKey`, `newerTag`, word for word also in the panel's `update.js` | the web installer (`loadReleases`, `releaseSupportsWeb`), System > Update |
 | PowerShell | `install.ps1`: `TagKey`, `TagNewer` (tested in `tests/installer.Tests.ps1`) | install.ps1's slot-a check |
 
@@ -8717,7 +8717,7 @@ three have the same logic in these places):
   compared the first eleven characters with v2026.10.23, so v2026.10.16.1 counted as "too old for the web installer":
   this change must be on the site before the first four-field release. Its choice of the newest release went by the
   time of publishing and was right.
-* The graphical installer and the installers' beta question are newer than v2026.10.27 (`tools/release_pick.py` is
+* The graphical installer and the installers' beta question are newer than v2026.10.27 (`installer/lib/release_pick.py` is
   not in those tags); they go by the time of publishing too, now with the tag order on top.
 
 ### 126. An update's password: kept, and checked when the user asks (the Magisk zip and the computer's installers)
@@ -8736,7 +8736,7 @@ password and wrote it over the old one; `mu300-update apply` on the device keeps
 the current one and it checks against the installed system's hash (an empty one is confirmed by an empty entry). No:
 a new one, typed twice. Fresh installs as before.
 
-**Checking a password against an installed system** (`tools/android-pwcheck.sh`, run as root on Android over a
+**Checking a password against an installed system** (`installer/android/android-pwcheck.sh`, run as root on Android over a
 mount of the Linux filesystem; it prints one word - `MATCH`, `NOMATCH`, `LOCKED`, `NOUSER`, `UNVERIFIABLE` - and never
 the password or the hash; the password comes on standard input, the hash never leaves the device):
 
@@ -8751,8 +8751,8 @@ the password or the hash; the password comes on standard input, the hash never l
   salt only as an argument's value, and only of crypt's alphabet); `ROOT`, `ROOT/etc` and `ROOT/etc/shadow` must not be
   links (a link is resolved on Android's side). A test runs the check against a system whose `perl`, `openssl`,
   `busybox`, `sh` and `chroot` all answer `MATCH` and leave a mark: none may run.
-* **`mu300-pwcheck`** (`tools/pwcheck/mu300-pwcheck.c`): a few lines around libxcrypt's `crypt_r()`, linked
-  statically, built with the other helper binaries in `tools/make-release.sh` (`mu300-kbuild`, Ubuntu 20.04's
+* **`mu300-pwcheck`** (`device-tools/pwcheck/mu300-pwcheck.c`): a few lines around libxcrypt's `crypt_r()`, linked
+  statically, built with the other helper binaries in `scripts/release/make-release.sh` (`mu300-kbuild`, Ubuntu 20.04's
   libxcrypt 4.4.10, which has yescrypt; the build checks a real Ubuntu yescrypt hash and stops if it fails) and put
   into the 5.4 kernel bundle beside busybox. The zips take it from there as `mu300/mu300-pwcheck`; the computer's
   installers take it from the package, or from the release's kernel bundle, which they now fetch (and check against
@@ -8830,7 +8830,7 @@ Docker in the image, kernel 6.18, in its 804 MiB region, 2026-10-16, with six si
 published; Ubuntu measured in containers).
 
 **What was wrong.** Every way to update - `mu300-update apply`, the Magisk zip, the computer installers
-(`tools/android-install.sh`) - unpacked the whole new image as `<os>.new` beside the running system, then carried the
+(`installer/android/android-install.sh`) - unpacked the whole new image as `<os>.new` beside the running system, then carried the
 user's files over (§85) and swapped: room for a second copy of the system. With Docker in the image (§130) plain
 OpenWrt is 472 MiB of the F50's 775 (the device's own files included), and a zip update stopped at `tar: No space left
 on device`; Ubuntu with Docker would need about 1.63 GiB in a region of 1.6. A run that failed or was cut off left
@@ -8898,7 +8898,7 @@ before it counts, and its EXIT trap removes the system it was making when it end
 a kill). The installers do the same at their start ("removed openwrt.new, left by an installation that did not
 finish") and remove the half-made system when unpacking fails.
 
-**The switch module of the computer installer.** `tools/install-magisk-module.sh` installed the module's generic
+**The switch module of the computer installer.** `installer/lib/install-magisk-module.sh` installed the module's generic
 `module.prop` (`v1.0`) over the zip's module of the release (seen on F50-C). It now writes
 `android/magisk/installer/module.prop.in` with the release, versionCode, system and kernel as `make-magisk-zips.sh`
 does (`install.sh` passes them, `install.ps1` the same); a build of the checkout keeps the generic one.
@@ -8924,7 +8924,7 @@ installers ask for, and `NEED_UBUNTU` is left as it is.
 releases were made from the published v2026.10.16.1 by repacking its images with this branch's updater and helper
 (each "changed" one with a new text file, a new 2 MiB binary and bytes appended to `/usr/sbin/xl2tpd`), signed with
 the project's key, their zips by `make-magisk-zips.sh`: v2026.10.16.80 and .81 (OpenWrt and Ubuntu 24.04), .82 (plain
-OpenWrt with Docker, built by `openwrt/build-rootfs.sh` with `MU300_DOCKER=1` from this branch with `docker-in-images`
+OpenWrt with Docker, built by `systems/openwrt/build-rootfs.sh` with `MU300_DOCKER=1` from this branch with `docker-in-images`
 merged for the build only), .83, .84 and .85 (.82 with a few files changed each). Free space from Android (read only,
 the journal replayed) or `df` on the device:
 
@@ -8982,8 +8982,8 @@ the 32 of v2026.10.13 to v2026.10.27 and v2026.10.16.1 each have one, all differ
 same for every device of that image). Assets that were replaced on a release before this was looked at, and images
 built by hand, are not on the list.
 
-**The build.** `openwrt/build-rootfs.sh` removes the pair from the image and fails if a key is still there; the audit
-of `tools/make-release.sh` refuses a tarball with `etc/uhttpd.key` (the same hunk as PR #258's). uhttpd makes the
+**The build.** `systems/openwrt/build-rootfs.sh` removes the pair from the image and fails if a key is still there; the audit
+of `scripts/release/make-release.sh` refuses a tarball with `etc/uhttpd.key` (the same hunk as PR #258's). uhttpd makes the
 device its own pair at its first start: px5g (px5g-mbedtls, in both images; openssl is there too) with the
 `key_type ec` of `/etc/config/uhttpd`, an EC P-256 key and a self-signed certificate valid for 397 days.
 
@@ -9075,7 +9075,7 @@ data, so `no_data`, rolled back to SIM1, wan up again on SIM1 with a new address
 
 From kanoqwq's clean-tf-7.2 `2af101f8` ("complete U30 Air power, LED and PD dock support"), his patch 0017 ("retain
 live soc before reset"), on top of the same 0006/0010/0011 as ours (his copies are byte for byte ours). Rewritten here
-as `upstream/patches/0018-power-sc27xx-fuel-gauge-UMP9620-capacity-kept-at-power-off.patch`; his code read, not run.
+as `kernel/mainline/patches/0018-power-sc27xx-fuel-gauge-UMP9620-capacity-kept-at-power-off.patch`; his code read, not run.
 
 **What it is about.** The capacity a U30 Air boots with, under Linux or Android, is the one in the FGU's always-on
 user area (§33d). Since 0011 the driver writes it there whenever somebody reads the capacity and its whole percent
@@ -9148,8 +9148,8 @@ an uninitialised stack structure went to nl80211, whose GET_STATION any local us
 small leak of kernel stack in a narrow window (the hotspot stopping or changing mode, or the module unloading), but
 one. And every setting sent in those windows "succeeded" with the firmware never seeing it.
 
-**Changed (mainline `upstream/modules/sprd_wlan_combo/sc2355/cmdevt.c`, and the same as
-`kernel/patches/wlan_combo-unsent-cmd-error.patch` for 5.4):** the refused lock returns `-EIO`, the two blocked
+**Changed (mainline `kernel/mainline/modules/sprd_wlan_combo/sc2355/cmdevt.c`, and the same as
+`kernel/vendor/patches/wlan_combo-unsent-cmd-error.patch` for 5.4):** the refused lock returns `-EIO`, the two blocked
 windows `-EBUSY` with `*rlen` 0 (the API-check failure keeps its own value and message); `get_station`'s reply
 structure starts zeroed, which also covers a reply shorter than the structure. Callers that only test for non-zero
 now see the failure: a userspace setting tried in those windows gets `EBUSY` instead of a silent no-op.
@@ -9157,8 +9157,8 @@ now see the failure: a userspace setting tried in those windows gets `EBUSY` ins
 **Not taken from `0e19fe32`.** The firmware-SAE bridge (driver: `sae.h`, `SAE_OFFLOAD_AP`, `max_num_akm_suites = 3`, a
 `CMD_SET_SAE_PARAM` status check; hostapd: `unisoc_sae_import()`, his patched wpad packages in every image). It imports
 the PMK from a vendor element (`dd 34 40 45 da 04`) at the end of the association IEs of `NEW_STATION`, which is the
-same design as our opt-in SAE work (`docs/U30AIR-SAE.md`, open PR #237) and has the same open question that
-`docs/U30AIR-SAE-HANDOFF.md` describes: that buffer carries client-controlled association IEs, and nothing shows that
+same design as our opt-in SAE work (`docs/research/U30AIR-SAE.md`, open PR #237) and has the same open question that
+`docs/research/U30AIR-SAE-HANDOFF.md` describes: that buffer carries client-controlled association IEs, and nothing shows that
 the element came from the firmware. His guard (one such element, at the end, or a cached PMKSA) is syntax, not
 provenance; a client that does PMKSA caching without a fresh firmware element and brings its own is the case to rule
 out. His build also turns the bridge on for every `sae`/`psk-sae` BSS on this driver, while ours is an opt-in. Left
@@ -9183,7 +9183,7 @@ thirteen `wlan_combo-*.patch` apply in the build's order on the pristine vendor 
     rmmod sprd_wlan_combo; modprobe sprd_wlan_combo (or reboot): Wi-Fi comes up, no oops
 
 **Device test (2026-10-17).** The module of this branch, built against #256's 6.18.57 and 7.2.11 trees, and the 5.4
-driver built by `kernel/build-all.sh` with the new patch (the build is reproducible: of its 187 modules only
+driver built by `kernel/vendor/build-all.sh` with the new patch (the build is reproducible: of its 187 modules only
 `sprd_wlan_combo.ko` differs from v2026.10.16.1's, so it went onto the released 5.4 as the only change). An
 unprivileged user (`ubuntu`; `nobody` on OpenWrt) ran `iw dev wlan0 link` and `iw dev wlan0 station dump` in a loop
 throughout.
@@ -9249,7 +9249,7 @@ a hard reset we send raises TX_OK, whether a second frame can sit behind the fir
 debug level: `echo 'module ump9620_tcpc +p' > /sys/kernel/debug/dynamic_debug/control`), and why the dock did not swap
 to host by itself on kano's unit (TCPM accepts a partner's DR_Swap; it does not start one).
 
-**The pieces.** `upstream/patches/0019` (charger: the boost as the `otg-vbus` regulator, refused against an outside
+**The pieces.** `kernel/mainline/patches/0019` (charger: the boost as the `otg-vbus` regulator, refused against an outside
 supply, a stale boost off at probe, a PD contract's input current kept across VBUS events and dropped with VBUS),
 `0020` (`drivers/usb/typec/tcpm/ump9620-tcpc.c`, one file); `CONFIG_TYPEC`, `CONFIG_TYPEC_TCPM` and
 `CONFIG_TYPEC_UMP9620` as modules on both kernels. `mu300-usb pd on|off|status` loads the module with `enable=1` (and
@@ -9439,7 +9439,7 @@ or blue with red flashing, no internet on that SIM. Slot 0 is the nano-SIM (`mu3
 eSIM (`internal`). §33f's "blue on 4G, white on 5G" was sampled with the radio off and `vddcama0` lit on 5G, which the
 nano-SIM in slot 0 explains as well.
 
-**The change** (`rootfs/overlay/opt/mu300/bin/mu300-led`, one program for Ubuntu and OpenWrt):
+**The change** (`systems/base/overlay/opt/mu300/bin/mu300-led`, one program for Ubuntu and OpenWrt):
 
 - U30 Air, `data on` and `data 5g` (mobile-data still says which; the F50 and the V50 keep 4G/5G): white
   (`zte-ldo0`, `vddcama0_status` under 5.4) for slot 0, blue (`net_blue`) for slot 1, the other colour and the red
@@ -9471,22 +9471,22 @@ switching <slot>` after `ifdown wan` with the marker set, and a failing or missi
 **On a device (to do):** a U30 Air on OpenWrt with both cards: the network light white on the nano-SIM, blue on the
 eSIM, whatever 4G or 5G; blinking during a live switch from the panel, steady in the new colour when data is up; red
 with no SIM; Ubuntu on the U30 Air white.
-### 156. The release smoke test: tools/smoke.py
+### 156. The release smoke test: scripts/release/smoke.py
 
 **Status: current** (unit tests with fakes, `tests/test_smoke.py`; not yet run against a device).
 
 **What it replaces.** After a release the maintainers updated a few boards by hand - an F50 with Ubuntu, an F50 with
 OpenWrt, the U30 Air with OpenWrt and the control panel, sometimes the Magisk zip from Android - and looked at the
-version, the kernel, the services, the hotspot, mobile data and the VPN afterwards. `tools/smoke.py` does that from a
-local config of the boards (`tools/smoke.json`, ignored by git; `tools/smoke.example.json`) and prints one line per
-check and board. docs/RELEASING.md describes the fields, the checks and what stays manual.
+version, the kernel, the services, the hotspot, mobile data and the VPN afterwards. `scripts/release/smoke.py` does that from a
+local config of the boards (`scripts/release/smoke.json`, ignored by git; `scripts/release/smoke.example.json`) and prints one line per
+check and board. docs/guides/RELEASING.md describes the fields, the checks and what stays manual.
 
 **Identity before anything.** The address does not say which board answers: every F50 is 192.168.77.1 on its USB
 network and every U30 Air 192.168.78.1, and an F50-B and an F50-C on the bench look the same. So no command runs before every board of the run has been identified: the SSH host key from `ssh-keyscan` must have the
 config's SHA256 fingerprint (computed in Python from the key blob, the way `ssh-keygen -lf` does: SHA-256 of the
 decoded blob, base64 without padding), and only that key goes into a known_hosts file of the run, used with
 `StrictHostKeyChecking=yes` and no other known_hosts file. Then `/proc/sys/kernel/hostname`, `mu300-device --json`'s
-device and system (docs/ADB-INTERFACE.md; a release without `--json` prints the device alone) and the adb serial when
+device and system (docs/guides/ADB-INTERFACE.md; a release without `--json` prints the device alone) and the adb serial when
 the config has one. One mismatch on any board and the run stops with exit status 2 before a single command that
 changes something: the boards that did match are not touched either. After the reboot the same checks run again.
 
@@ -9512,7 +9512,7 @@ standard input, with no value of the config in them. Every subprocess has a time
 bounded (`down`, `boot`), and so are the update itself (`apply`, an hour) and the zip's install.
 
 **The update paths**, read from mu300-update and the docs: online is `MU300_RELEASE=TAG mu300-update apply`; a mirror
-adds `MU300_RELEASE_URL=<mirror>/TAG` (as in docs/update-device-test.md; a `file://` URL needs curl on the device,
+adds `MU300_RELEASE_URL=<mirror>/TAG` (as in docs/guides/update-device-test.md; a `file://` URL needs curl on the device,
 busybox wget has none); `--from DIR` takes a release directory on the device, which the harness can fill with `scp`
 from a local release directory; the Magisk zip is `adb push` and `su -c 'magisk --install-module ...'`, as
 android/magisk/README.md installs a module from a computer, then `adb reboot`. A failed update is not followed by a
@@ -9535,14 +9535,14 @@ for an update over an installed system.
 **Status: current** (unit tests with throwaway keys; the real 6.18.56 and 7.2.10 releases and seven kinds of
 tampering checked in the build image, 2026-10-16).
 
-**What was there.** `upstream/build.sh` - the one place that downloads a kernel.org tarball, for local builds, the
+**What was there.** `kernel/mainline/build.sh` - the one place that downloads a kernel.org tarball, for local builds, the
 Mainline kernel build workflow and the release workflow alike - fetched `linux-$KV.tar.xz` and piped
 `sha256sums.asc` through `grep | sha256sum -c`. That checks the download against a list fetched over the same
 connection from the same host, and never looks at the list's signature: whoever can change the tarball (a CDN node, a
 mirror, TLS interception on a build host) can change the list with it. And `grep` read the whole file, so a line put
 in front of the clearsigned block would have counted as well as a signed one.
 
-**What it does now.** `upstream/verify-kernel-src.sh DIR KV`, run by `build.sh` before anything is unpacked:
+**What it does now.** `kernel/mainline/verify-kernel-src.sh DIR KV`, run by `build.sh` before anything is unpacked:
 
 1. `gpgv --keyring keys/kernel-autosigner.gpg --output SUMS sha256sums.asc`: kernel.org's checksum list must carry a
    good signature of the autosigner (kernel.org's off-the-network signing system); only the signed text, as gpgv
@@ -9559,7 +9559,7 @@ and the primary fingerprint of `VALIDSIG` must be listed in the keyring's `.fpr`
 run takes as fetched (it used to: the tree's existence was the only test). The check costs about 3 s per kernel
 (the second xz pass). The build image lists `gpgv` (Ubuntu's base image has it already, as apt's dependency).
 
-**The keys** (`upstream/keys/README.md`): the autosigner `B8868C80BA62A1FFFAF5FDA9632D3A06589DA6B1`, Linus
+**The keys** (`kernel/mainline/keys/README.md`): the autosigner `B8868C80BA62A1FFFAF5FDA9632D3A06589DA6B1`, Linus
 `ABAF11C65A2970B130ABE3C479BE3E4300411886`, Greg `647F28654894E3BD457199BE38DBBDC86092693E`, Sasha
 `E27E5D8A3403A2EF66873BBCDEA66FF797772CDC`; none expires. Fetched from kernel.org's WKD and from the pgpkeys
 repository on git.kernel.org, which agreed; signature.html prints the three releasers' fingerprints (not the
@@ -9576,9 +9576,9 @@ of `build.sh` itself, run in a new volume for 7.2.10, verified and unpacked it. 
 repeats these against throwaway ed25519 keys (skipped where gpg is missing; GitHub's Ubuntu runners have it), and
 parses the committed keyrings' packets to pin their fingerprints to the `.fpr` files, the README and the test.
 
-**Not covered here:** the OpenWrt rootfs download (`openwrt/build-rootfs.sh`) still checks `sha256sums` without
+**Not covered here:** the OpenWrt rootfs download (`systems/openwrt/build-rootfs.sh`) still checks `sha256sums` without
 OpenWrt's signature (`sha256sums.asc`/`.sig`); the vendor 5.4 sources are git checkouts pinned by commit hash
-(`kernel/build-all.sh`), which no tarball signature applies to.
+(`kernel/vendor/build-all.sh`), which no tarball signature applies to.
 
 ### 104. The U30 Air's live SIM switch turned mobile data back on that the user had switched off
 
@@ -9646,7 +9646,7 @@ data, so `no_data`, rolled back to SIM1, wan up again on SIM1 with a new address
 
 From kanoqwq's clean-tf-7.2 `2af101f8` ("complete U30 Air power, LED and PD dock support"), his patch 0017 ("retain
 live soc before reset"), on top of the same 0006/0010/0011 as ours (his copies are byte for byte ours). Rewritten here
-as `upstream/patches/0018-power-sc27xx-fuel-gauge-UMP9620-capacity-kept-at-power-off.patch`; his code read, not run.
+as `kernel/mainline/patches/0018-power-sc27xx-fuel-gauge-UMP9620-capacity-kept-at-power-off.patch`; his code read, not run.
 
 **What it is about.** The capacity a U30 Air boots with, under Linux or Android, is the one in the FGU's always-on
 user area (§33d). Since 0011 the driver writes it there whenever somebody reads the capacity and its whole percent
@@ -9716,8 +9716,8 @@ an uninitialised stack structure went to nl80211, whose GET_STATION any local us
 small leak of kernel stack in a narrow window (the hotspot stopping or changing mode, or the module unloading), but
 one. And every setting sent in those windows "succeeded" with the firmware never seeing it.
 
-**Changed (mainline `upstream/modules/sprd_wlan_combo/sc2355/cmdevt.c`, and the same as
-`kernel/patches/wlan_combo-unsent-cmd-error.patch` for 5.4):** the refused lock returns `-EIO`, the two blocked
+**Changed (mainline `kernel/mainline/modules/sprd_wlan_combo/sc2355/cmdevt.c`, and the same as
+`kernel/vendor/patches/wlan_combo-unsent-cmd-error.patch` for 5.4):** the refused lock returns `-EIO`, the two blocked
 windows `-EBUSY` with `*rlen` 0 (the API-check failure keeps its own value and message); `get_station`'s reply
 structure starts zeroed, which also covers a reply shorter than the structure. Callers that only test for non-zero
 now see the failure: a userspace setting tried in those windows gets `EBUSY` instead of a silent no-op.
@@ -9725,8 +9725,8 @@ now see the failure: a userspace setting tried in those windows gets `EBUSY` ins
 **Not taken from `0e19fe32`.** The firmware-SAE bridge (driver: `sae.h`, `SAE_OFFLOAD_AP`, `max_num_akm_suites = 3`, a
 `CMD_SET_SAE_PARAM` status check; hostapd: `unisoc_sae_import()`, his patched wpad packages in every image). It imports
 the PMK from a vendor element (`dd 34 40 45 da 04`) at the end of the association IEs of `NEW_STATION`, which is the
-same design as our opt-in SAE work (`docs/U30AIR-SAE.md`, open PR #237) and has the same open question that
-`docs/U30AIR-SAE-HANDOFF.md` describes: that buffer carries client-controlled association IEs, and nothing shows that
+same design as our opt-in SAE work (`docs/research/U30AIR-SAE.md`, open PR #237) and has the same open question that
+`docs/research/U30AIR-SAE-HANDOFF.md` describes: that buffer carries client-controlled association IEs, and nothing shows that
 the element came from the firmware. His guard (one such element, at the end, or a cached PMKSA) is syntax, not
 provenance; a client that does PMKSA caching without a fresh firmware element and brings its own is the case to rule
 out. His build also turns the bridge on for every `sae`/`psk-sae` BSS on this driver, while ours is an opt-in. Left
@@ -9751,7 +9751,7 @@ thirteen `wlan_combo-*.patch` apply in the build's order on the pristine vendor 
     rmmod sprd_wlan_combo; modprobe sprd_wlan_combo (or reboot): Wi-Fi comes up, no oops
 
 **Device test (2026-10-17).** The module of this branch, built against #256's 6.18.57 and 7.2.11 trees, and the 5.4
-driver built by `kernel/build-all.sh` with the new patch (the build is reproducible: of its 187 modules only
+driver built by `kernel/vendor/build-all.sh` with the new patch (the build is reproducible: of its 187 modules only
 `sprd_wlan_combo.ko` differs from v2026.10.16.1's, so it went onto the released 5.4 as the only change). An
 unprivileged user (`ubuntu`; `nobody` on OpenWrt) ran `iw dev wlan0 link` and `iw dev wlan0 station dump` in a loop
 throughout.
@@ -9778,7 +9778,7 @@ by WKD), and both tarballs match it (`build.sh` checks the sums; the signature w
 All 17 patches (`patches/*` and `patches/6.18/0007`) and every `port/install.py` edit apply unchanged to both trees:
 none is upstream yet, none was dropped or changed.
 
-**All modules (`upstream/all-modules.py`).** Not allmodconfig. After the fragment, every option declared `tristate`
+**All modules (`kernel/mainline/all-modules.py`).** Not allmodconfig. After the fragment, every option declared `tristate`
 in the tree that is off becomes `m`, `olddefconfig`, again until nothing changes (a fixpoint: a module whose
 dependencies are only now met comes in on the next round). The rules:
 
@@ -10094,7 +10094,7 @@ exemption for downloads, the LAN untouched.
 **dae before the download.** `mu300-extra install vpn-dae` now checks the running kernel first, as the module's
 `dae_kernel_ok` does (5.17 or newer, `/sys/kernel/btf/vmlinux`): on the 5.4 vendor kernel it refuses before 17 MB
 are fetched and 56 MB unpacked (`MU300_DAE_ANY_KERNEL=1` for a kernel the device is about to boot). The mainline
-kernels of v2026.10.16.1 (6.18.56, 7.2.10) have BTF and the BPF JIT (`upstream/mu300-mainline.config`, 31p). The
+kernels of v2026.10.16.1 (6.18.56, 7.2.10) have BTF and the BPF JIT (`kernel/mainline/mu300-mainline.config`, 31p). The
 v2.0.3 `vpn-dae` tarball installs with v2026.10.16.1's `mu300-extra` both online (tunnel up) and with `--from`.
 
 **Open:** why the U30's tunnel was not carrying traffic at that moment, and why the owner's later try ended in
@@ -10102,7 +10102,7 @@ v2.0.3 `vpn-dae` tarball installs with v2026.10.16.1's `mu300-extra` both online
 ### 174. The dashboard showed IMEI and IMSI as null for hours: a partial identity read was cached for 6 h
 
 Seen on the U30 Air (2026-10-17): the dashboard's IMEI and IMSI were `--` for hours after a boot. The collector
-(`openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/cell`) keeps the module and SIM identity in a 6 h cache on flash
+(`systems/openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/cell`) keeps the module and SIM identity in a 6 h cache on flash
 (`/etc/unisoc-modem/sim.json`, `sim-slot1.json` for the U30 Air's second slot) and wrote it whenever **any** of IMEI,
 IMSI and ICCID had been read. On a boot round where the modem was not ready yet, `AT+CGSN` and `AT+CIMI` ran into their
 2 s timeout while `AT+CCID` answered, so `"imei":null,"imsi":null` was cached and served for the next 6 hours.
@@ -10143,7 +10143,7 @@ driver has no SAE-completion signal to check it against. The owner's decision (2
 an authentication bypass; WPA2-PSK only, on the F50, the U30 Air and the V50 (one chip, one driver).
 
 **What changed.**
-* **Driver** (`upstream/modules/sprd_wlan_combo`, and `kernel/patches/wlan_combo-softap-no-sae.patch` for 5.4, the
+* **Driver** (`kernel/mainline/modules/sprd_wlan_combo`, and `kernel/vendor/patches/wlan_combo-softap-no-sae.patch` for 5.4, the
   same code): `sprd_report_softap()` (`common/report.c`) runs the station's element list through
   `mu300_strip_sae_pmk_record()` before `cfg80211_new_sta()`: every vendor element starting `40:45:da:04` goes,
   whoever wrote it and whatever its length, and so does a malformed tail (an element longer than what is left, which
@@ -10151,10 +10151,10 @@ an authentication bypass; WPA2-PSK only, on the F50, the U30 Air and the V50 (on
   was dropped, without its bytes. `vendor_set_sae_password()` (`sc2355/vendor.c`, vendor subcommand 43) returns
   `-EOPNOTSUPP` first thing: the firmware is never given an SAE password. A hostapd built by hand from the old patch
   finds no record to import.
-* **hostapd**: `openwrt/patches/hostapd/990-u30-sae-offload.patch` and `openwrt/build-u30-sae.sh` removed; the images
-  install the stock `wpad-basic-mbedtls`; `openwrt/build-rootfs.sh` stops on `MU300_SAE_APK_DIR` with a line instead
+* **hostapd**: `systems/openwrt/patches/hostapd/990-u30-sae-offload.patch` and `openwrt/build-u30-sae.sh` removed; the images
+  install the stock `wpad-basic-mbedtls`; `systems/openwrt/build-rootfs.sh` stops on `MU300_SAE_APK_DIR` with a line instead
   of ignoring it.
-* **wifi-scripts** (`openwrt/patches/wifi-scripts-wpa2-only.patch`, after the DFS patch, whose `log` import it uses;
+* **wifi-scripts** (`systems/openwrt/patches/wifi-scripts-wpa2-only.patch`, after the DFS patch, whose `log` import it uses;
   the build checks it is in): in `hostapd.setup()` an access point whose `encryption` is `sae`, `psk3`, `sae-mixed`,
   `psk3-mixed` or `sae-compat` (with any `+cipher`), or whose `hostapd_bss_options` carries `u30_sae_offload`, is left
   out of the hostapd configuration with `wifi-scripts: <section>: encryption '<value>' refused: WPA3/SAE is disabled
@@ -10257,7 +10257,7 @@ looks at whether anything comes back; a context check and an address check canno
 nothing. That is fixed below for both.
 
 **What changed.**
-* **`mu300-vpn-uplink`** (`rootfs/overlay/opt/mu300/bin`), run at the bearer's `ifup` (OpenWrt:
+* **`mu300-vpn-uplink`** (`systems/base/overlay/opt/mu300/bin`), run at the bearer's `ifup` (OpenWrt:
   `/etc/hotplug.d/iface/96-mu300-vpn-uplink`, `sipa_eth*` only, in the background; Ubuntu: the end of `mobile-data up`,
   in the background): with the VPN on (`mu300-vpn enabled`), it waits 3 s for netifd, then up to 60 s for a run that is
   starting to reach its engine (`/run/mu300-vpn/since`), and when that run started no later than the bearer came up
@@ -10321,7 +10321,7 @@ Two more things filled the region over time: each kernel release a bundle brough
 (F50-C had 6.18.56's 29 MB beside 6.18.57's - 120 MB each from now on), and an update with only the kernel to do asked
 `space_needed`'s 1 GB for a whole system before it started.
 
-**The fix** (`rootfs/overlay/opt/mu300/bin/mu300-update`):
+**The fix** (`systems/base/overlay/opt/mu300/bin/mu300-update`):
 * **No copies of a module set.** The unpacked bundle, the systems and `boot/` are one filesystem, so a set gets more
   names (`mod_link`: `ln`, `cp` only where a link cannot be made) and names are removed, never a file written into
   (the delta block's second names, §131). The set in place goes to `prev.modules.new` as links; the new set goes into
@@ -10430,7 +10430,7 @@ source (commit `abc5a93c`). Booting a `mu300root` partition from our init is a s
 **What was reported.** After 178, a U30 user of kanoqwq's desktop installer: our web installer "treats my Linux
 partition as Android" and says there is no space. That installer can put the system in a GPT partition of its own,
 named `mu300root` (ext4, label `mu300root`), carved out behind userdata, 1 MiB aligned. `region_probe`
-(`tools/storage.sh`) puts the free region behind the *last* partition - which is now that one - so the region was
+(`installer/lib/storage.sh`) puts the free region behind the *last* partition - which is now that one - so the region was
 empty, `region_find_existing` never looked inside the partition, and the web page drew it as one of Android's.
 install.sh, install.ps1 and the Magisk zip (the web installer runs the zip's installer) all share that view.
 
@@ -10479,12 +10479,12 @@ install.sh, install.ps1 and the Magisk zip (the web installer runs the zip's ins
   the image file, the probe command shared with install.ps1), `test_android_install.py` `RegionGuard`,
   `tests/web/logic.test.mjs` (the partition's verdicts and bar).
 
-**Found on the way.** `tools/self-update.sh` told a git checkout by `[ -d .git ]`: in a git worktree `.git` is a
+**Found on the way.** `installer/lib/self-update.sh` told a git checkout by `[ -d .git ]`: in a git worktree `.git` is a
 file, so `install.sh --check` run from a worktree took it for a downloaded copy and overwrote the uncommitted work
 in it with GitHub's main (it did, twice, during this work). `-e` now; install.ps1's `Test-Path` already saw both.
 
 **The uninstallers and reset-password (follow-up, PR after #297).** `uninstall.sh`, `uninstall.ps1` and
-`tools/reset-password.sh` still had their own search (the region and the old fixed offset only): in this layout
+`scripts/device/reset-password.sh` still had their own search (the region and the old fixed offset only): in this layout
 `uninstall.sh` said "no mu300root filesystem found (already erased?)" and would have left the system, and
 reset-password "no Linux filesystem found". They now use the same probe (`region_probe`/`region_find_existing`;
 uninstall.ps1 the same device command as install.ps1, a test compares them) and bounds (`region_in_bounds`):
@@ -10517,14 +10517,14 @@ Android up, `su -c mu300-linux`: `/run/mu300-root-dev` `mmcblk0@61698211840`, Op
 set up (nobody here has one); the partition here was made by hand to cover our own region.
 `tools/android-import-hotspot.sh` (no caller left) still mounted the old fixed offset and wrote into the
 filesystem's top level, not a system's: it predated the region and the systems' directories. Removed (2026-10-18):
-the installers copy Android's hotspot themselves (`IMPORT_HOTSPOT` in `tools/android-install.sh`, into each system's
+the installers copy Android's hotspot themselves (`IMPORT_HOTSPOT` in `installer/android/android-install.sh`, into each system's
 own `etc/mu300/hotspot.conf`), so nothing needed it.
 
 ### 180. Wi-Fi access point: get_station answered for any address with the interface's own counters
 
 **Status: current** (device-tested on the U30 Air, 6.18.57, and F50-B, 7.2.11, 2026-10-17). From kanoqwq's `f59a296` (his notes: the access point no longer passes station
-or interface figures off as a client's): his `upstream/modules/sprd_wlan_combo/common/cfg80211.c` and
-`kernel/patches/wlan_combo-ap-stats-scope.patch`, read and taken in our words; his code not run.
+or interface figures off as a client's): his `kernel/mainline/modules/sprd_wlan_combo/common/cfg80211.c` and
+`kernel/vendor/patches/wlan_combo-ap-stats-scope.patch`, read and taken in our words; his code not run.
 
 **What it was.** `sprd_cfg80211_get_station()` is the station side's: it reports the interface's own byte and packet
 counters (`ndev->stats`) and the firmware's GET_STATION, which describes the link to the access point the interface
@@ -10538,7 +10538,7 @@ Two smaller ones next to it: `get_channel` (5.15 and later) indexed `wdev->links
 unchecked (cfg80211 passes 0 for a driver without MLO, which this one is; an index past the array is not ours to
 read), and `dump_station` took a negative index as the first station.
 
-**Changed** (mainline module and, the same code, `kernel/patches/wlan_combo-ap-stats-scope.patch` for 5.4): in AP and
+**Changed** (mainline module and, the same code, `kernel/vendor/patches/wlan_combo-ap-stats-scope.patch` for 5.4): in AP and
 P2P-GO mode, `get_station` answers `-ENOENT` unless the address is one of this interface's entries in the peer table
 (as `dump_station` lists them, never the interface's own address), and for a station of ours returns it with nothing
 filled in, as `dump_station` does. `get_channel` answers for link 0 only. `dump_station` refuses a negative index. In
@@ -10601,7 +10601,7 @@ function layout from `-g9444efdc6885`), disassembled here, and the U30 Air's 5.4
   alone). A Full while the battery charges or is drained harder than that is not the end of a charge. No OCV
   percentage, no voltage condition.
 
-**Changed**: `upstream/patches/0011-...saved-capacity-and-full.patch` (no `UMP9620_FGU_RELAXED_MA`/`FULL_MIN_CAP`, no
+**Changed**: `kernel/mainline/patches/0011-...saved-capacity-and-full.patch` (no `UMP9620_FGU_RELAXED_MA`/`FULL_MIN_CAP`, no
 ambiguity branch, `ump9620_fgu_full_current()`, `fullbatt-current` read from the monitored battery on UMP9620) and
 `0018-...capacity-kept-at-power-off.patch` (the shutdown callback as before, `regmap_update_bits()` as mainline and
 stock, the wait after the release on UMP9620). Both kernels take the same file; both patches were regenerated against
@@ -10642,11 +10642,11 @@ with one difference: his returns failure when e2fsck does, ours never stops a bo
   `fsck-FAILED rc=N (errors left uncorrected | operational error | cancelled | killed by signal N; booting anyway)`.
   e2fsck's output stays in `/run/mu300/fsck.log` of the booted system. No e2fsck in the ramdisk (a boot image built
   from an older bundle): `fsck-unavailable`, and the boot goes on. `MU300_FSCK=force|off` on the kernel command line.
-* `tools/e2fsck/build.sh`: e2fsprogs 1.47.4 from kernel.org (SHA-256 of its signed `sha256sums.asc`), in
+* `device-tools/e2fsck/build.sh`: e2fsprogs 1.47.4 from kernel.org (SHA-256 of its signed `sha256sums.asc`), in
   `alpine:3.20` pinned by digest, musl, static, e2fsck only (no NLS, no undo database), `--gc-sections`, no build id,
   stripped: 682 144 bytes, 374 KB in the LZ4 ramdisk; two builds gave the same SHA-256 (c38f85ac...).
-* `boot/build-boot-image.py --e2fsck` puts it at `sbin/e2fsck`. `tools/make-release.sh` builds it, ships it beside
-  busybox in `mu300-kernel.tar.gz` and puts it in the 5.4 generic segment; `upstream/make-bundle.sh` takes it from
+* `boot/build-boot-image.py --e2fsck` puts it at `sbin/e2fsck`. `scripts/release/make-release.sh` builds it, ships it beside
+  busybox in `mu300-kernel.tar.gz` and puts it in the 5.4 generic segment; `kernel/mainline/make-bundle.sh` takes it from
   that bundle for the 6.18 and 7.2 segments (an older bundle: a warning, no e2fsck); the release audit refuses a
   bundle whose `ramdisk-generic.lz4` lacks `sbin/e2fsck`. install.sh and install.ps1 pass it for the vendor 5.4
   kernel's first segment (prebuilt: from the bundle; install.sh's build mode builds it); a mainline kernel's segment
@@ -10912,7 +10912,7 @@ since FINDINGS 190.)
 What FINDINGS 187 left to the OpenWrt panel is on Ubuntu now, through mu300-api like the rest of the page:
 
 * **Network, band and cell locks.** Ubuntu runs the control panel's own programs: `/usr/libexec/unisoc-modem/lock`,
-  `at`, `boot-replay` and `lib.sh`, copied byte for byte from `openwrt/luci-app-mu300/root` (test_static holds them
+  `at`, `boot-replay` and `lib.sh`, copied byte for byte from `systems/openwrt/luci-app-mu300/root` (test_static holds them
   equal), not a second implementation. The only OpenWrt tool they used, `jsonfilter`, became `jfilter` in `lib.sh`:
   jsonfilter where it exists, else the three expression forms the adapters use, through jq (`@.a.b`, `@.a[*]`).
   `ifup wan` after the stack restart fails silently on Ubuntu, where mobile-data's watch redials by itself (seen:
@@ -10920,7 +10920,7 @@ What FINDINGS 187 left to the OpenWrt panel is on Ubuntu now, through mu300-api 
   openwrt-luci: the cache served, a reading in the background (`fresh`), an apply or reset detached; new kind
   `auto_apply`. **Boot replay**: `mu300-lock-replay.service` runs `boot-replay` after mu300-atd (it waits for the AT
   channel, never holds the boot up, and sends nothing when nothing is saved). `etc/unisoc-modem` is now in Ubuntu's
-  update keep list (mu300-update and tools/android-install.sh), and mu300-backup's `locks` section works wherever the
+  update keep list (mu300-update and installer/android/android-install.sh), and mu300-backup's `locks` section works wherever the
   lock program is.
 * **SMS forwarding.** `mu300-sms-forward` moved from the openwrt-luci overlay to the shared `/opt/mu300/bin` (both get
   the same file). On Ubuntu: HTTP through `/opt/mu300/lib/sms-forward-http.sh`, curl with the same stdin protocol as
@@ -10996,13 +10996,13 @@ a minute**, about 56 KiB a minute in logd:
 * the rest: the power debug's light-sleep report (18), `mdbg_ring_write` (10), charger-manager's "battery overheat
   or cold" (4, kept on purpose by logspam-quiet, #68: the only record of a JEITA charging stop).
 
-The mainline kernels have the same IPA drivers (upstream/modules/sprd_modem): F50-B on 7.2.11 printed 203 lines a
+The mainline kernels have the same IPA drivers (kernel/mainline/modules/sprd_modem): F50-B on 7.2.11 printed 203 lines a
 minute, all of them IPA lines and the WCN `edma-tp`/`mdbg_tx_cb` ones (the mainline Wi-Fi driver was quiet
 already). On Ubuntu `kmsg-forward` writes warnings and errors to the journal on the eMMC: "fail to send" and the
 flow-control warning were 10 of them a minute.
 
-**Now.** At the source, for 5.4 (`kernel/patches/sipa-wcn-logspam-quiet.patch`, in KPATCHES after logspam-quiet, and
-`kernel/patches/wlan_combo-txrx-logs-quiet.patch`) and mainline (upstream/modules): these lines are `pr_debug` /
+**Now.** At the source, for 5.4 (`kernel/vendor/patches/sipa-wcn-logspam-quiet.patch`, in KPATCHES after logspam-quiet, and
+`kernel/vendor/patches/wlan_combo-txrx-logs-quiet.patch`) and mainline (kernel/mainline/modules): these lines are `pr_debug` /
 `dev_dbg` / `netdev_dbg` / `WCN_DBG`; 5.4 has `CONFIG_DYNAMIC_DEBUG`, which keeps them available (`echo 'module
 sipa_core +p' > /sys/kernel/debug/dynamic_debug/control`; the mainline config compiles them out). A failed send other
 than -EINPROGRESS is still an error, rate-limited; -EINPROGRESS has its own case in the flow-control switch. The
@@ -11071,7 +11071,7 @@ the ring, and what the chip had completed waited for another path to collect it.
 ZTE's own U30 Air `wcn_bsp.ko` (`edma_rx_push_isr` at `.text+0x3f588`): the stock module reads the cursor once,
 returns to the refill on NULL or an error pointer, pops what lies between the ring head and the cursor, and then
 refills. The public 5.4 source (Enceka's ZTE GPL release) and the mainline port both carry the inverted test. Now as
-the stock module, in `upstream/modules/wcn_bsp/pcie/edma_engine.c` and `kernel/patches/wcn-pcie-rx-push-cursor.patch`
+the stock module, in `kernel/mainline/modules/wcn_bsp/pcie/edma_engine.c` and `kernel/vendor/patches/wcn-pcie-rx-push-cursor.patch`
 (KPATCHES, after sipa-wcn-logspam-quiet); `dscr_ring_empty()` is gone. kanoqwq ran it on a U30 Air (7.2.8): RX
 worked and nothing regressed, and he saw few RX push interrupts in steady state, so this is a correctness fix, not
 the answer to the idle hotspot's 20-150 ms ping (his four-point timing put that wait before the host's RX MSI, in the
@@ -11095,7 +11095,7 @@ default after a board measurement.
 
 **The 5.4 driver's event bounds.** The mainline driver has had oswaldxdd's two robustness fixes since PR #282 (§80):
 the station event's IEs bounded by the event's length, and `mgmt_tx` without a channel taking the AP's own one
-instead of an oops. The 5.4 driver lacked both; `kernel/patches/wlan_combo-station-event-bounds.patch` carries them
+instead of an oops. The 5.4 driver lacked both; `kernel/vendor/patches/wlan_combo-station-event-bounds.patch` carries them
 (`wdev->chandef` on 5.4).
 
 **Checked.** `tests/test_wifi_rx_path.py` cuts `edma_rx_push_isr()`, `sc2355_mm_fill_buffer()`,
@@ -11175,7 +11175,7 @@ So it is on by default since; `/etc/mu300/no-modem-coldboot` turns it off.
 kanoqwq's `99e1316a` (his `docs/LOW-BATTERY-STOCK-20261018.zh-CN.md`, from ZTE's `sprd-charger-manager.ko` and
 Android's `BatteryService`) found two gaps that ours had too:
 
-- **Patch 0023** (`upstream/patches/0023-power-sc27xx-fuel-gauge-UMP9620-awake-battery-events.patch`). Mainline's
+- **Patch 0023** (`kernel/mainline/patches/0023-power-sc27xx-fuel-gauge-UMP9620-awake-battery-events.patch`). Mainline's
   sc27xx fuel gauge arms its low-voltage (`LOW_OVERLOAD`) and coulomb-counter delta interrupts in `suspend` only and
   disarms them at `resume`. The boards do not suspend, so neither was ever armed: the calibration the low-voltage
   interrupt runs (`sc27xx_fgu_capacity_calibration(.., true)`: at the alarm voltage a capacity above the alarm
@@ -11348,7 +11348,7 @@ polarity agree with this table. ZTE's own switch powers the SIM down first (`SFU
 5 s and powers it up (`SFUN=2`, then `SFUN=4`).
 
 **What this tree does with it.** kano switches live, with both protocol stacks running; this tree runs one card per
-boot (the F50's selection, docs/SIM-SELECTION.md), so the card is chosen for the next boot and switched in before the
+boot (the F50's selection, docs/guides/SIM-SELECTION.md), so the card is chosen for the next boot and switched in before the
 modem's CP starts. No AT command and no power sequence are needed, nothing waits 5 s, and a SIM is never switched
 while powered.
 
@@ -11475,7 +11475,7 @@ Mainline Linux 7.3 came out on 2026-10-18. It is a fourth kernel choice from the
 instead of 11). 5.4, 6.18.57 and 7.2.11 stay as
 they are.
 
-**The patches.** Every patch of `upstream/patches` applies to 7.3 unchanged, in order (a dry run of each alone fails
+**The patches.** Every patch of `kernel/mainline/patches` applies to 7.3 unchanged, in order (a dry run of each alone fails
 for the ones that build on another: 0011 on 0010, 0012/0015/0016/0019 on 0009, 0018 on 0011). None is upstream in
 7.3, so none was dropped or changed; three apply with fuzz, as they do on 7.2 (0003: 7.x dropped the
 `cma_skip_dt_default_reserved_mem()` line next to it; 0005: `dev_err_probe()` in the error path; 0019: the
@@ -11554,7 +11554,7 @@ from his U30 Air's `vendor_dlkm_a`, SHA-256 `ce42c87c...`) and its source:
 - **The CV.** Patch 0009 capped the vendor node at 4.208 V, a value read once from Android's registers. ZTE's driver
   takes the battery node's CV (4.3 V on the U30 Air SSV; every JEITA step of SDP/CDP/DCP says 4.3 V too). A low CV
   enters the constant-voltage phase early and can terminate at a low percentage. **Patch 0024**
-  (`upstream/patches/0024-power-bq256xx-U30-Air-battery-CV-and-stock-safety-timer.patch`): the vendor node
+  (`kernel/mainline/patches/0024-power-bq256xx-U30-Air-battery-CV-and-stock-safety-timer.patch`): the vendor node
   (`ti,bq2560x_chg`, already kept off the F50 and V50 by patch 0016) takes the battery node's CV bounded by the chip;
   without a valid node, the chip default. Other bq256xx boards as before. *Corrected (FINDINGS 224):* 0024 rounded
   4.3 V down to 4.272 V (REG04 `0x68`); ZTE's driver programs one step more, 4.304 V (`0x70`), and patch 0029 does too.
@@ -11596,7 +11596,7 @@ TX request is in flight, `u_ether`'s `eth_start_xmit()` returns `NETDEV_TX_BUSY`
 returns `HRTIMER_NORESTART`: no qdisc requeues a NULL skb, so the NTB waits for the next frame. Users reported
 host-side stalls after long USB use; nobody has captured one, and the fix is not shown to cure them.
 
-**Patch 0026** (`upstream/patches/0026-usb-gadget-ncm-retry-a-busy-timer-flush-off-unless-asked-for.patch`): with
+**Patch 0026** (`kernel/mainline/patches/0026-usb-gadget-ncm-retry-a-busy-timer-flush-off-unless-asked-for.patch`): with
 `usb_f_ncm.tx_busy_retry` set, a BUSY flush moves the timer 300 us on (`hrtimer_forward_now`, so an expired timer
 does not spin) and returns `HRTIMER_RESTART`; a successful flush, a gone netdev or the usual `hrtimer_cancel` at
 disable end it. Off by default because kanoqwq tested it on a C fixture built from the real `u_ether.c`/`f_ncm.c`
@@ -11710,24 +11710,24 @@ are complete.** Found while building v2026.10.23.1.
 A mainline kernel builds four pairs of netfilter modules whose names differ only in case: `xt_HL.ko` (the TTL/hop
 limit target) and `xt_hl.ko` (its match), `xt_TCPMSS.ko` and `xt_tcpmss.ko`, `xt_DSCP.ko` and `xt_dscp.ko`,
 `xt_RATEEST.ko` and `xt_rateest.ko`. The release was built on a Mac, whose default APFS ignores case: the build's
-`upstream/out*/modules` (a docker bind mount) and the staging directories kept one file of each pair, under the name
+`kernel/mainline/out*/modules` (a docker bind mount) and the staging directories kept one file of each pair, under the name
 the first copy made and with the contents of the second (v2026.10.22.1's 6.18 bundle: `xt_hl.ko` holds `name=xt_HL`;
 its 7.3 bundle `xt_HL.ko` holds `name=xt_hl`). So every mainline bundle (6.18, 7.2, 7.3) of every release before
 v2026.10.23.1 lacks four of the eight modules, and one of the four it has is under the wrong name. The 5.4 bundle has
 no such pair. Nothing failed: `audit-bundle.py` asked `is_file()`, which a case-ignoring file system answers yes for
 the missing name. v2026.10.23.1 ships all eight in each mainline bundle (built on a case-sensitive volume).
 
-- `upstream/case-sensitive.sh` (`case_sensitive DIR`): makes two files that differ only in case in DIR itself and
+- `kernel/mainline/case-sensitive.sh` (`case_sensitive DIR`): makes two files that differ only in case in DIR itself and
   refuses it, with the way to a case-sensitive volume (`hdiutil create -type SPARSE -fs 'Case-sensitive APFS'`), when
-  only one is there. `upstream/make-bundle.sh` asks it of the build's `modules` and its staging directory,
-  `upstream/build-modules.sh` of its output (in the container, on the bind mount), `tools/make-release.sh` of
+  only one is there. `kernel/mainline/make-bundle.sh` asks it of the build's `modules` and its staging directory,
+  `kernel/mainline/build-modules.sh` of its output (in the container, on the bind mount), `scripts/release/make-release.sh` of
   `release/TAG` and of `TMPDIR`. The release scripts' `mktemp` now honour `TMPDIR`
   (`mktemp -d "${TMPDIR:-/tmp}/mu300-...XXXXXX"`), so a case-sensitive `TMPDIR` is enough for the staging.
-- `upstream/audit-bundle.py` checks `modules.in-tree` against the names the directory lists; `make-release.sh`'s
+- `kernel/mainline/audit-bundle.py` checks `modules.in-tree` against the names the directory lists; `make-release.sh`'s
   audit wants every name of a mainline bundle's `modules.in-tree` in its `modules/`, and the TTL and MSS pairs in any
   case.
 - The installers: `install.sh` and `install.ps1` unpack a mainline bundle on the host (`work/release/TAG/kernel-X`)
-  for its `Image`, ramdisk segment and lists, and `tools/vendor-overlay.py` took the modules for the installed system
+  for its `Image`, ramdisk segment and lists, and `installer/lib/vendor-overlay.py` took the modules for the installed system
   from that tree, so an installation from macOS (default APFS) or Windows (NTFS) lost one of each pair even with a
   complete bundle. `vendor-overlay.py --kernel-bundle` now reads the tarball itself (a tree still works), and both
   installers pass it the tarball. The Magisk zips, the web installer and `mu300-update` unpack on the device
@@ -11761,7 +11761,7 @@ most of them went unnoticed until the slab handed the memory to someone who care
 
 The same two lines are in 6.18.57, 7.2.11 and 7.3 (checked against kernel.org's trees).
 
-- **Patch 0027** (`upstream/patches/0027-usb-gadget-ncm-rndis-os-desc-table-double-free.patch`): `f->os_desc_table =
+- **Patch 0027** (`kernel/mainline/patches/0027-usb-gadget-ncm-rndis-os-desc-table-double-free.patch`): `f->os_desc_table =
   NULL` after the `kfree()` in both unbinds. `kfree(NULL)` is a no-op, so an unbind without a table is harmless.
   It applies after patches 0008 and 0026 (which change f_ncm elsewhere) on all three kernels. It is a mainline bug
   as well, worth sending to linux-usb.
@@ -11877,7 +11877,7 @@ Each block: +0x08 IRQ_EN (reads the enabled mask, a 1 written sets that bit), +0
 it); the clocks are `ap-intc0..7-eb` (AON gate 0x64900008 bits 11-18, `CLK_IGNORE_UNUSED`). TF-A did not write
 IRQ_EN again in 60 s of cluster-pd with a bit set by hand.
 
-`upstream/modules/ums9620_lpintc` (mainline, loaded by `extra-modules` after `mu300_thermal`) adds to IRQ_EN every SPI
+`kernel/mainline/modules/ums9620_lpintc` (mainline, loaded by `extra-modules` after `mu300_thermal`) adds to IRQ_EN every SPI
 the kernel has enabled in the GIC distributor (`GICD_ISENABLER1..8`), at load and every 5 s from deferrable work
 (`period=`), which never wakes a CPU itself, so drivers that come later (Wi-Fi, the IPA delegate) are taken up. It only
 adds: TF-A's bits stay, and a line disabled again keeps its bit (the GIC still masks it). An enabled interrupt is
@@ -12020,7 +12020,7 @@ bq2560x path round it down to the chip's 32 mV grid: code 13, REG04 `0x68`, 4.27
 down. `sqc_bq2560x.ko` (SHA-256 `ce42c87c...`, `sqc_mp_set_cv` +0x28..+0x5c) and the matching `sqc_v8` source program
 `floor((mV - 3856) / 32) + 1`: code 14, REG04 `0x70`, 4.304 V. kanoqwq read `0x70` under stock Android and, with his
 patch, under Linux on the same U30 Air. The `0x68` of FINDINGS 207 was what our 0024 had written, not a stock value.
-**Patch 0029** (`upstream/patches/0029-power-bq256xx-U30-Air-CV-in-the-stock-encoding.patch`) computes the CV that
+**Patch 0029** (`kernel/mainline/patches/0029-power-bq256xx-U30-Air-CV-in-the-stock-encoding.patch`) computes the CV that
 way for the vendor node with a battery CV from the device tree, still bounded by the chip's maximum. Without battery
 information it uses the chip default, and every other board is unchanged. The chip's code `0xf` is its special
 4.352 V (not 3.856 V + 15 x 32 mV), both when it is chosen and when it is read back, as in ZTE's driver. The
@@ -12138,7 +12138,7 @@ a new hotspot password in LuCI reaches the tag without a reboot.
 
 **Status: built for 5.4.254 and run on F50-B, 5 boots (2026-10-27).** From kanoqwq's `149c9d2a`, `3cbf37fc` and
 `0438ab01`, his 5.4 versions of fixes we had made for mainline only ("the vendor tree is not in the repo" - but
-`kernel/build-all.sh` fetches it). He applied them to the pristine trees and compiled the Wi-Fi module; he did not
+`kernel/vendor/build-all.sh` fetches it). He applied them to the pristine trees and compiled the Wi-Fi module; he did not
 run them.
 
 Seven patches, applied with `--fuzz=0` after ours:
@@ -12225,7 +12225,7 @@ unconnected NTC input. Every reader of `/sys/class/power_supply` had been taught
 mu300-api, the panel, thermal-guard, mu300-sms-forward, the LuCI dashboard). Patch 0016 kept only the charger's 0x1a
 fallback to the board with a battery.
 
-`upstream/patches/0030` ends both probes with `-ENODEV` before any register access unless the device tree has
+`kernel/mainline/patches/0030` ends both probes with `-ENODEV` before any register access unless the device tree has
 `/charger_policy_service`: the same test as 0016, 0023 and mu300-device (kano's version also asked whether the node
 is enabled; here it is only ever tested for presence, so a U30 Air is told apart exactly as everywhere else). Only
 the UMP9620 gauge (`sprd,ump9620-fgu`) and ZTE's charger node (`ti,bq2560x_chg`) are affected.
@@ -12276,14 +12276,14 @@ read back automatic, data came back; an unknown id answered "no longer known".
 
 ### 234. Parity with 5.4: every vendor item on mainline, or said why not
 
-**Status: `upstream/parity-5.4.txt` and `upstream/check-parity.py`, run by `build-modules.sh`, `make-bundle.sh`,
-`kernel/build-all.sh` and the Tests workflow (`tests/test_parity.py`). Inventories from F50-B (v2026.10.28.1, 5.4.254
+**Status: `kernel/mainline/parity-5.4.txt` and `kernel/mainline/check-parity.py`, run by `build-modules.sh`, `make-bundle.sh`,
+`kernel/vendor/build-all.sh` and the Tests workflow (`tests/test_parity.py`). Inventories from F50-B (v2026.10.28.1, 5.4.254
 and 7.3.0, 2026-10-28) and the U30 Air (6.18.59).**
 
 The rule: nothing the 5.4 kernel has may be missing from mainline without a line that says so. What 5.4 has is three
 lists - the modules of the 5.4 build (F50 and U30 Air sets, 198 names) and its built-in objects (630), recorded by
-`kernel/build-all.sh` in `upstream/parity/5.4-build.list` with a hash of the build's inputs; the three modules of the
-display experiment (`kernel/build-display.sh`); and what a board shows at run time, from `upstream/parity-inventory.sh`
+`kernel/vendor/build-all.sh` in `kernel/mainline/parity/5.4-build.list` with a hash of the build's inputs; the three modules of the
+display experiment (`kernel/vendor/build-display.sh`); and what a board shows at run time, from `kernel/mainline/parity-inventory.sh`
 (drivers with a bound device, thermal zones, cooling devices, devfreq, cpufreq, power supplies, Type-C ports, extcon,
 LEDs, regulators, misc and input devices, hwrng, UDCs, classes). An item mainline has under the same name - a module or
 built-in object of that name in every shipped series, the same inventory line on the same board - needs no line;
@@ -12408,7 +12408,7 @@ still boots the image before, whose init does not know the file; the next mu300-
 
 ### 237. One gadget rebind at boot: the LAN hook waits for adbd's, and the lease check asks for the USB host's
 
-**Status: in `openwrt/overlay/etc/hotplug.d/iface/10-mu300-usb`, `mu300-adbd` and `mu300-usb-reset`; tested in
+**Status: in `systems/openwrt/overlay/etc/hotplug.d/iface/10-mu300-usb`, `mu300-adbd` and `mu300-usb-reset`; tested in
 tests/test_early_dhcp.py, tests/test_adb.py (`Gadget.test_waits_while_the_lan_hook_rebinds`) and
 tests/test_device_scripts.py (`UsbReset`); on the U30 Air (OpenWrt, 6.18.59) 22 soft reboots and on F50-B
 (Ubuntu, 7.3) 10, Mac mini host, 2026-10-29.**
@@ -12531,15 +12531,15 @@ own kernel can shrink the mounted F2FS on `/data` (`F2FS_IOC_RESIZE_FS`): it wor
 what lies past the new end, and leaves the files, the keys and the encryption alone. After that the partition table
 can say a smaller userdata, and on the next start Android maps the smaller partition and mounts the same filesystem.
 
-**How.** `tools/f2fs-online/mu300-f2fs-online` (kanoqwq's `f2fs-online.c`, a static arm64 program of 67 KB, built
-reproducibly by `build.sh`; CI rebuilds it and compares) and `tools/android-online-shrink.sh` (his eligibility checks
-in shell) on the device; `tools/resume.sh` / install.ps1 and `tools/resume.py` on the computer.
+**How.** `device-tools/f2fs-online/mu300-f2fs-online` (kanoqwq's `f2fs-online.c`, a static arm64 program of 67 KB, built
+reproducibly by `build.sh`; CI rebuilds it and compares) and `installer/android/android-online-shrink.sh` (his eligibility checks
+in shell) on the device; `installer/lib/resume.sh` / install.ps1 and `installer/lib/resume.py` on the computer.
 
 * Offered only where `/data` is an F2FS on all of userdata: mounted from userdata itself, or from one device-mapper
   node whose only slave is userdata and which covers all of it (file-based plus metadata encryption, as on the F50);
   never with block encryption, a layered or offset mapping, or a read-only `/data`. The F2FS must be whole sections.
 * The target is whole sections, smaller than now, and keeps 2 GiB more than what is used (kano's margin).
-* The disk is the internal one of tools/storage.sh's `internal_disk` (mmcblk0, or sda on a UFS, #396), and the table
+* The disk is the internal one of installer/lib/storage.sh's `internal_disk` (mmcblk0, or sda on a UFS, #396), and the table
   is read, rebuilt and committed in its logical blocks (`resize-last-partition.py --sector-size`; on 4096-byte blocks
   the first 48 and the last 40 sectors, and the worker is given the backup table's place by that count). F2FS blocks
   are 4096 bytes either way.
@@ -12580,7 +12580,7 @@ bugs found and fixed: the worker's byte offsets were computed in Android's 32-bi
 terminal run lost the F50 when it drops off USB once about 5 s after boot_completed, and a resumed run printed sizes
 before `gib` was defined. Two more from that test: the region found by a resumed run was an old mu300root superblock
 left at the fixed offset of the first releases (27762098176) inside the region made, not the region itself - a
-resumed run now looks at the transaction's region only (tools/storage.sh, install.ps1); and the restart in the middle
+resumed run now looks at the transaction's region only (installer/lib/storage.sh, install.ps1); and the restart in the middle
 of a terminal run gives Android its USB functions (MTP) back, so the run sets adb alone again in the new boot (#473's
 usb_adb_only), whose restore at the end is for that boot. vold also runs `resize.f2fs` on /data at every boot (it failed on the unclean image here); on
 the shrunk table the F2FS already fills userdata to within a section, so there is nothing for it to grow into.

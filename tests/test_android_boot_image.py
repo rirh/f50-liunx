@@ -1,4 +1,4 @@
-"""tools/android-boot-image.sh: the parts of the Linux boot image only the device can make - its misc blocks, its
+"""installer/android/android-boot-image.sh: the parts of the Linux boot image only the device can make - its misc blocks, its
 Android files, the device ramdisk segment - checked against boot/build-boot-image.py on the same inputs."""
 import importlib.util
 import os
@@ -16,7 +16,7 @@ from pathlib import Path
 from helpers import BIN, TOP, ShellTest
 from test_boot_image import HAVE_LZ4, LIVE_A, cpio_files, fake_misc, fake_stock, unlz4_legacy
 
-LIB = TOP / 'tools' / 'android-boot-image.sh'
+LIB = TOP / 'installer' / 'android' / 'android-boot-image.sh'
 spec = importlib.util.spec_from_file_location('bbi', TOP / 'boot' / 'build-boot-image.py')
 bbi = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bbi)
@@ -52,7 +52,7 @@ def cpio_all(data):
 
 
 def subset_paths():
-    lines = (TOP / 'android-vendor' / 'subset-files.txt').read_text().splitlines()
+    lines = (TOP / 'android' / 'vendor' / 'subset-files.txt').read_text().splitlines()
     return [l for l in lines if l.strip() and not l.startswith('#')]
 
 
@@ -88,7 +88,7 @@ def leaves(files):
 
 class Lists(unittest.TestCase):
     def test_subset_list_is_extract_subsets(self):
-        sh = (TOP / 'android-vendor' / 'extract-subset.sh').read_text()
+        sh = (TOP / 'android' / 'vendor' / 'extract-subset.sh').read_text()
         m = re.search(r'tar -cf - (apex/.*?) \| tar -xf -', sh, re.S)
         self.assertEqual(m.group(1).replace('\\\n', ' ').split(), subset_paths())
 
@@ -124,7 +124,7 @@ class DeviceSide(ShellTest):
         fake_android_root(root)
         for shell in self.each_shell():
             s, fw = self.tmp / 'subset', self.tmp / 'fw'
-            r = self.lib(shell, f'collect_subset "{TOP}/android-vendor/subset-files.txt" "{s}" && collect_firmware "{fw}"',
+            r = self.lib(shell, f'collect_subset "{TOP}/android/vendor/subset-files.txt" "{s}" && collect_firmware "{fw}"',
                          MU300_ANDROID_ROOT=root, MU300_FW_DIRS=f'{root}/odm/firmware {root}/vendor/firmware')
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertTrue((s / 'vendor/bin/modem_control').is_file())
@@ -140,13 +140,13 @@ class DeviceSide(ShellTest):
             shutil.rmtree(s); shutil.rmtree(fw, ignore_errors=True)
 
     def test_vendor_overlay_layout(self):
-        # the layout of tools/vendor-overlay.py: firmware, the subset with its property area moved out of dev/
+        # the layout of installer/lib/vendor-overlay.py: firmware, the subset with its property area moved out of dev/
         root = self.tmp / 'root'
         fake_android_root(root)
         for shell in self.each_shell():
             for os_name, fwdir in (('ubuntu', 'usr/lib/firmware'), ('openwrt', 'lib/firmware')):
                 out = self.tmp / f'v-{os_name}.tar.gz'
-                r = self.lib(shell, f'collect_subset "{TOP}/android-vendor/subset-files.txt" "{self.tmp}/s" && '
+                r = self.lib(shell, f'collect_subset "{TOP}/android/vendor/subset-files.txt" "{self.tmp}/s" && '
                                     f'collect_firmware "{self.tmp}/fw" && vendor_overlay {os_name} "{self.tmp}/fw" "{self.tmp}/s" "" "{out}"',
                              MU300_ANDROID_ROOT=root, MU300_FW_DIRS=f'{root}/vendor/firmware')
                 self.assertEqual(r.returncode, 0, r.stderr)
@@ -176,7 +176,7 @@ class DeviceSide(ShellTest):
             (self.tmp / f).write_bytes(b'\x7fELF ' + f.encode())
         (self.bundle / 'Image').write_bytes(b'\x7fkernel' * 1000)
         self.common = ['--modules', str(mods), '--busybox', str(self.tmp / 'busybox'),
-                       '--logdw', str(self.tmp / 'logdw'), '--ueventd-perms', str(TOP / 'android-vendor' / 'ueventd-perms.sh')]
+                       '--logdw', str(self.tmp / 'logdw'), '--ueventd-perms', str(TOP / 'android' / 'vendor' / 'ueventd-perms.sh')]
         self.builder = [sys.executable, str(TOP / 'boot' / 'build-boot-image.py')]
         r = subprocess.run(self.builder + ['--generic-ramdisk', '--out', str(self.bundle / 'ramdisk-generic.lz4')] +
                            self.common, capture_output=True, text=True)
@@ -190,7 +190,7 @@ class DeviceSide(ShellTest):
         seg.mkdir(parents=True); out.mkdir()
         r = self.lib(shell, f'mkdir -p "{seg}/etc" && echo f50 > "{seg}/etc/mu300-device" && '
                             f'echo b > "{seg}/etc/mu300-linux-slot" && bc_files {LIVE_A.hex()} "{seg}/etc" && '
-                            f'collect_subset "{TOP}/android-vendor/subset-files.txt" "{seg}/android" && '
+                            f'collect_subset "{TOP}/android/vendor/subset-files.txt" "{seg}/android" && '
                             f'device_segment "{seg}" "{work}/dev.lz4" && '
                             f'linux_boot_image "{self.stock}" "{self.bundle}" "{work}/dev.lz4" "{out}"',
                      magiskboot=magiskboot, MU300_ANDROID_ROOT=self.root)
@@ -309,7 +309,7 @@ class DeviceSide(ShellTest):
         (g / 'vendor/lib64/libOpenCL.so').write_bytes(b'opencl')
         (g / 'vendor/bin/modem_control').write_bytes(b'not the subset one')
         out = self.tmp / 'v.tar.gz'
-        pre = (f'collect_subset "{TOP}/android-vendor/subset-files.txt" "{self.tmp}/s" && '
+        pre = (f'collect_subset "{TOP}/android/vendor/subset-files.txt" "{self.tmp}/s" && '
                f'collect_firmware "{self.tmp}/fw" && ')
         for shell in self.each_shell():
             r = self.lib(shell, pre + f'vendor_overlay ubuntu "{self.tmp}/fw" "{self.tmp}/s" "{g}" "{out}"',
@@ -352,7 +352,7 @@ class DeviceSide(ShellTest):
             os.chown(root / 'vendor/bin/modem_control', 0, 2000)
         out = self.tmp / 'v.tar.gz'
         for shell in self.each_shell():
-            r = self.lib(shell, f'umask 077; collect_subset "{TOP}/android-vendor/subset-files.txt" "{self.tmp}/s" && '
+            r = self.lib(shell, f'umask 077; collect_subset "{TOP}/android/vendor/subset-files.txt" "{self.tmp}/s" && '
                                 f'collect_firmware "{self.tmp}/fw" && '
                                 f'vendor_overlay openwrt "{self.tmp}/fw" "{self.tmp}/s" "{g}" "{out}" && umask',
                          MU300_ANDROID_ROOT=root, MU300_FW_DIRS=f'{root}/vendor/firmware')
@@ -389,7 +389,7 @@ class DeviceSide(ShellTest):
 
 
 class HostOverlay(unittest.TestCase):
-    """tools/vendor-overlay.py: the modes it stores come from where a file goes, not from the file system the
+    """installer/lib/vendor-overlay.py: the modes it stores come from where a file goes, not from the file system the
     subset was extracted on (issue #127: a work directory on FAT/exFAT under macOS shows everything as 0700)."""
 
     def setUp(self):
@@ -422,7 +422,7 @@ class HostOverlay(unittest.TestCase):
 
     def pack(self, os_name, s, g, fw):
         out = self.tmp / f'v-{os_name}.tar.gz'
-        r = subprocess.run([sys.executable, str(TOP / 'tools' / 'vendor-overlay.py'), '--os', os_name, '--firmware',
+        r = subprocess.run([sys.executable, str(TOP / 'installer' / 'lib' / 'vendor-overlay.py'), '--os', os_name, '--firmware',
                             str(fw), '--android-subset', str(s), '--gpu-subset', str(g), '--out', str(out)],
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)

@@ -3,9 +3,9 @@
 # usage: mobile-data up [APN] | radio-on | down | status | signal | at "CMD" | sim-reset | watch
 #        mobile-data radio-locked CMD [ARG...] | radio-busy
 #        mobile-data roaming [--json] | roaming on|off [--slot 0|1]   (data roaming: allowed by default; with it off,
-#        no data while the SIM is registered as roaming - see roaming_cmd and docs/FINDINGS.md 120)
+#        no data while the SIM is registered as roaming - see roaming_cmd and docs/research/FINDINGS.md 120)
 #        mobile-data voice [--json [--read]] | voice volte|vonr on|off [--slot 0|1]   (VoLTE/VoNR per card, replayed
-#        at every bring-up: voice_cmd and docs/FINDINGS.md 184)
+#        at every bring-up: voice_cmd and docs/research/FINDINGS.md 184)
 #        mobile-data rf-apply   (the radio of the card in use as mu300-sim-radio says now: FINDINGS 185)
 #        mobile-data suspend off|lte | resume [nodial]   (mu300-power: modem down or LTE only while nobody uses the
 #        device; nodial: the radio only, the watcher redials). Both end within MU300_SUSPEND_DEADLINE (60 s) whatever
@@ -424,7 +424,7 @@ v6_relay_ra() {
 # Every decision goes to radio.log. Returns 1 when this round cannot switch the radio on; the caller retries later
 # (netifd's next attempt, systemd's restart, the watchdog).
 PLUGIN_LOCK=${MU300_PLUGIN_LOCK:-/usr/libexec/unisoc-modem/lock}
-# --- each SIM's radio on or off, kept across reboots (mu300-sim-radio, docs/FINDINGS.md 185) --------------------------
+# --- each SIM's radio on or off, kept across reboots (mu300-sim-radio, docs/research/FINDINGS.md 185) --------------------------
 # rf_allowed: the card in use may have its radio on (no mu300-sim-radio, or an unreadable setting: yes). Asked by every
 # radio-on path here: the dial, the early warm-up, the watchdog, mu300-power's resume (radio_on), the modem reset.
 # While it says no, $RF_HELD exists: the dial ends at once (netifd: exit 7, SIM_RADIO_DISABLED, no retry; Ubuntu: exit
@@ -442,7 +442,7 @@ wan_available() {
             ubus call "network.interface.$wan" notify_proto '{"action":5,"available":true}' >/dev/null 2>&1 || true ;;
     esac
 }
-# --- a slot with no card (mu300-sim-state, docs/FINDINGS.md 186) ---------------------------------------------------
+# --- a slot with no card (mu300-sim-state, docs/research/FINDINGS.md 186) ---------------------------------------------------
 # The dial asks the card once its radio is on (AT+CPIN?). No card: the dial stops there and leaves $SIM_HELD (netifd:
 # exit 6, SIM_MISSING, no retry - it used to fail after its 60 s registration wait and start over every 20 s for
 # ever; Ubuntu: exit 0). The card's +ECIND (mu300-atd -> mu300-sim-state event) or the watchdog's look every five
@@ -713,7 +713,7 @@ wait_registered() {
     return 1
 }
 
-# --- data roaming (docs/FINDINGS.md 120) ---------------------------------------------------------------------------
+# --- data roaming (docs/research/FINDINGS.md 120) ---------------------------------------------------------------------------
 # "Allow data roaming", as Android has it: with it off, no data while the card in use is registered on a roaming
 # network. No switch of the modem's own for it is known (no AT command for it in anything this project has; on
 # Android the decision is the framework's too), so it is a policy of this dial and its watchdog. Allowed by default:
@@ -845,7 +845,7 @@ fetch_addr() {
 # The modem needs the vendor modem loader/SIPC drivers (5.4 kernel); a kernel without them (mainline) has no modem.
 modem_stack() { [ -e /dev/modem ] || [ -e /dev/pmsys ] || [ -c "$DEV" ]; }
 
-# "stty -F" opens and closes the tty, which desynchronises the SIPC channel (docs/FINDINGS.md 13b). When
+# "stty -F" opens and closes the tty, which desynchronises the SIPC channel (docs/research/FINDINGS.md 13b). When
 # mu300-atd owns the device it has already set the flags on its own descriptor, so leave the tty alone.
 tty_setup() {
     [ -p "$MAIN_DIR/cmd" ] && return 0
@@ -1050,7 +1050,7 @@ define_context_quiet() {
 # modem still names the second card: the same command, on this card's data channel, that the dual-SIM cold start
 # sends for it. Whether the modem keeps the route over a restart was never measured (no unit here has two working
 # cards); with the route elsewhere a dial answers CONNECT and every packet is lost (the F50's internal card,
-# docs/SIM-SELECTION.md). The mark goes once the modem says the route is here; a modem that does not answer the
+# docs/guides/SIM-SELECTION.md). The mark goes once the modem says the route is here; a modem that does not answer the
 # question keeps the mark, and is asked again at the next dial.
 ROUTE_MARK=${MU300_SIM_ROUTE_MARK:-/etc/mu300/sim-data-route-2}
 data_route_card() { at 'AT+SPSWDATA?' 4 2>/dev/null | tr -d '\r' | sed -n 's/^+SPSWDATA: *\([01]\) *$/\1/p' | head -n 1; }

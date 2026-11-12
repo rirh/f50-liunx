@@ -1,4 +1,4 @@
-"""The panel's System > Update page (docs/FINDINGS.md 86), from the bottom up:
+"""The panel's System > Update page (docs/research/FINDINGS.md 86), from the bottom up:
 
   * mu300-update's additions for a panel, sourced for their functions as test_update does: `status` and `releases`
     as JSON, an update from a file (a Magisk zip of a release, or a directory of release files) with what it refuses,
@@ -29,7 +29,7 @@ from test_mu300dash_security import JSONFILTER
 import test_update
 from test_update import UpdateBase
 
-APP = TOP / 'openwrt' / 'luci-app-mu300'
+APP = TOP / 'systems' / 'openwrt' / 'luci-app-mu300'
 ADAPTER = APP / 'root' / 'usr' / 'libexec' / 'unisoc-modem' / 'update'
 VIEW = APP / 'htdocs' / 'luci-static' / 'resources' / 'view' / 'mu300' / 'update.js'
 COMMON = APP / 'htdocs' / 'luci-static' / 'resources' / 'mu300' / 'common.js'
@@ -114,7 +114,7 @@ def release_dir(d, tag='v2026.11.02', os_='openwrt-luci', ubuntu='', kernel='5.4
 
 def magisk_zip(path, rel, tag='v2026.11.02', os_='openwrt-luci', ubuntu='', kernel='5.4', sums=False, sig=None,
                manifest=None, extra=()):
-    """the Magisk zip of that release as tools/make-magisk-zips.sh makes it: mu300/manifest and the stored payload;
+    """the Magisk zip of that release: mu300/manifest and the stored payload;
     SUMS adds the release's SHA256SUMS (what a signature covers), SIG its signature"""
     rel = Path(rel)
     rootfs, kasset = ROOTFS[(os_, ubuntu)], KERNEL[kernel]
@@ -594,11 +594,11 @@ class Signature(UpdateBase):
         return 'untrusted comment: a test secret key\n' + base64.b64encode(raw).decode() + '\n'
 
     def sign_release(self, sums, pub=None, **env):
-        args = ['sh', str(TOP / 'tools/sign-release.sh'), str(sums)] + ([str(pub)] if pub else [])
+        args = ['sh', str(TOP / 'scripts/release/sign-release.sh'), str(sums)] + ([str(pub)] if pub else [])
         return subprocess.run(args, capture_output=True, text=True, env=self.env(MU300_OPENSSL=OPENSSL, TMPDIR=self.tmp, **env))
 
     def test_the_release_is_signed_as_the_devices_check_it(self):
-        # tools/sign-release.sh, what make-release.sh runs with the repository's secret: its signature is the one the
+        # scripts/release/sign-release.sh, what make-release.sh runs with the repository's secret: its signature is the one the
         # updater accepts, and a key that is not the images' stops the release
         text = self.secret(self.key)
         seed = text.split('\n')[1]
@@ -631,8 +631,8 @@ class Signature(UpdateBase):
         self.assertEqual([p.name for p in self.tmp.glob('tmp.*')], [])
 
     def test_the_release_scripts_sign_and_never_publish_unsigned_what_devices_would_refuse(self):
-        rel = (TOP / 'tools/make-release.sh').read_text()
-        self.assertIn('sh "$TOP/tools/sign-release.sh" "$D/SHA256SUMS" "$PUB"', rel)
+        rel = (TOP / 'scripts/release/make-release.sh').read_text()
+        self.assertIn('sh "$TOP/scripts/release/sign-release.sh" "$D/SHA256SUMS" "$PUB"', rel)
         self.assertIn('[ "$PUBLISH" != --publish ] || exit 1', rel)
         self.assertEqual(rel.count('"$D/SHA256SUMS" $SIG'), 2)          # a new release, and files added to one
         wf = (TOP / '.github/workflows/release.yml').read_text()

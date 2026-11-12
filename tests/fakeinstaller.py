@@ -1,6 +1,6 @@
 """Not a test: an installer for the tests of the graphical installer (MU300_GUI_INSTALLER=<this file>). It plays the
 part of install.sh / uninstall.sh from the moment the questions are answered - the stages, the downloads, the
-summary and its question on standard input, the end - on the progress stream of docs/INSTALLER-AUTOMATION.md,
+summary and its question on standard input, the end - on the progress stream of docs/guides/INSTALLER-AUTOMATION.md,
 without a device, a download or a write. A check, a backup and --adb-path are handed to the real install.sh, so with
 tests/fakeadb.py in front those are the real thing.
 
@@ -72,12 +72,12 @@ def read_answers(argv):
             json.dump({'argv': argv, 'answers': answers, 'answers_file': path, 'answers_mode': mode,
                        'env_answers': sorted(k for k in os.environ if k.startswith('MU300_ANS_')),
                        'env': {k: os.environ.get(k, '') for k in ('MU300_LANG', 'ANDROID_SERIAL', 'MU300_PROGRESS', 'MU300_FROM_GUI',
-                                                                    'MU300_NO_SELF_UPDATE', 'MU300_GUI', 'MU300_NONINTERACTIVE')}}, f)
+                                                                    'MU300_GUI', 'MU300_NONINTERACTIVE')}}, f)
     return answers
 
 
 def ask(answers, var, text, default):
-    """An answer as tools/answers.sh takes it: the variable, or a line of standard input for @stdin."""
+    """An answer as installer/lib/answers.sh takes it: the variable, or a line of standard input for @stdin."""
     if var not in answers:
         fail('no answer to the question "%s": set %s (nothing is asked and nothing is assumed in answers mode)' % (text, var))
     value = answers[var]

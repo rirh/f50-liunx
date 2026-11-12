@@ -3,7 +3,7 @@ sprdwcn/pcie: the RX push interrupt hands up the descriptors the chip completed
 dscr_ring_empty() returned "empty" for every valid hardware cursor (its IS_ERR_OR_NULL test was inverted), so
 edma_rx_push_isr() never delivered a completed descriptor and only refilled the ring. ZTE's own U30 Air module reads
 the cursor once, pops what is complete, then refills (kanoqwq's clean-tf-7.2 2d3f7438, from its disassembly);
-this does the same (docs/FINDINGS.md 195).
+this does the same (docs/research/FINDINGS.md 195).
 
 --- a/drivers/unisoc_platform/sprdwcn/pcie/edma_engine.c
 +++ b/drivers/unisoc_platform/sprdwcn/pcie/edma_engine.c

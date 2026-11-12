@@ -1,6 +1,6 @@
 /*
  * mu300-carry: the file work of an update that keeps everything the user made (mu300-update, the carry block;
- * docs/FINDINGS.md 85). One static program does it on every path an update takes - Ubuntu, OpenWrt's busybox, and
+ * docs/research/FINDINGS.md 85). One static program does it on every path an update takes - Ubuntu, OpenWrt's busybox, and
  * Android's toybox when an installer or the Magisk zip updates - because none of their cp and tar keep all of a file
  * (measured: busybox cp -a makes a sparse file dense and drops extended attributes and the fraction of the second;
  * toybox cp -a also breaks hard links).
@@ -11,14 +11,14 @@
  *                                      mounted on (not entered)
  *   mu300-carry sum ROOT < PATHS       "HASH PATH" for each: sha256 of a file's content or a link's target, - for
  *                                      anything else, ! when it is not there
- *   mu300-carry manifest ROOT IMAGE TAG   the manifest of an image's files (tools/image-manifest.py has the format
+ *   mu300-carry manifest ROOT IMAGE TAG   the manifest of an image's files (scripts/release/image-manifest.py has the format
  *                                      and makes the same lines from a tarball), without etc/mu300/image-manifest.gz
  *   mu300-carry copy SRC DST [IDMAP] < PATHS   make DST/PATH what SRC/PATH is: content (holes stay holes), owner,
  *                                      mode, extended attributes (capabilities, ACLs), times to the nanosecond; names
  *                                      of one file in the list stay one file; a directory is made, not filled
  *   mu300-carry link SRC DST [IDMAP] < PATHS   the same, but a file becomes a second name of SRC's (no data copied)
  *
- * The unpack of an update that writes only what changed (docs/FINDINGS.md 131; mu300-update, the delta block):
+ * The unpack of an update that writes only what changed (docs/research/FINDINGS.md 131; mu300-update, the delta block):
  *   mu300-carry same OLD < LINES       for lines of the new image's manifest: "B PATH" (a binary) or "T PATH" (text)
  *                                      for each file OLD has byte for byte with that mode and owner
  *   mu300-carry tarfilter OLD LIST LOG   the image's tar stream, stdin to stdout, without the files LIST names that
@@ -763,7 +763,7 @@ static int cmd_copy(const char *src, const char *dst, const char *map, int by_li
 	return 0;
 }
 
-/* ---- an update that writes only what changed (docs/FINDINGS.md 131): the new image's files that the installed
+/* ---- an update that writes only what changed (docs/research/FINDINGS.md 131): the new image's files that the installed
  * system has byte for byte become second names of the installed ones instead of being written again */
 
 /* a set of paths (open addressing); each entry remembers whether its file was really left out of the stream */

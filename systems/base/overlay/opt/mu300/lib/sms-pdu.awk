@@ -10,7 +10,7 @@
 # whenever the sender is alphanumeric - a brand name rather than a number, which is most of what a SIM in a
 # router receives. Measured: text mode gives "144414+4140224P444" where the PDU says type-of-address 0xD0 and
 # the packed septets spell the operator's name. Text mode also cannot say whether two messages are halves of
-# one long one. See docs/FINDINGS.md.
+# one long one. See docs/research/FINDINGS.md.
 #
 #   decode: awk -v mode=decode -f sms-pdu.awk        (one PDU per line, "index<TAB>pdu")
 #   encode: MU300_PDU_NUMBER=... MU300_PDU_TEXT=... awk -v mode=encode -f sms-pdu.awk (from the environment, as it is:

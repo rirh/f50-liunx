@@ -2,7 +2,7 @@
 (FINDINGS 191).
 
 * the IPA (sipa_eth, sipa_rm, sipa core, sipa_dele), WCN loopcheck and Wi-Fi TX path lines print at debug level in
-  the 5.4 patches and in the mainline tree (upstream/modules), and the errors next to them stay errors;
+  the 5.4 patches and in the mainline tree (kernel/mainline/modules), and the errors next to them stay errors;
 * -EINPROGRESS from sipa_nic_tx() (the IPA resuming) is not an error and not "don't have this flow ctrl err type";
 * the 5.4 build applies the kernel patch (KPATCHES) and the Wi-Fi patch (the wlan_combo-*.patch glob);
 * 90-mu300 raises logd's buffer from a stock size (none, 64, 128 KiB) to 1024 and leaves a size the user set."""
@@ -11,16 +11,16 @@ import unittest
 
 from helpers import TOP, ShellTest
 
-PATCHES = TOP / 'kernel/patches'
+PATCHES = TOP / 'kernel/vendor/patches'
 SIPA54 = PATCHES / 'sipa-wcn-logspam-quiet.patch'
 WLAN54 = PATCHES / 'wlan_combo-txrx-logs-quiet.patch'
-MODEM = TOP / 'upstream/modules/sprd_modem'
-WCN = TOP / 'upstream/modules/wcn_bsp'
-WLAN = TOP / 'upstream/modules/sprd_wlan_combo'
-UCI_DEFAULTS = TOP / 'openwrt/overlay/etc/uci-defaults/90-mu300'
+MODEM = TOP / 'kernel/mainline/modules/sprd_modem'
+WCN = TOP / 'kernel/mainline/modules/wcn_bsp'
+WLAN = TOP / 'kernel/mainline/modules/sprd_wlan_combo'
+UCI_DEFAULTS = TOP / 'systems/openwrt/overlay/etc/uci-defaults/90-mu300'
 
 DEBUG = re.compile(r'\b(pr_debug|pr_debug_ratelimited|dev_dbg|netdev_dbg|WCN_DBG)\s*$')
-# (file in the vendor 5.4 tree, the same file in upstream/modules or None, the format the line prints)
+# (file in the vendor 5.4 tree, the same file in kernel/mainline/modules or None, the format the line prints)
 SIPA_LINES = [
     ('drivers/net/sprd/sipa_v3/sipa_eth.c', MODEM / 'sipa_v3/sipa_eth.c', '"wakeup queue on dev %s\\n"'),
     ('drivers/net/sprd/sipa_v3/sipa_eth.c', MODEM / 'sipa_v3/sipa_eth.c', '"dev %s SIPA LEAVE FLOWCTRL\\n"'),
@@ -141,7 +141,7 @@ class KernelLines(unittest.TestCase):
                     self.assertNotRegex(line, r'\b(pr_err|dev_err|netdev_err|WCN_ERR|pr_warn|dev_warn)\(', line)
 
     def test_the_build_applies_both(self):
-        kp = re.search(r'^KPATCHES="([^"]*)"', (TOP / 'kernel/build-all.sh').read_text(), re.M).group(1).split()
+        kp = re.search(r'^KPATCHES="([^"]*)"', (TOP / 'kernel/vendor/build-all.sh').read_text(), re.M).group(1).split()
         self.assertIn(SIPA54.stem, kp)
         # after the earlier sipa_dele patches it was made on top of
         for before in ('sipa-delegate-einprogress', 'sipa-delegate-pm-runtime', 'logspam-quiet'):

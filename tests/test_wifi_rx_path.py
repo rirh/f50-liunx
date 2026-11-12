@@ -1,5 +1,5 @@
 """The SC2355 PCIe RX path of the mainline kernels, run as C on the host (FINDINGS 195, after kanoqwq's clean-tf-7.2
-2d3f7438 and cf4dcd61): the vendor functions are cut out of upstream/modules and compiled against stub kernel
+2d3f7438 and cf4dcd61): the vendor functions are cut out of kernel/mainline/modules and compiled against stub kernel
 primitives, so the tests exercise the real code, not a copy of it.
 
 - edma_rx_push_isr() (wcn_bsp): hands up the descriptors the chip completed, then refills. The vendor's
@@ -7,7 +7,7 @@ primitives, so the tests exercise the real code, not a copy of it.
 - sc2355_mm_fill_buffer() (sprd_wlan_combo): an RX refill refused by a full EDMA pending ring is released by the bus
   completion on the data channel, not after the 20 ms - 1 s back-off; any other failure keeps the back-off.
 
-The 5.4 kernel gets the RX push change as kernel/patches/wcn-pcie-rx-push-cursor.patch (its driver has no refill
+The 5.4 kernel gets the RX push change as kernel/vendor/patches/wcn-pcie-rx-push-cursor.patch (its driver has no refill
 back-off). Needs a host C compiler; skipped without one."""
 import re
 import shutil
@@ -18,7 +18,7 @@ from pathlib import Path
 
 from helpers import TOP
 
-MOD = TOP / 'upstream' / 'modules'
+MOD = TOP / 'kernel' / 'mainline' / 'modules'
 WLAN = MOD / 'sprd_wlan_combo' / 'sc2355'
 
 
@@ -108,10 +108,10 @@ int main(void) {
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_the_vendor_kernel_gets_the_same_change(self):
-        patch = (TOP / 'kernel' / 'patches' / 'wcn-pcie-rx-push-cursor.patch').read_text()
+        patch = (TOP / 'kernel' / 'vendor' / 'patches' / 'wcn-pcie-rx-push-cursor.patch').read_text()
         self.assertIn('-static bool dscr_ring_empty(int chn)', patch)
         self.assertIn('+	if (IS_ERR_OR_NULL(end))', patch)
-        build = (TOP / 'kernel' / 'build-all.sh').read_text()
+        build = (TOP / 'kernel' / 'vendor' / 'build-all.sh').read_text()
         self.assertIn('sipa-wcn-logspam-quiet wcn-pcie-rx-push-cursor ', build)
 
 
@@ -381,7 +381,7 @@ class RxRefillResume(unittest.TestCase):
 class VendorEventBounds(unittest.TestCase):
     def test_the_5_4_driver_gets_mainline_s_event_bounds_and_mgmt_channel(self):
         # mainline has them since PR #282 (FINDINGS 80); the 5.4 copy must say the same
-        patch = (TOP / 'kernel' / 'patches' / 'wlan_combo-station-event-bounds.patch').read_text()
+        patch = (TOP / 'kernel' / 'vendor' / 'patches' / 'wlan_combo-station-event-bounds.patch').read_text()
         main_evt = function((WLAN / 'cmdevt.c').read_text(), 'cmdevt_report_new_station_evt')
         for line in main_evt.splitlines()[4:-1]:
             if line.strip():

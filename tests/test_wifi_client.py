@@ -1152,7 +1152,7 @@ class WifiClient(ShellTest):
             self.assertIn('ip_forward=0', self.events())
 
     def test_service_stop_releases_everything_and_changes_no_setting(self):
-        unit = (TOP / 'rootfs/overlay/etc/systemd/system/mu300-wifi-client.service').read_text()
+        unit = (TOP / 'systems/base/overlay/etc/systemd/system/mu300-wifi-client.service').read_text()
         self.assertIn('ExecStop=/opt/mu300/bin/wifi-client release', unit)
         for shell in self.each_shell():
             self.joined(shell)
@@ -1340,7 +1340,7 @@ class WifiClient(ShellTest):
             self.assertFalse(self.conf.exists())
 
     def test_openwrt_service_stop_keeps_the_boot_join(self):
-        init = (TOP / 'openwrt/overlay/etc/init.d/mu300-wifi-client').read_text()
+        init = (TOP / 'systems/openwrt/overlay/etc/init.d/mu300-wifi-client').read_text()
         self.assertIn('wifi-client disconnect --keep', init)
         toolkit = (BIN / 'mu300-toolkit').read_text()
         self.assertIn('wifi-client reconnect', toolkit)

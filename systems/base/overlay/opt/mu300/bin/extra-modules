@@ -23,24 +23,24 @@ fi
 # is attached to the packet domain and before the PDP context: loaded in the background from here it raced the
 # dial, and inserted after AT+CGACT its probe hit a reproducible CFI panic (kanoqwq's fork, cd4fb28, where only
 # OpenWrt was changed; the race is the same on Ubuntu). mobile-data loads it itself, through sipa-dele-start,
-# between the registration and AT+CGACT, on every system. See those two scripts and docs/FINDINGS.md 13f.
+# between the registration and AT+CGACT, on every system. See those two scripts and docs/research/FINDINGS.md 13f.
 
 # The PM co-processor keeps its own watchdog, and it power-cuts the device a few minutes after boot unless this
-# driver tells pm_sys to stop it (docs/FINDINGS.md 5). The 5.4 boot image has always loaded it; mainline boot
+# driver tells pm_sys to stop it (docs/research/FINDINGS.md 5). The 5.4 boot image has always loaded it; mainline boot
 # images built before it was ported do not, so load it here too.
 if [ -f "$M/sprd_pmic_wdt.ko" ] && ! grep -q '^sprd_pmic_wdt ' /proc/modules; then
     insmod "$M/sprd_pmic_wdt.ko" 2>/dev/null && echo "loaded sprd_pmic_wdt" || echo "FAILED sprd_pmic_wdt"
 fi
 
-# The stock virtual thermal zone on a mainline kernel (upstream/modules/mu300_thermal, docs/FINDINGS.md 48): soc-thmzone
+# The stock virtual thermal zone on a mainline kernel (kernel/mainline/modules/mu300_thermal, docs/research/FINDINGS.md 48): soc-thmzone
 # with the device tree's trips and cpufreq cooling maps, so the kernel throttles the clusters at 85 C and thermal-guard
 # hands frequency control over. The vendor 5.4 kernel has its own driver for it and no such module. modprobe needs
 # depmod's index (Ubuntu keeps the bundle's modules in extra/), so insmod by path is the fallback; a failure leaves
 # thermal-guard in charge, as before.
-# ums9620_lpintc (upstream/modules/ums9620_lpintc, docs/FINDINGS.md 218), the same way: the interrupts the kernel
+# ums9620_lpintc (kernel/mainline/modules/ums9620_lpintc, docs/research/FINDINGS.md 218), the same way: the interrupts the kernel
 # enabled become wake sources of the CPU clusters' power-down, which TF-A left at its own short list (USB, IPA and
 # the Wi-Fi's PCIe were not on it). Mainline only; without it an interrupt waits for something else to wake the cluster.
-# zte_sar_stk, the U30 Air's SAR sensor (upstream/modules/zte_sar_stk on mainline, ZTE's own module on 5.4): only where
+# zte_sar_stk, the U30 Air's SAR sensor (kernel/mainline/modules/zte_sar_stk on mainline, ZTE's own module on 5.4): only where
 # the kernel has it (the U30 Air's module sets); udev loads it on Ubuntu as well, OpenWrt has only this.
 for m in mu300_thermal ums9620_lpintc zte_sar_stk; do
     grep -q "^$m " /proc/modules && continue

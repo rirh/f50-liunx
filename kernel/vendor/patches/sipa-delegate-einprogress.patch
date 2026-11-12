@@ -1,6 +1,6 @@
 sipa_delegate: survive traffic at load time (-EINPROGRESS is success, check the start, no devm under a running thread)
 
-Same fix as upstream/modules (docs/FINDINGS.md 31f): OpenWrt brings the WAN up before the delegate loads, and the
+Same fix as kernel/mainline/modules (docs/research/FINDINGS.md 31f): OpenWrt brings the WAN up before the delegate loads, and the
 vendor code turned the -EINPROGRESS of that case into a freed delegator under its running connection thread.
 
 diff -ru a/drivers/net/sprd/sipa_delegate/sipa_dele_cmn.c b/drivers/net/sprd/sipa_delegate/sipa_dele_cmn.c
@@ -15,7 +15,7 @@ diff -ru a/drivers/net/sprd/sipa_delegate/sipa_dele_cmn.c b/drivers/net/sprd/sip
 +	 * delegate is loaded, which is how OpenWrt boots - adding the dependency starts requesting this producer and
 +	 * the grant completes later. Treating it as an error deleted PROD_CP here, cp_delegator_init() then failed
 +	 * with "SIPA_RM_RES_PROD_CP does not exist", and the thread started above ran on freed memory: a NULL call
-+	 * from conn_thread, or a soft lockup (docs/FINDINGS.md 31f).
++	 * from conn_thread, or a soft lockup (docs/research/FINDINGS.md 31f).
 +	 */
 +	if (ret == -EINPROGRESS)
 +		ret = 0;

@@ -1,5 +1,5 @@
 # What stands on mainline for every module, built-in object and run-time item of the vendor 5.4 kernel that mainline
-# does not have under the same name. Rule (check-parity.py, run by build-modules.sh, make-bundle.sh, kernel/build-all.sh
+# does not have under the same name. Rule (check-parity.py, run by build-modules.sh, make-bundle.sh, kernel/vendor/build-all.sh
 # and tests/test_parity.py): nothing 5.4 has may be missing from mainline without a line here.
 #   KIND NAME ok REF...                          covered (ko:/cfg:/= checked against every mainline build;
 #                                                bind:/has: against the mainline inventories in parity/)
@@ -7,32 +7,32 @@
 #   KIND NAME na [boards:B] # why                not applicable, with the reason
 # Evidence: parity/f50b-5.4.inv and parity/f50b-7.3.inv (F50-B, v2026.10.28.1, 2026-10-28), parity/u30air-6.18.inv,
 # the boards' device tree (/sys/firmware/fdt of F50-B), i2cdetect on F50-B (5.4) and the U30 Air (6.18).
-# FINDINGS numbers are docs/FINDINGS.md.
+# FINDINGS numbers are docs/research/FINDINGS.md.
 
 # ---------------------------------------------------------------------------------------------------------------------
 # SoC basics that are covered under another name (bound on F50-B under 7.3)
-module sprd_cpufreq_v2 ok cfg:ARM_SPRD_CPUFREQ_V2 bind:platform/sprd-cpufreq-v2 # upstream/port/drivers/cpufreq
+module sprd_cpufreq_v2 ok cfg:ARM_SPRD_CPUFREQ_V2 bind:platform/sprd-cpufreq-v2 # kernel/mainline/port/drivers/cpufreq
 module sprd_cpufreq_public ok cfg:ARM_SPRD_CPUFREQ_V2 # the vendor cpufreq's shared part, folded into the port
 module sprd_cpu_cooling ok cfg:CPU_THERMAL has:cooling/cpufreq-cpu0 # cpufreq cooling of the three clusters
 module sprd_gpu_cooling ok cfg:DEVFREQ_THERMAL has:cooling/devfreq-23140000.gpu # Mali's devfreq cooling
-module sprd_soc_thm ok ko:mu300_thermal bind:platform/mu300-virtual-thermal # the stock virtual soc zone (upstream/modules/mu300_thermal)
+module sprd_soc_thm ok ko:mu300_thermal bind:platform/mu300-virtual-thermal # the stock virtual soc zone (kernel/mainline/modules/mu300_thermal)
 module sprd_thermal ok cfg:SPRD_THERMAL_R5P0 bind:platform/sprd-thermal-r5p0 # the r5p0 sensors; 5.4's sprd-thermal driver itself binds nothing
 driver platform/virtual_thermal ok ko:mu300_thermal bind:platform/mu300-virtual-thermal
 module dwc3_sprd ok cfg:USB_DWC3_OF_SIMPLE bind:platform/dwc3-of-simple # glue of 25100000.usb3
 module dwc3_sprd_core ok cfg:USB_DWC3 bind:platform/dwc3
 driver platform/dwc3-sprd ok cfg:USB_DWC3_OF_SIMPLE bind:platform/dwc3-of-simple
 driver platform/dwc3-unisoc ok cfg:USB_DWC3 bind:platform/dwc3
-module phy_sprd_usb31_qogirn6pro ok cfg:USB_SPRD_UMS9620_SSPHY bind:platform/sprd-ssphy # upstream/port/drivers/usb/phy
+module phy_sprd_usb31_qogirn6pro ok cfg:USB_SPRD_UMS9620_SSPHY bind:platform/sprd-ssphy # kernel/mainline/port/drivers/usb/phy
 module phy_sprd_commonphy ok cfg:USB_SPRD_UMS9620_SSPHY # the vendor PHYs' shared code
 module pcie_sprd_misc ok cfg:PCIE_SPRD bind:platform/sprd-pcie # helpers of pcie-sprd, folded into the port
 module mmc_swcq ok cfg:MMC_HSQ bind:platform/sdhci_sprd_r11 # the eMMC's software queue: mainline sdhci-sprd uses the host software queue
 module sc27xx_poweroff ok cfg:SPI_SPRD_ADI bind:platform/sprd-adi # power-off through the PMIC, in spi-sprd-adi (patch 0001, FINDINGS 31h)
 driver platform/sc27xx-poweroff ok cfg:SPI_SPRD_ADI bind:platform/sprd-adi
-module leds_sc27xx_keypad ok cfg:LEDS_SC27XX_KPLED bind:platform/sc27xx-keypad-led # upstream/port/drivers/leds
+module leds_sc27xx_keypad ok cfg:LEDS_SC27XX_KPLED bind:platform/sc27xx-keypad-led # kernel/mainline/port/drivers/leds
 module sprd_ump96xx_spi ok cfg:MFD_SC27XX_PMIC bind:spi/sc27xx-pmic # the UMP9620 MFD; its UMP9621/UMP9622 siblings: see the pmic group
 driver spi/ump96xx-pmic ok cfg:MFD_SC27XX_PMIC bind:spi/sc27xx-pmic # pmic@0; pmic@1/@2 below (driver platform/ump9621-regulator, ...)
-driver platform/sprd-pmic-wdt ok cfg:MFD_SC27XX_PMIC bind:platform/ump9620-wdt # upstream/port/drivers/watchdog (built with the MFD)
-driver platform/sprd-sipa-sys ok cfg:SPRD_UMS9620_IPA_PD bind:platform/ums9620-ipa-sys-pd # upstream/port/drivers/pmdomain
+driver platform/sprd-pmic-wdt ok cfg:MFD_SC27XX_PMIC bind:platform/ump9620-wdt # kernel/mainline/port/drivers/watchdog (built with the MFD)
+driver platform/sprd-sipa-sys ok cfg:SPRD_UMS9620_IPA_PD bind:platform/ums9620-ipa-sys-pd # kernel/mainline/port/drivers/pmdomain
 driver platform/sc27xx-fgu ok cfg:FUEL_GAUGE_SC27XX bind:platform/sc27xx-fgu # U30 Air; the F50 has no battery (patch 0030)
 driver platform/reg-dummy ok cfg:REGULATOR bind:faux/faux_driver # the dummy regulator is a faux device on 7.x
 driver platform/snd-soc-dummy na # an ASoC helper device; the kernel builds carry no sound card (see snd_soc_core)
@@ -125,13 +125,13 @@ builtin ehci_platform na # as ehci_hcd
 module sprd_tcpm ok cfg:TYPEC_TCPM # the TCPM framework itself is there (module tcpm)
 module sc27xx_pd ok cfg:TYPEC_UMP9620 # the PMIC's PD PHY as a TCPC: ump9620_tcpc (patch 0020), opt-in
 extra sc27xx_pd ok cfg:TYPEC_UMP9620 # build-display.sh's variant of the same driver
-module sc27xx_typec ok = cfg:TYPEC_SC27XX bind:platform/sc27xx-typec # the PMIC's Type-C detection (typec@380), on by default as on 5.4: upstream/port/drivers/usb/typec/sc27xx_typec.c; mu300-usb hands the block to ump9620_tcpc when that is enabled
+module sc27xx_typec ok = cfg:TYPEC_SC27XX bind:platform/sc27xx-typec # the PMIC's Type-C detection (typec@380), on by default as on 5.4: kernel/mainline/port/drivers/usb/typec/sc27xx_typec.c; mu300-usb hands the block to ump9620_tcpc when that is enabled
 driver platform/sc27xx-typec ok cfg:TYPEC_SC27XX bind:platform/sc27xx-typec
 typec port0 ok cfg:TYPEC_SC27XX has:typec/port0
 typec port0-partner ok cfg:TYPEC_SC27XX has:typec/port0-partner
 class typec ok cfg:TYPEC_SC27XX has:class/typec
 extcon extcon1 ok cfg:TYPEC_SC27XX has:extcon/extcon1 # sc27xx-typec's extcon (USB, USB-HOST, HEADPHONE); no mainline driver takes it (VBUS stays extcon-usb-gpio's)
-module sprd_bc1p2 ok = cfg:SPRD_BC1P2 bind:platform/sprd-bc1p2 # BC1.2 charger-port detection (bc1p2@239c): upstream/port/drivers/usb/phy/sprd-bc1p2.c, charger_type in sysfs; the U30 Air's charger reads the same result itself (patch 0009)
+module sprd_bc1p2 ok = cfg:SPRD_BC1P2 bind:platform/sprd-bc1p2 # BC1.2 charger-port detection (bc1p2@239c): kernel/mainline/port/drivers/usb/phy/sprd-bc1p2.c, charger_type in sysfs; the U30 Air's charger reads the same result itself (patch 0009)
 driver platform/sprd-bc1p2 ok cfg:SPRD_BC1P2 bind:platform/sprd-bc1p2
 builtin typec_ucsi na # UCSI is a firmware interface (ACPI/EC); these boards have none
 module ptn38003a_i2c na # the PTN38003A redriver at i2c-6 0x30: nothing answers there on F50-B or the U30 Air (i2cdetect 2026-10-28)
@@ -155,7 +155,7 @@ psy bq2560x_charger ok cfg:CHARGER_BQ256XX has:psy/bq256xx-charger # U30 Air
 psy usb ok cfg:CHARGER_BQ256XX has:psy/bq256xx-charger # charger-manager's virtual supplies; bq256xx reports input online itself
 psy ac ok cfg:CHARGER_BQ256XX has:psy/bq256xx-charger
 psy wireless na # no wireless charging on these boards (a charger-manager placeholder)
-module charger_policy_service ok = cfg:CHARGER_POLICY_SERVICE bind:platform/zte,charger-policy-service # ZTE's charge policy: its expired mode (after 16 h on the charger the battery kept at 70-90 %), upstream/port/drivers/power/supply/charger_policy_service.c; the charger's CV and timer were patches 0024/0025
+module charger_policy_service ok = cfg:CHARGER_POLICY_SERVICE bind:platform/zte,charger-policy-service # ZTE's charge policy: its expired mode (after 16 h on the charger the battery kept at 70-90 %), kernel/mainline/port/drivers/power/supply/charger_policy_service.c; the charger's CV and timer were patches 0024/0025
 cooling battery ok cfg:CHARGER_POLICY_SERVICE has:cooling/battery # the battery's cooling device: the charge current in four steps (charger_policy_service.c); no zone binds it, as on 5.4
 regulator vddvbus ok cfg:CHARGER_BQ256XX has:regulator/vddvbus # the charger's OTG boost (patch 0019; U30 Air)
 
@@ -166,12 +166,12 @@ cooling thermal-cpufreq-0 ok cfg:CPU_THERMAL has:cooling/cpufreq-cpu0 # named af
 cooling thermal-cpufreq-1 ok cfg:CPU_THERMAL has:cooling/cpufreq-cpu4
 cooling thermal-cpufreq-2 ok cfg:CPU_THERMAL has:cooling/cpufreq-cpu7
 cooling thermal-devfreq-0 ok cfg:DEVFREQ_THERMAL has:cooling/devfreq-23140000.gpu
-cooling thermal-cpu-0 ok cfg:SPRD_CPU_HOTPLUG_COOLING has:cooling/thermal-cpu-0 # Unisoc's CPU hotplug cooling (cores taken offline when hot): upstream/port/drivers/thermal/sprd_cpu_hotplug_cooling.c, bound to soc-thmzone's 85 C trip by the device tree's maps
+cooling thermal-cpu-0 ok cfg:SPRD_CPU_HOTPLUG_COOLING has:cooling/thermal-cpu-0 # Unisoc's CPU hotplug cooling (cores taken offline when hot): kernel/mainline/port/drivers/thermal/sprd_cpu_hotplug_cooling.c, bound to soc-thmzone's 85 C trip by the device tree's maps
 cooling thermal-cpu-1 ok cfg:SPRD_CPU_HOTPLUG_COOLING has:cooling/thermal-cpu-1 # as thermal-cpu-0
 cooling thermal-cpu-2 ok cfg:SPRD_CPU_HOTPLUG_COOLING has:cooling/thermal-cpu-2 # as thermal-cpu-0
 tz osctsen-thmzone ok cfg:SPRD_UMP96XX_TSENSOR has:tz/osctsen-thmzone # the UMP9622's sensors (tsensor@20f8 on pmic@2); read in factory calibration mode only, as on 5.4 (EAGAIN otherwise)
 tz outtsen-thmzone ok cfg:SPRD_UMP96XX_TSENSOR has:tz/outtsen-thmzone # as osctsen-thmzone
-module sprd_ump96xx_tsensor ok = cfg:SPRD_UMP96XX_TSENSOR bind:platform/ump96xx-tsensor # upstream/port/drivers/thermal/sprd_ump96xx_tsensor.c
+module sprd_ump96xx_tsensor ok = cfg:SPRD_UMP96XX_TSENSOR bind:platform/ump96xx-tsensor # kernel/mainline/port/drivers/thermal/sprd_ump96xx_tsensor.c
 driver platform/ump96xx-tsensor ok cfg:SPRD_UMP96XX_TSENSOR bind:platform/ump96xx-tsensor
 module sprd_npu_cooling na # NPU cooling: there is no NPU driver on either kernel (npu@27100000 binds nothing on 5.4)
 
@@ -180,12 +180,12 @@ module sprd_npu_cooling na # NPU cooling: there is no NPU driver on either kerne
 module sc27xx_vibra ok = cfg:INPUT_SC27XX_VIBRA bind:platform/sc27xx-vibrator # mainline's sc27xx-vibra with the UMP9620's compatible (the SC2730's bits, port/install.py), built in; whether a motor is fitted is not known
 driver platform/sc27xx-vibrator ok cfg:INPUT_SC27XX_VIBRA bind:platform/sc27xx-vibrator
 input sc27xx:vibrator ok cfg:INPUT_SC27XX_VIBRA has:input/sc27xx:vibrator
-module sprd_7sreset ok = cfg:SPRD_7SRESET bind:platform/sc27xx-7sreset # the PMIC's long-press hardware reset settings (hw_reset@23c0): upstream/port/drivers/soc/sprd/sprd_7sreset.c
+module sprd_7sreset ok = cfg:SPRD_7SRESET bind:platform/sc27xx-7sreset # the PMIC's long-press hardware reset settings (hw_reset@23c0): kernel/mainline/port/drivers/soc/sprd/sprd_7sreset.c
 driver platform/sc27xx-7sreset ok cfg:SPRD_7SRESET bind:platform/sc27xx-7sreset
 module sprd_pmic_smpl na # SMPL (restart after a short power loss); not loaded on 5.4 (boot/module-order.txt), the bootloader's setting stands
-module sprd_pmic_syscon ok = cfg:SPRD_PMIC_SYSCON bind:platform/sprd-pmic-glb # the PMICs' global register blocks (syscon@2000 of pmic@0..2): upstream/port/drivers/soc/sprd/sprd_pmic_syscon.c
+module sprd_pmic_syscon ok = cfg:SPRD_PMIC_SYSCON bind:platform/sprd-pmic-glb # the PMICs' global register blocks (syscon@2000 of pmic@0..2): kernel/mainline/port/drivers/soc/sprd/sprd_pmic_syscon.c
 driver platform/sprd-pmic-glb ok cfg:SPRD_PMIC_SYSCON bind:platform/sprd-pmic-glb
-module ump9621_regulator ok cfg:REGULATOR_UMP9621 ko:ump9621-regulator bind:platform/ump9621-regulator # the UMP9621 (pmic@1, upstream/port/drivers/mfd/ump962x-pmic.c): vddcpu0, vddsram1/2, vddmm, vddai, DCDC_MODEM
+module ump9621_regulator ok cfg:REGULATOR_UMP9621 ko:ump9621-regulator bind:platform/ump9621-regulator # the UMP9621 (pmic@1, kernel/mainline/port/drivers/mfd/ump962x-pmic.c): vddcpu0, vddsram1/2, vddmm, vddai, DCDC_MODEM
 driver platform/ump9621-regulator ok cfg:REGULATOR_UMP9621 bind:platform/ump9621-regulator
 regulator DCDC_MODEM ok cfg:REGULATOR_UMP9621 has:regulator/DCDC_MODEM
 regulator vddai ok cfg:REGULATOR_UMP9621 has:regulator/vddai
@@ -198,21 +198,21 @@ builtin fixed na # the fixed regulator: the boards' device tree has no regulator
 
 # ---------------------------------------------------------------------------------------------------------------------
 # random numbers
-builtin sprd_trng ok = cfg:HW_RANDOM_SPRD bind:platform/sprd_trng # the SoC's TRNG (rng@e0000, sprd,sprd-trng), ported: upstream/port/drivers/char/hw_random/sprd_trng.c, built in as on 5.4 (FINDINGS 234)
+builtin sprd_trng ok = cfg:HW_RANDOM_SPRD bind:platform/sprd_trng # the SoC's TRNG (rng@e0000, sprd,sprd-trng), ported: kernel/mainline/port/drivers/char/hw_random/sprd_trng.c, built in as on 5.4 (FINDINGS 234)
 driver platform/sprd_trng ok cfg:HW_RANDOM_SPRD bind:platform/sprd_trng
 hwrng 202e0000.rng ok cfg:HW_RANDOM_SPRD has:hwrng/202e0000.rng # /dev/hwrng, the same name as on 5.4
 
 # ---------------------------------------------------------------------------------------------------------------------
 # DDR, modem and multimedia DVFS (power)
-module sprd_ddr_dvfs ok = bind:platform/sprd-ddr-dvfs # DDR frequency scaling by pm_sys over SIPC (scene-frequency devfreq, sprd,ddr-dvfs, MHz as on 5.4): upstream/modules/sprd_dvfs, loaded by extra-modules after the modem stack
+module sprd_ddr_dvfs ok = bind:platform/sprd-ddr-dvfs # DDR frequency scaling by pm_sys over SIPC (scene-frequency devfreq, sprd,ddr-dvfs, MHz as on 5.4): kernel/mainline/modules/sprd_dvfs, loaded by extra-modules after the modem stack
 driver platform/sprd-ddr-dvfs ok ko:sprd_ddr_dvfs bind:platform/sprd-ddr-dvfs
 devfreq scene-frequency ok ko:sprd_ddr_dvfs has:devfreq/scene-frequency # its sprd-governor directory: forced/requested frequency, pm_sys's DFS and automatic scaling, thresholds, scenes
 builtin governor_passive ok = cfg:DEVFREQ_GOV_PASSIVE # the passive devfreq governor, =y as on 5.4
-builtin dmc_drv ok = cfg:SPRD_DMC_DRV bind:platform/sprd-dmc # the DDR controller (dmc-controller@60050000): /proc/sprd_dmc, debugfs sprd_pub_monitor; upstream/port/drivers/soc/sprd/dmc_drv.c
+builtin dmc_drv ok = cfg:SPRD_DMC_DRV bind:platform/sprd-dmc # the DDR controller (dmc-controller@60050000): /proc/sprd_dmc, debugfs sprd_pub_monitor; kernel/mainline/port/drivers/soc/sprd/dmc_drv.c
 driver platform/sprd-dmc ok cfg:SPRD_DMC_DRV bind:platform/sprd-dmc
-module sprd_cp_dvfs ok = bind:platform/sprd-cp-dvfs # the modem subsystems' DVFS controls (dvfs_pscp, dvfs_phycp) over SIPC: upstream/modules/sprd_dvfs
+module sprd_cp_dvfs ok = bind:platform/sprd-cp-dvfs # the modem subsystems' DVFS controls (dvfs_pscp, dvfs_phycp) over SIPC: kernel/mainline/modules/sprd_dvfs
 driver platform/sprd-cp-dvfs ok ko:sprd_cp_dvfs bind:platform/sprd-cp-dvfs
-module sprd_top_dvfs ok = cfg:SPRD_TOP_DVFS_DEVFREQ # the top-level DVFS set-up (sprd,topdvfs-dev): no such node on these boards, it binds nothing on 5.4 either; upstream/port/drivers/devfreq/sprd-top-dvfs.c
+module sprd_top_dvfs ok = cfg:SPRD_TOP_DVFS_DEVFREQ # the top-level DVFS set-up (sprd,topdvfs-dev): no such node on these boards, it binds nothing on 5.4 either; kernel/mainline/port/drivers/devfreq/sprd-top-dvfs.c
 class dvfs missing group:display boards:f50,u30air,v50 # the vendor dvfs class: apsys_dvfs creates it (its apsys device), see below
 module apsys_dvfs missing group:display boards:f50,u30air,v50 # DVFS of the display/video power domain (apsys-dvfs@30114000)
 driver platform/apsys-dvfs missing group:display boards:f50,u30air,v50 # see apsys_dvfs
@@ -225,7 +225,7 @@ devfreq vpudec-dvfs na # see platform/vsp-dvfs
 devfreq vpuenc-dvfs na # see platform/vsp-dvfs
 
 # ---------------------------------------------------------------------------------------------------------------------
-# display (5.4: kernel/build-display.sh's experimental USB-C DisplayPort, tools/display/README.md; never got a picture)
+# display (5.4: kernel/vendor/build-display.sh's experimental USB-C DisplayPort, device-tools/display/README.md; never got a picture)
 extra sprd_drm missing group:display boards:f50,u30air,v50 # Unisoc DRM (DPU1 + DPTX)
 extra mu300_dp_enable missing group:display boards:f50,u30air,v50 # turns the disabled PD and DPTX nodes on at runtime
 module unisoc_iommu missing group:display boards:f50,u30air,v50 # the display/video IOMMUs (unisoc,iommuvaul6p-*)
@@ -279,16 +279,16 @@ module snd_soc_aw883xx na # AW883xx amplifier at i2c-6 0x34: nothing answers the
 
 # ---------------------------------------------------------------------------------------------------------------------
 # SoC identity and ZTE board extras
-module sprd_soc_id ok = cfg:SPRD_SOC_ID bind:platform/sprd-soc-id # the chip's ID registers: /proc/socid/socid_inf and sprd_get_soc_id() as on 5.4, and the SoC device /sys/devices/soc0 (upstream/port/drivers/soc/sprd/sprd_soc_id.c)
+module sprd_soc_id ok = cfg:SPRD_SOC_ID bind:platform/sprd-soc-id # the chip's ID registers: /proc/socid/socid_inf and sprd_get_soc_id() as on 5.4, and the SoC device /sys/devices/soc0 (kernel/mainline/port/drivers/soc/sprd/sprd_soc_id.c)
 driver platform/sprd-soc-id ok cfg:SPRD_SOC_ID bind:platform/sprd-soc-id
 module sprd_manufacturer_model ok cfg:SPRD_SOC_ID # in sprd_soc_id: /sys/devices/soc0/soc_model and soc_manufacturer with 5.4's text
 module misc_sprd_uid na # the chip UID as /sys/class/misc/sprd_uid; not loaded on 5.4, nothing reads it
-module zte_card_holder_det ok = cfg:ZTE_CARD_HOLDER_DET # the card tray's detection, /sys/zcard_det/zcard_det (upstream/port/drivers/misc/zte_card_holder_det.c; loaded by extra-modules as on 5.4)
+module zte_card_holder_det ok = cfg:ZTE_CARD_HOLDER_DET # the card tray's detection, /sys/zcard_det/zcard_det (kernel/mainline/port/drivers/misc/zte_card_holder_det.c; loaded by extra-modules as on 5.4)
 module zte_bootreason na # ZTE's boot reason for Android's property service; not loaded on 5.4 (boot/init reads the reason itself)
 module zte_stats_info na # ZTE's usage statistics for Android; not loaded on 5.4
-builtin board_state ok = cfg:ZTE_BOARD_STATE # ZTE's board state: /dev/zte_board_state, /proc/driver/board_id (upstream/port/drivers/misc/board_state.c)
+builtin board_state ok = cfg:ZTE_BOARD_STATE # ZTE's board state: /dev/zte_board_state, /proc/driver/board_id (kernel/mainline/port/drivers/misc/board_state.c)
 module zte_sar na boards:f50,u30air # the AW9610x SAR sensor at i2c-2 0x12 is not fitted (i2cdetect on both; FINDINGS 18)
-module zte_sar_stk ok = bind:i2c/stk501xx_sar # the U30 Air's STK501xx SAR sensor (i2c-2 0x28): ZTE's driver as an out-of-tree module, upstream/modules/zte_sar_stk
+module zte_sar_stk ok = bind:i2c/stk501xx_sar # the U30 Air's STK501xx SAR sensor (i2c-2 0x28): ZTE's driver as an out-of-tree module, kernel/mainline/modules/zte_sar_stk
 module fm11tag ok cfg:I2C_CHARDEV # the U30 Air's NFC tag: mu300-nfc drives it over i2c-dev and GPIO 190 (FINDINGS 33g)
 module sprd_apdu_r3p0 na # the integrated secure element's APDU interface: loads on 5.4 but binds nothing (sprd,qogirn6pro-apdu stays unbound)
 module rpmb na # the vendor RPMB char device for Android's Trusty storage proxy; the partition is /dev/mmcblk0rpmb on both kernels (RPMB=y would make MMC_BLOCK a module, all-modules.exclude)
@@ -364,7 +364,7 @@ module sprd_mipi na # see mipi_driver
 # ---------------------------------------------------------------------------------------------------------------------
 # the rest
 builtin cpufreq_conservative ok cfg:CPU_FREQ_GOV_CONSERVATIVE # enabled with this file
-module zte_ldo_leds ok cfg:LEDS_ZTE_LDO bind:platform/zte-ldo-leds # upstream/port/drivers/leds (U30 Air, FINDINGS 33)
+module zte_ldo_leds ok cfg:LEDS_ZTE_LDO bind:platform/zte-ldo-leds # kernel/mainline/port/drivers/leds (U30 Air, FINDINGS 33)
 builtin xt_SECMARK na # packet security marks for SELinux policies (Android); NETWORK_SECMARK is off, the systems label no packets
 builtin xt_CONNSECMARK na # see xt_SECMARK
 builtin xt_quota2 na # Android's quota2 match, not upstream; the standard xt_quota is built

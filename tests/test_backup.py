@@ -18,7 +18,7 @@ from test_api import ApiCase
 from test_mu300dash_security import JSONFILTER
 
 BACKUP = BIN / 'mu300-backup'
-ADAPTER = TOP / 'openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/forward'
+ADAPTER = TOP / 'systems/openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/forward'
 HASH = '$6$saltsalt$' + 'a' * 86
 KEY1 = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOm' + 'x' * 40 + ' me@laptop'
 KEY2 = 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ' + 'y' * 60 + ' other'
@@ -506,7 +506,7 @@ class Luci(BackupCase):
         self.stub('jsonfilter', f'exec python3 "{self.stubs}/jsonfilter.py" "$@"')
         lib = self.root / 'usr/share/unisoc-modem'
         lib.mkdir(parents=True)
-        (lib / 'lib.sh').write_text((TOP / 'openwrt/luci-app-mu300/root/usr/share/unisoc-modem/lib.sh').read_text())
+        (lib / 'lib.sh').write_text((TOP / 'systems/openwrt/luci-app-mu300/root/usr/share/unisoc-modem/lib.sh').read_text())
         ad = self.root / 'usr/libexec/unisoc-modem'
         ad.mkdir(parents=True)
         (ad / 'forward').write_text(ADAPTER.read_text())

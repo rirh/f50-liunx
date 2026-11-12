@@ -1,13 +1,13 @@
 kernel 5.4: quiet the IPA (sipa_eth, sipa_rm, sipa core, sipa_dele) and WCN loopcheck lines that repeat all day
 
-docs/FINDINGS.md 191. On an idle F50 the IPA powers down and the next packet powers it up again, every 10-15 s; the
+docs/research/FINDINGS.md 191. On an idle F50 the IPA powers down and the next packet powers it up again, every 10-15 s; the
 vendor drivers printed about 30 info lines for each round trip (resource state changes, the delegate's smsg
 exchange, "fail to send, ret -115" for the -EINPROGRESS of a resume that SIPA_LEAVE_FLOWCTRL then ends), and the
 WCN loopcheck printed four more every 5 s. That was about 300 of the 470 kernel lines a minute that filled OpenWrt's
 128 KiB log buffer within two minutes of boot. Only printk levels change (CONFIG_DYNAMIC_DEBUG is on, so
 `echo 'module sipa_core +p' > /sys/kernel/debug/dynamic_debug/control` style lines bring any of them back), plus:
 a failed send other than -EINPROGRESS stays an error but rate-limited, and sipa_nic_trigger_flow_ctrl_work() knows
--EINPROGRESS instead of warning "don't have this flow ctrl err type". upstream/modules has the same change.
+-EINPROGRESS instead of warning "don't have this flow ctrl err type". kernel/mainline/modules has the same change.
 
 diff --git a/drivers/net/sprd/sipa_delegate/sipa_dele_cmn.c b/drivers/net/sprd/sipa_delegate/sipa_dele_cmn.c
 index d6b919a..adf775d 100644

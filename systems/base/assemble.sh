@@ -9,16 +9,16 @@ UBUNTU=$(tar -xOf /w/base.tar usr/lib/os-release 2>/dev/null | sed -n 's/^VERSIO
 [ -n "$UBUNTU" ] || UBUNTU=24.04
 
 # Say which mount is missing instead of failing later on a bare "cp: can't stat". This runs inside the
-# container, so every path here is a -v from the docker run in docs/BUILD.md.
+# container, so every path here is a -v from the docker run in docs/guides/BUILD.md.
 miss=
-[ -f /w/base.tar ] || miss="$miss\n  /w/base.tar        -v \$PWD/rootfs:/w              (docker run --rm mu300-ubuntu:24.04 tar -c ... > rootfs/base.tar)"
-[ -d /w/overlay ] || miss="$miss\n  /w/overlay         -v \$PWD/rootfs:/w              (part of the checkout)"
-ls /kmods/*.ko >/dev/null 2>&1 || miss="$miss\n  /kmods/*.ko        -v \$PWD/out/modules:/kmods:ro  (kernel/build-linux.sh output)"
-[ -f /kout/modules.builtin ] || miss="$miss\n  /kout/modules.*    -v \$PWD/out:/kout:ro           (kernel/build-linux.sh output)"
-[ -f /logdw ] || miss="$miss\n  /logdw             -v \$PWD/tools/logdw/logdw:/logdw:ro"
+[ -f /w/base.tar ] || miss="$miss\n  /w/base.tar        -v \$PWD/systems/base:/w              (docker run --rm mu300-ubuntu:24.04 tar -c ... > systems/base/base.tar)"
+[ -d /w/overlay ] || miss="$miss\n  /w/overlay         -v \$PWD/systems/base:/w              (part of the checkout)"
+ls /kmods/*.ko >/dev/null 2>&1 || miss="$miss\n  /kmods/*.ko        -v \$PWD/out/modules:/kmods:ro  (kernel/vendor/build-linux.sh output)"
+[ -f /kout/modules.builtin ] || miss="$miss\n  /kout/modules.*    -v \$PWD/out:/kout:ro           (kernel/vendor/build-linux.sh output)"
+[ -f /logdw ] || miss="$miss\n  /logdw             -v \$PWD/device-tools/logdw/logdw:/logdw:ro"
 if [ -n "$miss" ]; then
     printf 'assemble.sh: missing build inputs:%b\n' "$miss" >&2
-    echo "see docs/BUILD.md for the full docker run line" >&2
+    echo "see docs/guides/BUILD.md for the full docker run line" >&2
     exit 1
 fi
 # Optional inputs decide whether the image can use the modem, Wi-Fi and the GPU at all. Missing ones used to
@@ -55,26 +55,26 @@ mkdir -p $R/etc/mu300 && printf '%s\n' "${MU300_VERSION:-dev}" > $R/etc/mu300/im
 ln -sfn ../run/systemd/resolve/stub-resolv.conf $R/etc/resolv.conf
 # vendor firmware for Wi-Fi (wcnmodem.bin, wifi_board_config*.ini) is copied from the device's /odm/firmware
 if [ -d /firmware ]; then mkdir -p $R/usr/lib/firmware && cp /firmware/* $R/usr/lib/firmware/; fi
-# the Android vendor subset (modem_control + libs + properties) comes from android-vendor/extract-subset.sh
+# the Android vendor subset (modem_control + libs + properties) comes from android/vendor/extract-subset.sh
 if [ -d /android-subset ]; then mkdir -p $R/opt/mu300/android && cp -a /android-subset/. $R/opt/mu300/android/ && mv $R/opt/mu300/android/dev/__properties__ $R/opt/mu300/android/dev-properties && rmdir $R/opt/mu300/android/dev; fi
 cp /logdw $R/opt/mu300/bin/logdw
-# tools/bt-init build (static arm64); Bluetooth also needs bt_configure_pskey.ini/bt_configure_rf.ini from Android /vendor/etc in /firmware
-# optional Mali GPU userspace (android-vendor/extract-gpu-subset.sh) and OpenCL test (tools/gpu)
+# device-tools/bt-init build (static arm64); Bluetooth also needs bt_configure_pskey.ini/bt_configure_rf.ini from Android /vendor/etc in /firmware
+# optional Mali GPU userspace (android/vendor/extract-gpu-subset.sh) and OpenCL test (device-tools/gpu)
 # cp -an FROM/. TO/ needs GNU cp (busybox cp -n skips an existing directory without looking into it); this runs in the build containers only
 if [ -d /android-gpu-subset ]; then cp -an /android-gpu-subset/. $R/opt/mu300/android/; fi
 if [ -e /cltest ]; then install -D -m755 /cltest $R/opt/mu300/android/system/bin/cltest; fi
 if [ -e /bt-init ]; then cp /bt-init $R/opt/mu300/bin/mu300-bt-init; fi
-# tools/keys build (static arm64): the buttons (mu300-buttons)
+# device-tools/keys build (static arm64): the buttons (mu300-buttons)
 if [ -e /keys ]; then install -m755 /keys $R/opt/mu300/bin/mu300-keys; fi
-# tools/adbd build (static arm64, musl): adb over USB, on unless mu300-usb adb off
+# device-tools/adbd build (static arm64, musl): adb over USB, on unless mu300-usb adb off
 if [ -e /adbd ]; then install -m755 /adbd $R/opt/mu300/bin/adbd; fi
-# tools/carry build (static arm64): an update carries everything of the user's over with it (mu300-update, the carry
+# device-tools/carry build (static arm64): an update carries everything of the user's over with it (mu300-update, the carry
 # block; without it an update of this image keeps only the list of places, as before the first release with a four-field tag)
 if [ -e /carry ]; then install -m755 /carry $R/opt/mu300/bin/mu300-carry; fi
 # the manifests of the releases before images carried their own: this system's only (the overlay has OpenWrt's too)
 rm -f $R/opt/mu300/lib/image-manifests/openwrt*.gz
 # the VPN engines (Xray, hev-socks5-tunnel, sing-box) are not part of the image: they are the vpn extra
-# (tools/make-extra.sh, installed with mu300-extra install vpn)
+# (scripts/release/make-extra.sh, installed with mu300-extra install vpn)
 # accounts still the image's (ubuntu/ubuntu) until an installer or mu300-update puts the device's own in place
 : > $R/etc/.mu300-accounts-from-image
 for u in mu300-accounts.service:sysinit.target mu300-modprobe-guard.service:sysinit.target mu300-early-recorder.service:sysinit.target mu300-vendor.service:sysinit.target mu300-lan.service:multi-user.target mu300-ssh-hostkeys.service:sysinit.target mu300-telnetd.service:multi-user.target serial-getty@ttyGS0.service:getty.target ssh.socket:sockets.target mu300-wifi.service:multi-user.target mu300-wifi-client.service:multi-user.target mu300-mobile-data.service:multi-user.target mu300-mobile-data-watch.service:multi-user.target mu300-fixups.service:sysinit.target mu300-zram.service:swap.target mu300-boot-ok.service:multi-user.target mu300-cp_diskserver.service:multi-user.target mu300-refnotify.service:multi-user.target mu300-extra-modules.service:multi-user.target mu300-hotspot.service:multi-user.target mu300-bluetooth.service:multi-user.target mu300-thermal-guard.service:multi-user.target mu300-firewall.service:sysinit.target mu300-kmsg.service:sysinit.target mu300-toolkit.service:multi-user.target mu300-cpu.service:multi-user.target mu300-cpu-voltage.service:multi-user.target mu300-cpu-voltage-good.timer:timers.target mu300-atd.service:multi-user.target mu300-atd2.service:multi-user.target mu300-modem-log.service:multi-user.target mu300-buttons.service:multi-user.target mu300-power.service:multi-user.target mu300-traffic.service:multi-user.target mu300-user-packages.service:multi-user.target mu300-adbd.service:multi-user.target mu300-update-notice.timer:timers.target mu300-wifi-scan-mode.service:multi-user.target mu300-lock-replay.service:multi-user.target mu300-sms-forward.service:multi-user.target systemd-networkd.service:multi-user.target; do
@@ -90,7 +90,7 @@ done
 for c in $(cat $R/opt/mu300/lib/path-commands); do ln -sfn /opt/mu300/bin/$c $R/usr/local/bin/$c; done
 # no graphical/serial login noise on a headless dongle; keep ttyS1 console for debugging
 ln -sfn /dev/null $R/etc/systemd/system/getty@tty1.service
-# The manifest of the image: every file it holds, with type, mode, owner, size and sha256 (tools/image-manifest.py has
+# The manifest of the image: every file it holds, with type, mode, owner, size and sha256 (scripts/release/image-manifest.py has
 # the format and makes the same lines from the tarball; make-release.sh holds the two against each other). The next
 # update reads it to tell the image's files from the user's. Last, when nothing in $R changes any more.
 if [ -x $R/opt/mu300/bin/mu300-carry ]; then

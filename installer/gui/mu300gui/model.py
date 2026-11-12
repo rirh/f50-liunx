@@ -1,7 +1,7 @@
 """What the window knows and decides, without a window: the facts an installer's check reports about a device, the
 choices of an installation and the answers they become, what a run's events mean for the progress display. No
 install logic lives here - the choices are the installers' questions, the answers are their variables
-(docs/INSTALLER-AUTOMATION.md), and whatever an answer is not fit for, the installer itself refuses.
+(docs/guides/INSTALLER-AUTOMATION.md), and whatever an answer is not fit for, the installer itself refuses.
 """
 import time
 from collections import OrderedDict

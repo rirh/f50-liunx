@@ -95,11 +95,11 @@ echo 1 > /proc/sys/kernel/sysrq
  persist; reboot -f; sleep 10; echo b > /proc/sysrq-trigger) &
 
 # Which device this is. The ZTE U30 Air is the F50's board with a battery: ZTE's SQC charger stack, USB-PD, LEDs.
-# It runs the same kernel with its own build of a few modules (linux-modules/u30air/, see kernel/build-u30air.sh)
+# It runs the same kernel with its own build of a few modules (linux-modules/u30air/, see kernel/vendor/build-u30air.sh)
 # and its own load order; without them the charger manager never probes and USB stays down. The installer names
 # the device in /etc/mu300-device (the device segment of the ramdisk, which the generic segment of an update does
 # not replace); without that file the stock device tree tells: only the U30 Air's has the charger policy service.
-# The ZTE V50 (MU3351, experimental, docs/FINDINGS.md 95) runs as an F50 does (the same modules and order) with a
+# The ZTE V50 (MU3351, experimental, docs/research/FINDINGS.md 95) runs as an F50 does (the same modules and order) with a
 # subnet of its own; it is told by its device tree whatever the label says (mu300-device has the same rule): its
 # AW9523B LED controller is in no F50's or U30 Air's. An F50 or U30 Air is decided exactly as before.
 # --- device begin
@@ -250,7 +250,7 @@ linux_slot_detect
 # log). So this runs after load_vendor_modules; whether Android's slot is restored is decided once the rootfs is known.
 # --- emmc begin
 # The internal disk - the eMMC, or the UFS of a unit that has one (issue #396) - and the cards by what they are, never
-# by number: the shared lookup in /etc/mu300-storage.sh (rootfs/overlay/opt/mu300/lib/storage.sh).
+# by number: the shared lookup in /etc/mu300-storage.sh (systems/base/overlay/opt/mu300/lib/storage.sh).
 _sl=${MU300_STORAGE_LIB:-/etc/mu300-storage.sh}
 if [ -r "$_sl" ]; then . "$_sl"; else log "stage=storage-lib-MISSING $_sl"; fi   # "." of no file would end init
 mmc_disks() { mu300_storage_mmc "$1"; }  # mmc_disks TYPE: the whole mmcblkN disks whose card is of TYPE (MMC, SD)
@@ -654,7 +654,7 @@ pick_root() {
 }
 # --- pick-root end
 # --- cpu-voltage begin
-# The CPU voltage offset (EXPERIMENTAL: it can damage the device for good; docs/FINDINGS.md 133). The mainline cpufreq
+# The CPU voltage offset (EXPERIMENTAL: it can damage the device for good; docs/research/FINDINGS.md 133). The mainline cpufreq
 # driver holds DVFS until a value is written to voltage_offset_uv (or 45 s pass), and the firmware applies it once per
 # boot, so this is the only place it can come from: the settings are on the Linux disk. Every boot writes one -
 # 0,0,0 (the stock call) unless an offset was asked for and may run. Never a reason not to boot: anything unclear is
@@ -780,7 +780,7 @@ cpu_voltage_boot() {  # cpu_voltage_boot DIR: DIR is .mu300 on the mounted Linux
 # The root filesystem's own record of errors, read before it is mounted (FINDINGS 182; kanoqwq's desktop init did it
 # first): ext4 sets ERROR_FS (bit 1 of s_state, superblock byte 58) when it finds corruption, and nothing on the
 # device ever cleared it - every later boot mounted the damaged filesystem as it was. One byte is read on a clean
-# filesystem; only with the bit set does the ramdisk's static e2fsck (tools/e2fsck/build.sh) run, -fy, on the
+# filesystem; only with the bit set does the ramdisk's static e2fsck (device-tools/e2fsck/build.sh) run, -fy, on the
 # unmounted device - the loop over the region, the GPT partition, the card. Never a reason not to boot: whatever
 # e2fsck says, or when it takes longer than FSCK_TIMEOUT seconds (it is stopped then, TERM first: e2fsck cancels at a
 # safe point), the boot goes on with the filesystem as it is. Every outcome is a stage line; exit codes 4 and up
@@ -959,7 +959,7 @@ boot_tries_exceeded() {
 }
 # --- boot-tries end
 # --- modules-settle begin
-# A kernel step of mu300-update that a restart stopped (#422, docs/FINDINGS.md 236) leaves .mu300's boot/modules.pending:
+# A kernel step of mu300-update that a restart stopped (#422, docs/research/FINDINGS.md 236) leaves .mu300's boot/modules.pending:
 # the release and banner of the kernel it was installing. Its module set is in the systems already, and with the image
 # before still in the slot the two builds did not match (an Oops in the Wi-Fi driver's probe 25 s in, then Android).
 # Before any module of the system loads, the set that goes with the kernel running now is put in: the unpacked
@@ -1071,7 +1071,7 @@ if [ "$root_mounted" = 1 ] && rootdir=$(pick_root) && [ -n "$rootdir" ]; then
         p=${p#/proc/}
         [ "$p" = 1 ] || [ "$p" = "$prefetch" ] || kill -9 "$p" 2>/dev/null
     done
-    # Trial guard, only in images built with --trial-guard SECONDS (tools/flash-trial.sh experiments, never an
+    # Trial guard, only in images built with --trial-guard SECONDS (boot/flash-trial.sh experiments, never an
     # install): the timer above ends here, and a trial kernel that boots but never brings up USB (6.18 on the U30
     # Air) left a device that only failing five boots by hand brought back. So one more timer outlives
     # switch_root: unless /run/stay exists by then (created over SSH), it reboots - into Android, as Android's slot

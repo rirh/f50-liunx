@@ -44,7 +44,7 @@ T=${MU300_DEVICE_WORK:-/data/local/tmp}
 . $T/mu300-install.env
 # --- android-disk begin
 # The internal disk, as Android's by-name links have it: the disk that holds misc - mmcblk0 on an eMMC unit, sda on a
-# UFS one (issue #396; tools/storage.sh's internal_disk asks the same) - and what its partitions are named after
+# UFS one (issue #396; installer/lib/storage.sh's internal_disk asks the same) - and what its partitions are named after
 # (mmcblk0p, sda). mmcblk0 when Android does not say; MU300_DISK names it.
 _ad=$(readlink -f "${MU300_BY_NAME:-/dev/block/by-name}/misc" 2>/dev/null) || _ad=
 _ad=$(readlink -f "${MU300_SYSFS:-/sys}/class/block/${_ad##*/}/.." 2>/dev/null) || _ad=
@@ -137,10 +137,10 @@ stage_run() {
 }
 # --- stage end
 # --- release-tag begin
-# The release tags (docs/FINDINGS.md 125): vYYYY.MM.DD up to v2026.10.27, where the "day" was a counter, and from then
+# The release tags (docs/research/FINDINGS.md 125): vYYYY.MM.DD up to v2026.10.27, where the "day" was a counter, and from then
 # on vYYYY.MM.DD.N: the real (UTC) day the release was built, N = 1..99 for the releases of that day. Every four-field
 # tag is newer than every three-field one; four-field tags compare by the date, then by N, as numbers. The same block,
-# word for word, is in tools/releases.sh (install.sh, make-release.sh), mu300-update and tools/android-install.sh
+# word for word, is in installer/lib/releases.sh (install.sh, make-release.sh), mu300-update and installer/android/android-install.sh
 # (tests/test_releases.py holds the copies to each other and to tests/fixtures/release-tags.tsv).
 # tag_ok TAG: TAG is a release tag (in the shell's own patterns: no grep, no locale, no regex engine to differ)
 tag_ok() {
@@ -285,7 +285,7 @@ if [ "${SD_MODE:-0}" = 1 ]; then
 else
 # --- region-guard begin
 # --- the region must not overlap any partition (checked again here, on the device itself), unless it lies wholly
-# inside the one GPT partition named mu300root: another installer's place for this filesystem (tools/storage.sh's
+# inside the one GPT partition named mu300root: another installer's place for this filesystem (installer/lib/storage.sh's
 # region_in_bounds, FINDINGS 179)
 end=0; pn=0; ps=0; pz=0
 for p in /sys/block/$IDISK/$IPART*; do
@@ -361,7 +361,7 @@ downgrade_check() {
 downgrade_check || exit 1
 
 # --- delta begin
-# An update writes only what changed (docs/FINDINGS.md 131; mu300-update's delta block): the files of the new image,
+# An update writes only what changed (docs/research/FINDINGS.md 131; mu300-update's delta block): the files of the new image,
 # and of the device's own files the installers pack (mu300-vendor-OS.tar.gz), that the installed system has byte for
 # byte become second names of its own instead of being written again, and the room that takes is counted - and
 # checked, for every system - before anything is written. The new image's own parts do it (its mu300-update, its
@@ -439,7 +439,7 @@ delta_unpack() {
 # --- bootchain begin
 # The Linux slot's uboot, sml, teecfg, trustos and vbmeta become the ones of Android's slot (android-bootchain.sh),
 # before anything else is installed: a failure stops here, and the installers then write no boot image. The images
-# the Linux slot held go onto the Linux filesystem first (.mu300/bootchain/<date>), and for install.sh/install.ps1
+# the Linux slot held go onto the Linux filesystem first (.mu300/bootchain/<date>), and for install.sh
 # also to $T/mu300-bootchain-backup, which they pull into their work directory.
 if [ "${SYNC_BOOTCHAIN:-0}" = 1 ]; then
     bcdir=$M/.mu300/bootchain/$(date +%Y%m%d-%H%M%S)
@@ -553,7 +553,7 @@ fi
 # own set (etc/mu300/image-packages, written when the image is built) - into etc/mu300/user-packages/ of the new
 # system, and sets the UCI files of those packages aside (etc/mu300/orphaned-config/): a package that is not there
 # leaves no settings behind. At its first boot the new system installs them again (mu300-user-packages, a service)
-# and puts their settings back. tools/android-install.sh (the installers' update) has a copy of this block; tests
+# and puts their settings back. installer/android/android-install.sh (the installers' update) has a copy of this block; tests
 # hold the two to one text. It runs on Android too: sh, awk, sed, grep, sort - nothing else, and safe under set -e.
 UPK_DIR=etc/mu300/user-packages
 UPK_ORPH=etc/mu300/orphaned-config
@@ -860,7 +860,7 @@ for os in $OSES; do
     # previous system to keep them from
     pwkeep=0
     case " ${KEEP_PW_OSES:-} " in *" $os "*) if [ "${UPDATE:-0}" = 1 ] && [ -f "$M/$os/etc/shadow" ]; then pwkeep=1; fi ;; esac
-    # prebuilt images: firmware and Android userspace pulled from this device by install.sh (tools/vendor-overlay.py)
+    # prebuilt images: firmware and Android userspace pulled from this device by install.sh (installer/lib/vendor-overlay.py)
     if [ -f $T/mu300-vendor-$os.tar.gz ]; then
         if [ "$dmode" = delta ]; then
             delta_unpack $T/mu300-vendor-$os.tar.gz '*' || unpack_failed
@@ -871,7 +871,7 @@ for os in $OSES; do
     fi
     rm -rf $M/.mu300-delta-$os
     # update: everything of the user's in the previous installation goes into the new system. The new image brings
-    # what does it (mu300-update's carry block, mu300-carry, a static busybox: docs/FINDINGS.md 85) and it is run from
+    # what does it (mu300-update's carry block, mu300-carry, a static busybox: docs/research/FINDINGS.md 85) and it is run from
     # there, by that busybox - one implementation for mu300-update apply, install.sh and the Magisk zip, with nothing
     # of it copied here and none of Android's own tools in it (toybox's cp breaks hard links and makes sparse files
     # dense). By link: the old system is not kept on this path, so its files become the new system's without a copy,

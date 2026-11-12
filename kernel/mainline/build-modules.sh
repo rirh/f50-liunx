@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build the out-of-tree vendor modules (WCN, modem, Mali) against the mainline tree built by build.sh, and collect
-# the kernel's own modules next to them (upstream/out/modules, flat).
+# the kernel's own modules next to them (kernel/mainline/out/modules, flat).
 # Run inside the mu300-mainline-build container: bash /work/build-modules.sh [module-dir...]
 set -eo pipefail
 KV=${KV:-6.18.60}

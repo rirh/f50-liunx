@@ -1,4 +1,4 @@
-"""tools/android-install.sh: the SD card branch, cut out between its markers and run with stubs for Android's
+"""installer/android/android-install.sh: the SD card branch, cut out between its markers and run with stubs for Android's
 tools (sm, mke2fs, umount) and files standing in for block devices."""
 import io
 import os
@@ -10,7 +10,7 @@ import time
 from helpers import TOP, ShellTest
 from test_boot_init import fake_ext4
 
-SRC = (TOP / 'tools' / 'android-install.sh').read_text()
+SRC = (TOP / 'installer' / 'android' / 'android-install.sh').read_text()
 
 
 def disk_block():
@@ -398,7 +398,7 @@ def make_tar(path, files):
 
 class Downgrade(ShellTest):
     """The downgrade block: an update never puts an older release over a system by itself - the computer's installers
-    reach this script without the Magisk installer's own check (install.sh, install.ps1). Run on a fake T and M."""
+    reach this script without the Magisk installer's own check (install.sh). Run on a fake T and M."""
 
     def setUp(self):
         super().setUp()
@@ -750,7 +750,7 @@ class Systems(ShellTest):
 
     def test_accounts_merge_is_mu300_updates(self):
         # one merge, two copies: android-install.sh runs on Android and cannot source the system's mu300-update
-        upd = (TOP / 'rootfs/overlay/opt/mu300/bin/mu300-update').read_text()
+        upd = (TOP / 'systems/base/overlay/opt/mu300/bin/mu300-update').read_text()
         fn = re.compile(r'^merge_accounts\(\) \{.*?^\}\n', re.S | re.M)
         self.assertEqual(fn.search(self.install).group(0), fn.search(upd).group(0))
 

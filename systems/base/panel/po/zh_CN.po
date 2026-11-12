@@ -1,4 +1,4 @@
-# The MU300 page of Cockpit (rootfs/panel), zh_CN. tools/cockpit-i18n.py update / check / build.
+# The MU300 page of Cockpit (systems/base/panel), zh_CN. scripts/i18n/cockpit-i18n.py update / check / build.
 msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"

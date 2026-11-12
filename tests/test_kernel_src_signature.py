@@ -1,4 +1,4 @@
-"""upstream/verify-kernel-src.sh (FINDINGS 161): a kernel.org tarball is unpacked only when the autosigner's signed
+"""kernel/mainline/verify-kernel-src.sh (FINDINGS 161): a kernel.org tarball is unpacked only when the autosigner's signed
 sha256sums.asc lists its SHA-256 and a pinned releaser signed the uncompressed tar.
 
 The pinned keyrings are checked offline (the fingerprints of the committed keys, parsed from the OpenPGP packets,
@@ -16,7 +16,7 @@ import unittest
 
 from helpers import TOP
 
-UP = TOP / 'upstream'
+UP = TOP / 'kernel' / 'mainline'
 KEYS = UP / 'keys'
 SCRIPT = UP / 'verify-kernel-src.sh'
 AUTOSIGNER = {'B8868C80BA62A1FFFAF5FDA9632D3A06589DA6B1'}

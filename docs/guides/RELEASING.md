@@ -4,17 +4,17 @@ How a release is named, built and published is in [BUILD.md](BUILD.md) ("Release
 Actions"). This page is what comes after: trying the prerelease on real boards before it is promoted with
 `gh release edit TAG --prerelease=false --latest`. The long, hand-run test of what an update keeps is
 [update-device-test.md](update-device-test.md) (FINDINGS 85); the smoke test here is the short one for every release,
-and `tools/smoke.py` runs it (FINDINGS 156).
+and `scripts/release/smoke.py` runs it (FINDINGS 156).
 
-## What `tools/smoke.py` does
+## What `scripts/release/smoke.py` does
 
 ```sh
-cp tools/smoke.example.json tools/smoke.json      # once; git ignores tools/smoke.json
-$EDITOR tools/smoke.json                          # your boards (below)
-tools/smoke.py --dry-run v2026.10.16.1            # the plan: every command, nothing connected
-tools/smoke.py v2026.10.16.1 --report smoke-v2026.10.16.1.md
-tools/smoke.py --board u30-openwrt v2026.10.16.1  # one board only (--board again for more)
-tools/smoke.py release/v2026.10.16.1              # a local release directory; the tag is its name (or --tag)
+cp scripts/release/smoke.example.json scripts/release/smoke.json      # once; git ignores scripts/release/smoke.json
+$EDITOR scripts/release/smoke.json                          # your boards (below)
+scripts/release/smoke.py --dry-run v2026.10.16.1            # the plan: every command, nothing connected
+scripts/release/smoke.py v2026.10.16.1 --report smoke-v2026.10.16.1.md
+scripts/release/smoke.py --board u30-openwrt v2026.10.16.1  # one board only (--board again for more)
+scripts/release/smoke.py release/v2026.10.16.1              # a local release directory; the tag is its name (or --tag)
 ```
 
 Python 3.8 or newer, standard library only; `ssh`, `ssh-keyscan` and `scp` on the computer, and `adb` for the boards
@@ -83,7 +83,7 @@ A board that starts in Android has no "before": `kernel` comes from the zip's na
 
 ## The config
 
-`tools/smoke.json` (or `--config FILE`): JSON, because Python 3.9 has no TOML reader. Keys that start with `_` are
+`scripts/release/smoke.json` (or `--config FILE`): JSON, because Python 3.9 has no TOML reader. Keys that start with `_` are
 comments. Every value is checked against a strict pattern before anything runs, and a value that does not fit stops
 the run (exit 2): no value of the file reaches a shell unchecked.
 
@@ -96,7 +96,7 @@ the run (exit 2): no value of the file reaches a shell unchecked.
 | `ssh.fingerprint` | required: `SHA256:...` of the board's host key, as `ssh-keygen -lf` or `ssh-keyscan HOST \| ssh-keygen -lf -` prints it |
 | `ssh.hostname` | optional: what `/proc/sys/kernel/hostname` must be |
 | `sudo` | run the device side through `sudo -n` (default: when the user is not root; Ubuntu's `ubuntu` needs sudo without a password for this) |
-| `adb_serial` | optional: the board's serial in Linux (`MU300LINUX-...`, docs/ADB-INTERFACE.md); it must be connected |
+| `adb_serial` | optional: the board's serial in Linux (`MU300LINUX-...`, docs/guides/ADB-INTERFACE.md); it must be connected |
 | `android_serial` | the board's serial in Android (the bare number): the Magisk path |
 | `allow_android` | `true` lets the harness send the board to Android (the Magisk path). Default `false`; a U30 Air, or any board, is never sent there without it |
 | `update` | `online` (default), `mirror`, `from` or `magisk` |
@@ -117,7 +117,7 @@ These stay manual after a release:
   promotion (`gh release edit`); the release audit runs in `make-release.sh`.
 - **Getting a board into a known state** before the run (the previous release installed, the VPN configured, a SIM
   in), and putting it back afterwards (`mu300-update rollback`, `rollback-boot`, an older Magisk zip).
-- **A fresh installation** with `install.sh`, `install.ps1`, the graphical or the web installer, and a Magisk zip on
+- **A fresh installation** with `install.sh`, the graphical or the web installer, and a Magisk zip on
   a device without Linux (whose SSH host key is not known before).
 - **The panels**: LuCI's System > Update page, Cockpit, the web installer's device manager.
 - **What it only sees from outside**: that clients can join the hotspot and reach the internet through it, that the

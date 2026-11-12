@@ -1,4 +1,4 @@
-"""The installers without a person at the terminal (tools/answers.sh): every question answered by its variable, a
+"""The installers without a person at the terminal (installer/lib/answers.sh): every question answered by its variable, a
 question without an answer an error that names the variable and never a default, and the progress stream. The
 pieces first (ask, the answers file, the events), then install.sh and uninstall.sh as a whole against the fake adb
 of tests/fakeadb.py, which answers what a rooted device would and writes nothing."""
@@ -28,7 +28,7 @@ def events(text):
 
 
 class Ask(ShellTest):
-    PRE = (f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; MU300_LANG=en; . "$TOP/tools/answers.sh"; ')
+    PRE = (f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; MU300_LANG=en; . "$TOP/installer/lib/answers.sh"; ')
 
     def run_ask(self, shell, code, stdin='', **env):
         return self.sh(shell, self.PRE + code, stdin=stdin, **env)
@@ -320,7 +320,7 @@ class Fetch(ShellTest):
                           'head -c $h /dev/zero >> "$out"; sleep 2; head -c $((n - h)) /dev/zero >> "$out"')
 
     def fetch(self, shell, size, url='http://x/mu300-kernel.tar.gz', **env):
-        code = (f'TOP="{TOP}"; . "$TOP/tools/i18n.sh"; MU300_LANG=en; . "$TOP/tools/answers.sh"; answers_setup; '
+        code = (f'TOP="{TOP}"; . "$TOP/installer/lib/i18n.sh"; MU300_LANG=en; . "$TOP/installer/lib/answers.sh"; answers_setup; '
                 f'. "{self.tmp}/fetch.sh"; fetch {url} "{self.tmp}/mu300-kernel.tar.gz.part"; echo "rc=$?"')
         r = self.sh(shell, code, SIZE=size, **env)
         return r, [e for e in events(r.stdout) if e['event'] == 'download']
@@ -356,9 +356,9 @@ class Fetch(ShellTest):
 
 
 class Device(ShellTest):
-    """A scratch HOME, the fake adb first on PATH, and no self-update: nothing here can reach a real device or GitHub."""
+    """A scratch HOME, the fake adb first on PATH: nothing here can reach a real device or GitHub."""
 
-    BASE = dict(MU300_NO_SELF_UPDATE=1, MU300_MODE='prebuilt', MU300_LANG='en', MU300_IP='127.0.0.1', MU300_RELEASE='v2026.10.23',
+    BASE = dict(MU300_MODE='prebuilt', MU300_LANG='en', MU300_IP='127.0.0.1', MU300_RELEASE='v2026.10.23',
                 MU300_RELEASE_URL='http://127.0.0.1:9/no-release')
 
     def setUp(self):
@@ -926,7 +926,7 @@ class Install(Device):
 
     def test_every_question_has_a_variable(self):
         # an ask without one cannot be answered in answers mode: none may be added that way
-        for name in ('install.sh', 'uninstall.sh', 'tools/storage.sh', 'tools/linux-mode.sh', 'tools/releases.sh'):
+        for name in ('install.sh', 'uninstall.sh', 'installer/lib/storage.sh', 'installer/lib/linux-mode.sh', 'installer/lib/releases.sh'):
             src = (TOP / name).read_text()
             for m in re.finditer(r'^[^#\n]*\bask [a-zA-Z_][^\n]*$', src, re.M):
                 line = m.group(0)
@@ -936,8 +936,8 @@ class Install(Device):
         header = (TOP / 'install.sh').read_text().split('\nset -eu\n')[0]
         for var in set(re.findall(r'\bMU300_ANS_[A-Z_]+|\bMU300_OPENWRT\b|\bMU300_STORAGE\b',
                                   ''.join((TOP / n).read_text().split('\nset -eu\n')[-1]
-                                          for n in ('install.sh', 'tools/storage.sh', 'tools/linux-mode.sh',
-                                                    'tools/releases.sh', 'tools/answers.sh')))):
+                                          for n in ('install.sh', 'installer/lib/storage.sh', 'installer/lib/linux-mode.sh',
+                                                    'installer/lib/releases.sh', 'installer/lib/answers.sh')))):
             self.assertIn(var, header, f'{var} is not in the header of install.sh')
 
 
@@ -1027,7 +1027,7 @@ class UninstallInPartition(Device):
         self.ext4()
         for shell in self.each_shell():
             self.device(layout='part64', emmc=str(self.emmc))
-            r = self.run_script(shell, 'tools/reset-password.sh', 'openwrt')
+            r = self.run_script(shell, 'scripts/device/reset-password.sh', 'openwrt')
             self.assertIn(f'internal storage: offset {self.PSTART * 512}, 128 MiB, in the GPT partition named mu300root',
                           r.stdout)
             # the mount itself needs a device (losetup): what it was asked for is enough here

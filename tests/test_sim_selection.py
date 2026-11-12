@@ -16,7 +16,7 @@ class SimSelection(ShellTest):
         self.stub('mu300-device', 'echo f50')
         self.stub('flock', FLOCK)
         self.state = self.tmp / 'run/mu300/sim-slot'
-        self.config_lib = TOP / 'rootfs/overlay/opt/mu300/lib/sim-config.sh'
+        self.config_lib = TOP / 'systems/base/overlay/opt/mu300/lib/sim-config.sh'
         self.choice = self.tmp / 'choice'
         self.choice.write_text('0\n')
         self.stub('uci', r"""
@@ -273,8 +273,8 @@ esac
             for slot in (0, 1):
                 self.choice.write_text(str(slot))
                 for source, dashboard in [
-                    (TOP / 'openwrt/overlay/etc/init.d/mu300-atd', False),
-                    (TOP / 'openwrt/luci-overlay/etc/init.d/mu300-atd-dash', True),
+                    (TOP / 'systems/openwrt/overlay/etc/init.d/mu300-atd', False),
+                    (TOP / 'systems/openwrt/luci-overlay/etc/init.d/mu300-atd-dash', True),
                 ]:
                     s = source.read_text().replace('/opt/mu300/bin/mu300-sim', str(helper))
                     code = 'procd_open_instance() { echo instance "$@"; }; procd_set_param() { echo param "$@"; }; procd_close_instance() { :; };\n' + s + '\nstart_service\n'
@@ -306,7 +306,7 @@ esac
         import shutil
         node = shutil.which('node')
         if not node: self.skipTest('node unavailable')
-        js = (TOP / 'openwrt/luci-app-mu300/htdocs/luci-static/resources/mu300/common.js').read_text()
+        js = (TOP / 'systems/openwrt/luci-app-mu300/htdocs/luci-static/resources/mu300/common.js').read_text()
         start = js.index('function neighborRows(')
         body = js[start:js.index('\n}', start) + 2]
         code = '''const _=s=>s, esc=s=>s, qLevel=()=>'', qCol=()=>'';
@@ -319,7 +319,7 @@ for (const neigh of [null, [null], {}, [null, {rat:'nr', band:41, pci:315, arfcn
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_empty_lte_neighbours_are_not_null_entries(self):
-        s = (TOP / 'openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/cell').read_text()
+        s = (TOP / 'systems/openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/cell').read_text()
         start = s.index('LN=$(sp_fragment ltenb')
         block = s[start:s.index('\nCOPSJ=', start)]
         for shell in self.each_shell():
@@ -329,14 +329,14 @@ for (const neigh of [null, [null], {}, [null, {rat:'nr', band:41, pci:315, arfcn
 
     def test_profile_fields_survive_changing_selector(self):
         # LuCI removes hidden options unless retain is set: changing slots must not erase an APN.
-        s = (TOP / 'openwrt/overlay/www/luci-static/resources/protocol/mu300cell.js').read_text()
+        s = (TOP / 'systems/openwrt/overlay/www/luci-static/resources/protocol/mu300cell.js').read_text()
         for field in ['apn', 'apn_internal', 'pdptype', 'pdptype_internal']:
             block = re.search(r"o = s.taboption\([^;]*'" + field + r"'[^;]*;([\s\S]*?)(?=\n\s*o =|\n\s*}\n)", s)
             self.assertIsNotNone(block, field)
             self.assertIn('o.retain = true', block[1], field)
 
     def test_ipv6_prefix_comes_from_the_selected_card_only(self):
-        source = TOP / 'openwrt/luci-overlay/opt/mu300/bin/ndp-learn'
+        source = TOP / 'systems/openwrt/luci-overlay/opt/mu300/bin/ndp-learn'
         helper = self.tmp / 'mu300-sim'
         helper.write_text('#!/bin/sh\necho 1\n')
         helper.chmod(0o755)
@@ -351,9 +351,9 @@ for (const neigh of [null, [null], {}, [null, {rat:'nr', band:41, pci:315, arfcn
             self.assertEqual(r.stdout.strip(), '2409:4:5:6::/64')
 
 
-INFO = TOP / 'openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/dashboard-info'
-HOME = TOP / 'openwrt/luci-app-mu300/htdocs/luci-static/resources/view/mu300/home.js'
-PROTO = TOP / 'openwrt/overlay/www/luci-static/resources/protocol/mu300cell.js'
+INFO = TOP / 'systems/openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/dashboard-info'
+HOME = TOP / 'systems/openwrt/luci-app-mu300/htdocs/luci-static/resources/view/mu300/home.js'
+PROTO = TOP / 'systems/openwrt/overlay/www/luci-static/resources/protocol/mu300cell.js'
 
 
 class SimInTheSnapshot(ShellTest):
@@ -373,7 +373,7 @@ class SimInTheSnapshot(ShellTest):
         # the selector as the pages' backend finds it: the real script, on a root of the test's
         self.simbin = self.tmp / 'mu300-sim'
         self.simbin.write_text(f'#!/bin/sh\nMU300_SIM_ROOT="{self.root}" MU300_DEVICE_CMD="{self.device}" '
-                               f'MU300_SIM_CONFIG_LIB="{TOP / "rootfs/overlay/opt/mu300/lib/sim-config.sh"}" '
+                               f'MU300_SIM_CONFIG_LIB="{TOP / "systems/base/overlay/opt/mu300/lib/sim-config.sh"}" '
                                f'exec sh "{BIN / "mu300-sim"}" "$@"\n')
         self.simbin.chmod(0o755)
 

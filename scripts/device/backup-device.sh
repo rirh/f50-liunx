@@ -2,8 +2,8 @@
 # Back up the partitions that cannot be replaced from anyone else's firmware. Run on a macOS/Linux host with the
 # device in rooted Android (adb + su), ideally BEFORE installing anything.
 #
-#   tools/backup-device.sh [OUTDIR]        per-device data + bootloader chain (default: backup/<date>)
-#   MU300_BACKUP_ALL=1 tools/backup-device.sh OUTDIR   also the stock boot images (a few hundred MB more)
+#   scripts/device/backup-device.sh [OUTDIR]        per-device data + bootloader chain (default: backup/<date>)
+#   MU300_BACKUP_ALL=1 scripts/device/backup-device.sh OUTDIR   also the stock boot images (a few hundred MB more)
 #
 # Why: `prodnv`, the modem NV partitions and the calibration areas hold this unit's IMEI, RF calibration and
 # factory data. A generic firmware image cannot restore them - lose them and the modem side stays broken even
@@ -12,8 +12,8 @@
 #
 # Nothing here belongs in a public repository: the dumps contain device identifiers.
 set -eu
-TOP=$(cd "$(dirname "$0")/.." && pwd)
-. "$TOP/tools/host-tools.sh"
+TOP=$(cd "$(dirname "$0")/../.." && pwd)
+. "$TOP/installer/lib/host-tools.sh"
 
 # Never stream a binary through `adb exec-out "su -c ..."`: on some devices su gives the command a pty and
 # the tty layer rewrites every LF as CRLF, silently inflating the bytes by about one in 256. Write the file

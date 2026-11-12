@@ -1,5 +1,5 @@
-"""upstream/check-parity.py: nothing the vendor 5.4 kernel has may be missing from mainline without a line in
-upstream/parity-5.4.txt - the repository as it is, and the rule itself on small made-up kernels."""
+"""kernel/mainline/check-parity.py: nothing the vendor 5.4 kernel has may be missing from mainline without a line in
+kernel/mainline/parity-5.4.txt - the repository as it is, and the rule itself on small made-up kernels."""
 import importlib.util
 import io
 import re
@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 TOP = Path(__file__).resolve().parents[1]
-UP = TOP / 'upstream'
+UP = TOP / 'kernel' / 'mainline'
 
 spec = importlib.util.spec_from_file_location('check_parity', UP / 'check-parity.py')
 cp = importlib.util.module_from_spec(spec)
@@ -25,7 +25,7 @@ class Repository(unittest.TestCase):
     def test_the_builds_run_the_check(self):
         self.assertIn('python3 /work/check-parity.py --mainline $OUT', (UP / 'build-modules.sh').read_text())
         self.assertIn('check-parity.py" --mainline "$UO"', (UP / 'make-bundle.sh').read_text())
-        self.assertIn('check-parity.py" --5.4 "$OUT"', (TOP / 'kernel/build-all.sh').read_text())
+        self.assertIn('check-parity.py" --5.4 "$OUT"', (TOP / 'kernel/vendor/build-all.sh').read_text())
 
     def test_the_board_inventories_come_from_the_script(self):
         invs = cp.inventories()
@@ -50,19 +50,19 @@ class Repository(unittest.TestCase):
 
 
 class Rule(unittest.TestCase):
-    """a made-up repository: kernel/ inputs, upstream/parity/ and upstream/parity-5.4.txt in a temporary directory"""
+    """a made-up repository: kernel/vendor/ inputs, kernel/mainline/parity/ and kernel/mainline/parity-5.4.txt in a temporary directory"""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.top = Path(self.tmp.name)
-        (self.top / 'kernel').mkdir()
+        (self.top / 'kernel' / 'vendor').mkdir(parents=True)
         for f in cp.INPUTS54:
             (self.top / f).write_text('# %s\n' % f)
-        (self.top / 'kernel/build-display.sh').write_text('cp $D/sprd-drm.ko out/\n')
-        self.d = self.top / 'upstream/parity'
+        (self.top / 'kernel/vendor/build-display.sh').write_text('cp $D/sprd-drm.ko out/\n')
+        self.d = self.top / 'kernel/mainline/parity'
         self.d.mkdir(parents=True)
-        self.parity = self.top / 'upstream/parity-5.4.txt'
+        self.parity = self.top / 'kernel/mainline/parity-5.4.txt'
         self.write54(['module zram', 'module sprd_trng', 'builtin unix', 'extra sprd_drm'])
         self.mainline({'6.18': ['ko zram', 'cfg UNIX'], '7.3': ['ko zram', 'cfg UNIX']})
         (self.d / 'f50b-5.4.inv').write_text('driver platform/sprd-rtc\ntz soc-thmzone\ntz board-thmzone\n')
@@ -141,11 +141,11 @@ class Rule(unittest.TestCase):
         self.assertIn('marked missing, but mainline has it', self.check()[0])
 
     def test_a_changed_5_4_build_needs_a_new_record(self):
-        (self.top / 'kernel/mu300-linux.fragment').write_text('CONFIG_NEW=m\n')
+        (self.top / 'kernel/vendor/mu300-linux.fragment').write_text('CONFIG_NEW=m\n')
         self.assertIn('other 5.4 build inputs', self.check()[0])
 
     def test_the_display_modules_are_part_of_the_record(self):
-        (self.top / 'kernel/build-display.sh').write_text('cp $D/sprd-drm.ko $P/sc27xx_pd.ko out/\n')
+        (self.top / 'kernel/vendor/build-display.sh').write_text('cp $D/sprd-drm.ko $P/sc27xx_pd.ko out/\n')
         self.write54(['module zram', 'module sprd_trng', 'builtin unix', 'extra sprd_drm'])
         self.assertTrue(any('build-display.sh' in e for e in self.check()))
 

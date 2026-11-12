@@ -1,4 +1,4 @@
-"""The U30 Air's USB-C port controller (upstream/patches/0019, 0020; FINDINGS 150): off unless asked for, never on
+"""The U30 Air's USB-C port controller (kernel/mainline/patches/0019, 0020; FINDINGS 150): off unless asked for, never on
 another board, and its callbacks run against a fake PMIC: roles, the boost, the input current, the PD FIFOs."""
 import re
 import shutil
@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PATCHES = ROOT / 'upstream/patches'
+PATCHES = ROOT / 'kernel/mainline/patches'
 CHARGER = PATCHES / '0019-power-bq256xx-U30-Air-boost-as-otg-vbus-and-PD-input-current.patch'
 TCPC = PATCHES / '0020-usb-typec-tcpm-UMP9620-port-controller-ZTE-U30-Air.patch'
 
@@ -62,10 +62,10 @@ class Static(unittest.TestCase):
         self.assertLess(probe.index('/charger_policy_service'), probe.index('use_pdhub_c2c'))
         self.assertLess(probe.index('use_pdhub_c2c'), probe.index('devm_kzalloc'))
         self.assertIn('{ .compatible = "sprd,ump9620-pd" }', self.drv)
-        cfg = (ROOT / 'upstream/mu300-mainline.config').read_text()
+        cfg = (ROOT / 'kernel/mainline/mu300-mainline.config').read_text()
         for opt in ('TYPEC', 'TYPEC_TCPM', 'TYPEC_UMP9620'):
             self.assertIn(f'\nCONFIG_{opt}=m\n', cfg)
-        self.assertIn('blacklist ump9620_tcpc', (ROOT / 'rootfs/overlay/etc/modprobe.d/mu300-usb-pd.conf').read_text())
+        self.assertIn('blacklist ump9620_tcpc', (ROOT / 'systems/base/overlay/etc/modprobe.d/mu300-usb-pd.conf').read_text())
 
     def test_no_vconn_no_dummy_regulator_no_clock_off(self):
         self.assertIn('return on ? -EOPNOTSUPP : 0;', function(self.drv, 'ump9620_set_vconn'))

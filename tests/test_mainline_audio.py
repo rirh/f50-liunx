@@ -4,8 +4,8 @@ import unittest
 from helpers import TOP
 from test_extra import ExtrasBase
 
-UP = TOP / 'upstream'
-OVERLAY = TOP / 'rootfs' / 'overlay'
+UP = TOP / 'kernel' / 'mainline'
+OVERLAY = TOP / 'systems' / 'base' / 'overlay'
 
 
 class NoCallAudio(ExtrasBase):
@@ -67,13 +67,13 @@ class NoCallAudio(ExtrasBase):
             self.assertNotIn('install audio', r.stdout)
 
     def test_no_call_audio_kernel_reservations_or_build_hooks(self):
-        for f in ('upstream/mu300-mainline.config', 'kernel/mu300-linux.fragment'):
+        for f in ('kernel/mainline/mu300-mainline.config', 'kernel/vendor/mu300-linux.fragment'):
             text = (TOP / f).read_text()
             self.assertNotIn('CONFIG_OF_RESERVED_MEM_ADD=', text)
             self.assertNotIn('CONFIG_SND_SOC_SPRD=m', text)
         self.assertFalse((UP / 'patches/0022-of-reserved-mem-add.patch').exists())
-        self.assertFalse((TOP / 'kernel/patches/of-reserved-mem-add.patch').exists())
-        self.assertNotIn('of-reserved-mem-add', (TOP / 'kernel/build-all.sh').read_text())
+        self.assertFalse((TOP / 'kernel/vendor/patches/of-reserved-mem-add.patch').exists())
+        self.assertNotIn('of-reserved-mem-add', (TOP / 'kernel/vendor/build-all.sh').read_text())
         # External USB sound cards and Bluetooth are independent of the removed DSP stack.
         cfg = (UP / 'mu300-mainline.config').read_text()
         self.assertIn('CONFIG_SND_USB_AUDIO=m', cfg)
@@ -83,24 +83,24 @@ class NoCallAudio(ExtrasBase):
 class NotHereAnyMore(unittest.TestCase):
     def test_no_driver_of_the_stack_is_built(self):
         self.assertFalse((UP / 'modules' / 'sprd_audio').exists())
-        self.assertFalse((TOP / 'kernel' / 'build-audio.sh').exists())
+        self.assertFalse((TOP / 'kernel' / 'vendor' / 'build-audio.sh').exists())
         src = (UP / 'build-modules.sh').read_text()
         mods = re.search(r'mods=\$\{\*:-([^}]*)\}', src).group(1).split()
         self.assertNotIn('sprd_audio', mods)
         self.assertNotIn('virt-dma', src)
         for p in ('audio-*.patch', 'mcdt-enable-clock.patch', 'sprd-card-dummy-on-defer.patch'):
-            self.assertEqual(list((TOP / 'kernel' / 'patches').glob(p)), [], p)
+            self.assertEqual(list((TOP / 'kernel' / 'vendor' / 'patches').glob(p)), [], p)
 
     def test_no_program_or_service_of_the_stack_is_in_the_images(self):
         for f in ('opt/mu300/bin/mu300-audio-dsp', 'opt/mu300/bin/mu300-voice', 'etc/systemd/system/mu300-audio.service',
                   'etc/systemd/system/mu300-voice.service', 'etc/modprobe.d/mu300-audio.conf'):
             self.assertFalse((OVERLAY / f).exists(), f)
         for f in ('etc/init.d/mu300-audio', 'etc/init.d/mu300-voice'):
-            self.assertFalse((TOP / 'openwrt' / 'overlay' / f).exists(), f)
+            self.assertFalse((TOP / 'systems' / 'openwrt' / 'overlay' / f).exists(), f)
         for t in ('pcmhost', 'ctlset', 'hfp'):
-            self.assertFalse((TOP / 'tools' / t).exists(), t)
+            self.assertFalse((TOP / 'device-tools' / t).exists(), t)
         self.assertNotIn('mu300-voice', (OVERLAY / 'opt/mu300/lib/path-commands').read_text().split())
-        self.assertNotIn('mu300-audio.service', (TOP / 'rootfs' / 'assemble.sh').read_text())
+        self.assertNotIn('mu300-audio.service', (TOP / 'systems' / 'base' / 'assemble.sh').read_text())
         self.assertNotIn('mu300-voice', (OVERLAY / 'etc/tmpfiles.d/mu300-run.conf').read_text().split('\n', 3)[-1])
 
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""The translations of the Ubuntu web panel's MU300 page (rootfs/panel: Cockpit), English the source.
+"""The translations of the Ubuntu web panel's MU300 page (systems/base/panel: Cockpit), English the source.
 
-    python3 tools/cockpit-i18n.py check            list the problems; exit 1 if there is any
-    python3 tools/cockpit-i18n.py update           add the missing msgids (empty msgstr) to each po/<lang>.po, drop
+    python3 scripts/i18n/cockpit-i18n.py check            list the problems; exit 1 if there is any
+    python3 scripts/i18n/cockpit-i18n.py update           add the missing msgids (empty msgstr) to each po/<lang>.po, drop
                                                    the stale ones, in order of first use
-    python3 tools/cockpit-i18n.py build OUTDIR     po.<lang>.js for Cockpit (cockpit.locale) into OUTDIR
+    python3 scripts/i18n/cockpit-i18n.py build OUTDIR     po.<lang>.js for Cockpit (cockpit.locale) into OUTDIR
 
 Messages: every _('...') in cockpit/mu300/mu300.js, one single-quoted literal each (JS escapes \\' and \\\\). The
 catalogs are po/tr.po and po/zh_CN.po, one line per msgid and msgstr; Cockpit names the languages as these files do
@@ -16,8 +16,8 @@ import re
 import sys
 from pathlib import Path
 
-TOP = Path(__file__).resolve().parent.parent
-PANEL = TOP / 'rootfs' / 'panel'
+TOP = Path(__file__).resolve().parents[2]
+PANEL = TOP / 'systems' / 'base' / 'panel'
 JS = PANEL / 'cockpit' / 'mu300' / 'mu300.js'
 LANGS = ('tr', 'zh_CN')
 CALL = re.compile(r"""\b_\(\s*'((?:[^'\\\n]|\\.)*)'\s*\)""")
@@ -66,7 +66,7 @@ def read_po(path):
 
 
 def header(lang):
-    return (f'# The MU300 page of Cockpit (rootfs/panel), {lang}. tools/cockpit-i18n.py update / check / build.\n'
+    return (f'# The MU300 page of Cockpit (systems/base/panel), {lang}. scripts/i18n/cockpit-i18n.py update / check / build.\n'
             'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n'
             f'"Language: {lang}\\n"\n"Plural-Forms: nplurals=2; plural=(n != 1);\\n"\n')
 

@@ -1,4 +1,4 @@
-"""The web panel for Ubuntu, the panel extra (rootfs/panel): Cockpit and the MU300 page. mu300-update's checks of the
+"""The web panel for Ubuntu, the panel extra (systems/base/panel): Cockpit and the MU300 page. mu300-update's checks of the
 extra's tarball, mu300-extra install (online from the release, offline --from), remove and link against a fake
 partition and a fake system (MU300_SYSROOT) with apt-get, systemctl and systemd-run stubbed; mu300-panel itself (its
 configuration: the LAN address only, never waiting for br-lan; info's JSON; the hotspot, its password on stdin); the firewall that keeps port
@@ -18,14 +18,14 @@ from helpers import BIN, TOP, ShellTest
 from test_extra import ExtrasBase, sums
 from test_sms_pool import AT_STUB, AWK, PDU_GSM, PDU_UCS2, Pool
 
-PANEL = TOP / 'rootfs' / 'panel'
+PANEL = TOP / 'systems' / 'base' / 'panel'
 CMD = PANEL / 'bin' / 'mu300-panel'
 PAGE = PANEL / 'cockpit' / 'mu300'
-FIREWALL = TOP / 'rootfs' / 'overlay' / 'etc' / 'mu300' / 'firewall.nft'
+FIREWALL = TOP / 'systems' / 'base' / 'overlay' / 'etc' / 'mu300' / 'firewall.nft'
 
 
 def panel_tarball(path, release='v2026.10.20', debs=(), extra=(), name='panel'):
-    """the panel extra as tools/make-extra.sh builds it (the page's own files, bin/mu300-panel), DEBS: (release, file)"""
+    """the panel extra as scripts/release/make-extra.sh builds it (the page's own files, bin/mu300-panel), DEBS: (release, file)"""
     files = [('./name', name + '\n', 0o644), ('./release', release + '\n', 0o644),
              ('./components', 'mu300-panel\n', 0o644), ('./bin/mu300-panel', CMD.read_text(), 0o755)]
     files += [(f'./cockpit/mu300/{p.name}', p.read_bytes(), 0o644) for p in sorted(PAGE.iterdir())]
@@ -527,11 +527,11 @@ class Static(unittest.TestCase):
         self.assertIn("superuser: 'try'", js)
 
     def test_translations(self):
-        r = subprocess.run(['python3', str(TOP / 'tools/cockpit-i18n.py'), 'check'], capture_output=True, text=True)
+        r = subprocess.run(['python3', str(TOP / 'scripts/i18n/cockpit-i18n.py'), 'check'], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout)
         d = Path(tempfile.mkdtemp(prefix='mu300-cockpit-po-'))
         try:
-            subprocess.run(['python3', str(TOP / 'tools/cockpit-i18n.py'), 'build', str(d)], check=True)
+            subprocess.run(['python3', str(TOP / 'scripts/i18n/cockpit-i18n.py'), 'build', str(d)], check=True)
             for lang in ('tr', 'zh_CN'):
                 text = (d / f'po.{lang}.js').read_text(encoding='utf-8')
                 self.assertTrue(text.startswith('cockpit.locale({'))
@@ -540,7 +540,7 @@ class Static(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
 
     def test_release_and_installers(self):
-        rel = (TOP / 'tools/make-release.sh').read_text()
+        rel = (TOP / 'scripts/release/make-release.sh').read_text()
         self.assertIn('make-extra.sh" panel "$D/mu300-extra-panel.tar.gz"', rel)
         self.assertIn('make-extra.sh" panel-offline "$D/mu300-extra-panel-offline.tar.gz"', rel)
         self.assertIn('EXTRAS="vpn lang vpn-mihomo panel vpn-xray vpn-singbox vpn-dae"', (BIN / 'mu300-update').read_text())

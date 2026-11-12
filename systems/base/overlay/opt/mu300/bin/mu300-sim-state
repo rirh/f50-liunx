@@ -1,6 +1,6 @@
 #!/bin/sh
 # What the SIM in use says of itself - ready, locked (a PIN or PUK) or absent - kept for this boot, so that a slot with
-# no card is not dialled over and over (docs/FINDINGS.md 186; after kanoqwq's SIM-state events, f59a296 and ab26e79).
+# no card is not dialled over and over (docs/research/FINDINGS.md 186; after kanoqwq's SIM-state events, f59a296 and ab26e79).
 #
 #   mu300-sim-state check [SLOT]      ask the card (AT+CPIN?, one command) and keep the answer; print it
 #   mu300-sim-state get [SLOT]        the kept answer (absent, ready, locked), nothing when there is none

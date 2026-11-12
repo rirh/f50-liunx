@@ -1,7 +1,7 @@
 """The adb devices as the window shows them. Which adb: the one the installers would use (install.sh --adb-path,
 install.ps1 -AdbPath), so the window and the text installer never talk to different ones. Which device is which:
 the installers' own rules - an F50/MU300 or U30 Air by what "adb devices -l" says, a device in our Linux by its
-serial number (MU300LINUX-..., tools/linux-mode.sh).
+serial number (MU300LINUX-..., installer/lib/linux-mode.sh).
 
 Everything here only reads. The window never roots, unlocks or flashes anything itself: what writes to a device is
 the installers, run by runner.py.
@@ -149,7 +149,7 @@ def find_adb(top=TOP, environ=None):
     environ = os.environ if environ is None else environ
     if environ.get('MU300_ADB'):
         return environ['MU300_ADB']
-    env = dict(environ, MU300_NO_SELF_UPDATE='1', MU300_GUI='0', MU300_FROM_GUI='1', MU300_LANG='en')
+    env = dict(environ, MU300_GUI='0', MU300_FROM_GUI='1', MU300_LANG='en')
     rc, out = run(script_argv(top, 'install', ['--adb-path']), timeout=30, env=env)
     lines = [l.strip() for l in out.splitlines() if l.strip()]
     if rc == 0 and lines and os.path.exists(lines[-1]):

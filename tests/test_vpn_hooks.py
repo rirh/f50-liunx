@@ -9,7 +9,7 @@ import unittest
 from helpers import BIN, TOP, ShellTest
 
 TOOLKIT = BIN / 'mu300-toolkit'
-ADAPTERS = TOP / 'openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem'
+ADAPTERS = TOP / 'systems/openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem'
 ORPHAN_LIB = BIN.parent / 'lib' / 'vpn-orphan.sh'
 
 
@@ -70,7 +70,7 @@ class Orphaned(ShellTest):
         def fns(text):
             return [re.search(rf'\n{n}\(\) \{{\n.*?\n\}}\n', '\n' + text, re.S).group(0)
                     for n in ('vpn_conf_value', 'vpn_killswitch_wanted')]
-        for f in (BIN / 'mu300-update', TOP / 'tools/android-install.sh'):
+        for f in (BIN / 'mu300-update', TOP / 'installer/android/android-install.sh'):
             self.assertEqual(fns(f.read_text()), fns(lib), f)
 
     def test_the_engine_missing(self):

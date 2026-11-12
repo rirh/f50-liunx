@@ -1,6 +1,6 @@
 wlan_combo (5.4): quiet the per-command, per-packet and ACS survey log lines (issue #68)
 
-By AgentFan0315 (https://github.com/AgentFan0315/f50-openwrt, kernel/patches/wlan_combo-logspam-quiet.patch),
+By AgentFan0315 (https://github.com/AgentFan0315/f50-openwrt, kernel/vendor/patches/wlan_combo-logspam-quiet.patch),
 GPL-2.0 like the code it changes. Only printk levels change: the driver's own level (sprd_dbg_level, which gates its
 wl_* lines and BA hex dumps) starts at L_ERR, the rest become pr_debug/netdev_dbg (CONFIG_DYNAMIC_DEBUG is on).
 Left out of the original: the two "cmd->refcnt" pr_err in the command-response path (an event dropped while the

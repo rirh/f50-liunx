@@ -2,7 +2,7 @@
 
 What a program (the web installer over WebUSB, a GUI, a script) can rely on when it talks to a device running
 MU300 Linux over adb. The rest of adb to Linux - the daemon, the gadget, who is let in and why - is in
-[FINDINGS 43 and 70](FINDINGS.md).
+[FINDINGS 43 and 70](../research/FINDINGS.md).
 
 ## Is this our Linux, before any command runs
 
@@ -73,7 +73,7 @@ adb -s MU300LINUX-<id> shell '/opt/mu300/bin/mu300-next-boot android && sync && 
 ```
 
 The device leaves `adb devices` within seconds and comes back as Android with its own serial. This is what
-`install.sh`, `install.ps1` and the uninstallers do when they find the device in Linux.
+`install.sh` and `uninstall.sh` do when they find the device in Linux.
 
 ## Settings and actions: mu300-api
 

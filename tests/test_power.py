@@ -1,5 +1,5 @@
 """mu300-power: profiles, idle radios and the charging boot, against a fake / (MU300_SYSROOT), a fake /run and
-stub commands. The spec is docs/superpowers/specs/2026-10-06-power-profiles-design.md."""
+stub commands."""
 import os
 import shutil
 import unittest
@@ -1792,11 +1792,11 @@ class ForwardNotice(DaemonTest):
 
 class Units(unittest.TestCase):
     def test_openwrt_instance_runs_mobile_data_through_netifd(self):
-        f = (TOP / 'openwrt/overlay/etc/init.d/mu300-power').read_text()
+        f = (TOP / 'systems/openwrt/overlay/etc/init.d/mu300-power').read_text()
         self.assertIn('procd_set_param env MU300_NETIFD=1', f)
 
 
-ADAPTER = TOP / 'openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/power'
+ADAPTER = TOP / 'systems/openwrt/luci-app-mu300/root/usr/libexec/unisoc-modem/power'
 
 
 class Adapter(DaemonTest):

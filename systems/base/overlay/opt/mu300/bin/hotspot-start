@@ -25,7 +25,7 @@ SSID=$(conf SSID); PSK=$(conf PSK); CHANNEL=$(conf CHANNEL); COUNTRY=$(conf COUN
 HIDE=0; [ "$(conf HIDDEN)" = 1 ] && HIDE=1
 COUNTRY=${COUNTRY:-TR}
 # WPA2-PSK only. WPA3/SAE is disabled on this Wi-Fi chip (the SC2355 of the F50, U30 Air and V50; the U30 Air's firmware
-# SAE offload could let a client in without the password, docs/U30AIR-SAE.md, FINDINGS 80): a hotspot.conf that asks
+# SAE offload could let a client in without the password, docs/research/U30AIR-SAE.md, FINDINGS 80): a hotspot.conf that asks
 # for it is refused, and the hotspot comes up as WPA2-PSK (CCMP) with its password
 for k in ENCRYPTION SECURITY KEY_MGMT; do
     v=$(conf "$k")

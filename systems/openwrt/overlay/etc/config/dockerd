@@ -1,4 +1,4 @@
-# Docker on the MU300 (docs/FINDINGS.md 130). Its settings are /etc/docker/daemon.json (alt_config_file): what this
+# Docker on the MU300 (docs/research/FINDINGS.md 130). Its settings are /etc/docker/daemon.json (alt_config_file): what this
 # device needs there has no option in this file -
 #   data-root          outside the system's directory, on the Linux partition (/mnt/mu300-disk/docker/<system>): an
 #                      update or a rollback neither copies the images and containers nor leaves them behind

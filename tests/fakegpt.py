@@ -1,4 +1,4 @@
-"""A partition table for the tests of the make-room path (tools/resize-last-partition.py, install.ps1's
+"""A partition table for the tests of the make-room path (installer/lib/resize-last-partition.py, install.ps1's
 OfferRepartition): the first 34 sectors of a disk and its last 33, the two pieces the installers read from the eMMC.
 
     python fakegpt.py OUT LAYOUT      writes OUT.head and OUT.tail

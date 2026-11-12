@@ -88,7 +88,7 @@ class Tcp(ShellTest):
             self.assertEqual(self.state(shell)['SAVED'], '')
 
     def test_a_kernel_without_bbr_offers_and_takes_no_bbr(self):
-        # the 5.4 vendor kernel (kernel/fragment-rejected.txt: TCP_CONG_BBR absent)
+        # the 5.4 vendor kernel (kernel/vendor/fragment-rejected.txt: TCP_CONG_BBR absent)
         for shell in self.each_shell():
             self.reset(available='reno cubic')
             self.assertEqual(self.state(shell)['OFFERED'], 'cubic')
@@ -131,11 +131,11 @@ class Tcp(ShellTest):
     def test_boot_replay_is_wired(self):
         kit = (BIN / 'mu300-toolkit').read_text()
         self.assertIn('/opt/mu300/bin/mu300-tcp apply', kit)
-        init = (TOP / 'openwrt/overlay/etc/init.d/mu300-toolkit').read_text()
+        init = (TOP / 'systems/openwrt/overlay/etc/init.d/mu300-toolkit').read_text()
         self.assertIn('[ -r /etc/mu300/tcp.conf ]', init)
-        unit = (TOP / 'rootfs/overlay/etc/systemd/system/mu300-toolkit.service').read_text()
+        unit = (TOP / 'systems/base/overlay/etc/systemd/system/mu300-toolkit.service').read_text()
         self.assertIn('ConditionPathExists=|/etc/mu300/tcp.conf', unit)
-        self.assertIn('mu300-tcp', (TOP / 'rootfs/overlay/opt/mu300/lib/path-commands').read_text().split())
+        self.assertIn('mu300-tcp', (TOP / 'systems/base/overlay/opt/mu300/lib/path-commands').read_text().split())
         # only the two sysctls: no firewall, no interface, no VPN
         src = (BIN / 'mu300-tcp').read_text()
         for word in ('nft ', 'iptables', 'uci ', 'fw4', 'mu300-vpn', 'ip link', 'tc qdisc'):

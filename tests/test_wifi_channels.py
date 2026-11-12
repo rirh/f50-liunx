@@ -6,8 +6,8 @@ start_dfs_cac() fails and the AP stays down).
   flags (a stub `iw list`) taking another channel of the country before 2.4 GHz;
 * `openwrt-wifi-config` and `mu300-wifi-band` on OpenWrt (a stub `uci`): the channel, htmode, the channel list for
   auto, and a DFS channel set in LuCI rewritten at boot;
-* `openwrt/patches/wifi-scripts-no-dfs.patch`: how the build applies it, and - with MU300_WRT_IMAGE naming an
-  OpenWrt 25.12 docker image (e.g. mu300-openwrt-base:25.12.6, as openwrt/build-rootfs.sh imports it) - the hostapd
+* `systems/openwrt/patches/wifi-scripts-no-dfs.patch`: how the build applies it, and - with MU300_WRT_IMAGE naming an
+  OpenWrt 25.12 docker image (e.g. mu300-openwrt-base:25.12.6, as systems/openwrt/build-rootfs.sh imports it) - the hostapd
   configuration the patched wifi-scripts generate for a fake wiphy with and without radar detection.
 """
 import json
@@ -20,8 +20,8 @@ from pathlib import Path
 
 from helpers import BIN, TOP, ShellTest
 
-LIB = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'wifi-channels.sh'
-PATCH = TOP / 'openwrt' / 'patches' / 'wifi-scripts-no-dfs.patch'
+LIB = TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'wifi-channels.sh'
+PATCH = TOP / 'systems' / 'openwrt' / 'patches' / 'wifi-scripts-no-dfs.patch'
 FIXTURES = TOP / 'tests' / 'fixtures' / 'wifi-scripts'
 FIVE = [36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144,
         149, 153, 157, 161, 165]
@@ -336,7 +336,7 @@ class OpenWrt(ShellTest):
 
 class WifiScriptsPatch(unittest.TestCase):
     def test_build_applies_it(self):
-        text = (TOP / 'openwrt' / 'build-rootfs.sh').read_text()
+        text = (TOP / 'systems' / 'openwrt' / 'build-rootfs.sh').read_text()
         self.assertIn('-v "$NODFSPATCH":/in/wifi-scripts-no-dfs.patch:ro', text)
         apply = 'patch --batch --fuzz=0 -d $R -p1 -i /in/wifi-scripts-no-dfs.patch'
         self.assertIn(apply, text)

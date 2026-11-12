@@ -1,4 +1,4 @@
-"""The CPU voltage offset (EXPERIMENTAL, docs/FINDINGS.md 133): the kernel's limits and encoding (the driver's header,
+"""The CPU voltage offset (EXPERIMENTAL, docs/research/FINDINGS.md 133): the kernel's limits and encoding (the driver's header,
 compiled on the host), the initramfs' decision at every boot (boot/init, cpu-voltage: trial, good mark, the armed
 mark that takes an offset back after a crash), mu300-cpu voltage, and the panels' input checks."""
 import hashlib
@@ -10,11 +10,11 @@ import unittest
 
 from helpers import BIN, TOP, ShellTest
 
-HEADER = TOP / 'upstream' / 'port' / 'drivers' / 'cpufreq' / 'sprd-cpufreq-v2-voltage.h'
-DRIVER = TOP / 'upstream' / 'port' / 'drivers' / 'cpufreq' / 'sprd-cpufreq-v2-driver.c'
+HEADER = TOP / 'kernel' / 'mainline' / 'port' / 'drivers' / 'cpufreq' / 'sprd-cpufreq-v2-voltage.h'
+DRIVER = TOP / 'kernel' / 'mainline' / 'port' / 'drivers' / 'cpufreq' / 'sprd-cpufreq-v2-driver.c'
 INIT = (TOP / 'boot' / 'init').read_text()
 CPU = BIN / 'mu300-cpu'
-WARNING = TOP / 'rootfs' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'cpu-voltage-warning.txt'
+WARNING = TOP / 'systems' / 'base' / 'overlay' / 'opt' / 'mu300' / 'lib' / 'cpu-voltage-warning.txt'
 CC = shutil.which('cc') or shutil.which('gcc') or shutil.which('clang')
 
 HARNESS = r'''
@@ -141,9 +141,9 @@ class KernelLimits(unittest.TestCase):
 class KernelDriver(unittest.TestCase):
     """What the driver must keep (read, not run: the device test does that)."""
     def test_built_in_and_no_export_patch(self):
-        cfg = (TOP / 'upstream' / 'mu300-mainline.config').read_text()
+        cfg = (TOP / 'kernel' / 'mainline' / 'mu300-mainline.config').read_text()
         self.assertIn('CONFIG_ARM_SPRD_CPUFREQ_V2=y\n', cfg)
-        port = (TOP / 'upstream' / 'port' / 'install.py').read_text()
+        port = (TOP / 'kernel' / 'mainline' / 'port' / 'install.py').read_text()
         self.assertIn('bool "Unisoc UMS9620 cpufreq (v2, ATF DVFS)"', port)
         self.assertNotIn('topology_set_freq_scale', port)
 

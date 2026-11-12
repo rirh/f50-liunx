@@ -553,7 +553,7 @@ class App:
         facts(i, rows).pack(fill='x')
         if f.get('verdict'):
             banner(i, f['verdict'], 'warn' if f.get('verdict.code') == 'dirty' else 'good').pack(fill='x', pady=(S3, 0))
-        # a prepared installation (making room by a reset, tools/resume.sh): what its checks said
+        # a prepared installation (making room by a reset, installer/lib/resume.sh): what its checks said
         if f.get('resume.transaction'):
             if f.get('resume.check') == 'RESUME-OK':
                 banner(i, _('A prepared installation waits for this device (EXPERIMENTAL: room was made by resetting Android). Install continues it into the prepared region. Its record: {1}', f['resume.transaction']), 'accent').pack(fill='x', pady=(S3, 0))
@@ -868,7 +868,7 @@ class App:
                           (_('The partition table'), _('Only on the make-room path, before it is rewritten: into work/gpt.'))):
             ttk.Label(i, text='•  ' + name, style='Card.Bold.TLabel').pack(anchor='w')
             ttk.Label(i, text=why, style='Card.Small.TLabel', wraplength=640, justify='left').pack(anchor='w', padx=(S4, 0), pady=(0, S2))
-        banner(i, _('Never copied by the installer or this window: the NV and calibration partitions (IMEI, radio calibration). The installer does not read or write them. A copy of those for safekeeping is a separate tool, tools/backup-device.sh, that you run yourself - keep its output private.'), 'accent').pack(fill='x', pady=(S2, 0))
+        banner(i, _('Never copied by the installer or this window: the NV and calibration partitions (IMEI, radio calibration). The installer does not read or write them. A copy of those for safekeeping is a separate tool, scripts/device/backup-device.sh, that you run yourself - keep its output private.'), 'accent').pack(fill='x', pady=(S2, 0))
 
         o, i = card(body, _('Where it goes'))
         add(o)
@@ -1488,7 +1488,7 @@ class App:
 
         o, i = card(body, _('About'))
         add(o)
-        facts(i, [(_('This window'), _('drives install.sh / install.ps1 in their answers mode; it installs nothing by itself')),
+        facts(i, [(_('This window'), _('drives install.sh in their answers mode; it installs nothing by itself')),
                   ('Python', '%s, Tk %s' % (sys.version.split()[0], tk.TkVersion)),
                   (_('Project folder'), self.ctl.masker.mask(self.ctl.top)), ('adb', self.ctl.masker.mask(self.ctl.adb_path or '—'))]).pack(fill='x')
         self.w['status'] = ttk.Label(self.foot, text=self.status, style='Muted.TLabel')

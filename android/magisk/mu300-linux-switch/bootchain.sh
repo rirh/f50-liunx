@@ -7,7 +7,7 @@
 #                                          (default /data/adb/mu300-bootchain/<date>), then copy Android's to the
 #                                          Linux slot and read every one back
 #
-# Why (docs/FINDINGS.md, "The boot chain of the Linux slot"): LK boots the Linux slot with that slot's uboot, sml,
+# Why (docs/research/FINDINGS.md, "The boot chain of the Linux slot"): LK boots the Linux slot with that slot's uboot, sml,
 # teecfg, trustos and vbmeta, but Linux runs Android's modem through Android's slot (android-vendor-start). After an
 # OTA the two slots hold different firmware builds, and the Linux slot's chain is the factory one (issue #86). Copying
 # the five images of Android's slot over makes both slots one build (kano's advice: "it solves 99% of the problems").

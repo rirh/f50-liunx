@@ -1,12 +1,12 @@
 #!/bin/sh
-# Build everything install.sh --build and tools/make-release.sh need from public sources, in one step:
-#   kernel/build-all.sh            -> out/Image, out/modules/*.ko, out/modules.builtin*, out/modules-u30air/*.ko
+# Build everything install.sh --build and scripts/release/make-release.sh need from public sources, in one step:
+#   kernel/vendor/build-all.sh            -> out/Image, out/modules/*.ko, out/modules.builtin*, out/modules-u30air/*.ko
 # Sources (pinned commits, downloaded into the docker volume $MU300_KBUILD_VOLUME on first run):
 #   ZTE UMS9620 MiFi 5.4.254 kernel (GPL release published by Enceka)
 #   realme C51/C53 AndroidT kernel_modules: wlan_combo (Wi-Fi), bluetooth tty-pcie, Mali kbase (sparse checkout)
 # Needs docker (arm64 host or emulation). Rebuilds incrementally when run again.
 set -eu
-TOP=$(cd "$(dirname "$0")/.." && pwd)
+TOP=$(cd "$(dirname "$0")/../.." && pwd)
 VOL=${MU300_KBUILD_VOLUME:-mu300-kernel}
 OUT=${MU300_KERNEL_OUT:-$TOP/out}
 KERNEL_REPO=https://github.com/Enceka/android_kernel_zte_ums9620_mifi_u30air.git
@@ -14,7 +14,7 @@ KERNEL_REV=b50db5b6224c11db42a246e8fcdaad1e1d59f478
 MODULES_REPO=https://github.com/realme-kernel-opensource/realme_C51_C53_Narzo-N53-AndroidT-kernel-source.git
 MODULES_REV=4381465ccaf87fcf3215b9cd42f4a685df40e5e0
 
-docker build -q -t mu300-kbuild "$TOP/kernel" >/dev/null
+docker build -q -t mu300-kbuild "$TOP/kernel/vendor" >/dev/null
 docker volume create "$VOL" >/dev/null
 W=$(mktemp -d)
 # on a Linux docker the container writes as root: the outputs are handed to the user below, and a cleanup that
@@ -26,9 +26,9 @@ cleanup() {
     rm -rf "$W" 2>/dev/null || true
 }
 trap cleanup EXIT
-# build-linux.sh writes its logs next to the config: give it a scratch copy of kernel/
-cp -R "$TOP/kernel/." "$W/"
-cp "$TOP/kernel/f50-stock-B09.config" "$W/device.config"
+# build-linux.sh writes its logs next to the config: give it a scratch copy of kernel/vendor/
+cp -R "$TOP/kernel/vendor/." "$W/"
+cp "$TOP/kernel/vendor/f50-stock-B09.config" "$W/device.config"
 
 docker run --rm -v "$VOL":/src -v "$W":/work \
   -e KERNEL_REPO=$KERNEL_REPO -e KERNEL_REV=$KERNEL_REV -e MODULES_REPO=$MODULES_REPO -e MODULES_REV=$MODULES_REV \
@@ -101,7 +101,7 @@ docker run --rm -v "$W":/work mu300-kbuild chown -R "$(id -u):$(id -g)" /work/ou
 mkdir -p "$OUT"
 rm -rf "$OUT/modules" "$OUT/modules-u30air"
 cp -R "$W/out/." "$OUT/"
-# the parity rule (upstream/parity-5.4.txt): record this build's modules and built-in objects in
-# upstream/parity/5.4-build.list and check that the file says what stands on mainline for each of them
-python3 "$TOP/upstream/check-parity.py" --5.4 "$OUT"
+# the parity rule (kernel/mainline/parity-5.4.txt): record this build's modules and built-in objects in
+# kernel/mainline/parity/5.4-build.list and check that the file says what stands on mainline for each of them
+python3 "$TOP/kernel/mainline/check-parity.py" --5.4 "$OUT"
 echo "kernel outputs in $OUT"

@@ -20,7 +20,7 @@ function row(k, v) {
 }
 function when(s) { return s ? new Date(s * 1000).toLocaleString() : '--'; }
 function kb(n) { return n == null ? '--' : M.fmtBytes(n * 1024); }
-// The release tags (docs/FINDINGS.md 125): vYYYY.MM.DD, and from after v2026.10.27 on vYYYY.MM.DD.N (the day of the
+// The release tags (docs/research/FINDINGS.md 125): vYYYY.MM.DD, and from after v2026.10.27 on vYYYY.MM.DD.N (the day of the
 // release, N the release of that day), newer than every three-field tag. The web installer's version.js, word for word.
 function releaseKey(t) {
 	var m = /^v(\d{4})\.(\d\d)\.(\d\d)$/.exec(typeof t === 'string' ? t : '');

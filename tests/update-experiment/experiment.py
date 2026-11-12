@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What an update keeps, measured on real release images (docs/FINDINGS.md 85).
+"""What an update keeps, measured on real release images (docs/research/FINDINGS.md 85).
 
   experiment.py plant ROOT KIND OUT.json [--no-mount] [--live]
                                               put the user state below into the installed system ROOT (KIND: ubuntu

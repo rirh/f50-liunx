@@ -1,7 +1,7 @@
 # Device side of the Magisk installer: what only the device can make for its Linux boot image and its systems - the
 # misc blocks, the Android files modem_control needs, the firmware, the device ramdisk segment - and the image
 # itself, built from Android's own boot image the way mu300-update rebuilds ours. Sourced after
-# rootfs/overlay/opt/mu300/bin/mu300-update (MU300_LIB=1), whose bootimg_from_stock and byte helpers it uses.
+# systems/base/overlay/opt/mu300/bin/mu300-update (MU300_LIB=1), whose bootimg_from_stock and byte helpers it uses.
 # Writes only into the directories it is given. The files it collects are proprietary: they stay on this device.
 LZ4_MAGIC=02214c18
 FIRMWARE='wcnmodem.bin gnssmodem.bin wifi_board_config.ini wifi_board_config_ab.ini bt_configure_pskey.ini bt_configure_rf.ini'
@@ -51,7 +51,7 @@ _collect_firmware() {
     done
     [ -z "$_miss" ] || { echo "$_miss"; return 1; }
 }
-# collect_subset LIST DIR: the files of LIST (android-vendor/subset-files.txt) from this device's /, links followed
+# collect_subset LIST DIR: the files of LIST (android/vendor/subset-files.txt) from this device's /, links followed
 # as extract-subset.sh follows them over adb, and the two things it adds. A file this firmware lacks is skipped; the
 # two the modem cannot start without are checked. LIST is read before the cd into Android's root, so a relative
 # path works too. Under umask 022 whatever the caller has: only the files are named, so tar makes vendor/etc and
@@ -78,7 +78,7 @@ _collect_gpu() {
     done
     (cd "${MU300_ANDROID_ROOT:-/}" && tar -chf - $_list) | tar -xf - -C "$2" || { rm -rf "$2"; return 1; }
 }
-# vendor_overlay OS FW SUBSET GPU OUT: what tools/vendor-overlay.py makes on a computer, for android-install.sh to
+# vendor_overlay OS FW SUBSET GPU OUT: what installer/lib/vendor-overlay.py makes on a computer, for android-install.sh to
 # unpack over the system: the firmware, the subset under opt/mu300/android with its property area moved out of
 # dev/ (a devtmpfs is mounted there), the GPU files where the subset has none. Only leaf directories are named, so
 # no entry replaces a directory the system has (Ubuntu's lib is a link to usr/lib). The copies it works on are
@@ -105,7 +105,7 @@ _vendor_overlay() {
             mkdir -p "$_o/opt/mu300/android/$(dirname "$_f")" && cp -a "$4/$_f" "$_o/opt/mu300/android/$_f" || return 1
         done < "$5.gpu"
     fi
-    # Root's, all of it, as tools/vendor-overlay.py stores it: tar keeps the owner each copy has, and on Android
+    # Root's, all of it, as installer/lib/vendor-overlay.py stores it: tar keeps the owner each copy has, and on Android
     # bionic belongs to system (uid 1000) and the programs to group shell (2000). On the installed system uid 1000
     # is the first login account, which could then rewrite the libc root's cp_diskserver loads. -h: the linker64
     # link itself, never what it points at on this device. (Not root: a test; the installer always is.)
