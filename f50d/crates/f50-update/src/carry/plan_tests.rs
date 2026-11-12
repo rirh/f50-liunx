@@ -184,7 +184,8 @@ fn never_carried_and_package_files() {
     w.file("usr/bin/htop", None, Some(("a", 0o755)), None);
     w.old_pkg.owned.insert("usr/bin/htop".into(), "htop".into());
     let p = w.plan(true);
-    assert!(p.acts.iter().all(|a| !matches!(a, Act::Live(x) if x.starts_with("tmp") || x == "etc/shadow")));
+    // what is below /tmp is never carried (the directory itself may be, it is not below it)
+    assert!(p.acts.iter().all(|a| !matches!(a, Act::Live(x) if x.starts_with("tmp/") || x == "etc/shadow")));
     assert_eq!(p.package_files, 1);
 }
 

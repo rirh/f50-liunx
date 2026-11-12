@@ -78,38 +78,44 @@ pub fn scan(root: &Path, cancel: &AtomicBool) -> Result<(Vec<Entry>, usize)> {
     let root_dev = root_md.dev();
     let mut out = Vec::new();
     let mut skipped = 0;
-    let mut stack: Vec<String> = vec![String::new()];
-    while let Some(dir) = stack.pop() {
+    // pre-order, depth first, in name order: a directory, then everything in it, then its next sibling
+    let mut stack: Vec<String> = Vec::new();
+    push_children(root, "", &mut stack, &mut skipped)?;
+    while let Some(rel) = stack.pop() {
         if cancel.load(Ordering::Relaxed) {
             return Err(Error::failed("stopped"));
         }
-        let full = if dir.is_empty() { root.to_owned() } else { root.join(&dir) };
-        let rd = match fs::read_dir(&full) {
-            Ok(rd) => rd,
-            // a running system removes things while it is looked at
-            Err(e) if e.kind() == io::ErrorKind::NotFound => continue,
-            Err(e) => return Err(Error::io(format!("scan {}", full.display()), &e)),
-        };
-        let mut names: Vec<_> = rd.filter_map(|d| d.ok().map(|d| d.file_name())).collect();
-        names.sort_by(|a, b| a.as_bytes().cmp(b.as_bytes()));
-        let mut subdirs = Vec::new();
-        for n in names {
-            let Some(n) = n.to_str() else {
-                skipped += 1;
-                continue;
-            };
-            let rel = if dir.is_empty() { n.to_owned() } else { format!("{dir}/{n}") };
-            let Ok(md) = fs::symlink_metadata(root.join(&rel)) else { continue };
-            let e = entry(&md, rel.clone(), root_dev);
-            if e.kind == 'd' {
-                subdirs.push(rel);
-            }
-            out.push(e);
+        // a running system removes things while it is looked at
+        let Ok(md) = fs::symlink_metadata(root.join(&rel)) else { continue };
+        let e = entry(&md, rel, root_dev);
+        let descend = e.kind == 'd';
+        let rel = e.path.clone();
+        out.push(e);
+        if descend {
+            push_children(root, &rel, &mut stack, &mut skipped)?;
         }
-        // depth first, in name order: parents before what is in them
-        stack.extend(subdirs.into_iter().rev());
     }
     Ok((out, skipped))
+}
+
+/// Pushes what is in `dir` (relative) onto `stack` so that the first name pops first.
+fn push_children(root: &Path, dir: &str, stack: &mut Vec<String>, skipped: &mut usize) -> Result<()> {
+    let full = if dir.is_empty() { root.to_owned() } else { root.join(dir) };
+    let rd = match fs::read_dir(&full) {
+        Ok(rd) => rd,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(Error::io(format!("scan {}", full.display()), &e)),
+    };
+    let mut names: Vec<_> = rd.filter_map(|d| d.ok().map(|d| d.file_name())).collect();
+    names.sort_by(|a, b| b.as_bytes().cmp(a.as_bytes()));
+    for n in names {
+        let Some(n) = n.to_str() else {
+            *skipped += 1;
+            continue;
+        };
+        stack.push(if dir.is_empty() { n.to_owned() } else { format!("{dir}/{n}") });
+    }
+    Ok(())
 }
 
 /// What `rel` under `root` is, for the hash: a file's content, a link's target; `-` for anything else; `None` when

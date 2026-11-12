@@ -192,7 +192,12 @@ mod tests {
     #[test]
     fn saving_cap_is_a_table_step() {
         let t = [614_400, 1_228_800, 1_536_000, 2_000_000];
-        assert_eq!(saving_cap(&t, 614_400, 2_000_000, 60), 1_228_800);
+        // 60 % of 2.0 GHz is 1.2 GHz: 1_228_800 is above it, so the step below is taken
+        assert_eq!(saving_cap(&t, 614_400, 2_000_000, 60), 614_400);
+        assert_eq!(saving_cap(&t, 614_400, 2_000_000, 65), 1_228_800);
+        // a step exactly at the limit is allowed; one below hwmin is not
+        assert_eq!(saving_cap(&t, 614_400, 2_048_000, 60), 1_228_800);
+        assert_eq!(saving_cap(&t, 1_000_000, 2_000_000, 60), 2_000_000);
         assert_eq!(saving_cap(&[], 614_400, 2_000_000, 60), 2_000_000);
         assert_eq!(saving_cap(&[2_000_000], 614_400, 2_000_000, 60), 2_000_000);
     }

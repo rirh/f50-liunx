@@ -247,10 +247,13 @@ impl Jobs {
         let ctx = JobCtx { record: record.clone() };
         let fut = work(ctx);
         self.inner.tracker.spawn(async move {
+            // biased, cancellation first: work that stops because it was cancelled returns at the same moment the
+            // token fires, and an unbiased select would then report a cancelled job as done (or failed) at random
             let outcome = tokio::select! {
+                biased;
+                () = record.cancel.cancelled() => None,
                 r = fut => Some(r.and_then(|v| serde_json::to_value(v)
                     .map_err(|e| Error::failed(format!("job result not serialisable: {e}"))))),
-                () = record.cancel.cancelled() => None,
                 () = tokio::time::sleep(spec.timeout) => Some(Err(Error::timeout(spec.method))),
             };
             let snapshot = {

@@ -118,8 +118,8 @@ device itself and are in no ACL.
 `openwrt/` holds what the image installs beside the binary: the procd init scripts, the hotplug hooks, the netifd
 protocol handler (`f50cell`), `/etc/config/f50d`, and a first-boot default that moves `network.wan` from `mu300cell`
 to `f50cell` (same option names). `openwrt/install.sh ROOT BINARY` installs them and takes the mu300 shell layer out
-of the root; `systems/openwrt/build-rootfs.sh` builds `f50d` on the host and runs it in its build container
-(`F50D=0` builds the old image).
+of the root. Run it from the image build after everything else is installed (the image build itself is not in this
+repository).
 
 Kept from /opt/mu300: the programs that are not shell (busybox, adbd, logdw, the carry helper...), the vendor chroot
 (`/opt/mu300/android`, where the installer puts it), the release key, and the helpers preinit's early USB DHCP still
@@ -127,6 +127,6 @@ uses. Runtime paths the initramfs shares keep their names (`/run/mu300`, `/mnt/m
 
 ## Status
 
-Written, compiled and linted (`cargo clippy -D warnings`, host and aarch64-unknown-linux-musl). **Not yet run**: no
-unit test has been executed and nothing has run on a device. Each crate's module docs list what is unverified
+Written, compiled and linted (`cargo clippy -D warnings`, host and aarch64-unknown-linux-musl); the unit tests pass on
+the host (`cargo test --workspace`). **Not yet run on a device.** Each crate's module docs list what is unverified
 without the hardware.

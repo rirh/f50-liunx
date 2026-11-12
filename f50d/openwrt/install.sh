@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs f50d into an OpenWrt root and takes the mu300 shell layer it replaces out of it.
 #   install.sh ROOT BINARY [SRC]     SRC: this directory (default: where the script is)
-# systems/openwrt/build-rootfs.sh runs it inside its build container after everything else is installed.
+# The image build runs it after everything else is installed.
 #
 # What stays of /opt/mu300: the programs that are not shell (busybox, adbd, logdw, the keys and Bluetooth helpers,
 # the carry helper), the vendor chroot (android/: the installer and the update both put it there), the release key,

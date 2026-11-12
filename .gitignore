@@ -1,46 +1,15 @@
-# device dumps, proprietary blobs and build outputs never belong in this repository
-dumps/
-firmware/
-# ...but not the kernel source directory of that name in the mainline port
-!kernel/mainline/port/drivers/firmware/
-android-subset/
+.DS_Store
+# local device backups, dumps and build outputs never belong in this repository
+backup/
+work/
 out/
 *.img
 *.tar
 *.tar.gz
 *.tgz
 *.bin
-*.ko
-busybox
-device-tools/logdw/logdw
-logs-*/
-systems/base/base.tar
-__pycache__/
-.DS_Store
-device-tools/bt-init/mu300-bt-init
-device-tools/carry/mu300-carry
-device-tools/gpu/cltest
-work/
-work-*/
-systems/openwrt/*.tar.gz
-kernel/mainline/stub/*.elf
-kernel/mainline/stub/*.bin
-sing-box
-/xray
-/hev-socks5-tunnel
-release/
-backup/
-!android/stock/*.img
-systems/arch/*.tar.gz
-systems/arch/ArchLinuxARM-*
-android/magisk/*.zip
 
-# built by device-tools/adbd/build.sh
-device-tools/adbd/adbd
-
-kernel/mainline/out-*/
-# a test run with TMPDIR inside the tree
-tests/mu300-test-*/
-# the release smoke test's boards (scripts/release/smoke.py; scripts/release/smoke.example.json is the example)
-/scripts/release/smoke.json
-/make/local.mk
+# f50-web
+node_modules/
+dist/
+.pnpm-store/
