@@ -119,6 +119,14 @@ export async function ubusCall<T = unknown>(
       if (!probe) sessionExpired();
       throw new ApiError("unauthorized", "登录已过期，请重新登录");
     }
+    // -32000 / -32601: uhttpd found no such object or method on the bus: the device answers, f50d (or this method
+    // of it) is not there - an older image, or the daemon not running
+    if (response.error.code === -32000 || response.error.code === -32601) {
+      throw new ApiError(
+        "not-found",
+        `设备上没有 ${object}.${method}：f50d 未安装或未运行`,
+      );
+    }
     throw new ApiError("transport", response.error.message);
   }
   const [status, data] = response.result ?? [9];
