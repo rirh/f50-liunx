@@ -1,24 +1,40 @@
+import { type Key, t } from "@/i18n";
+
 export type { JobState, JobStatus } from "@/lib/jobs";
 
 /** What started a job, by its `kind`. */
-export const JOB_KIND_LABEL: Record<string, string> = {
-  at: "AT 命令",
-  sms: "短信",
-  update: "系统更新",
-  wifi: "Wi-Fi 客户端",
-  radio: "射频",
+const JOB_KIND_LABEL: Record<string, Key> = {
+  at: "tools.jobs.kind.at",
+  sms: "tools.jobs.kind.sms",
+  update: "tools.jobs.kind.update",
+  wifi: "tools.jobs.kind.wifi",
+  radio: "tools.jobs.kind.radio",
 };
 
 /** What started a job, by its method. */
-export const JOB_METHOD_LABEL: Record<string, string> = {
-  "f50.at send": "发送 AT 命令",
-  "f50.sms send": "发送短信",
-  "f50.update apply": "安装更新",
-  "f50.update apply_file": "安装上传的固件",
-  "f50.update check": "检查更新",
-  "f50.update rollback": "回滚",
-  "f50.update upload_done": "校验上传的固件",
-  "f50.wificlient join": "连接 Wi-Fi",
-  "f50.wificlient leave": "断开 Wi-Fi",
-  "f50.wificlient scan": "扫描 Wi-Fi",
+const JOB_METHOD_LABEL: Record<string, Key> = {
+  "f50.at send": "tools.jobs.method.atSend",
+  "f50.sms send": "tools.jobs.method.smsSend",
+  "f50.update apply": "tools.jobs.method.updateApply",
+  "f50.update apply_file": "tools.jobs.method.updateApplyFile",
+  "f50.update check": "tools.jobs.method.updateCheck",
+  "f50.update rollback": "tools.jobs.method.updateRollback",
+  "f50.update upload_done": "tools.jobs.method.updateUploadDone",
+  "f50.wificlient join": "tools.jobs.method.wifiJoin",
+  "f50.wificlient leave": "tools.jobs.method.wifiLeave",
+  "f50.wificlient scan": "tools.jobs.method.wifiScan",
 };
+
+/** A job's `kind` in words, or as it came. */
+export function jobKindLabel(kind: string): string {
+  const key = Object.hasOwn(JOB_KIND_LABEL, kind) ? JOB_KIND_LABEL[kind] : null;
+  return key ? t(key) : kind;
+}
+
+/** A job's method in words, or as it came. */
+export function jobMethodLabel(method: string): string {
+  const key = Object.hasOwn(JOB_METHOD_LABEL, method)
+    ? JOB_METHOD_LABEL[method]
+    : null;
+  return key ? t(key) : method;
+}

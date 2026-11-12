@@ -17,6 +17,7 @@ import {
   FieldDescription,
   FieldLabel,
 } from "@/components/ui/field";
+import { t } from "@/i18n";
 
 /** Asks before deleting, with the choice to delete the modem's (SIM) copies too. */
 export function DeleteDialog({
@@ -58,14 +59,16 @@ export function DeleteDialog({
             onCheckedChange={(v) => setSim(v === true)}
           />
           <FieldContent>
-            <FieldLabel htmlFor={id}>同时删除 SIM 卡中的副本</FieldLabel>
+            <FieldLabel htmlFor={id}>
+              {t("sms.deleteDialog.alsoSim")}
+            </FieldLabel>
             <FieldDescription>
-              不勾选时只从设备的短信库删除；已删除的短信不会被 SIM 卡同步回来。
+              {t("sms.deleteDialog.alsoSimDescription")}
             </FieldDescription>
           </FieldContent>
         </Field>
         <AlertDialogFooter>
-          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.action.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             onClick={() => {
@@ -73,7 +76,7 @@ export function DeleteDialog({
               onConfirm(sim);
             }}
           >
-            删除
+            {t("common.action.delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

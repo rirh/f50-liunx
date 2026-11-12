@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { lockKeys, setLock } from "./api";
@@ -20,10 +21,12 @@ export function useLockSet(onJob: OnJob) {
     onSuccess: (r, c) => {
       if ("job" in r) {
         onJob(r.job, c.title);
-        if (r.queued) toast.info("已排队：将在当前射频操作结束后执行");
+        if (r.queued) toast.info(t("cellular.locks.queued"));
       } else {
         toast.success(
-          r.auto_apply ? "已开启启动时自动应用" : "已关闭启动时自动应用",
+          r.auto_apply
+            ? t("cellular.locks.autoApplyOn")
+            : t("cellular.locks.autoApplyOff"),
         );
       }
       qc.invalidateQueries({ queryKey: lockKeys.get });

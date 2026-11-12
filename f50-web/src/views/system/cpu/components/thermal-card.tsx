@@ -7,64 +7,73 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { type Key, t } from "@/i18n";
 import { type TableColumn, columnHelper } from "@/lib/table";
 import type { ThermalZone } from "../types";
 
 const celsius = (mc: number | null) =>
   mc == null ? "—" : `${(mc / 1000).toFixed(1)} °C`;
 
-const TRIP_TEXT: Record<string, string> = {
-  passive: "被动降频",
-  active: "主动散热",
-  hot: "过热",
-  critical: "临界",
+const TRIP_TEXT: Record<string, Key> = {
+  passive: "system.cpu.thermal.trip.passive",
+  active: "system.cpu.thermal.trip.active",
+  hot: "system.cpu.thermal.trip.hot",
+  critical: "system.cpu.thermal.trip.critical",
 };
 
 const c = columnHelper<ThermalZone>();
 
 const columns: TableColumn<ThermalZone>[] = [
   c.accessor("zone", {
-    header: "温区",
+    header: () => t("system.cpu.thermal.col.zone"),
     cell: (x) => <span className="font-mono">{x.getValue()}</span>,
   }),
   c.accessor("temp", {
-    header: "温度",
+    header: () => t("system.cpu.thermal.col.temp"),
     sortUndefined: "last",
     cell: (x) => <span className="tabular-nums">{celsius(x.getValue())}</span>,
   }),
   c.accessor((r) => r.mode ?? "", {
     id: "mode",
-    header: "状态",
+    header: () => t("system.cpu.thermal.col.mode"),
     cell: (x) =>
       x.getValue() === "enabled" ? (
-        <Badge variant="secondary">启用</Badge>
+        <Badge variant="secondary">{t("system.cpu.thermal.enabled")}</Badge>
       ) : x.getValue() ? (
-        <Badge variant="outline">停用</Badge>
+        <Badge variant="outline">{t("system.cpu.thermal.disabled")}</Badge>
       ) : (
         "—"
       ),
   }),
   c.display({
     id: "trips",
-    header: "触发点",
+    header: () => t("system.cpu.thermal.col.trips"),
     cell: (x) => {
       const trips = x.row.original.trips;
       if (!trips.length)
-        return <span className="text-muted-foreground">无</span>;
+        return (
+          <span className="text-muted-foreground">
+            {t("common.state.none")}
+          </span>
+        );
       const temp = x.row.original.temp;
       return (
         <div className="flex flex-wrap gap-1">
-          {trips.map((t, i) => (
+          {trips.map((trip, i) => (
             <Badge
               key={i}
               variant={
-                temp != null && t.temp != null && t.temp > 0 && temp >= t.temp
+                temp != null &&
+                trip.temp != null &&
+                trip.temp > 0 &&
+                temp >= trip.temp
                   ? "destructive"
                   : "outline"
               }
               className="font-mono"
             >
-              {TRIP_TEXT[t.type] ?? t.type} {celsius(t.temp)}
+              {TRIP_TEXT[trip.type] ? t(TRIP_TEXT[trip.type]) : trip.type}{" "}
+              {celsius(trip.temp)}
             </Badge>
           ))}
         </div>
@@ -73,11 +82,15 @@ const columns: TableColumn<ThermalZone>[] = [
   }),
   c.display({
     id: "cooling",
-    header: "散热设备",
+    header: () => t("system.cpu.thermal.col.cooling"),
     cell: (x) => {
       const cool = x.row.original.cooling;
       if (!cool.length)
-        return <span className="text-muted-foreground">无</span>;
+        return (
+          <span className="text-muted-foreground">
+            {t("common.state.none")}
+          </span>
+        );
       return (
         <div className="flex flex-wrap gap-1">
           {cool.map((d, i) => (
@@ -99,17 +112,15 @@ export function ThermalCard({ zones }: { zones: ThermalZone[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>温控</CardTitle>
-        <CardDescription>
-          内核温区、触发点与绑定的散热设备（状态大于 0 表示正在降频或散热）
-        </CardDescription>
+        <CardTitle>{t("system.cpu.thermal.title")}</CardTitle>
+        <CardDescription>{t("system.cpu.thermal.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <DataTable
           data={zones}
           columns={columns}
           getRowId={(r, i) => `${r.zone}-${i}`}
-          empty="没有温区信息"
+          empty={t("system.cpu.thermal.empty")}
         />
       </CardContent>
     </Card>

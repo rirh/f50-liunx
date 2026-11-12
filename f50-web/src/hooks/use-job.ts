@@ -1,19 +1,23 @@
 import { useEffect, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type JobStatus, jobStatus } from "@/lib/jobs";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 /**
  * Follows a job until it ends: polled every second while running. `onDone` runs once when it leaves `running`
  * (refresh the page's data there).
  */
-export function useJob(id: string | null | undefined, onDone?: (job: JobStatus) => void) {
+export function useJob(
+  id: string | null | undefined,
+  onDone?: (job: JobStatus) => void,
+) {
   const qc = useQueryClient();
   const done = useRef<string | null>(null);
   const query = useQuery({
     queryKey: ["job", id],
     queryFn: () => jobStatus(id as string),
     enabled: !!id,
-    refetchInterval: (q) => (q.state.data?.state === "running" || !q.state.data ? 1000 : false),
+    refetchInterval: (q) =>
+      q.state.data?.state === "running" || !q.state.data ? 1000 : false,
   });
   const job = query.data;
   useEffect(() => {

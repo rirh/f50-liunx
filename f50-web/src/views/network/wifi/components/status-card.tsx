@@ -8,29 +8,38 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { t, type Key } from "@/i18n";
 import { WifiPowerControl } from "./power-control";
 import type { WifiInfo, WifiSecurity } from "../types";
 
-const SECURITY_LABEL: Record<WifiSecurity, string> = {
-  wpa2: "WPA2-PSK",
-  "wpa2-wpa3": "WPA2/WPA3 混合",
-  wpa3: "WPA3-SAE",
-  open: "开放（无密码）",
-  other: "其他",
-};
+const SECURITY_LABEL = {
+  wpa2: "network.wifi.security.wpa2",
+  "wpa2-wpa3": "network.wifi.security.wpa2-wpa3",
+  wpa3: "network.wifi.security.wpa3",
+  open: "network.wifi.security.open",
+  other: "network.wifi.security.other",
+} satisfies Record<WifiSecurity, Key>;
 
 export function WifiStatusCard({ info }: { info: WifiInfo }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-2">
-          {info.ssid ?? "未命名热点"}
+          {info.ssid ?? t("network.wifi.status.unnamed")}
           <Badge variant={info.enabled ? "default" : "secondary"}>
-            {info.enabled ? "已开启" : "已关闭"}
+            {info.enabled
+              ? t("common.state.enabled")
+              : t("common.state.disabled")}
           </Badge>
-          {info.client_mode && <Badge variant="outline">无线电用于上网</Badge>}
+          {info.client_mode && (
+            <Badge variant="outline">
+              {t("network.wifi.status.clientMode")}
+            </Badge>
+          )}
         </CardTitle>
-        <CardDescription>热点当前状态</CardDescription>
+        <CardDescription>
+          {t("network.wifi.status.description")}
+        </CardDescription>
         <CardAction>
           <WifiPowerControl info={info} />
         </CardAction>
@@ -38,20 +47,41 @@ export function WifiStatusCard({ info }: { info: WifiInfo }) {
       <CardContent>
         <KvList
           items={[
-            { label: "频段", value: `${info.band} GHz` },
+            { label: t("network.wifi.status.band"), value: `${info.band} GHz` },
             {
-              label: "信道",
-              value: `${info.channel === "auto" ? "自动" : info.channel}${
-                info.channel_live != null ? `（当前 ${info.channel_live}）` : ""
+              label: t("network.wifi.status.channel"),
+              value: `${info.channel === "auto" ? t("common.state.auto") : info.channel}${
+                info.channel_live != null
+                  ? t("network.wifi.status.channelLive", {
+                      channel: info.channel_live,
+                    })
+                  : ""
               }`,
             },
-            { label: "模式", value: info.htmode },
-            { label: "国家/地区", value: info.country },
-            { label: "安全", value: SECURITY_LABEL[info.security] },
-            { label: "密码", value: info.password_set ? "已设置" : "未设置" },
-            { label: "隐藏 SSID", value: info.hidden ? "是" : "否" },
-            { label: "hostapd", value: info.status ?? "未运行" },
-            { label: "已连接设备", value: `${info.clients.length} 台` },
+            { label: t("network.wifi.status.mode"), value: info.htmode },
+            { label: t("network.wifi.status.country"), value: info.country },
+            {
+              label: t("network.wifi.status.security"),
+              value: t(SECURITY_LABEL[info.security]),
+            },
+            {
+              label: t("network.wifi.status.password"),
+              value: info.password_set
+                ? t("network.wifi.status.set")
+                : t("network.wifi.status.unset"),
+            },
+            {
+              label: t("network.wifi.status.hidden"),
+              value: info.hidden ? t("common.state.yes") : t("common.state.no"),
+            },
+            {
+              label: "hostapd",
+              value: info.status ?? t("common.state.stopped"),
+            },
+            {
+              label: t("network.wifi.status.clients"),
+              value: t("common.unit.devices", { count: info.clients.length }),
+            },
           ]}
         />
       </CardContent>

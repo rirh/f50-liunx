@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { useMutation } from "@tanstack/react-query";
 import { PowerIcon, RotateCwIcon } from "lucide-react";
@@ -34,34 +35,34 @@ export function PowerCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>电源</CardTitle>
+        <CardTitle>{t("system.settings.power.title")}</CardTitle>
         <CardDescription>
-          重启或关机会断开所有终端和移动数据连接
+          {t("system.settings.power.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
         <ConfirmButton
-          title="重启设备？"
-          description="设备将在 2 秒后重启，约 1–2 分钟内无法访问。重启后需要重新登录。"
-          confirmText="重启"
+          title={t("system.settings.power.rebootTitle")}
+          description={t("system.settings.power.rebootDescription")}
+          confirmText={t("common.action.reboot")}
           pending={doReboot.isPending}
           disabled={busy}
           onConfirm={() => doReboot.mutate()}
         >
           <RotateCwIcon data-icon="inline-start" />
-          重启
+          {t("common.action.reboot")}
         </ConfirmButton>
         <ConfirmButton
-          title="关闭设备？"
-          description="设备将在 2 秒后关机。关机后只能通过电源键重新开机，网页无法再唤醒它。"
-          confirmText="关机"
+          title={t("system.settings.power.poweroffTitle")}
+          description={t("system.settings.power.poweroffDescription")}
+          confirmText={t("system.settings.power.poweroff")}
           variant="outline"
           pending={doPoweroff.isPending}
           disabled={busy}
           onConfirm={() => doPoweroff.mutate()}
         >
           <PowerIcon data-icon="inline-start" />
-          关机
+          {t("system.settings.power.poweroff")}
         </ConfirmButton>
       </CardContent>
     </Card>

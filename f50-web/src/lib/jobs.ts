@@ -1,15 +1,27 @@
 /** f50d's jobs (`f50.job`): work that outlives a request; the method returns `{ job }`, the page polls it. */
+import { t } from "@/i18n";
 import { f50 } from "@/lib/ubus";
 
 export type JobState =
   "running" | "done" | "failed" | "cancelled" | "interrupted";
 
-export const JOB_STATE_LABEL: Record<JobState, string> = {
-  running: "进行中",
-  done: "已完成",
-  failed: "失败",
-  cancelled: "已取消",
-  interrupted: "已中断",
+/** The states' names, read in the current language each time one is looked up (`JOB_STATE_LABEL[state]`). */
+export const JOB_STATE_LABEL: Readonly<Record<JobState, string>> = {
+  get running() {
+    return t("app.job.state.running");
+  },
+  get done() {
+    return t("app.job.state.done");
+  },
+  get failed() {
+    return t("app.job.state.failed");
+  },
+  get cancelled() {
+    return t("app.job.state.cancelled");
+  },
+  get interrupted() {
+    return t("app.job.state.interrupted");
+  },
 };
 
 export interface JobStatus {

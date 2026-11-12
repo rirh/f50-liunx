@@ -55,6 +55,8 @@ export interface DataInfo {
   slot: number;
   addresses: string[];
   dns: string[] | null;
+  /** The device's byte counters since it came up (diffed for the rate). */
+  bytes?: { rx: number; tx: number } | null;
   apn: string;
   roaming: boolean;
   roaming_held: boolean;

@@ -1,0 +1,32 @@
+/** The sidebar: groups and page titles (also the header's page title). */
+export default {
+  group: {
+    overview: "概览",
+    mobile: "移动网络",
+    connect: "连接",
+    device: "设备",
+    advanced: "高级",
+  },
+  page: {
+    dashboard: "仪表盘",
+    systemInfo: "系统信息",
+    signal: "信号与小区",
+    data: "移动数据",
+    traffic: "流量统计",
+    sms: "短信",
+    sim: "SIM 卡",
+    wifi: "Wi-Fi 热点",
+    wifiClient: "Wi-Fi 上网",
+    lan: "局域网",
+    usb: "USB",
+    settings: "系统设置",
+    update: "系统更新",
+    leds: "指示灯",
+    cpu: "性能与温控",
+    locks: "网络锁定",
+    at: "AT 终端",
+    jobs: "后台任务",
+    logs: "系统日志",
+    boot: "启动",
+  },
+};

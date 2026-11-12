@@ -72,10 +72,6 @@ export function AppUpdateChecker() {
         url.searchParams.set("t", Date.now().toString());
         window.location.replace(url.toString());
       }}
-      title="网页有更新"
-      description="刷新即可加载新版界面，请先保存未提交的内容。"
-      updateLabel="刷新页面"
-      updatingLabel="正在刷新…"
     />
   );
 }

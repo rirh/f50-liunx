@@ -1,49 +1,68 @@
-import type { DataHold, DataPhase, Rat, SimState } from "./types";
+/** The dashboard's value labels, as message keys; `label(map, value)` reads one in the current language. */
+import { type Key, t } from "@/i18n";
+import type {
+  DataHold,
+  DataPhase,
+  Rat,
+  SimState,
+  WifiClientInfo,
+  WifiInfo,
+} from "./types";
 
-export const RAT_LABEL: Record<Rat, string> = {
-  gsm: "2G",
-  umts: "3G",
-  lte: "4G LTE",
-  nsa: "5G NSA",
-  sa: "5G SA",
+export const RAT_LABEL: Record<Rat, Key> = {
+  gsm: "dashboard.rat.gsm",
+  umts: "dashboard.rat.umts",
+  lte: "dashboard.rat.lte",
+  nsa: "dashboard.rat.nsa",
+  sa: "dashboard.rat.sa",
 };
 
-export const SIM_STATE_LABEL: Record<SimState, string> = {
-  absent: "未插卡",
-  ready: "就绪",
-  locked: "需要 PIN/PUK",
+export const SIM_STATE_LABEL: Record<SimState, Key> = {
+  absent: "dashboard.simState.absent",
+  ready: "dashboard.simState.ready",
+  locked: "dashboard.simState.locked",
 };
 
-export const DATA_PHASE_LABEL: Record<DataPhase, string> = {
-  down: "未连接",
-  connecting: "连接中",
-  connected: "已连接",
-  held: "已暂停",
-  failed: "连接失败",
+export const DATA_PHASE_LABEL: Record<DataPhase, Key> = {
+  down: "dashboard.dataPhase.down",
+  connecting: "dashboard.dataPhase.connecting",
+  connected: "dashboard.dataPhase.connected",
+  held: "dashboard.dataPhase.held",
+  failed: "dashboard.dataPhase.failed",
 };
 
-export const DATA_HOLD_LABEL: Record<DataHold, string> = {
-  roaming: "漫游中且未允许数据漫游",
-  "sim-missing": "未插 SIM 卡",
-  "radio-off": "射频已关闭",
+export const DATA_HOLD_LABEL: Record<DataHold, Key> = {
+  roaming: "dashboard.dataHold.roaming",
+  "sim-missing": "dashboard.dataHold.sim-missing",
+  "radio-off": "dashboard.dataHold.radio-off",
 };
 
-export const SECURITY_LABEL: Record<string, string> = {
-  wpa2: "WPA2",
-  "wpa2-wpa3": "WPA2/WPA3",
-  wpa3: "WPA3",
-  open: "开放",
-  other: "其他",
+export const SECURITY_LABEL: Record<WifiInfo["security"], Key> = {
+  wpa2: "dashboard.security.wpa2",
+  "wpa2-wpa3": "dashboard.security.wpa2-wpa3",
+  wpa3: "dashboard.security.wpa3",
+  open: "dashboard.security.open",
+  other: "dashboard.security.other",
 };
 
-export const UPLINK_MODE_LABEL: Record<string, string> = {
-  off: "未使用",
-  client: "客户端",
-  hotspot: "热点模式",
+export const UPLINK_MODE_LABEL: Record<WifiClientInfo["mode"], Key> = {
+  off: "dashboard.uplinkMode.off",
+  client: "dashboard.uplinkMode.client",
+  hotspot: "dashboard.uplinkMode.hotspot",
 };
 
-export const USB_ROLE_LABEL: Record<string, string> = {
-  host: "主机",
-  device: "设备",
-  unavailable: "不可用",
+export const USB_ROLE_LABEL: Record<string, Key> = {
+  host: "dashboard.usbRole.host",
+  device: "dashboard.usbRole.device",
+  unavailable: "dashboard.usbRole.unavailable",
 };
+
+/** The label of `value` in `map`, or the value itself when the device sent one the console does not know. */
+export function label<V extends string>(
+  map: Record<V, Key>,
+  value: V | string | null | undefined,
+): string {
+  if (value == null) return "—";
+  const key = (map as Record<string, Key | undefined>)[value];
+  return key ? t(key) : value;
+}

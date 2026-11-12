@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { AnimatedNumber } from "@/components/f50/animated-number";
 import { QueryState } from "@/components/f50/query-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useLiveState } from "@/hooks/use-live";
+import { t } from "@/i18n";
 import { formatBytes, formatDuration } from "@/lib/format";
 import { ArrowUpCircleIcon, FlameIcon } from "lucide-react";
 import { LiveChart } from "./live-chart";
@@ -26,10 +29,20 @@ import {
   zoneLabel,
 } from "../utils";
 
-function usbText(s: LiveStatus["status"]["usb_link"]) {
-  if (!s) return "未连接";
-  const role = s.role === "device" ? "设备模式" : "主机模式";
-  return `${role} · ${s.mbps != null ? `${s.mbps} Mbps` : (s.speed ?? "未知")}`;
+function usbRole(s: LiveStatus["status"]["usb_link"]) {
+  if (!s) return t("common.state.disconnected");
+  return s.role === "device"
+    ? t("system.overview.live.usbDevice")
+    : t("system.overview.live.usbHost");
+}
+
+function usbSpeed(s: LiveStatus["status"]["usb_link"]) {
+  if (!s) return undefined;
+  const now =
+    s.mbps != null
+      ? `${s.mbps} Mbps`
+      : (s.speed ?? t("system.overview.live.speedUnknown"));
+  return s.max ? t("system.overview.live.speedMax", { now, max: s.max }) : now;
 }
 
 function LiveBody({ data }: { data: LiveStatus }) {
@@ -39,78 +52,96 @@ function LiveBody({ data }: { data: LiveStatus }) {
     s.memory.total_kb != null && s.memory.avail_kb != null
       ? s.memory.total_kb - s.memory.avail_kb
       : null;
-  const t = s.temperatures;
+  const temps = s.temperatures;
   return (
     <div className="flex flex-col gap-4">
       {s.heat_alarm && (
         <Alert variant="destructive">
           <FlameIcon />
-          <AlertTitle>过热告警</AlertTitle>
+          <AlertTitle>{t("system.overview.live.heatTitle")}</AlertTitle>
           <AlertDescription>
-            设备温度过高，CPU 已被限频。请改善散热或降低负载。
+            {t("system.overview.live.heatDescription")}
           </AlertDescription>
         </Alert>
       )}
       {s.update && (
         <Alert>
           <ArrowUpCircleIcon />
-          <AlertTitle>有新版本 {s.update}</AlertTitle>
+          <AlertTitle>
+            {t("system.overview.live.updateTitle", { version: s.update })}
+          </AlertTitle>
           <AlertDescription className="flex flex-wrap items-center gap-2">
-            更新服务发现了较新的系统版本。
+            {t("system.overview.live.updateDescription")}
             <Button asChild size="xs" variant="outline">
-              <Link to="/system/update">前往更新</Link>
+              <Link to="/system/update">
+                {t("system.overview.live.updateAction")}
+              </Link>
             </Button>
           </AlertDescription>
         </Alert>
       )}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-3">
         <Meter
           label="CPU"
-          value={formatPercent(cpu, 1)}
+          value={
+            <AnimatedNumber value={cpu} format={(n) => formatPercent(n, 1)} />
+          }
           percent={cpu}
           hint={
             s.load
-              ? `${s.load.n} 核 · ${s.load.freqs.map((f) => formatMhz(f.cur)).join(" / ")}`
+              ? t("system.overview.live.cpuHint", {
+                  n: s.load.n,
+                  freqs: s.load.freqs.map((f) => formatMhz(f.cur)).join(" / "),
+                })
               : undefined
           }
         />
         <Meter
-          label="内存"
-          value={formatPercent(mem, 1)}
+          label={t("system.overview.live.mem")}
+          value={
+            <AnimatedNumber value={mem} format={(n) => formatPercent(n, 1)} />
+          }
           percent={mem}
           hint={`${formatBytes(kb(used))} / ${formatBytes(kb(s.memory.total_kb))}`}
         />
         <Meter
-          label="最高温度"
-          value={formatCelsius(t.hottest)}
-          hint={`SoC ${formatCelsius(t.soc)}`}
+          label={t("system.overview.live.hottest")}
+          value={
+            <AnimatedNumber value={temps.hottest} format={formatCelsius} />
+          }
+          hint={`SoC ${formatCelsius(temps.soc)}`}
         />
         <Meter
-          label="基带温度"
-          value={formatCelsius(t.modem)}
-          hint={`主板 ${formatCelsius(t.board)}`}
+          label={t("system.overview.live.modem")}
+          value={<AnimatedNumber value={temps.modem} format={formatCelsius} />}
+          hint={t("system.overview.live.boardHint", {
+            temp: formatCelsius(temps.board),
+          })}
         />
         <Meter
-          label="Wi-Fi 终端"
+          label={t("system.overview.live.wifi")}
           value={s.wifi_clients}
-          hint={`DHCP 租约 ${s.lan_leases}`}
+          hint={t("system.overview.live.leasesHint", { n: s.lan_leases })}
         />
         <Meter
-          label="连接跟踪"
+          label={t("system.overview.live.conns")}
           value={s.conns ?? "—"}
-          hint="当前跟踪的连接数"
+          hint={t("system.overview.live.connsHint")}
         />
         <Meter
-          label="USB 链路"
-          value={usbText(s.usb_link)}
-          hint={s.usb_link?.max ? `最高 ${s.usb_link.max}` : undefined}
+          label={t("system.overview.live.usb")}
+          value={usbRole(s.usb_link)}
+          hint={usbSpeed(s.usb_link)}
         />
-        <Meter label="运行时间" value={formatDuration(s.uptime)} />
+        <Meter
+          label={t("system.overview.live.uptime")}
+          value={formatDuration(s.uptime)}
+        />
       </div>
       <LiveChart samples={samples} />
-      {t.zones.length > 0 && (
+      {temps.zones.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {t.zones.map((z) => (
+          {temps.zones.map((z) => (
             <Badge key={z.name} variant="outline" className="font-mono">
               {zoneLabel(z.name)} {formatCelsius(z.millicelsius / 1000)}
             </Badge>
@@ -124,18 +155,21 @@ function LiveBody({ data }: { data: LiveStatus }) {
 /** The live figures, polled every 3 s. */
 export function LiveCard() {
   const query = useLiveStatus();
+  const live = useLiveState() === "live";
   return (
     <Card>
       <CardHeader>
-        <CardTitle>实时状态</CardTitle>
+        <CardTitle>{t("system.overview.live.title")}</CardTitle>
         <CardDescription>
-          每 3 秒刷新；CPU 占用为两次采样之间的平均值
+          {live
+            ? t("system.overview.live.descLive")
+            : t("system.overview.live.descPoll")}
         </CardDescription>
         <CardAction>
           {query.isFetching ? (
-            <Badge variant="secondary">刷新中</Badge>
+            <Badge variant="secondary">{t("common.action.refreshing")}</Badge>
           ) : (
-            <Badge variant="outline">实时</Badge>
+            <Badge variant="outline">{t("system.overview.live.badge")}</Badge>
           )}
         </CardAction>
       </CardHeader>

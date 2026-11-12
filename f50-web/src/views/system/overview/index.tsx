@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/f50/page-header";
 import { PendingButton } from "@/components/f50/pending-button";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCwIcon } from "lucide-react";
 import { getInfo, systemKeys } from "./api";
@@ -12,8 +13,8 @@ export default function Page() {
   return (
     <>
       <PageHeader
-        title="系统信息"
-        description="设备信息、实时负载与已连接的终端"
+        title={t("system.overview.title")}
+        description={t("system.overview.description")}
         actions={
           <PendingButton
             size="sm"
@@ -22,7 +23,7 @@ export default function Page() {
             onClick={() => info.refetch()}
           >
             <RefreshCwIcon data-icon="inline-start" />
-            刷新信息
+            {t("system.overview.refresh")}
           </PendingButton>
         }
       />

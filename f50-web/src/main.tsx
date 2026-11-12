@@ -1,6 +1,6 @@
 import React from "react";
 import { HashRouter } from "react-router-dom";
-import { App } from "@/App";
+import { LocaleGate } from "@/components/providers/locale-gate";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { RouteProgress } from "@/components/providers/route-progress";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -18,7 +18,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <QueryProvider>
             {/* the sidebar's collapsed menu and other tooltips need one provider above them */}
             <TooltipProvider>
-              <App />
+              <LocaleGate />
             </TooltipProvider>
           </QueryProvider>
         </HashRouter>

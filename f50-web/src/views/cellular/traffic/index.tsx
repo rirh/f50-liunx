@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/f50/page-header";
 import { QueryState } from "@/components/f50/query-state";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { getTraffic, trafficKeys } from "./api";
 import { CyclesTable } from "./components/cycles-table";
@@ -16,21 +17,21 @@ export default function TrafficPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="流量统计"
-        description="蜂窝数据按日与按计费周期的用量（每分钟统计一次）"
+        title={t("cellular.traffic.title")}
+        description={t("cellular.traffic.description")}
       />
       <QueryState query={query} skeletonRows={10}>
-        {(t) => (
+        {(tr) => (
           <div className="flex flex-col gap-4">
             <div className="grid items-start gap-4 lg:grid-cols-2">
-              <SummaryCard t={t} />
+              <SummaryCard t={tr} />
               <SettingsCard
-                key={`${t.reset_day}|${t.cap.bytes}|${t.cap.warn}|${t.cap.cut}|${t.plan}`}
-                t={t}
+                key={`${tr.reset_day}|${tr.cap.bytes}|${tr.cap.warn}|${tr.cap.cut}|${tr.plan}`}
+                t={tr}
               />
             </div>
-            <UsageChart days={t.days} />
-            <CyclesTable cycles={t.cycles} />
+            <UsageChart days={tr.days} />
+            <CyclesTable cycles={tr.cycles} />
           </div>
         )}
       </QueryState>

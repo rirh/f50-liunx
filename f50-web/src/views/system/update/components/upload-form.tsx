@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { SweepShine } from "@/components/ui/sweep-shine";
 import { useSession } from "@/hooks/use-session";
+import { type Key, t } from "@/i18n";
 import { errorMessage, formatBytes } from "@/lib/format";
 import { ApiError } from "@/lib/ubus";
 import { useQueryClient } from "@tanstack/react-query";
@@ -32,10 +33,10 @@ type Phase =
   | { step: "checking" };
 
 const STEP_TEXT = {
-  begin: "正在申请上传空间",
-  uploading: "正在上传",
-  checking: "正在提交检查",
-} as const;
+  begin: "maintenance.update.upload.step.begin",
+  uploading: "maintenance.update.upload.step.uploading",
+  checking: "maintenance.update.upload.step.checking",
+} satisfies Record<string, Key>;
 
 interface FormValues {
   file: File | null;
@@ -57,11 +58,13 @@ export function UploadForm({ busy }: { busy: boolean }) {
 
   async function onSubmit({ file }: FormValues) {
     if (!file) {
-      form.setError("file", { message: "请选择更新包文件" });
+      form.setError("file", {
+        message: t("maintenance.update.upload.required"),
+      });
       return;
     }
     if (!session) {
-      toast.error("登录已过期，请重新登录");
+      toast.error(t("app.error.sessionExpired"));
       return;
     }
     const ctl = new AbortController();
@@ -79,16 +82,19 @@ export function UploadForm({ busy }: { busy: boolean }) {
       const reply = await uploadFile(session.id, path, file);
       if (reply.size != null && reply.size !== file.size) {
         throw new Error(
-          `上传不完整（${formatBytes(reply.size)} / ${formatBytes(file.size)}）`,
+          t("maintenance.update.upload.incomplete", {
+            got: formatBytes(reply.size),
+            size: formatBytes(file.size),
+          }),
         );
       }
       setPhase({ step: "checking" });
-      started("检查上传的文件")(await uploadDone());
+      started(t("maintenance.update.jobTitle.uploadDone"))(await uploadDone());
       form.reset({ file: null });
       setInputKey((k) => k + 1);
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError")
-        toast.info("已取消");
+        toast.info(t("maintenance.update.upload.cancelled"));
       else if (e instanceof ApiError && e.field)
         form.setError("file", { message: errorMessage(e) });
       else toast.error(errorMessage(e));
@@ -111,7 +117,9 @@ export function UploadForm({ busy }: { busy: boolean }) {
           data-invalid={!!fileError || undefined}
           data-disabled={working || busy || undefined}
         >
-          <FieldLabel htmlFor="update-file">离线更新包</FieldLabel>
+          <FieldLabel htmlFor="update-file">
+            {t("maintenance.update.upload.label")}
+          </FieldLabel>
           <Input
             id="update-file"
             key={inputKey}
@@ -124,28 +132,40 @@ export function UploadForm({ busy }: { busy: boolean }) {
               form.clearErrors("file");
               form.setValue("file", f);
               if (f && f.size > MAX_SIZE)
-                form.setError("file", { message: "文件超过 2047 MB" });
+                form.setError("file", {
+                  message: t("maintenance.update.upload.tooLarge"),
+                });
             }}
           />
           {fileError ? (
             <FieldError>{fileError.message}</FieldError>
           ) : (
             <FieldDescription>
-              发布页面提供的整版 tar 包（含 SHA256SUMS 与签名）。
-              {file && ` 已选：${file.name}，${formatBytes(file.size)}。`}
+              {t("maintenance.update.upload.hint")}
+              {file &&
+                ` ${t("maintenance.update.upload.chosen", {
+                  name: file.name,
+                  size: formatBytes(file.size),
+                })}`}
               {nativeDigest()
-                ? " 校验值计算时会把整个文件读入浏览器内存。"
-                : " 当前为 http 访问，校验值由页面逐块计算，速度较慢。"}
+                ? ` ${t("maintenance.update.upload.nativeHash")}`
+                : ` ${t("maintenance.update.upload.slowHash")}`}
             </FieldDescription>
           )}
         </Field>
         {phase.step === "hashing" && (
           <Field>
             <FieldDescription>
-              <SweepShine>正在计算 SHA-256</SweepShine>（
-              {formatBytes(phase.done)} / {formatBytes(phase.total)}）
+              <SweepShine>{t("maintenance.update.upload.hashing")}</SweepShine>
+              {t("maintenance.update.upload.hashProgress", {
+                done: formatBytes(phase.done),
+                total: formatBytes(phase.total),
+              })}
             </FieldDescription>
-            <Progress value={pct ?? 0} aria-label="SHA-256 计算进度" />
+            <Progress
+              value={pct ?? 0}
+              aria-label={t("maintenance.update.upload.hashAria")}
+            />
           </Field>
         )}
         {(phase.step === "begin" ||
@@ -153,10 +173,12 @@ export function UploadForm({ busy }: { busy: boolean }) {
           phase.step === "checking") && (
           <Field>
             <FieldDescription>
-              <SweepShine>{STEP_TEXT[phase.step]}</SweepShine>
+              <SweepShine>{t(STEP_TEXT[phase.step])}</SweepShine>
               {phase.step === "uploading" &&
                 file &&
-                `（${formatBytes(file.size)}，请勿关闭页面）`}
+                t("maintenance.update.upload.keepOpen", {
+                  size: formatBytes(file.size),
+                })}
             </FieldDescription>
             <Progress
               value={
@@ -166,7 +188,7 @@ export function UploadForm({ busy }: { busy: boolean }) {
                     ? 90
                     : 33
               }
-              aria-label="上传进度"
+              aria-label={t("maintenance.update.upload.progressAria")}
             />
           </Field>
         )}
@@ -178,7 +200,11 @@ export function UploadForm({ busy }: { busy: boolean }) {
             aria-busy={working}
           >
             <UploadIcon data-icon="inline-start" />
-            {working ? <SweepShine>处理中</SweepShine> : "上传并检查"}
+            {working ? (
+              <SweepShine>{t("maintenance.update.upload.working")}</SweepShine>
+            ) : (
+              t("maintenance.update.upload.submit")
+            )}
           </Button>
           {phase.step === "hashing" && (
             <Button
@@ -188,7 +214,7 @@ export function UploadForm({ busy }: { busy: boolean }) {
               onClick={() => abort?.abort()}
             >
               <XIcon data-icon="inline-start" />
-              取消
+              {t("common.action.cancel")}
             </Button>
           )}
         </Field>

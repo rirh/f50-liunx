@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/f50/page-header";
 import { QueryState } from "@/components/f50/query-state";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { getSettingsInfo, infoKey } from "./api";
 import { HostnameForm } from "./components/hostname-form";
@@ -20,9 +21,11 @@ export default function Page() {
     return (
       <>
         <PageHeader
-          title="系统设置"
+          title={t("system.settings.title")}
           description={
-            power.action === "reboot" ? "设备正在重启" : "设备正在关机"
+            power.action === "reboot"
+              ? t("system.settings.rebooting")
+              : t("system.settings.poweringOff")
           }
         />
         <PowerWait action={power.action} since={power.since} />
@@ -31,7 +34,10 @@ export default function Page() {
   }
   return (
     <>
-      <PageHeader title="系统设置" description="主机名、时区、管理密码与电源" />
+      <PageHeader
+        title={t("system.settings.title")}
+        description={t("system.settings.description")}
+      />
       <QueryState query={info} skeletonRows={6}>
         {(d) => (
           <div className="grid gap-6 lg:grid-cols-2">

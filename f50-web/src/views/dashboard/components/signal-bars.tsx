@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 /** 0-5 bars, as the LEDs show them. */
@@ -6,7 +7,7 @@ export function SignalBars({ bars }: { bars: number }) {
   return (
     <span
       role="img"
-      aria-label={`信号 ${n} 格`}
+      aria-label={t("dashboard.signalBars", { n })}
       className="inline-flex h-5 items-end gap-0.5"
     >
       {[1, 2, 3, 4, 5].map((i) => (

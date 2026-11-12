@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { t } from "@/i18n";
 import type { PendingConfirm } from "./use-at-send";
 import { CLASS_LABEL } from "../messages";
 
@@ -40,13 +41,15 @@ export function ConfirmClassDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex flex-wrap items-center gap-2">
-            需要确认
+            {t("tools.at.confirm.title")}
             {pending?.cls && (
-              <Badge variant="secondary">{label?.title ?? pending.cls}</Badge>
+              <Badge variant="secondary">
+                {label ? t(label.title) : pending.cls}
+              </Badge>
             )}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            {label?.detail ?? pending?.message}
+            {label ? t(label.detail) : pending?.message}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {pending && (
@@ -55,7 +58,7 @@ export function ConfirmClassDialog({
           </code>
         )}
         <AlertDialogFooter>
-          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.action.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             onClick={() => {
@@ -63,7 +66,7 @@ export function ConfirmClassDialog({
               onConfirm();
             }}
           >
-            确认发送
+            {t("tools.at.confirm.send")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

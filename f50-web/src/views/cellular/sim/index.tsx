@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/f50/page-header";
 import { QueryState } from "@/components/f50/query-state";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { getSim, simKeys } from "./api";
 import { CardRadioCard } from "./components/radio-card";
@@ -13,7 +14,10 @@ export default function SimPage() {
   });
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="SIM 卡" description="卡槽选择与每张卡的射频设置" />
+      <PageHeader
+        title={t("cellular.sim.title")}
+        description={t("cellular.sim.description")}
+      />
       <QueryState query={query} skeletonRows={8}>
         {(sim) => (
           <div className="grid gap-4 lg:grid-cols-2">

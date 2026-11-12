@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { t } from "@/i18n";
 import { type TableColumn, tableFeaturesSet } from "@/lib/table";
 import { type RowData, useTable } from "@tanstack/react-table";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
@@ -20,7 +21,7 @@ export function DataTable<T extends RowData>({
   columns,
   getRowId,
   filter = "",
-  empty = "暂无数据",
+  empty,
 }: {
   data: T[];
   columns: TableColumn<T>[];
@@ -99,7 +100,7 @@ export function DataTable<T extends RowData>({
                 colSpan={columns.length}
                 className="h-16 text-center text-muted-foreground"
               >
-                {empty}
+                {empty ?? t("common.empty")}
               </TableCell>
             </TableRow>
           )}

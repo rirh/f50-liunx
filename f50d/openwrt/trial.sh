@@ -53,7 +53,10 @@ stage() {
     for p in $PREINIT; do [ -e "/lib/preinit/$p" ] && mv "/lib/preinit/$p" "$B/preinit/$p"; done
 
     # f50d
-    install -m 0755 "$SRC/f50d" /usr/sbin/f50d.new && mv /usr/sbin/f50d.new /usr/sbin/f50d
+    # (busybox has no install(1))
+    cp "$SRC/f50d" /usr/sbin/f50d.new
+    chmod 0755 /usr/sbin/f50d.new
+    mv /usr/sbin/f50d.new /usr/sbin/f50d
     mkdir -p /usr/libexec/f50d && ln -sf ../../sbin/f50d /usr/libexec/f50d/modprobe-guard
     for f in "$SRC"/openwrt/init.d/*; do cp "$f" "/etc/init.d/${f##*/}"; chmod 0755 "/etc/init.d/${f##*/}"; done
     for d in iface net misc ntp; do

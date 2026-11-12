@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { DataTable } from "@/components/f50/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import { columnHelper } from "@/lib/table";
 import {
   SECURITY_LABEL,
@@ -26,17 +27,17 @@ export function NetworksTable({
   const columns = useMemo(
     () => [
       col.accessor("ssid", {
-        header: "名称",
+        header: t("network.client.networks.name"),
         cell: (c) => <span className="break-all">{c.getValue()}</span>,
       }),
       col.accessor("signal", {
-        header: "信号",
+        header: t("network.client.networks.signal"),
         cell: (c) => (
           <span className="whitespace-nowrap">{signalText(c.getValue())}</span>
         ),
       }),
       col.accessor("security", {
-        header: "安全",
+        header: t("network.client.networks.security"),
         cell: (c) => {
           const why = whyNotJoinable(c.getValue());
           return (
@@ -45,10 +46,12 @@ export function NetworksTable({
               title={why ?? undefined}
             >
               <Badge variant={why ? "destructive" : "secondary"}>
-                {SECURITY_LABEL[c.getValue()]}
+                {t(SECURITY_LABEL[c.getValue()])}
               </Badge>
               {why && (
-                <span className="text-xs text-muted-foreground">不可加入</span>
+                <span className="text-xs text-muted-foreground">
+                  {t("network.client.networks.notJoinable")}
+                </span>
               )}
             </span>
           );
@@ -56,7 +59,9 @@ export function NetworksTable({
       }),
       col.display({
         id: "actions",
-        header: () => <span className="sr-only">操作</span>,
+        header: () => (
+          <span className="sr-only">{t("network.shared.actions")}</span>
+        ),
         cell: (c) => (
           <Button
             size="xs"
@@ -64,7 +69,7 @@ export function NetworksTable({
             disabled={disabled || !joinable(c.row.original.security)}
             onClick={() => onJoin(c.row.original)}
           >
-            加入
+            {t("network.client.networks.join")}
           </Button>
         ),
       }),
@@ -76,7 +81,7 @@ export function NetworksTable({
       columns={columns}
       data={networks}
       getRowId={(n) => n.ssid}
-      empty="没有找到网络（隐藏网络不会列出，可手动输入名称加入）"
+      empty={t("network.client.networks.empty")}
     />
   );
 }

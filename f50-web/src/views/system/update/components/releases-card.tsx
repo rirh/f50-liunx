@@ -16,6 +16,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { SweepShine } from "@/components/ui/sweep-shine";
+import { t } from "@/i18n";
 import {
   errorMessage,
   formatAgo,
@@ -42,7 +43,7 @@ export function ReleasesCard({
   const started = useStartJob();
   const checking = useMutation({
     mutationFn: check,
-    onSuccess: started("检查更新"),
+    onSuccess: started(t("maintenance.update.jobTitle.check")),
     onError: (e) => toast.error(errorMessage(e)),
   });
   const age = releases.data?.age;
@@ -50,11 +51,13 @@ export function ReleasesCard({
   return (
     <Card size="sm">
       <CardHeader>
-        <CardTitle>在线更新</CardTitle>
+        <CardTitle>{t("maintenance.update.releases.title")}</CardTitle>
         <CardDescription>
           {age != null
-            ? `上次检查：${formatDuration(age)}前`
-            : "尚未检查过更新"}
+            ? t("maintenance.update.releases.lastCheck", {
+                ago: formatDuration(age),
+              })
+            : t("maintenance.update.releases.neverChecked")}
         </CardDescription>
         <CardAction>
           <Button
@@ -65,17 +68,31 @@ export function ReleasesCard({
             onClick={() => checking.mutate()}
           >
             <RefreshCwIcon data-icon="inline-start" />
-            {checking.isPending ? <SweepShine>检查中</SweepShine> : "检查更新"}
+            {checking.isPending ? (
+              <SweepShine>
+                {t("maintenance.update.releases.checking")}
+              </SweepShine>
+            ) : (
+              t("maintenance.update.jobTitle.check")
+            )}
           </Button>
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {status.notice && (
           <Alert>
-            <AlertTitle>有新版本 {status.notice.tag}</AlertTitle>
+            <AlertTitle>
+              {t("maintenance.update.releases.noticeTitle", {
+                tag: status.notice.tag,
+              })}
+            </AlertTitle>
             <AlertDescription title={formatTime(status.notice.at)}>
-              当前 {status.notice.installed ?? "未知版本"}，
-              {formatAgo(status.notice.at)}发现。
+              {t("maintenance.update.releases.noticeBody", {
+                installed:
+                  status.notice.installed ??
+                  t("maintenance.update.status.unknownRelease"),
+                ago: formatAgo(status.notice.at),
+              })}
             </AlertDescription>
           </Alert>
         )}
@@ -91,9 +108,11 @@ export function ReleasesCard({
             ) : (
               <Empty>
                 <EmptyHeader>
-                  <EmptyTitle>没有版本信息</EmptyTitle>
+                  <EmptyTitle>
+                    {t("maintenance.update.releases.emptyTitle")}
+                  </EmptyTitle>
                   <EmptyDescription>
-                    点击“检查更新”向发布源查询最新版本。
+                    {t("maintenance.update.releases.emptyBody")}
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>

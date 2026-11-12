@@ -17,6 +17,7 @@ mod blobmsg;
 mod client;
 mod conn;
 mod frame;
+mod notify;
 mod proto;
 mod server;
 
@@ -30,6 +31,7 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
 pub use client::LOOKUP_TIMEOUT;
+pub use notify::{Notifier, NotifyQueue, notifier};
 pub use proto::{MAX_MSG_LEN, status};
 pub use server::{BACKOFF_MAX, BACKOFF_MIN, INVOKE_TIMEOUT, MAX_CONCURRENT_INVOCATIONS};
 
@@ -131,5 +133,17 @@ pub async fn serve(
     invoke: Invoke,
     shutdown: CancellationToken,
 ) -> Result<(), UbusError> {
-    server::serve(socket, objects, invoke, shutdown).await
+    server::serve(socket, objects, invoke, None, shutdown).await
+}
+
+/// [`serve`], also sending the notifications queued on the [`Notifier`] that `queue` came with, and keeping its
+/// subscription state current (`UBUS_ATTR_ACTIVE`). Objects not registered on this connection never notify.
+pub async fn serve_notifying(
+    socket: PathBuf,
+    objects: Vec<ObjectSpec>,
+    invoke: Invoke,
+    queue: NotifyQueue,
+    shutdown: CancellationToken,
+) -> Result<(), UbusError> {
+    server::serve(socket, objects, invoke, Some(queue), shutdown).await
 }

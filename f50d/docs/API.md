@@ -72,6 +72,17 @@ source: `crates/f50-system/src/objects.rs`
 - **set** (write) — Changes one LED setting.
   - fields: `Field::req("key", Rule::Enum(crate::led::settings::KEYS)), Field::req("value", Rule::WordNum { re: "[a-z0-9]{1,8}", max: 8 }),`
 
+## `f50.live`
+
+source: `crates/f50-api/src/live.rs`
+
+- **get** (read) — Every live topic now (the events a subscription to f50.live sends, by topic).
+- **:subscribe** (read) — `GET /ubus/subscribe/f50.live` with `Authorization: Bearer <session>`: an event stream
+  (`text/event-stream`). Each event's name is a topic, its data the envelope of the read method behind it, sent when it
+  changed or at least every 15 s, and only while somebody is subscribed:
+  `status` (`f50.status get`, 3 s), `system` (`f50.system status`, 2 s), `modem` (`f50.modem status`, 2 s),
+  `cells` (`f50.modem cells`, 5 s), `sms` (`f50.sms unread`, 5 s).
+
 ## `f50.lock`
 
 source: `crates/f50-modem/src/objects/lock.rs`

@@ -17,6 +17,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { columnHelper } from "@/lib/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,7 +40,7 @@ export function UsbAdaptersCard({ hostRole }: { hostRole: boolean }) {
   const add = useMutation({
     mutationFn: addAdapter,
     onSuccess: (r) => {
-      toast.success(`${r.added} 已加入局域网`);
+      toast.success(t("network.usb.adapters.added", { name: r.added }));
       qc.invalidateQueries({ queryKey: usbKeys.adapters });
     },
     onError: (e) => toast.error(errorMessage(e)),
@@ -49,38 +50,46 @@ export function UsbAdaptersCard({ hostRole }: { hostRole: boolean }) {
   const columns = useMemo(
     () => [
       col.accessor("name", {
-        header: "接口",
+        header: t("network.usb.adapters.name"),
         cell: (c) => <span className="font-mono">{c.getValue()}</span>,
       }),
       col.accessor("carrier", {
-        header: "网线",
+        header: t("network.usb.adapters.carrier"),
         cell: (c) => (
           <Badge variant={c.getValue() ? "default" : "secondary"}>
-            {c.getValue() ? "已连接" : "未连接"}
+            {c.getValue()
+              ? t("common.state.connected")
+              : t("common.state.disconnected")}
           </Badge>
         ),
       }),
       col.accessor("in_lan", {
-        header: "局域网",
+        header: t("network.usb.adapters.lan"),
         cell: (c) =>
           c.getValue() ? (
-            <Badge>已加入</Badge>
+            <Badge>{t("network.usb.adapters.inLan")}</Badge>
           ) : c.row.original.eligible ? (
-            <Badge variant="outline">未加入</Badge>
+            <Badge variant="outline">
+              {t("network.usb.adapters.notInLan")}
+            </Badge>
           ) : (
             <Badge
               variant="secondary"
               title={c.row.original.owner ?? undefined}
             >
               {c.row.original.owner === "unknown"
-                ? "归属未知"
-                : `属于 ${c.row.original.owner}`}
+                ? t("network.usb.adapters.ownerUnknown")
+                : t("network.usb.adapters.owner", {
+                    owner: c.row.original.owner,
+                  })}
             </Badge>
           ),
       }),
       col.display({
         id: "actions",
-        header: () => <span className="sr-only">操作</span>,
+        header: () => (
+          <span className="sr-only">{t("network.shared.actions")}</span>
+        ),
         cell: (c) => {
           const a = c.row.original;
           if (a.in_lan || !a.eligible) return null;
@@ -92,7 +101,9 @@ export function UsbAdaptersCard({ hostRole }: { hostRole: boolean }) {
               disabled={adding !== null}
               onClick={() => add.mutate(a.name)}
             >
-              {adding === a.name ? "加入中" : "加入局域网"}
+              {adding === a.name
+                ? t("network.usb.adapters.adding")
+                : t("network.usb.adapters.add")}
             </PendingButton>
           );
         },
@@ -104,9 +115,9 @@ export function UsbAdaptersCard({ hostRole }: { hostRole: boolean }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>USB 网卡</CardTitle>
+        <CardTitle>{t("network.usb.adapters.title")}</CardTitle>
         <CardDescription>
-          主机模式下接入的 USB 有线网卡，可桥接到局域网。
+          {t("network.usb.adapters.description")}
         </CardDescription>
         {hostRole && (
           <CardAction>
@@ -117,7 +128,9 @@ export function UsbAdaptersCard({ hostRole }: { hostRole: boolean }) {
               onClick={() => query.refetch()}
             >
               <RefreshCwIcon data-icon="inline-start" />
-              {query.isFetching ? "刷新中" : "刷新"}
+              {query.isFetching
+                ? t("common.action.refreshing")
+                : t("common.action.refresh")}
             </PendingButton>
           </CardAction>
         )}
@@ -130,16 +143,18 @@ export function UsbAdaptersCard({ hostRole }: { hostRole: boolean }) {
                 columns={columns}
                 data={r.devices}
                 getRowId={(a) => a.name}
-                empty="没有发现 USB 网卡（确认 Hub 已供电）"
+                empty={t("network.usb.adapters.empty")}
               />
             )}
           </QueryState>
         ) : (
           <Empty>
             <EmptyHeader>
-              <EmptyTitle>仅主机模式可用</EmptyTitle>
+              <EmptyTitle>
+                {t("network.usb.adapters.hostOnly.title")}
+              </EmptyTitle>
               <EmptyDescription>
-                将端口切换到主机模式后，这里会列出接入的 USB 网卡。
+                {t("network.usb.adapters.hostOnly.description")}
               </EmptyDescription>
             </EmptyHeader>
           </Empty>

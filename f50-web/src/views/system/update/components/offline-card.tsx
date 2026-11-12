@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { SweepShine } from "@/components/ui/sweep-shine";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -24,20 +25,20 @@ function Unchecked({ busy }: { busy: boolean }) {
   const started = useStartJob();
   const inspect = useMutation({
     mutationFn: uploadDone,
-    onSuccess: started("检查上传的文件"),
+    onSuccess: started(t("maintenance.update.jobTitle.uploadDone")),
     onError: (e) => toast.error(errorMessage(e)),
   });
   const cancel = useMutation({
     mutationFn: uploadCancel,
-    onSuccess: () => toast.success("已删除上传的文件"),
+    onSuccess: () => toast.success(t("maintenance.update.offline.deleted")),
     onError: (e) => toast.error(errorMessage(e)),
     onSettled: () => qc.invalidateQueries({ queryKey: UPDATE_KEY }),
   });
   return (
     <Alert>
-      <AlertTitle>设备上有一个尚未检查的上传文件</AlertTitle>
+      <AlertTitle>{t("maintenance.update.offline.uncheckedTitle")}</AlertTitle>
       <AlertDescription className="flex flex-col items-start gap-2">
-        检查后才能安装；如不需要可删除。
+        {t("maintenance.update.offline.uncheckedBody")}
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
@@ -45,19 +46,23 @@ function Unchecked({ busy }: { busy: boolean }) {
             aria-busy={inspect.isPending}
             onClick={() => inspect.mutate()}
           >
-            {inspect.isPending ? <SweepShine>提交中</SweepShine> : "检查文件"}
+            {inspect.isPending ? (
+              <SweepShine>{t("maintenance.update.submitting")}</SweepShine>
+            ) : (
+              t("maintenance.update.offline.inspect")
+            )}
           </Button>
           <ConfirmButton
             size="sm"
             variant="outline"
             pending={cancel.isPending}
             disabled={busy || inspect.isPending}
-            title="删除上传的文件？"
-            description="删除后需要重新上传。"
-            confirmText="删除"
+            title={t("maintenance.update.offline.deleteTitle")}
+            description={t("maintenance.update.offline.deleteBody")}
+            confirmText={t("common.action.delete")}
             onConfirm={() => cancel.mutate()}
           >
-            删除
+            {t("common.action.delete")}
           </ConfirmButton>
         </div>
       </AlertDescription>
@@ -76,9 +81,9 @@ export function OfflineCard({
   return (
     <Card size="sm">
       <CardHeader>
-        <CardTitle>离线更新</CardTitle>
+        <CardTitle>{t("maintenance.update.offline.title")}</CardTitle>
         <CardDescription>
-          设备无法联网时，上传从发布页下载的更新包进行安装
+          {t("maintenance.update.offline.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

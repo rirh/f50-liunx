@@ -1,4 +1,5 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { t } from "@/i18n";
 import { formatTime } from "@/lib/format";
 import { InfoIcon, TriangleAlertIcon } from "lucide-react";
 import type { UpdateStatus } from "../types";
@@ -10,18 +11,20 @@ export function StatusAlerts({ status: s }: { status: UpdateStatus }) {
       {s.restart_pending && (
         <Alert>
           <InfoIcon />
-          <AlertTitle>更新已写入，重启后生效</AlertTitle>
+          <AlertTitle>{t("maintenance.update.alerts.restartTitle")}</AlertTitle>
           <AlertDescription>
-            当前仍在运行旧系统（或回滚前的系统）。请在方便时重启设备。
+            {t("maintenance.update.alerts.restartBody")}
           </AlertDescription>
         </Alert>
       )}
       {s.unfinished && (
         <Alert variant="destructive">
           <TriangleAlertIcon />
-          <AlertTitle>上次更新未完成</AlertTitle>
+          <AlertTitle>
+            {t("maintenance.update.alerts.unfinishedTitle")}
+          </AlertTitle>
           <AlertDescription>
-            更新程序会在下次运行时自动恢复或清理；如持续出现，请查看系统日志。
+            {t("maintenance.update.alerts.unfinishedBody")}
           </AlertDescription>
         </Alert>
       )}
@@ -29,7 +32,9 @@ export function StatusAlerts({ status: s }: { status: UpdateStatus }) {
         <Alert>
           <InfoIcon />
           <AlertTitle>
-            重启后的自动恢复（{formatTime(s.recovery.at)}）
+            {t("maintenance.update.alerts.recoveryTitle", {
+              time: formatTime(s.recovery.at),
+            })}
           </AlertTitle>
           <AlertDescription>
             <ul className="flex list-disc flex-col gap-1 pl-4">
@@ -43,11 +48,14 @@ export function StatusAlerts({ status: s }: { status: UpdateStatus }) {
       {s.lock && !s.lock.this_daemon && (
         <Alert variant="destructive">
           <TriangleAlertIcon />
-          <AlertTitle>另一个更新程序正在运行</AlertTitle>
+          <AlertTitle>{t("maintenance.update.alerts.lockTitle")}</AlertTitle>
           <AlertDescription>
-            进程 {s.lock.pid}
-            {s.lock.command ? `（${s.lock.command}）` : ""}{" "}
-            持有更新锁，结束前无法在此操作。
+            {s.lock.command
+              ? t("maintenance.update.alerts.lockBodyCommand", {
+                  pid: s.lock.pid,
+                  command: s.lock.command,
+                })
+              : t("maintenance.update.alerts.lockBody", { pid: s.lock.pid })}
           </AlertDescription>
         </Alert>
       )}

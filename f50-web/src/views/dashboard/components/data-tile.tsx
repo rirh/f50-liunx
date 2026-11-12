@@ -3,13 +3,14 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { SweepShine } from "@/components/ui/sweep-shine";
 import { Switch } from "@/components/ui/switch";
+import { t } from "@/i18n";
 import { errorMessage, formatDuration } from "@/lib/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { GlobeIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Figure, Tile } from "./tile";
 import { STATUS_KEY, setDataPower } from "../api";
-import { DATA_HOLD_LABEL, DATA_PHASE_LABEL } from "../labels";
+import { DATA_HOLD_LABEL, DATA_PHASE_LABEL, label } from "../labels";
 import type { DataInfo, OnOff, Part } from "../types";
 
 function DataSwitch({ data }: { data: DataInfo }) {
@@ -17,7 +18,11 @@ function DataSwitch({ data }: { data: DataInfo }) {
   const power = useMutation({
     mutationFn: (state: OnOff) => setDataPower(state),
     onSuccess: (r) =>
-      toast.success(r.state === "on" ? "已开启移动数据" : "已关闭移动数据"),
+      toast.success(
+        r.state === "on"
+          ? t("dashboard.data.turnedOn")
+          : t("dashboard.data.turnedOff"),
+      ),
     onError: (e) => toast.error(errorMessage(e)),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: STATUS_KEY });
@@ -31,14 +36,20 @@ function DataSwitch({ data }: { data: DataInfo }) {
         htmlFor="dash-data-power"
         className="text-xs text-muted-foreground"
       >
-        {power.isPending ? <SweepShine>切换中</SweepShine> : on ? "开" : "关"}
+        {power.isPending ? (
+          <SweepShine>{t("common.action.switching")}</SweepShine>
+        ) : on ? (
+          t("common.state.on")
+        ) : (
+          t("common.state.off")
+        )}
       </Label>
       <Switch
         id="dash-data-power"
         checked={on}
         disabled={power.isPending}
         aria-busy={power.isPending}
-        aria-label="移动数据开关"
+        aria-label={t("dashboard.data.toggle")}
         onCheckedChange={(v) => power.mutate(v ? "on" : "off")}
       />
     </div>
@@ -48,7 +59,7 @@ function DataSwitch({ data }: { data: DataInfo }) {
 export function DataTile({ part }: { part: Part<DataInfo> | undefined }) {
   return (
     <Tile
-      title="数据连接"
+      title={t("dashboard.data.title")}
       icon={GlobeIcon}
       to="/cellular/data"
       part={part}
@@ -58,11 +69,13 @@ export function DataTile({ part }: { part: Part<DataInfo> | undefined }) {
         <>
           <div className="flex items-center justify-between gap-3">
             <Figure
-              value={DATA_PHASE_LABEL[d.state] ?? d.state}
+              value={label(DATA_PHASE_LABEL, d.state)}
               caption={
                 d.state === "connected" && d.since_s != null
-                  ? `已连接 ${formatDuration(d.since_s)}`
-                  : d.apn || "默认 APN"
+                  ? t("dashboard.data.connectedFor", {
+                      time: formatDuration(d.since_s),
+                    })
+                  : d.apn || t("dashboard.data.defaultApn")
               }
             />
             <Badge
@@ -78,38 +91,41 @@ export function DataTile({ part }: { part: Part<DataInfo> | undefined }) {
             </Badge>
           </div>
           {d.hold && (
-            <p className="text-sm text-muted-foreground">
-              {DATA_HOLD_LABEL[d.hold] ?? d.hold}
+            <p className="text-xs text-muted-foreground">
+              {label(DATA_HOLD_LABEL, d.hold)}
             </p>
           )}
           {d.error && d.state !== "connected" && (
-            <p className="text-sm text-destructive">{d.error}</p>
+            <p className="truncate text-xs text-destructive" title={d.error}>
+              {d.error}
+            </p>
           )}
           <KvList
+            dense
             items={[
               {
-                label: "地址",
+                label: t("dashboard.data.address"),
                 value: d.addresses.length ? (
-                  <span className="flex flex-col font-mono text-xs">
-                    {d.addresses.map((a) => (
-                      <span key={a} className="truncate">
-                        {a}
+                  <span
+                    className="block truncate font-mono"
+                    title={d.addresses.join("\n")}
+                  >
+                    {d.addresses[0]}
+                    {d.addresses.length > 1 && (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        +{d.addresses.length - 1}
                       </span>
-                    ))}
+                    )}
                   </span>
                 ) : (
                   "—"
                 ),
               },
               {
-                label: "DNS",
-                value: d.dns?.length ? (
-                  <span className="font-mono text-xs">{d.dns.join(", ")}</span>
-                ) : (
-                  "—"
-                ),
+                label: t("dashboard.data.iface"),
+                value: `${d.interface} (${d.device})`,
               },
-              { label: "接口", value: `${d.interface} (${d.device})` },
             ]}
           />
         </>

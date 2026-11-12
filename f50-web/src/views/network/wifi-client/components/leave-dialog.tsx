@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { t, type Key } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { useMutation } from "@tanstack/react-query";
 import { LogOutIcon } from "lucide-react";
@@ -21,26 +22,24 @@ import type { LeaveArgs } from "../types";
 
 type SavedChoice = "disable" | "keep" | "forget";
 
-const CHOICES: Record<
-  SavedChoice,
-  { label: string; hint: string; args: LeaveArgs }
-> = {
-  disable: {
-    label: "保留",
-    hint: "保留该网络，但开机时不再自动连接",
-    args: {},
-  },
-  keep: {
-    label: "保留并自动连接",
-    hint: "开机时仍自动加入（热点在本次断开后恢复）",
-    args: { keep: true },
-  },
-  forget: {
-    label: "删除",
-    hint: "删除已保存的网络和密码",
-    args: { forget: true },
-  },
-};
+const CHOICES: Record<SavedChoice, { label: Key; hint: Key; args: LeaveArgs }> =
+  {
+    disable: {
+      label: "network.client.leave.disable.label",
+      hint: "network.client.leave.disable.hint",
+      args: {},
+    },
+    keep: {
+      label: "network.client.leave.keep.label",
+      hint: "network.client.leave.keep.hint",
+      args: { keep: true },
+    },
+    forget: {
+      label: "network.client.leave.forget.label",
+      hint: "network.client.leave.forget.hint",
+      args: { forget: true },
+    },
+  };
 
 /** Leave the network: the hotspot comes back; what happens to the saved network is the user's choice. */
 export function LeaveDialog({
@@ -65,18 +64,18 @@ export function LeaveDialog({
       <DialogTrigger asChild>
         <Button size="sm" variant="outline" disabled={disabled}>
           <LogOutIcon data-icon="inline-start" />
-          断开
+          {t("network.client.leave.action")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>断开 Wi-Fi 上网？</DialogTitle>
+          <DialogTitle>{t("network.client.leave.title")}</DialogTitle>
           <DialogDescription>
-            断开后无线电交还给热点，设备改用移动数据上网。
+            {t("network.client.leave.description")}
           </DialogDescription>
         </DialogHeader>
         <Field>
-          <FieldLabel>已保存的网络</FieldLabel>
+          <FieldLabel>{t("network.client.leave.saved")}</FieldLabel>
           <ToggleGroup
             type="single"
             variant="outline"
@@ -86,11 +85,11 @@ export function LeaveDialog({
           >
             {(Object.keys(CHOICES) as SavedChoice[]).map((k) => (
               <ToggleGroupItem key={k} value={k}>
-                {CHOICES[k].label}
+                {t(CHOICES[k].label)}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-          <FieldDescription>{CHOICES[choice].hint}</FieldDescription>
+          <FieldDescription>{t(CHOICES[choice].hint)}</FieldDescription>
         </Field>
         <DialogFooter>
           <Button
@@ -98,14 +97,16 @@ export function LeaveDialog({
             onClick={() => setOpen(false)}
             disabled={leave.isPending}
           >
-            取消
+            {t("common.action.cancel")}
           </Button>
           <PendingButton
             variant="destructive"
             pending={leave.isPending}
             onClick={() => leave.mutate(CHOICES[choice].args)}
           >
-            {leave.isPending ? "提交中" : "断开"}
+            {leave.isPending
+              ? t("network.shared.submitting")
+              : t("network.client.leave.action")}
           </PendingButton>
         </DialogFooter>
       </DialogContent>

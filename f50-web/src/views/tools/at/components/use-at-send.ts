@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { isJobStarted, type JobStatus } from "@/lib/jobs";
 import { ApiError } from "@/lib/ubus";
@@ -9,30 +10,31 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { atKeys, atSend } from "../api";
-import { classOf, translate } from "../messages";
+import { CLASS_LABEL, classOf, translate } from "../messages";
 import { appendOutputAtom } from "../store/terminal";
 import type { AtClass, AtReply } from "../types";
 
 const AT_MAX = 512;
 
-const schema = z.object({
-  command: z
-    .string()
-    .trim()
-    .min(1, "请输入 AT 命令")
-    .max(AT_MAX, `最多 ${AT_MAX} 个字符`)
-    .regex(/^[\x20-\x7e]*$/, "只能是可打印的 ASCII 字符")
-    .regex(/^at/i, "命令须以 AT 开头")
-    .refine((v) => !v.includes(";"), "不允许用“;”串联多条命令"),
-  timeout: z
-    .string()
-    .trim()
-    .refine(
-      (v) => v === "" || (/^\d+$/.test(v) && +v >= 1 && +v <= 60),
-      "1–60 秒，留空为默认 8 秒",
-    ),
-});
-export type AtValues = z.infer<typeof schema>;
+const schema = () =>
+  z.object({
+    command: z
+      .string()
+      .trim()
+      .min(1, t("tools.at.form.commandRequired"))
+      .max(AT_MAX, t("tools.at.form.commandMax", { max: AT_MAX }))
+      .regex(/^[\x20-\x7e]*$/, t("tools.at.form.commandAscii"))
+      .regex(/^at/i, t("tools.at.form.commandPrefix"))
+      .refine((v) => !v.includes(";"), t("tools.at.error.chaining")),
+    timeout: z
+      .string()
+      .trim()
+      .refine(
+        (v) => v === "" || (/^\d+$/.test(v) && +v >= 1 && +v <= 60),
+        t("tools.at.form.timeoutRange"),
+      ),
+  });
+export type AtValues = z.infer<ReturnType<typeof schema>>;
 
 export interface PendingConfirm {
   values: AtValues;
@@ -48,7 +50,7 @@ export function useAtSend() {
   const qc = useQueryClient();
   const append = useSetAtom(appendOutputAtom);
   const form = useForm<AtValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(useMemo(() => schema(), [])),
     defaultValues: { command: "", timeout: "" },
   });
   const [confirm, setConfirm] = useState<PendingConfirm | null>(null);
@@ -71,7 +73,7 @@ export function useAtSend() {
     onMutate: ({ values, confirmed }) => {
       if (!confirmed)
         append({ kind: "command", lines: [values.command.trim()] });
-      else append({ kind: "info", lines: ["已确认，重新发送"] });
+      else append({ kind: "info", lines: [t("tools.at.log.resend")] });
     },
     onSuccess: (r, { values }) => {
       form.reset({ command: "", timeout: values.timeout });
@@ -80,7 +82,7 @@ export function useAtSend() {
         setJobRunning(true);
         append({
           kind: "info",
-          lines: [`长时间命令，已转为后台任务 ${r.job}`],
+          lines: [t("tools.at.log.jobStarted", { job: r.job })],
         });
       } else {
         const reply = r;
@@ -100,7 +102,11 @@ export function useAtSend() {
         const cls = classOf(e.message);
         append({
           kind: "info",
-          lines: [`需要确认后才能发送（${cls ?? e.message}）`],
+          lines: [
+            t("tools.at.log.needsConfirm", {
+              reason: cls ? t(CLASS_LABEL[cls].title) : e.message,
+            }),
+          ],
         });
         setConfirm({ values, cls, message: e.message });
         return;
@@ -111,7 +117,7 @@ export function useAtSend() {
         kind: "error",
         lines: [
           e instanceof ApiError && e.code === "forbidden"
-            ? `已拒绝：${msg}`
+            ? t("tools.at.log.refused", { message: msg })
             : msg,
         ],
       });
@@ -136,7 +142,9 @@ export function useAtSend() {
         lines: [
           j.error
             ? translate(j.error.message)
-            : `后台任务${j.state === "cancelled" ? "已取消" : "未完成"}`,
+            : j.state === "cancelled"
+              ? t("tools.at.log.jobCancelled")
+              : t("tools.at.log.jobUnfinished"),
         ],
       });
     }
@@ -155,7 +163,7 @@ export function useAtSend() {
       setConfirm(null);
     },
     rejectConfirm: () => {
-      append({ kind: "info", lines: ["已取消发送"] });
+      append({ kind: "info", lines: [t("tools.at.log.sendCancelled")] });
       setConfirm(null);
     },
     job,

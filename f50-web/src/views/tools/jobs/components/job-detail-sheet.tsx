@@ -10,12 +10,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { SweepShine } from "@/components/ui/sweep-shine";
+import { t } from "@/i18n";
 import { formatAgo, formatDuration, formatTime } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { CancelJobButton } from "./cancel-job-button";
 import { JobStateBadge } from "./job-state-badge";
 import { getJob, jobKeys } from "../api";
-import { JOB_KIND_LABEL, JOB_METHOD_LABEL, type JobStatus } from "../types";
+import { jobKindLabel, jobMethodLabel, type JobStatus } from "../types";
 
 /** One job's status, result or error and log tail; polled every second while it runs. */
 export function JobDetailSheet({
@@ -29,7 +30,7 @@ export function JobDetailSheet({
     <Sheet open={id !== null} onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-full gap-0 sm:max-w-xl">
         <SheetHeader>
-          <SheetTitle>任务详情</SheetTitle>
+          <SheetTitle>{t("tools.jobs.detail.title")}</SheetTitle>
           <SheetDescription className="font-mono break-all">
             {id}
           </SheetDescription>
@@ -63,7 +64,7 @@ function JobBody({ job, refreshing }: { job: JobStatus; refreshing: boolean }) {
         <JobStateBadge state={job.state} />
         {running && refreshing && (
           <SweepShine className="text-xs text-muted-foreground">
-            刷新中
+            {t("common.action.refreshing")}
           </SweepShine>
         )}
         {running && job.cancellable && (
@@ -74,40 +75,50 @@ function JobBody({ job, refreshing }: { job: JobStatus; refreshing: boolean }) {
       </div>
       <KvList
         items={[
-          { label: "操作", value: JOB_METHOD_LABEL[job.method] ?? job.method },
           {
-            label: "方法",
+            label: t("tools.jobs.field.action"),
+            value: jobMethodLabel(job.method),
+          },
+          {
+            label: t("tools.jobs.field.method"),
             value: <code className="font-mono text-xs">{job.method}</code>,
           },
-          { label: "类别", value: JOB_KIND_LABEL[job.kind] ?? job.kind },
-          { label: "可停止", value: job.cancellable ? "是" : "否" },
+          { label: t("tools.jobs.field.kind"), value: jobKindLabel(job.kind) },
           {
-            label: "开始",
+            label: t("tools.jobs.field.cancellable"),
+            value: job.cancellable
+              ? t("common.state.yes")
+              : t("common.state.no"),
+          },
+          {
+            label: t("tools.jobs.field.started"),
             value: formatAgo(job.started),
             title: formatTime(job.started),
           },
           {
-            label: "结束",
+            label: t("tools.jobs.field.finished"),
             value: job.finished
               ? formatAgo(job.finished)
               : running
-                ? "进行中"
+                ? t("tools.jobs.detail.inProgress")
                 : "—",
             title: job.finished ? formatTime(job.finished) : undefined,
           },
           {
-            label: "用时",
+            label: t("tools.jobs.field.duration"),
             value: job.finished
               ? formatDuration(job.finished - job.started)
               : running
-                ? "进行中"
+                ? t("tools.jobs.detail.inProgress")
                 : "—",
           },
         ]}
       />
       {job.error && (
         <Alert variant="destructive">
-          <AlertTitle>错误（{job.error.code}）</AlertTitle>
+          <AlertTitle>
+            {t("tools.jobs.detail.error", { code: job.error.code })}
+          </AlertTitle>
           <AlertDescription>{job.error.message}</AlertDescription>
         </Alert>
       )}
@@ -115,7 +126,9 @@ function JobBody({ job, refreshing }: { job: JobStatus; refreshing: boolean }) {
         <>
           <Separator />
           <section className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium">结果</h3>
+            <h3 className="text-sm font-medium">
+              {t("tools.jobs.detail.result")}
+            </h3>
             <pre className="max-h-64 overflow-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre-wrap break-all">
               {JSON.stringify(job.result, null, 2)}
             </pre>
@@ -124,13 +137,15 @@ function JobBody({ job, refreshing }: { job: JobStatus; refreshing: boolean }) {
       )}
       <Separator />
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">日志（末尾）</h3>
+        <h3 className="text-sm font-medium">{t("tools.jobs.detail.log")}</h3>
         {job.log ? (
           <pre className="max-h-96 overflow-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre-wrap break-all">
             {job.log}
           </pre>
         ) : (
-          <p className="text-sm text-muted-foreground">没有日志</p>
+          <p className="text-sm text-muted-foreground">
+            {t("tools.jobs.detail.noLog")}
+          </p>
         )}
       </section>
     </div>

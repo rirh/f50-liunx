@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { SweepShine } from "@/components/ui/sweep-shine";
 import { Textarea } from "@/components/ui/textarea";
+import { t } from "@/i18n";
 import { useAtom } from "jotai";
 import { SendIcon } from "lucide-react";
 import { SmsCounter } from "./sms-counter";
@@ -35,10 +36,9 @@ export function NewMessageDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>新短信</DialogTitle>
+          <DialogTitle>{t("sms.newMessage.title")}</DialogTitle>
           <DialogDescription>
-            最多 10 条拼接发送：GSM-7 每条 160 字（拼接时
-            153），含中文等字符时每条 70 字（67）。
+            {t("sms.newMessage.description")}
           </DialogDescription>
         </DialogHeader>
         {open && (
@@ -69,7 +69,9 @@ function NewMessageForm({
     <form onSubmit={submit} className="flex flex-col gap-4">
       <FieldGroup>
         <Field data-invalid={!!errors.number}>
-          <FieldLabel htmlFor="sms-number">号码</FieldLabel>
+          <FieldLabel htmlFor="sms-number">
+            {t("sms.newMessage.number")}
+          </FieldLabel>
           <Input
             id="sms-number"
             inputMode="tel"
@@ -83,7 +85,7 @@ function NewMessageForm({
           <FieldError errors={[errors.number]} />
         </Field>
         <Field data-invalid={!!errors.text}>
-          <FieldLabel htmlFor="sms-text">内容</FieldLabel>
+          <FieldLabel htmlFor="sms-text">{t("sms.newMessage.text")}</FieldLabel>
           <Textarea
             id="sms-text"
             rows={5}
@@ -98,14 +100,24 @@ function NewMessageForm({
           <FieldError errors={[errors.text]} />
         </Field>
       </FieldGroup>
-      {job && <JobProgress id={job.id} title="发送短信" onDone={onJobDone} />}
+      {job && (
+        <JobProgress
+          id={job.id}
+          title={t("sms.composer.jobTitle")}
+          onDone={onJobDone}
+        />
+      )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
-          取消
+          {t("common.action.cancel")}
         </Button>
         <Button type="submit" disabled={pending} aria-busy={pending}>
           <SendIcon data-icon="inline-start" />
-          {pending ? <SweepShine>发送中</SweepShine> : "发送"}
+          {pending ? (
+            <SweepShine>{t("sms.composer.sending")}</SweepShine>
+          ) : (
+            t("sms.composer.send")
+          )}
         </Button>
       </DialogFooter>
     </form>

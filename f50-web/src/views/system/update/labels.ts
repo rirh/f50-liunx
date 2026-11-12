@@ -1,19 +1,30 @@
+import { type Key, t } from "@/i18n";
 import type { SigState } from "./types";
 
-/** A job's title by its method (`f50.job list` gives the method of a job found running). */
-export const JOB_TITLE: Record<string, string> = {
-  "f50.update check": "检查更新",
-  "f50.update apply": "安装更新",
-  "f50.update rollback": "回滚",
-  "f50.update upload_done": "检查上传的文件",
-  "f50.update apply_file": "安装离线更新包",
+/** A job's title key by its method (`f50.job list` gives the method of a job found running). */
+const JOB_TITLE: Record<string, Key> = {
+  "f50.update check": "maintenance.update.jobTitle.check",
+  "f50.update apply": "maintenance.update.jobTitle.apply",
+  "f50.update rollback": "maintenance.update.jobTitle.rollback",
+  "f50.update upload_done": "maintenance.update.jobTitle.uploadDone",
+  "f50.update apply_file": "maintenance.update.jobTitle.applyFile",
 };
 
-export const SIG_LABEL: Record<SigState, string> = {
-  valid: "签名有效",
-  bad: "签名错误",
-  unsigned: "未签名",
-  nokey: "本机没有发布密钥，无法校验",
-  badkey: "本机发布密钥不安全",
-  notool: "本机无法校验此签名格式",
+/** A job's title by its method, or undefined for a method this page does not know. */
+export const jobTitle = (method: string): string | undefined => {
+  const key = JOB_TITLE[method];
+  return key && t(key);
 };
+
+const SIG_LABEL = {
+  valid: "maintenance.update.sig.valid",
+  bad: "maintenance.update.sig.bad",
+  unsigned: "maintenance.update.sig.unsigned",
+  nokey: "maintenance.update.sig.nokey",
+  badkey: "maintenance.update.sig.badkey",
+  notool: "maintenance.update.sig.notool",
+} satisfies Record<SigState, Key>;
+
+/** A signature check's outcome in words (the raw value for one this page does not know). */
+export const sigLabel = (s: SigState): string =>
+  (SIG_LABEL as Record<string, Key>)[s] ? t(SIG_LABEL[s]) : s;

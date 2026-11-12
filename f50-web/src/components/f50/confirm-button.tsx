@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { SweepShine } from "@/components/ui/sweep-shine";
+import { t } from "@/i18n";
 
 /**
  * A button for an action that cannot be taken back (reboot, delete, restart the modem): it asks first, then runs
@@ -21,7 +22,7 @@ export function ConfirmButton({
   children,
   title,
   description,
-  confirmText = "确定",
+  confirmText,
   pending = false,
   destructive = true,
   variant,
@@ -66,7 +67,7 @@ export function ConfirmButton({
         </AlertDialogHeader>
         {extra}
         <AlertDialogFooter>
-          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.action.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             variant={destructive ? "destructive" : "default"}
             onClick={() => {
@@ -74,7 +75,7 @@ export function ConfirmButton({
               onConfirm();
             }}
           >
-            {confirmText}
+            {confirmText ?? t("common.action.confirm")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

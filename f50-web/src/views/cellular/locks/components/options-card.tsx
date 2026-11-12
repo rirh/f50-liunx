@@ -14,6 +14,7 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { type OnJob, useLockSet } from "../use-lock-set";
 
@@ -34,8 +35,10 @@ export function OptionsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>其他选项</CardTitle>
-        <CardDescription>EN-DC 与开机重放</CardDescription>
+        <CardTitle>{t("cellular.locks.options.title")}</CardTitle>
+        <CardDescription>
+          {t("cellular.locks.options.description")}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <FieldGroup>
@@ -44,13 +47,15 @@ export function OptionsCard({
             data-disabled={disabled || endcSet.isPending}
           >
             <FieldContent>
-              <FieldLabel htmlFor="lock-endc">EN-DC（4G+5G 双连接）</FieldLabel>
+              <FieldLabel htmlFor="lock-endc">
+                {t("cellular.locks.options.endc")}
+              </FieldLabel>
               <FieldDescription>
                 {endcSet.isPending
-                  ? "正在提交…"
+                  ? t("cellular.locks.options.submitting")
                   : endc == null
-                    ? "未能读取当前状态"
-                    : "5G NSA 需要开启；无需重启协议栈"}
+                    ? t("cellular.locks.options.endcUnknown")
+                    : t("cellular.locks.options.endcHint")}
               </FieldDescription>
             </FieldContent>
             <Switch
@@ -63,7 +68,9 @@ export function OptionsCard({
                   {
                     kind: "endc",
                     value: on ? "on" : "off",
-                    title: on ? "开启 EN-DC" : "关闭 EN-DC",
+                    title: on
+                      ? t("cellular.locks.options.endcOn")
+                      : t("cellular.locks.options.endcOff"),
                   },
                   { onError: (e) => reportFormError(e) },
                 )
@@ -73,11 +80,13 @@ export function OptionsCard({
           <FieldSeparator />
           <Field orientation="horizontal" data-disabled={replaySet.isPending}>
             <FieldContent>
-              <FieldLabel htmlFor="lock-auto-apply">启动时自动应用</FieldLabel>
+              <FieldLabel htmlFor="lock-auto-apply">
+                {t("cellular.locks.options.autoApply")}
+              </FieldLabel>
               <FieldDescription>
                 {replaySet.isPending
-                  ? "正在保存…"
-                  : "开机时重新应用已保存的锁定（小区锁定只能靠它恢复）"}
+                  ? t("cellular.shared.saving")
+                  : t("cellular.locks.options.autoApplyHint")}
               </FieldDescription>
             </FieldContent>
             <Switch

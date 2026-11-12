@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/f50/page-header";
 import { QueryState } from "@/components/f50/query-state";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { cpuKey, getCpu } from "./api";
 import { PoliciesCard } from "./components/policies-card";
@@ -14,7 +15,7 @@ export default function Page() {
   });
   return (
     <>
-      <PageHeader title="CPU" description="性能模式、调频策略与温控状态" />
+      <PageHeader title="CPU" description={t("system.cpu.description")} />
       <QueryState query={query} skeletonRows={8}>
         {(data) => (
           <div className="flex flex-col gap-6">

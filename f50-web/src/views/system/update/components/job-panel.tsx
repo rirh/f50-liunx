@@ -3,13 +3,14 @@ import { JobProgress } from "@/components/f50/job-progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useJob } from "@/hooks/use-job";
+import { t } from "@/i18n";
 import { type JobStatus, jobList } from "@/lib/jobs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { TriangleAlertIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { UPDATE_KEY } from "../api";
-import { JOB_TITLE } from "../labels";
+import { jobTitle } from "../labels";
 import { activeJobAtom } from "../store/job";
 import type { UpdateStatus } from "../types";
 
@@ -33,7 +34,9 @@ export function JobPanel({ status }: { status: UpdateStatus }) {
 
   useEffect(() => {
     if (!running) return;
-    const title = (runningMethod && JOB_TITLE[runningMethod]) || "更新任务";
+    const title =
+      (runningMethod && jobTitle(runningMethod)) ||
+      t("maintenance.update.job.fallback");
     if (active?.id !== running || active.title !== title)
       setActive({ id: running, title });
   }, [running, runningMethod, active, setActive]);
@@ -45,9 +48,14 @@ export function JobPanel({ status }: { status: UpdateStatus }) {
 
   const onDone = (j: JobStatus) => {
     qc.invalidateQueries({ queryKey: UPDATE_KEY });
-    if (j.state === "done") toast.success(`${active.title}已完成`);
+    if (j.state === "done")
+      toast.success(t("maintenance.update.job.done", { title: active.title }));
     else
-      toast.error(`${active.title}${j.state === "failed" ? "失败" : "已结束"}`);
+      toast.error(
+        j.state === "failed"
+          ? t("maintenance.update.job.failed", { title: active.title })
+          : t("maintenance.update.job.ended", { title: active.title }),
+      );
   };
 
   return (
@@ -55,9 +63,9 @@ export function JobPanel({ status }: { status: UpdateStatus }) {
       {isRunning && unstoppable && (
         <Alert variant="destructive">
           <TriangleAlertIcon />
-          <AlertTitle>正在写入系统，请勿断电、重启或拔出设备</AlertTitle>
+          <AlertTitle>{t("maintenance.update.job.writingTitle")}</AlertTitle>
           <AlertDescription>
-            此任务无法中途停止。中断可能导致设备无法启动。完成前请保持电源连接并留在此页面。
+            {t("maintenance.update.job.writingBody")}
           </AlertDescription>
         </Alert>
       )}
@@ -70,7 +78,7 @@ export function JobPanel({ status }: { status: UpdateStatus }) {
           onClick={() => setActive(null)}
         >
           <XIcon data-icon="inline-start" />
-          收起
+          {t("maintenance.update.job.dismiss")}
         </Button>
       )}
     </div>

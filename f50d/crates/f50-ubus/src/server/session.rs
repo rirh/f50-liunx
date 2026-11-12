@@ -20,7 +20,8 @@ use super::add_object_msg;
 use super::invoke::{self, Done, MAX_CONCURRENT_INVOCATIONS, ReplyTo};
 use crate::conn::dial;
 use crate::frame::{read_message, write_message};
-use crate::proto::{Message, attr, msg, status};
+use crate::notify::{Note, NotifyQueue};
+use crate::proto::{Body, Message, attr, msg, status};
 use crate::{Invoke, ObjectSpec, UbusError};
 
 /// A write ubusd does not take within this long means the connection is wedged.
@@ -48,9 +49,27 @@ struct Session<'a> {
     ids: HashMap<u32, usize>,
     /// Where each running invocation answers, in case its task panics.
     running: HashMap<Id, ReplyTo>,
+    /// Subscription state of the objects that may notify (none when this server does not notify).
+    active: Option<std::sync::Arc<HashMap<String, tokio::sync::watch::Sender<bool>>>>,
+    /// Sequence numbers of our NOTIFYs: the upper half, apart from ADD_OBJECT's.
+    notify_seq: u16,
 }
 
-pub(crate) async fn run(socket: &Path, objects: &[ObjectSpec], invoke: &Invoke, shutdown: &CancellationToken) -> End {
+/// The next queued notification; never, when this server does not notify.
+async fn next_note(q: &mut Option<&mut NotifyQueue>) -> Option<Note> {
+    match q {
+        Some(q) => q.rx.recv().await,
+        None => std::future::pending().await,
+    }
+}
+
+pub(crate) async fn run(
+    socket: &Path,
+    objects: &[ObjectSpec],
+    invoke: &Invoke,
+    mut notes: Option<&mut NotifyQueue>,
+    shutdown: &CancellationToken,
+) -> End {
     let lost = |error| End::Lost { registered: false, error };
     let (stream, client_id) = match dial(socket).await {
         Ok(s) => s,
@@ -61,7 +80,16 @@ pub(crate) async fn run(socket: &Path, objects: &[ObjectSpec], invoke: &Invoke, 
     let (tx, mut inbox) = mpsc::channel(INBOX);
     reader.spawn(read_loop(read, tx));
 
-    let mut s = Session { objects, write, adding: HashMap::new(), ids: HashMap::new(), running: HashMap::new() };
+    let active = notes.as_ref().map(|q| q.active.clone());
+    let mut s = Session {
+        objects,
+        write,
+        adding: HashMap::new(),
+        ids: HashMap::new(),
+        running: HashMap::new(),
+        active,
+        notify_seq: 0,
+    };
     if let Err(e) = s.register_all().await {
         return lost(e);
     }
@@ -75,6 +103,11 @@ pub(crate) async fn run(socket: &Path, objects: &[ObjectSpec], invoke: &Invoke, 
             () = shutdown.cancelled() => return End::Shutdown,
             Some(joined) = calls.join_next_with_id() => {
                 if let Err(e) = s.finish(joined).await {
+                    break e;
+                }
+            }
+            Some(note) = next_note(&mut notes), if registered => {
+                if let Err(e) = s.notify(note).await {
                     break e;
                 }
             }
@@ -171,6 +204,16 @@ impl Session<'_> {
                 }
                 Err(None) => tracing::warn!("ubus invoke without an object id dropped"),
             },
+            // ubus_notify_subscription: the object got its first subscriber, or lost its last
+            msg::NOTIFY if m.header.peer == 0 => {
+                let a = m.attrs()?;
+                if let (Some(id), Some(on), Some(active)) = (a.u32(attr::OBJID), a.u8(attr::ACTIVE), &self.active)
+                    && let Some(o) = self.ids.get(&id).and_then(|&i| self.objects.get(i))
+                {
+                    tracing::debug!(object = %o.name, subscribed = on != 0, "ubus subscription changed");
+                    NotifyQueue::set(active, &o.name, on != 0);
+                }
+            }
             // ubusd_send_pong: the same message back as DATA
             msg::PING => {
                 let pong = Message { header: crate::proto::Header { ty: msg::DATA, ..m.header }, body: m.body };
@@ -179,6 +222,34 @@ impl Session<'_> {
             other => tracing::debug!(ty = other, "ubus server ignored a message"),
         }
         Ok(false)
+    }
+
+    /// `ubus_notify` without a reply: ubusd forwards it to every subscriber of the object. A notification that cannot
+    /// be encoded (too large) is dropped with a warning; only a failed write ends the session.
+    async fn notify(&mut self, note: Note) -> Result<(), UbusError> {
+        let Some(id) = self
+            .ids
+            .iter()
+            .find(|&(_, &i)| self.objects.get(i).is_some_and(|o| o.name == note.object))
+            .map(|(&id, _)| id)
+        else {
+            return Ok(());
+        };
+        self.notify_seq = self.notify_seq.wrapping_add(1);
+        let seq = 0x8000 | (self.notify_seq & 0x7fff);
+        let m = Body::new()
+            .u32(attr::OBJID, id)
+            .and_then(|b| b.string(attr::METHOD, &note.kind))
+            .and_then(|b| b.data(&note.data))
+            .and_then(|b| b.u8(attr::NO_REPLY, 1))
+            .and_then(|b| b.finish(msg::NOTIFY, seq, id));
+        match m {
+            Ok(m) => self.send(&m).await,
+            Err(e) => {
+                tracing::warn!(object = %note.object, kind = %note.kind, error = %e, "notification dropped");
+                Ok(())
+            }
+        }
     }
 
     /// Sends the answer of a finished invocation; a panicked one answers UNKNOWN_ERROR.

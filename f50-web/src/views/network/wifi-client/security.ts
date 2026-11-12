@@ -1,3 +1,4 @@
+import { t, type Key } from "@/i18n";
 import type { NetworkSecurity } from "./types";
 
 /**
@@ -10,24 +11,29 @@ export function joinable(s: NetworkSecurity): boolean {
 
 export function whyNotJoinable(s: NetworkSecurity): string | null {
   if (joinable(s)) return null;
-  if (s === "WPA3") return "仅 WPA3：此设备的 Wi-Fi 驱动不支持 WPA3，无法加入";
-  return `${s} 网络不受支持`;
+  if (s === "WPA3") return t("network.client.security.wpa3Only");
+  return t("network.client.security.unsupported", { security: s });
 }
 
-export const SECURITY_LABEL: Record<NetworkSecurity, string> = {
-  "WPA2/3": "WPA2/WPA3",
-  WPA3: "WPA3",
-  WPA2: "WPA2",
-  WPA: "WPA",
-  OWE: "OWE",
-  EAP: "企业级 EAP",
-  WEP: "WEP",
-  open: "开放",
-};
+export const SECURITY_LABEL = {
+  "WPA2/3": "network.client.security.label.WPA2/3",
+  WPA3: "network.client.security.label.WPA3",
+  WPA2: "network.client.security.label.WPA2",
+  WPA: "network.client.security.label.WPA",
+  OWE: "network.client.security.label.OWE",
+  EAP: "network.client.security.label.EAP",
+  WEP: "network.client.security.label.WEP",
+  open: "network.client.security.label.open",
+} satisfies Record<NetworkSecurity, Key>;
 
 /** dBm as a word. */
 export function signalText(dbm: number | null): string {
   if (dbm == null) return "—";
-  const q = dbm >= -55 ? "强" : dbm >= -70 ? "中" : "弱";
-  return `${dbm} dBm（${q}）`;
+  const q =
+    dbm >= -55
+      ? t("network.client.signal.strong")
+      : dbm >= -70
+        ? t("network.client.signal.fair")
+        : t("network.client.signal.weak");
+  return t("network.client.signal.text", { dbm, quality: q });
 }

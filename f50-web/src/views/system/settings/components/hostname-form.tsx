@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { PendingButton } from "@/components/f50/pending-button";
 import {
   Card,
@@ -15,6 +16,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,14 +27,15 @@ import { type HostnameValues, hostnameSchema } from "../schemas";
 
 export function HostnameForm({ current }: { current: string }) {
   const qc = useQueryClient();
+  const schema = useMemo(() => hostnameSchema(), []);
   const form = useForm<HostnameValues>({
-    resolver: zodResolver(hostnameSchema),
+    resolver: zodResolver(schema),
     values: { name: current },
   });
   const save = useMutation({
     mutationFn: (v: HostnameValues) => setHostname(v.name),
     onSuccess: (r) => {
-      toast.success(`主机名已改为 ${r.hostname}`);
+      toast.success(t("system.settings.hostname.saved", { name: r.hostname }));
       qc.invalidateQueries({ queryKey: infoKey });
     },
     onError: (e) => reportFormError(e, form.setError, { name: "name" }),
@@ -40,8 +43,10 @@ export function HostnameForm({ current }: { current: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>主机名</CardTitle>
-        <CardDescription>设备在局域网中的名称</CardDescription>
+        <CardTitle>{t("system.settings.hostname.title")}</CardTitle>
+        <CardDescription>
+          {t("system.settings.hostname.description")}
+        </CardDescription>
       </CardHeader>
       <form
         onSubmit={form.handleSubmit((v) => save.mutate(v))}
@@ -54,7 +59,9 @@ export function HostnameForm({ current }: { current: string }) {
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="hostname">主机名</FieldLabel>
+                  <FieldLabel htmlFor="hostname">
+                    {t("system.settings.hostname.label")}
+                  </FieldLabel>
                   <Input
                     {...field}
                     id="hostname"
@@ -63,7 +70,7 @@ export function HostnameForm({ current }: { current: string }) {
                     aria-invalid={fieldState.invalid}
                   />
                   <FieldDescription>
-                    1–63 个字母、数字或连字符，不能以连字符开头或结尾。
+                    {t("system.settings.hostname.hint")}
                   </FieldDescription>
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
@@ -79,7 +86,7 @@ export function HostnameForm({ current }: { current: string }) {
             pending={save.isPending}
             disabled={!form.formState.isDirty}
           >
-            保存
+            {t("common.action.save")}
           </PendingButton>
         </CardFooter>
       </form>

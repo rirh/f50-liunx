@@ -17,6 +17,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { t } from "@/i18n";
 import { formatDuration } from "@/lib/format";
 import { type TableColumn, columnHelper } from "@/lib/table";
 import { useQuery } from "@tanstack/react-query";
@@ -28,12 +29,12 @@ const st = columnHelper<Station>();
 const stationColumns: TableColumn<Station>[] = [
   st.accessor((r) => r.host ?? "", {
     id: "host",
-    header: "名称",
+    header: () => t("system.overview.clients.col.name"),
     cell: (c) => c.getValue() || "—",
   }),
   st.accessor((r) => r.ip ?? "", {
     id: "ip",
-    header: "IP 地址",
+    header: () => t("system.overview.clients.col.ip"),
     cell: (c) => <span className="font-mono">{c.getValue() || "—"}</span>,
   }),
   st.accessor("mac", {
@@ -41,24 +42,24 @@ const stationColumns: TableColumn<Station>[] = [
     cell: (c) => <span className="font-mono">{c.getValue()}</span>,
   }),
   st.accessor("signal", {
-    header: "信号",
+    header: () => t("system.overview.clients.col.signal"),
     sortUndefined: "last",
     cell: (c) => (c.getValue() == null ? "—" : `${c.getValue()} dBm`),
   }),
   st.accessor((r) => r.tx ?? "", {
     id: "tx",
-    header: "发送速率",
+    header: () => t("system.overview.clients.col.tx"),
     enableSorting: false,
     cell: (c) => c.getValue() || "—",
   }),
   st.accessor((r) => r.rx ?? "", {
     id: "rx",
-    header: "接收速率",
+    header: () => t("system.overview.clients.col.rx"),
     enableSorting: false,
     cell: (c) => c.getValue() || "—",
   }),
   st.accessor("conn_min", {
-    header: "已连接",
+    header: () => t("system.overview.clients.col.connected"),
     cell: (c) =>
       c.getValue() == null ? "—" : formatDuration((c.getValue() ?? 0) * 60),
   }),
@@ -68,11 +69,11 @@ const ls = columnHelper<Lease>();
 const leaseColumns: TableColumn<Lease>[] = [
   ls.accessor((r) => r.host ?? "", {
     id: "host",
-    header: "名称",
+    header: () => t("system.overview.clients.col.name"),
     cell: (c) => c.getValue() || "—",
   }),
   ls.accessor("ip", {
-    header: "IP 地址",
+    header: () => t("system.overview.clients.col.ip"),
     cell: (c) => <span className="font-mono">{c.getValue()}</span>,
   }),
   ls.accessor("mac", {
@@ -80,12 +81,12 @@ const leaseColumns: TableColumn<Lease>[] = [
     cell: (c) => <span className="font-mono">{c.getValue()}</span>,
   }),
   ls.accessor("left", {
-    header: "剩余时间",
+    header: () => t("system.overview.clients.col.left"),
     cell: (c) =>
       c.getValue() > 0 ? (
         formatDuration(c.getValue())
       ) : (
-        <Badge variant="outline">已过期</Badge>
+        <Badge variant="outline">{t("system.overview.clients.expired")}</Badge>
       ),
   }),
 ];
@@ -101,9 +102,9 @@ export function ClientsCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>终端</CardTitle>
+        <CardTitle>{t("system.overview.clients.title")}</CardTitle>
         <CardDescription>
-          Wi-Fi 热点上的终端与 DHCP 租约（每 15 秒刷新）
+          {t("system.overview.clients.description")}
         </CardDescription>
         <CardAction>
           <PendingButton
@@ -113,7 +114,7 @@ export function ClientsCard() {
             onClick={() => query.refetch()}
           >
             <RefreshCwIcon data-icon="inline-start" />
-            刷新
+            {t("common.action.refresh")}
           </PendingButton>
         </CardAction>
       </CardHeader>
@@ -124,18 +125,22 @@ export function ClientsCard() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <TabsList>
                   <TabsTrigger value="wifi">
-                    Wi-Fi 终端 ({data.wifi.length})
+                    {t("system.overview.clients.wifiTab", {
+                      n: data.wifi.length,
+                    })}
                   </TabsTrigger>
                   <TabsTrigger value="leases">
-                    DHCP 租约 ({data.leases.length})
+                    {t("system.overview.clients.leasesTab", {
+                      n: data.leases.length,
+                    })}
                   </TabsTrigger>
                 </TabsList>
                 <InputGroup className="w-full sm:w-56">
                   <InputGroupInput
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
-                    placeholder="按名称、IP、MAC 筛选"
-                    aria-label="筛选终端"
+                    placeholder={t("system.overview.clients.filterPlaceholder")}
+                    aria-label={t("system.overview.clients.filterLabel")}
                   />
                   <InputGroupAddon>
                     <SearchIcon />
@@ -148,7 +153,7 @@ export function ClientsCard() {
                   columns={stationColumns}
                   getRowId={(r) => r.mac}
                   filter={filter}
-                  empty="没有已连接的 Wi-Fi 终端"
+                  empty={t("system.overview.clients.emptyWifi")}
                 />
               </TabsContent>
               <TabsContent value="leases">
@@ -157,7 +162,7 @@ export function ClientsCard() {
                   columns={leaseColumns}
                   getRowId={(r) => `${r.mac}-${r.ip}`}
                   filter={filter}
-                  empty="没有 DHCP 租约"
+                  empty={t("system.overview.clients.emptyLeases")}
                 />
               </TabsContent>
             </Tabs>

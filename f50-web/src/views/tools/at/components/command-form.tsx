@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/input-group";
 import { Kbd } from "@/components/ui/kbd";
 import { SweepShine } from "@/components/ui/sweep-shine";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { CornerDownLeftIcon, XIcon } from "lucide-react";
 import { ConfirmClassDialog } from "./confirm-class-dialog";
@@ -81,18 +82,15 @@ export function CommandForm() {
   return (
     <Card className="gap-3">
       <CardHeader>
-        <CardTitle>命令</CardTitle>
-        <CardDescription>
-          一次一条命令，在控制通道上发送。会改动设置的命令需要确认；扫描和超时超过
-          15 秒的命令以后台任务运行。
-        </CardDescription>
+        <CardTitle>{t("tools.at.form.title")}</CardTitle>
+        <CardDescription>{t("tools.at.form.description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <form onSubmit={submit}>
           <FieldGroup className="gap-3">
             <Field data-invalid={!!errors.command}>
               <FieldLabel htmlFor="at-command" className="sr-only">
-                AT 命令
+                {t("tools.at.form.label")}
               </FieldLabel>
               <InputGroup>
                 <InputGroupAddon>
@@ -121,23 +119,27 @@ export function CommandForm() {
                   >
                     <CornerDownLeftIcon data-icon="inline-start" />
                     {at.sending ? (
-                      <SweepShine>发送中</SweepShine>
+                      <SweepShine>{t("tools.at.form.sending")}</SweepShine>
                     ) : at.busy ? (
-                      <SweepShine>运行中</SweepShine>
+                      <SweepShine>{t("common.state.running")}</SweepShine>
                     ) : (
-                      "发送"
+                      t("tools.at.form.send")
                     )}
                   </InputGroupButton>
                 </InputGroupAddon>
               </InputGroup>
               <FieldError errors={[errors.command]} />
               <FieldDescription>
-                <Kbd>↑</Kbd> <Kbd>↓</Kbd> 浏览本次开机的历史命令（
-                {history.isPending ? "读取中" : `${commands.length} 条`}）
+                <Kbd>↑</Kbd> <Kbd>↓</Kbd>{" "}
+                {history.isPending
+                  ? t("tools.at.form.historyLoading")
+                  : t("tools.at.form.history", { count: commands.length })}
               </FieldDescription>
             </Field>
             <Field data-invalid={!!errors.timeout} className="max-w-56">
-              <FieldLabel htmlFor="at-timeout">应答超时</FieldLabel>
+              <FieldLabel htmlFor="at-timeout">
+                {t("tools.at.form.timeout")}
+              </FieldLabel>
               <InputGroup>
                 <InputGroupInput
                   id="at-timeout"
@@ -148,7 +150,7 @@ export function CommandForm() {
                   {...form.register("timeout")}
                 />
                 <InputGroupAddon align="inline-end">
-                  <InputGroupText>秒</InputGroupText>
+                  <InputGroupText>{t("tools.at.form.seconds")}</InputGroupText>
                 </InputGroupAddon>
               </InputGroup>
               <FieldError errors={[errors.timeout]} />
@@ -156,7 +158,10 @@ export function CommandForm() {
           </FieldGroup>
         </form>
 
-        <div className="flex flex-wrap gap-1.5" aria-label="常用命令">
+        <div
+          className="flex flex-wrap gap-1.5"
+          aria-label={t("tools.at.form.quick")}
+        >
           {QUICK.map((c) => (
             <Button
               key={c}
@@ -180,7 +185,7 @@ export function CommandForm() {
             <div className="min-w-0 flex-1">
               <JobProgress
                 id={at.job.id}
-                title={`后台命令 ${at.job.command}`}
+                title={t("tools.at.form.jobTitle", { command: at.job.command })}
                 onDone={at.onJobDone}
               />
             </div>
@@ -189,7 +194,7 @@ export function CommandForm() {
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                aria-label="关闭"
+                aria-label={t("common.action.close")}
                 onClick={at.dismissJob}
               >
                 <XIcon />

@@ -1,40 +1,53 @@
+import { t, type Key } from "@/i18n";
 import type { AdbState, UsbNetBound, UsbNetMode, UsbRole } from "./types";
 
-export const ROLE_LABEL: Record<UsbRole, string> = {
-  host: "主机（接 USB 网卡）",
-  device: "设备（连接电脑）",
-  none: "无",
-  unavailable: "不支持",
-};
+const ROLE_LABEL = {
+  host: "network.usb.role.host",
+  device: "network.usb.role.device",
+  none: "network.usb.role.none",
+  unavailable: "network.usb.role.unavailable",
+} satisfies Record<UsbRole, Key>;
 
-export const NET_MODE_LABEL: Record<UsbNetMode, string> = {
-  default: "默认（NCM）",
-  ncm: "NCM",
-  ecm: "ECM",
-  rndis: "RNDIS",
-  multi: "NCM + RNDIS",
-};
+const NET_MODE_LABEL = {
+  default: "network.usb.netMode.default",
+  ncm: "network.usb.netMode.ncm",
+  ecm: "network.usb.netMode.ecm",
+  rndis: "network.usb.netMode.rndis",
+  multi: "network.usb.netMode.multi",
+} satisfies Record<UsbNetMode, Key>;
 
-export const NET_MODE_HINT: Record<UsbNetMode, string> = {
-  default: "NCM：Linux、macOS 与新版 Windows 免驱",
-  ncm: "Linux、macOS 与 Windows 11 免驱，速度最好",
-  ecm: "兼容老旧 Linux 与部分 macOS",
-  rndis: "老版本 Windows",
-  multi: "同时提供 NCM 与 RNDIS",
-};
+const NET_MODE_HINT = {
+  default: "network.usb.netModeHint.default",
+  ncm: "network.usb.netModeHint.ncm",
+  ecm: "network.usb.netModeHint.ecm",
+  rndis: "network.usb.netModeHint.rndis",
+  multi: "network.usb.netModeHint.multi",
+} satisfies Record<UsbNetMode, Key>;
 
-export const NET_BOUND_LABEL: Record<UsbNetBound, string> = {
-  ncm: "NCM",
-  ecm: "ECM",
-  rndis: "RNDIS",
-  multi: "NCM + RNDIS",
-  mixed: "混合（异常）",
-  none: "无",
-};
+const NET_BOUND_LABEL = {
+  ncm: "network.usb.netBound.ncm",
+  ecm: "network.usb.netBound.ecm",
+  rndis: "network.usb.netBound.rndis",
+  multi: "network.usb.netBound.multi",
+  mixed: "network.usb.netBound.mixed",
+  none: "network.usb.netBound.none",
+} satisfies Record<UsbNetBound, Key>;
 
-export const ADB_STATE_LABEL: Record<AdbState, string> = {
-  off: "已关闭",
-  unavailable: "不可用",
-  open: "开放（无需授权）",
-  keys: "仅授权密钥",
-};
+const ADB_STATE_LABEL = {
+  off: "network.usb.adbState.off",
+  unavailable: "network.usb.adbState.unavailable",
+  open: "network.usb.adbState.open",
+  keys: "network.usb.adbState.keys",
+} satisfies Record<AdbState, Key>;
+
+/** A label from `map`, or the value itself when the device reports one the console does not know. */
+function label<T extends string>(map: Record<T, Key>, v: T): string {
+  const k = map[v] as Key | undefined;
+  return k ? t(k) : v;
+}
+
+export const roleLabel = (v: UsbRole) => label(ROLE_LABEL, v);
+export const netModeLabel = (v: UsbNetMode) => label(NET_MODE_LABEL, v);
+export const netModeHint = (v: UsbNetMode) => label(NET_MODE_HINT, v);
+export const netBoundLabel = (v: UsbNetBound) => label(NET_BOUND_LABEL, v);
+export const adbStateLabel = (v: AdbState) => label(ADB_STATE_LABEL, v);

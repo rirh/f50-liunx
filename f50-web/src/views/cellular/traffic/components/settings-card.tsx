@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { ConfirmButton } from "@/components/f50/confirm-button";
 import { PendingButton } from "@/components/f50/pending-button";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/input-group";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { ApiError } from "@/lib/ubus";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -68,11 +70,11 @@ class KeyError extends Error {
 
 type Change = [Exclude<TrafficKey, "clear">, string];
 
-export function SettingsCard({ t }: { t: TrafficStatus }) {
+export function SettingsCard({ t: tr }: { t: TrafficStatus }) {
   const qc = useQueryClient();
   const form = useForm<TrafficForm>({
-    resolver: zodResolver(trafficSchema),
-    defaultValues: defaults(t),
+    resolver: zodResolver(useMemo(() => trafficSchema(), [])),
+    defaultValues: defaults(tr),
   });
   const refresh = () => qc.invalidateQueries({ queryKey: trafficKeys.get });
 
@@ -87,7 +89,7 @@ export function SettingsCard({ t }: { t: TrafficStatus }) {
         }
       }
     },
-    onSuccess: () => toast.success("已保存"),
+    onSuccess: () => toast.success(t("cellular.shared.saved")),
     onError: (e) => {
       if (
         e instanceof KeyError &&
@@ -105,7 +107,7 @@ export function SettingsCard({ t }: { t: TrafficStatus }) {
   });
   const clear = useMutation({
     mutationFn: clearTraffic,
-    onSuccess: () => toast.success("已清零"),
+    onSuccess: () => toast.success(t("cellular.traffic.settings.cleared")),
     onError: (e) => toast.error(errorMessage(e)),
     onSettled: refresh,
   });
@@ -119,21 +121,25 @@ export function SettingsCard({ t }: { t: TrafficStatus }) {
     if (dirtyFields.warn) changes.push(["warn", v.warn]);
     if (dirtyFields.cut) changes.push(["cut", v.cut ? "on" : "off"]);
     if (dirtyFields.plan) changes.push(["plan", v.plan]);
-    if (changes.length === 0) return toast.info("没有需要保存的更改");
+    if (changes.length === 0) return toast.info(t("cellular.shared.noChanges"));
     save.mutate(changes);
   });
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>流量设置</CardTitle>
-        <CardDescription>套餐名称、计费周期与限额</CardDescription>
+        <CardTitle>{t("cellular.traffic.settings.title")}</CardTitle>
+        <CardDescription>
+          {t("cellular.traffic.settings.description")}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form id="traffic-settings" onSubmit={submit}>
           <FieldGroup>
             <Field data-invalid={!!errors.plan}>
-              <FieldLabel htmlFor="traffic-plan">套餐名称</FieldLabel>
+              <FieldLabel htmlFor="traffic-plan">
+                {t("cellular.traffic.settings.plan")}
+              </FieldLabel>
               <Input
                 id="traffic-plan"
                 autoComplete="off"
@@ -144,7 +150,9 @@ export function SettingsCard({ t }: { t: TrafficStatus }) {
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field data-invalid={!!errors.reset_day}>
-                <FieldLabel htmlFor="traffic-reset-day">每月重置日</FieldLabel>
+                <FieldLabel htmlFor="traffic-reset-day">
+                  {t("cellular.traffic.settings.resetDay")}
+                </FieldLabel>
                 <InputGroup>
                   <InputGroupInput
                     id="traffic-reset-day"
@@ -153,16 +161,20 @@ export function SettingsCard({ t }: { t: TrafficStatus }) {
                     {...form.register("reset_day")}
                   />
                   <InputGroupAddon align="inline-end">
-                    <InputGroupText>日</InputGroupText>
+                    <InputGroupText>
+                      {t("cellular.traffic.settings.daySuffix")}
+                    </InputGroupText>
                   </InputGroupAddon>
                 </InputGroup>
                 <FieldDescription>
-                  当月没有这一天时按月末计算。
+                  {t("cellular.traffic.settings.resetDayHint")}
                 </FieldDescription>
                 <FieldError errors={[errors.reset_day]} />
               </Field>
               <Field data-invalid={!!errors.warn}>
-                <FieldLabel htmlFor="traffic-warn">提醒阈值</FieldLabel>
+                <FieldLabel htmlFor="traffic-warn">
+                  {t("cellular.traffic.settings.warn")}
+                </FieldLabel>
                 <InputGroup>
                   <InputGroupInput
                     id="traffic-warn"
@@ -178,12 +190,14 @@ export function SettingsCard({ t }: { t: TrafficStatus }) {
               </Field>
             </div>
             <Field data-invalid={!!errors.cap}>
-              <FieldLabel htmlFor="traffic-cap">每期上限</FieldLabel>
+              <FieldLabel htmlFor="traffic-cap">
+                {t("cellular.traffic.settings.cap")}
+              </FieldLabel>
               <div className="flex flex-wrap items-center gap-2">
                 <Input
                   id="traffic-cap"
                   inputMode="decimal"
-                  placeholder="不限"
+                  placeholder={t("cellular.traffic.settings.unlimited")}
                   className="w-32"
                   aria-invalid={!!errors.cap}
                   {...form.register("cap")}
@@ -208,16 +222,18 @@ export function SettingsCard({ t }: { t: TrafficStatus }) {
                 />
               </div>
               <FieldDescription>
-                留空或 0 表示不限量（1 GB = 1024 MB）。
+                {t("cellular.traffic.settings.capHint")}
               </FieldDescription>
               <FieldError errors={[errors.cap]} />
             </Field>
             <FieldSeparator />
             <Field orientation="horizontal" data-invalid={!!errors.cut}>
               <FieldContent>
-                <FieldLabel htmlFor="traffic-cut">达到上限时断网</FieldLabel>
+                <FieldLabel htmlFor="traffic-cut">
+                  {t("cellular.traffic.settings.cut")}
+                </FieldLabel>
                 <FieldDescription>
-                  到达上限后关闭移动数据，直到下个周期或手动开启
+                  {t("cellular.traffic.settings.cutHint")}
                 </FieldDescription>
                 <FieldError errors={[errors.cut]} />
               </FieldContent>
@@ -243,24 +259,24 @@ export function SettingsCard({ t }: { t: TrafficStatus }) {
           pending={save.isPending}
           disabled={!isDirty}
         >
-          保存
+          {t("common.action.save")}
         </PendingButton>
         <Button
           variant="outline"
           disabled={!isDirty || save.isPending}
-          onClick={() => form.reset(defaults(t))}
+          onClick={() => form.reset(defaults(tr))}
         >
-          还原
+          {t("common.action.reset")}
         </Button>
         <ConfirmButton
           variant="outline"
-          title="清零流量统计？"
-          description="所有按日和按周期的统计都会删除，且无法恢复。"
-          confirmText="清零"
+          title={t("cellular.traffic.settings.clearTitle")}
+          description={t("cellular.traffic.settings.clearDescription")}
+          confirmText={t("cellular.traffic.settings.clearConfirm")}
           pending={clear.isPending}
           onConfirm={() => clear.mutate()}
         >
-          清零统计
+          {t("cellular.traffic.settings.clear")}
         </ConfirmButton>
       </CardFooter>
     </Card>

@@ -9,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { t } from "@/i18n";
 
 /** A confirmation opened by the page (after a form validated), not by a trigger button. */
 export function ConfirmDialog({
@@ -16,7 +17,7 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmText = "确定",
+  confirmText,
   destructive = false,
   onConfirm,
 }: {
@@ -38,7 +39,7 @@ export function ConfirmDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.action.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             variant={destructive ? "destructive" : "default"}
             onClick={() => {
@@ -46,7 +47,7 @@ export function ConfirmDialog({
               onConfirm();
             }}
           >
-            {confirmText}
+            {confirmText ?? t("common.action.confirm")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

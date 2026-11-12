@@ -10,7 +10,10 @@ function subscribe(onChange: () => void) {
   };
 }
 
-let cached: { raw: string | null; session: Session | null } = { raw: null, session: null };
+let cached: { raw: string | null; session: Session | null } = {
+  raw: null,
+  session: null,
+};
 
 function snapshot(): Session | null {
   const raw = localStorage.getItem("f50-session");

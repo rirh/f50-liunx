@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/f50/page-header";
 import { PendingButton } from "@/components/f50/pending-button";
 import { QueryState } from "@/components/f50/query-state";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCwIcon } from "lucide-react";
 import { getUsb, usbKeys } from "./api";
@@ -16,7 +17,7 @@ export default function UsbPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="USB"
-        description="USB-C 端口角色、USB 网络、USB 网卡与 adb"
+        description={t("network.usb.description")}
         actions={
           <PendingButton
             variant="outline"
@@ -25,7 +26,9 @@ export default function UsbPage() {
             onClick={() => query.refetch()}
           >
             <RefreshCwIcon data-icon="inline-start" />
-            {query.isFetching ? "刷新中" : "刷新"}
+            {query.isFetching
+              ? t("common.action.refreshing")
+              : t("common.action.refresh")}
           </PendingButton>
         }
       />

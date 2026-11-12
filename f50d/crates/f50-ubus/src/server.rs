@@ -16,6 +16,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::blob::proto_err;
 use crate::blobmsg;
+use crate::notify::NotifyQueue;
 use crate::proto::{Body, Message, attr, msg};
 use crate::{Invoke, ObjectSpec, UbusError};
 
@@ -30,6 +31,7 @@ pub(crate) async fn serve(
     socket: PathBuf,
     objects: Vec<ObjectSpec>,
     invoke: Invoke,
+    mut queue: Option<NotifyQueue>,
     shutdown: CancellationToken,
 ) -> Result<(), UbusError> {
     validate(&objects)?;
@@ -38,8 +40,12 @@ pub(crate) async fn serve(
         let end = tokio::select! {
             biased;
             () = shutdown.cancelled() => return Ok(()),
-            end = session::run(&socket, &objects, &invoke, &shutdown) => end,
+            end = session::run(&socket, &objects, &invoke, queue.as_mut(), &shutdown) => end,
         };
+        // ubusd dropped our objects with the connection, and their subscriptions with them
+        if let Some(q) = &queue {
+            q.clear();
+        }
         match end {
             session::End::Shutdown => return Ok(()),
             session::End::Lost { registered, error } => {

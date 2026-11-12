@@ -12,6 +12,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { SweepShine } from "@/components/ui/sweep-shine";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { ArrowLeftIcon, MessagesSquareIcon, Trash2Icon } from "lucide-react";
 import { Composer } from "./composer";
@@ -50,7 +51,7 @@ export function ThreadView({
           variant="ghost"
           size="icon-sm"
           className="md:hidden"
-          aria-label="返回会话列表"
+          aria-label={t("sms.thread.back")}
           onClick={onBack}
         >
           <ArrowLeftIcon />
@@ -58,13 +59,20 @@ export function ThreadView({
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate font-medium">{peer}</span>
           <span className="text-xs text-muted-foreground">
-            {thread.isPending ? "读取中…" : `${total} 条短信`}
-            {thread.isFetching && !thread.isPending && " · 刷新中"}
+            {thread.isPending
+              ? t("sms.thread.loading")
+              : t("sms.thread.count", { count: total })}
+            {thread.isFetching &&
+              !thread.isPending &&
+              ` · ${t("common.action.refreshing")}`}
           </span>
         </div>
         <DeleteDialog
-          title="删除整个会话"
-          description={`将逐条删除与 ${peer} 的全部 ${total} 条短信。`}
+          title={t("sms.thread.deleteConversationTitle")}
+          description={t("sms.thread.deleteConversationDescription", {
+            peer,
+            count: total,
+          })}
           onConfirm={(sim) =>
             delConv.mutate({ peer, sim }, { onSuccess: onBack })
           }
@@ -77,9 +85,11 @@ export function ThreadView({
             >
               <Trash2Icon data-icon="inline-start" />
               {delConv.isPending ? (
-                <SweepShine>删除中</SweepShine>
+                <SweepShine>{t("sms.actions.deleting")}</SweepShine>
               ) : (
-                <span className="hidden sm:inline">删除会话</span>
+                <span className="hidden sm:inline">
+                  {t("sms.thread.deleteConversation")}
+                </span>
               )}
             </Button>
           }
@@ -98,7 +108,7 @@ export function ThreadView({
           </div>
         ) : thread.isError ? (
           <Alert variant="destructive">
-            <AlertTitle>读取失败</AlertTitle>
+            <AlertTitle>{t("common.state.readFailed")}</AlertTitle>
             <AlertDescription className="flex flex-col items-start gap-2">
               {errorMessage(thread.error)}
               <Button
@@ -106,7 +116,7 @@ export function ThreadView({
                 variant="outline"
                 onClick={() => void thread.refetch()}
               >
-                重试
+                {t("common.action.retry")}
               </Button>
             </AlertDescription>
           </Alert>
@@ -116,8 +126,10 @@ export function ThreadView({
               <EmptyMedia variant="icon">
                 <MessagesSquareIcon />
               </EmptyMedia>
-              <EmptyTitle>没有短信</EmptyTitle>
-              <EmptyDescription>这个会话里还没有短信。</EmptyDescription>
+              <EmptyTitle>{t("sms.thread.emptyTitle")}</EmptyTitle>
+              <EmptyDescription>
+                {t("sms.thread.emptyDescription")}
+              </EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
@@ -135,9 +147,9 @@ export function ThreadView({
                   <Spinner data-icon="inline-start" />
                 ) : null}
                 {thread.isFetchingNextPage ? (
-                  <SweepShine>加载中</SweepShine>
+                  <SweepShine>{t("common.action.loading")}</SweepShine>
                 ) : (
-                  "更早的短信"
+                  t("sms.thread.older")
                 )}
               </Button>
             )}
@@ -158,10 +170,12 @@ export function ThreadView({
       <DeleteDialog
         open={toDelete !== null}
         onOpenChange={(o) => !o && setToDelete(null)}
-        title="删除这条短信"
+        title={t("sms.thread.deleteOneTitle")}
         description={
           toDelete
-            ? `“${toDelete.text.slice(0, 40)}${toDelete.text.length > 40 ? "…" : ""}”`
+            ? t("sms.thread.quote", {
+                text: `${toDelete.text.slice(0, 40)}${toDelete.text.length > 40 ? "…" : ""}`,
+              })
             : ""
         }
         onConfirm={(sim) => {

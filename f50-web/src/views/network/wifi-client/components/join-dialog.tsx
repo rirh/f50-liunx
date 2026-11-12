@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { PendingButton } from "@/components/f50/pending-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -18,39 +19,41 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-import { SSID_HINT, pskOk, rawKeyOk, ssidOk } from "../../shared/text-rules";
+import { ssidHint, pskOk, rawKeyOk, ssidOk } from "../../shared/text-rules";
 import { joinNetwork } from "../api";
 import type { JoinArgs } from "../types";
 
 /** `client.rs join`: a name 1-32 bytes; a WPA passphrase or a raw key, required unless the network is open. */
-const schema = z
-  .object({
-    ssid: z.string().refine(ssidOk, SSID_HINT),
-    password: z.string(),
-    open: z.boolean(),
-  })
-  .superRefine((v, ctx) => {
-    if (v.open) return;
-    if (!v.password)
-      ctx.addIssue({
-        code: "custom",
-        path: ["password"],
-        message: "请输入密码，或勾选开放网络",
-      });
-    else if (!pskOk(v.password) && !rawKeyOk(v.password)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["password"],
-        message: "8-63 个可打印 ASCII 字符，或 64 位十六进制密钥",
-      });
-    }
-  });
-type JoinForm = z.infer<typeof schema>;
+const schema = () =>
+  z
+    .object({
+      ssid: z.string().refine(ssidOk, ssidHint()),
+      password: z.string(),
+      open: z.boolean(),
+    })
+    .superRefine((v, ctx) => {
+      if (v.open) return;
+      if (!v.password)
+        ctx.addIssue({
+          code: "custom",
+          path: ["password"],
+          message: t("network.client.join.passwordRequired"),
+        });
+      else if (!pskOk(v.password) && !rawKeyOk(v.password)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["password"],
+          message: t("network.client.join.passwordInvalid"),
+        });
+      }
+    });
+type JoinForm = z.infer<ReturnType<typeof schema>>;
 const FIELDS = ["ssid", "password", "open"] as const;
 
 export interface JoinTarget {
@@ -74,9 +77,9 @@ export function JoinDialog({
     <Dialog open={target !== null} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>加入 Wi-Fi 网络</DialogTitle>
+          <DialogTitle>{t("network.client.join.title")}</DialogTitle>
           <DialogDescription>
-            作为上网线路连接，并保存为开机自动连接的网络。
+            {t("network.client.join.description")}
           </DialogDescription>
         </DialogHeader>
         {target && (
@@ -104,8 +107,9 @@ function JoinFormBody({
   onCancel: () => void;
   onStarted: (job: string, ssid: string) => void;
 }) {
+  const resolverSchema = useMemo(() => schema(), []);
   const form = useForm<JoinForm>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(resolverSchema),
     defaultValues: { ssid: target.ssid, password: "", open: target.open },
     mode: "onTouched",
   });
@@ -131,9 +135,9 @@ function JoinFormBody({
     >
       {hotspotOn && (
         <Alert>
-          <AlertTitle>热点正在运行</AlertTitle>
+          <AlertTitle>{t("network.client.join.hotspotOn.title")}</AlertTitle>
           <AlertDescription>
-            此驱动无法在不重启的情况下把热点切换为客户端：网络会被保存，重启后设备将先加入它（热点不再启动）。通过热点访问的浏览器会断开。
+            {t("network.client.join.hotspotOn.description")}
           </AlertDescription>
         </Alert>
       )}
@@ -143,7 +147,9 @@ function JoinFormBody({
           name="ssid"
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="join-ssid">网络名称（SSID）</FieldLabel>
+              <FieldLabel htmlFor="join-ssid">
+                {t("network.client.join.ssid")}
+              </FieldLabel>
               <Input
                 id="join-ssid"
                 autoComplete="off"
@@ -167,7 +173,9 @@ function JoinFormBody({
                   if (c === true) form.clearErrors("password");
                 }}
               />
-              <FieldLabel htmlFor="join-open">开放网络（无密码）</FieldLabel>
+              <FieldLabel htmlFor="join-open">
+                {t("network.client.join.open")}
+              </FieldLabel>
             </Field>
           )}
         />
@@ -179,7 +187,9 @@ function JoinFormBody({
               data-invalid={fieldState.invalid}
               data-disabled={open || undefined}
             >
-              <FieldLabel htmlFor="join-password">密码</FieldLabel>
+              <FieldLabel htmlFor="join-password">
+                {t("network.client.join.password")}
+              </FieldLabel>
               <Input
                 id="join-password"
                 type="password"
@@ -192,8 +202,7 @@ function JoinFormBody({
                 <FieldError errors={[fieldState.error]} />
               ) : (
                 <FieldDescription>
-                  WPA2 密码（8-63 个字符）或 64 位十六进制密钥；不支持仅 WPA3
-                  的网络
+                  {t("network.client.join.passwordHint")}
                 </FieldDescription>
               )}
             </Field>
@@ -207,10 +216,12 @@ function JoinFormBody({
           onClick={onCancel}
           disabled={join.isPending}
         >
-          取消
+          {t("common.action.cancel")}
         </Button>
         <PendingButton type="submit" pending={join.isPending}>
-          {join.isPending ? "提交中" : "加入"}
+          {join.isPending
+            ? t("network.shared.submitting")
+            : t("network.client.join.submit")}
         </PendingButton>
       </DialogFooter>
     </form>

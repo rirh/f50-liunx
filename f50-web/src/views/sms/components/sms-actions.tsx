@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { SweepShine } from "@/components/ui/sweep-shine";
+import { t } from "@/i18n";
 import { formatAgo, formatTime } from "@/lib/format";
 import { useSetAtom } from "jotai";
 import { PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
@@ -28,15 +29,25 @@ export function SmsActions({ onDeletedAll }: { onDeletedAll: () => void }) {
         <Spinner />
       ) : unread.data ? (
         <Badge variant={unread.data.unread > 0 ? "default" : "secondary"}>
-          未读 {unread.data.unread} / 共 {unread.data.total}
+          {t("sms.actions.unread", {
+            unread: unread.data.unread,
+            total: unread.data.total,
+          })}
         </Badge>
       ) : null}
       {storage && (
         <Badge
           variant="outline"
-          title={`${storage.store} 存储，${formatTime(storage.at)} 读取`}
+          title={t("sms.actions.storageTitle", {
+            store: storage.store,
+            time: formatTime(storage.at),
+          })}
         >
-          SIM 存储 {storage.used}/{storage.total} · {formatAgo(storage.at)}
+          {t("sms.actions.storage", {
+            used: storage.used,
+            total: storage.total,
+            ago: formatAgo(storage.at),
+          })}
         </Badge>
       )}
       <Button
@@ -47,11 +58,15 @@ export function SmsActions({ onDeletedAll }: { onDeletedAll: () => void }) {
         onClick={() => sync.mutate()}
       >
         <RefreshCwIcon data-icon="inline-start" />
-        {sync.isPending ? <SweepShine>同步中</SweepShine> : "同步"}
+        {sync.isPending ? (
+          <SweepShine>{t("sms.actions.syncing")}</SweepShine>
+        ) : (
+          t("sms.actions.sync")
+        )}
       </Button>
       <DeleteDialog
-        title="删除全部短信"
-        description="设备短信库中的所有短信都会被删除，无法恢复。"
+        title={t("sms.actions.deleteAllTitle")}
+        description={t("sms.actions.deleteAllDescription")}
         onConfirm={(sim) =>
           del.mutate({ id: "all", sim }, { onSuccess: onDeletedAll })
         }
@@ -63,13 +78,17 @@ export function SmsActions({ onDeletedAll }: { onDeletedAll: () => void }) {
             aria-busy={del.isPending}
           >
             <Trash2Icon data-icon="inline-start" />
-            {del.isPending ? <SweepShine>删除中</SweepShine> : "全部删除"}
+            {del.isPending ? (
+              <SweepShine>{t("sms.actions.deleting")}</SweepShine>
+            ) : (
+              t("sms.actions.deleteAll")
+            )}
           </Button>
         }
       />
       <Button size="sm" onClick={() => setCompose(true)}>
         <PlusIcon data-icon="inline-start" />
-        新短信
+        {t("sms.actions.new")}
       </Button>
     </>
   );

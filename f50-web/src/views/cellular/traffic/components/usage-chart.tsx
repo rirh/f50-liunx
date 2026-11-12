@@ -20,31 +20,36 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { t } from "@/i18n";
 import { formatBytes } from "@/lib/format";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import type { DayUsage } from "../types";
 
-const config = {
-  rx: { label: "下载", color: "var(--chart-1)" },
-  tx: { label: "上传", color: "var(--chart-2)" },
-} satisfies ChartConfig;
+const chartConfig = () =>
+  ({
+    rx: { label: t("cellular.traffic.download"), color: "var(--chart-1)" },
+    tx: { label: t("cellular.traffic.upload"), color: "var(--chart-2)" },
+  }) satisfies ChartConfig;
 
 /** Daily usage of the last 31 days, download and upload stacked. */
 export function UsageChart({ days }: { days: DayUsage[] }) {
   const data = useMemo(() => days.slice(0, 31).reverse(), [days]);
+  const config = useMemo(() => chartConfig(), []);
   return (
     <Card>
       <CardHeader>
-        <CardTitle>每日用量</CardTitle>
-        <CardDescription>最近 {data.length} 天（按本地日期）</CardDescription>
+        <CardTitle>{t("cellular.traffic.chart.title")}</CardTitle>
+        <CardDescription>
+          {t("cellular.traffic.chart.description", { count: data.length })}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
           <Empty>
             <EmptyHeader>
-              <EmptyTitle>暂无数据</EmptyTitle>
+              <EmptyTitle>{t("cellular.traffic.chart.emptyTitle")}</EmptyTitle>
               <EmptyDescription>
-                时钟同步并经过一轮统计后显示。
+                {t("cellular.traffic.chart.emptyDescription")}
               </EmptyDescription>
             </EmptyHeader>
           </Empty>

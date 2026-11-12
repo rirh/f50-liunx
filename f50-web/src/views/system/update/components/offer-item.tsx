@@ -6,6 +6,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { joinList, t } from "@/i18n";
 import { errorMessage, formatBytes } from "@/lib/format";
 import { useMutation } from "@tanstack/react-query";
 import { ChevronDownIcon } from "lucide-react";
@@ -27,7 +28,9 @@ export function OfferItem({
   const started = useStartJob();
   const install = useMutation({
     mutationFn: () => apply(offer.tag),
-    onSuccess: started(`安装 ${offer.tag}`),
+    onSuccess: started(
+      t("maintenance.update.offer.jobTitle", { tag: offer.tag }),
+    ),
     onError: (e) => toast.error(errorMessage(e)),
   });
   const current = offer.systems.length === 0;
@@ -41,21 +44,37 @@ export function OfferItem({
         <div className="flex min-w-0 flex-col gap-1">
           <span className="flex flex-wrap items-center gap-2">
             <span className="font-mono font-medium">{offer.tag}</span>
-            {offer.prerelease && <Badge variant="outline">测试版</Badge>}
+            {offer.prerelease && (
+              <Badge variant="outline">
+                {t("maintenance.update.offer.prerelease")}
+              </Badge>
+            )}
             <Badge variant={offer.signed ? "secondary" : "destructive"}>
-              {offer.signed ? "已签名" : "未签名"}
+              {offer.signed
+                ? t("maintenance.update.offer.signed")
+                : t("maintenance.update.offer.unsigned")}
             </Badge>
-            {current && <Badge variant="secondary">已安装</Badge>}
+            {current && (
+              <Badge variant="secondary">
+                {t("maintenance.update.offer.installed")}
+              </Badge>
+            )}
           </span>
           <span className="text-sm text-muted-foreground">
-            {offer.title ?? "无标题"}
-            {offer.published && ` · 发布于 ${offer.published}`}
+            {offer.title ?? t("maintenance.update.offer.untitled")}
+            {offer.published &&
+              ` · ${t("maintenance.update.offer.published", { date: offer.published })}`}
           </span>
           <span className="text-sm text-muted-foreground">
             {current
-              ? "所有系统已是此版本"
-              : `将更新：${offer.systems.join("、")}`}{" "}
-            · 下载 {formatBytes(offer.download)}
+              ? t("maintenance.update.offer.allCurrent")
+              : t("maintenance.update.offer.willUpdate", {
+                  systems: joinList(offer.systems),
+                })}{" "}
+            ·{" "}
+            {t("maintenance.update.offer.download", {
+              size: formatBytes(offer.download),
+            })}
           </span>
         </div>
         <ConfirmButton
@@ -64,28 +83,37 @@ export function OfferItem({
           destructive={false}
           pending={install.isPending}
           disabled={busy}
-          title={`安装 ${offer.tag}？`}
-          confirmText="开始安装"
+          title={t("maintenance.update.offer.confirmTitle", { tag: offer.tag })}
+          confirmText={t("maintenance.update.offer.confirmText")}
           description={
             <span className="flex flex-col gap-2">
               <span>
-                将下载约 {formatBytes(offer.download)} 并写入
-                {current ? "系统" : `：${offer.systems.join("、")}`}
-                ，完成后需重启生效。旧系统会保留一份用于回滚。
+                {current
+                  ? t("maintenance.update.offer.confirmBodyAll", {
+                      size: formatBytes(offer.download),
+                    })
+                  : t("maintenance.update.offer.confirmBody", {
+                      size: formatBytes(offer.download),
+                      systems: joinList(offer.systems),
+                    })}
               </span>
               <span className="font-medium text-destructive">
-                安装开始后无法停止。期间请保持电源连接，不要重启或拔出设备，否则可能导致无法启动。
+                {t("maintenance.update.offer.noStop")}
               </span>
               {lowSpace && (
                 <span className="text-destructive">
-                  Linux 分区可用空间可能不足。
+                  {t("maintenance.update.offer.lowSpace")}
                 </span>
               )}
             </span>
           }
           onConfirm={() => install.mutate()}
         >
-          {install.isPending ? "启动中" : current ? "重新安装" : "安装"}
+          {install.isPending
+            ? t("maintenance.update.starting")
+            : current
+              ? t("maintenance.update.offer.reinstall")
+              : t("maintenance.update.offer.install")}
         </ConfirmButton>
       </div>
       {offer.files.length > 0 && (
@@ -93,7 +121,9 @@ export function OfferItem({
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="self-start">
               <ChevronDownIcon data-icon="inline-start" />
-              {offer.files.length} 个文件
+              {t("maintenance.update.offer.files", {
+                count: offer.files.length,
+              })}
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>

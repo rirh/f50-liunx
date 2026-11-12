@@ -15,6 +15,7 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -32,8 +33,14 @@ export function CardRadioCard({ sim }: { sim: SimStatus }) {
     mutationFn: ({ slot, on }: { slot: CardSlot; on: boolean }) =>
       setCardRadio(slot, on),
     onSuccess: (r, { on }) => {
-      if (r.job) start(r.job, on ? "开启射频" : "关闭射频");
-      else toast.success("已保存，该卡下次启用时生效");
+      if (r.job)
+        start(
+          r.job,
+          on
+            ? t("cellular.shared.jobRadioOn")
+            : t("cellular.shared.jobRadioOff"),
+        );
+      else toast.success(t("cellular.sim.radio.savedNext"));
       refresh();
     },
     onError: (e) => reportFormError(e),
@@ -48,29 +55,33 @@ export function CardRadioCard({ sim }: { sim: SimStatus }) {
   }[] = [
     {
       slot: "all",
-      label: "飞行模式",
-      desc: "关闭全部卡的射频，重启后保持",
+      label: t("cellular.shared.airplane"),
+      desc: t("cellular.sim.radio.airplaneHint"),
       checked: sim.radio.all_off,
     },
     ...([1, 2] as const).map((n) => ({
       slot: String(n) as CardSlot,
-      label: `SIM${n} 射频${sim.active === n ? "（使用中）" : ""}`,
-      desc: sim.active === n ? "立即生效" : "保存，下次使用该卡时生效",
+      label:
+        sim.active === n
+          ? t("cellular.sim.radio.cardLabelActive", { n })
+          : t("cellular.sim.radio.cardLabel", { n }),
+      desc:
+        sim.active === n
+          ? t("cellular.sim.radio.now")
+          : t("cellular.sim.radio.next"),
       checked: sim.radio.enabled[n - 1],
     })),
   ];
   return (
     <Card>
       <CardHeader>
-        <CardTitle>射频开关</CardTitle>
-        <CardDescription>每张卡的射频设置单独保存</CardDescription>
+        <CardTitle>{t("cellular.sim.radio.title")}</CardTitle>
+        <CardDescription>{t("cellular.sim.radio.description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {sim.busy && (
           <Alert>
-            <AlertDescription>
-              射频操作进行中，完成后可再更改。
-            </AlertDescription>
+            <AlertDescription>{t("cellular.sim.radio.busy")}</AlertDescription>
           </Alert>
         )}
         <FieldGroup>
@@ -83,7 +94,9 @@ export function CardRadioCard({ sim }: { sim: SimStatus }) {
                     {r.label}
                   </FieldLabel>
                   <FieldDescription>
-                    {pendingSlot === r.slot ? "正在保存…" : r.desc}
+                    {pendingSlot === r.slot
+                      ? t("cellular.shared.saving")
+                      : r.desc}
                   </FieldDescription>
                 </FieldContent>
                 <Switch

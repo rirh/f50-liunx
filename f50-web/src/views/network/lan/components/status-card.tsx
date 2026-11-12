@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { t } from "@/i18n";
 import { dhcpRange } from "../schema";
 import type { LanInfo } from "../types";
 
@@ -25,50 +26,59 @@ export function LanStatusCard({ info }: { info: LanInfo }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>当前局域网</CardTitle>
-        <CardDescription>路由器地址与 DHCP 地址池</CardDescription>
+        <CardTitle>{t("network.lan.status.title")}</CardTitle>
+        <CardDescription>{t("network.lan.status.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <KvList
           items={[
             {
-              label: "路由器地址",
+              label: t("network.lan.status.address"),
               value: <span className="font-mono">{configured}</span>,
             },
             {
-              label: "子网掩码",
+              label: t("network.lan.status.netmask"),
               value: <span className="font-mono">{info.netmask}</span>,
             },
             {
-              label: "br-lan 实际地址",
+              label: t("network.lan.status.live"),
               value: (
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="font-mono">{info.live ?? "—"}</span>
-                  {pending && <Badge variant="secondary">待生效</Badge>}
+                  {pending && (
+                    <Badge variant="secondary">
+                      {t("network.lan.status.pending")}
+                    </Badge>
+                  )}
                 </span>
               ),
             },
             {
-              label: "USB 主机地址",
+              label: t("network.lan.status.usbHost"),
               value: <span className="font-mono">{info.usb_host_address}</span>,
             },
             {
-              label: "出厂地址",
+              label: t("network.lan.status.default"),
               value: <span className="font-mono">{info.default_address}</span>,
             },
             {
               label: "DHCP",
               value: (
                 <Badge variant={info.dhcp.enabled ? "default" : "secondary"}>
-                  {info.dhcp.enabled ? "已启用" : "已关闭"}
+                  {info.dhcp.enabled
+                    ? t("common.state.enabled")
+                    : t("common.state.disabled")}
                 </Badge>
               ),
             },
             {
-              label: "地址池",
+              label: t("network.lan.status.pool"),
               value: range && <span className="font-mono">{range}</span>,
             },
-            { label: "租期", value: info.dhcp.leasetime },
+            {
+              label: t("network.lan.status.leasetime"),
+              value: info.dhcp.leasetime,
+            },
           ]}
         />
       </CardContent>

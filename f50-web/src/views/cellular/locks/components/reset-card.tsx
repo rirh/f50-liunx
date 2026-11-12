@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { t, type Key } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { formatAgo, formatTime } from "@/lib/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,11 +19,14 @@ import type { OnJob } from "../use-lock-set";
 
 const STATE: Record<
   ResetResult["state"],
-  { label: string; variant: "secondary" | "destructive" | "outline" }
+  { label: Key; variant: "secondary" | "destructive" | "outline" }
 > = {
-  running: { label: "进行中", variant: "outline" },
-  ok: { label: "成功", variant: "secondary" },
-  failed: { label: "失败", variant: "destructive" },
+  running: { label: "cellular.locks.reset.state.running", variant: "outline" },
+  ok: { label: "cellular.locks.reset.state.ok", variant: "secondary" },
+  failed: {
+    label: "cellular.locks.reset.state.failed",
+    variant: "destructive",
+  },
 };
 
 export function ResetCard({
@@ -38,7 +42,7 @@ export function ResetCard({
   const reset = useMutation({
     mutationFn: resetLocks,
     onSuccess: (r) => {
-      onJob(r.job, "全部恢复自动");
+      onJob(r.job, t("cellular.locks.reset.title"));
       qc.invalidateQueries({ queryKey: lockKeys.get });
     },
     onError: (e) => reportFormError(e),
@@ -46,36 +50,36 @@ export function ResetCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>全部恢复自动</CardTitle>
+        <CardTitle>{t("cellular.locks.reset.title")}</CardTitle>
         <CardDescription>
-          清除网络模式、频段、小区与 EN-DC 锁定并逐项校验；已保存的锁定一并删除
+          {t("cellular.locks.reset.description")}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <KvList
           items={[
             {
-              label: "上次重置",
+              label: t("cellular.locks.reset.last"),
               value: last ? (
                 <Badge variant={STATE[last.state].variant}>
-                  {STATE[last.state].label}
+                  {t(STATE[last.state].label)}
                 </Badge>
               ) : (
-                "无记录"
+                t("cellular.locks.reset.none")
               ),
             },
             ...(last
               ? [
                   {
-                    label: "时间",
+                    label: t("cellular.locks.reset.time"),
                     value: formatAgo(last.ts),
                     title: formatTime(last.ts),
                   },
                   ...(last.error
                     ? [
                         {
-                          label: "错误",
-                          value: `${last.error}${last.step ? `（${last.step}）` : ""}`,
+                          label: t("cellular.locks.reset.error"),
+                          value: `${last.error}${last.step ? t("cellular.locks.reset.step", { step: last.step }) : ""}`,
                         },
                       ]
                     : []),
@@ -86,14 +90,14 @@ export function ResetCard({
       </CardContent>
       <CardFooter>
         <ConfirmButton
-          title="全部锁定恢复自动？"
-          description="所有锁定将被清除并校验，协议栈会重启，蜂窝连接中断约半分钟。"
-          confirmText="恢复自动"
+          title={t("cellular.locks.reset.confirmTitle")}
+          description={t("cellular.locks.reset.confirmDescription")}
+          confirmText={t("cellular.locks.reset.action")}
           pending={reset.isPending}
           disabled={disabled}
           onConfirm={() => reset.mutate()}
         >
-          恢复自动
+          {t("cellular.locks.reset.action")}
         </ConfirmButton>
       </CardFooter>
     </Card>

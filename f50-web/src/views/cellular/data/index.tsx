@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/f50/page-header";
 import { QueryState } from "@/components/f50/query-state";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { dataKeys, getData } from "./api";
 import { SettingsCard } from "./components/settings-card";
@@ -13,7 +14,10 @@ export default function DataPage() {
   });
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="移动数据" description="蜂窝数据连接、APN 与数据漫游" />
+      <PageHeader
+        title={t("cellular.data.title")}
+        description={t("cellular.data.description")}
+      />
       <QueryState query={query} skeletonRows={8}>
         {(d) => (
           <div className="grid items-start gap-4 lg:grid-cols-2">

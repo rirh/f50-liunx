@@ -126,3 +126,10 @@ export interface Sample {
   mem: number | null;
   temp: number | null;
 }
+
+/** The part of `f50.modem identity` (write access: private) the overview shows. */
+export interface OwnNumber {
+  slot: 1 | 2;
+  msisdn: string | null;
+  msisdn_src: "sim" | "ims" | null;
+}

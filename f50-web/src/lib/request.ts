@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/ubus";
 
 /** The one HTTP transport of the app: native fetch to the device, JSON in and out. */
@@ -14,7 +16,7 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`请求失败（HTTP ${response.status}）`);
+    throw new Error(t("app.error.http", { status: response.status }));
   }
 
   return response.json() as Promise<T>;
@@ -27,7 +29,7 @@ export async function uploadRequest<T>(
 ): Promise<T> {
   const response = await fetch(url, { method: "POST", body });
   if (!response.ok) {
-    throw new Error(`上传失败（HTTP ${response.status}）`);
+    throw new Error(t("app.error.upload", { status: response.status }));
   }
   return response.json() as Promise<T>;
 }

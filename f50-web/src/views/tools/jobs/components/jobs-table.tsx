@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { t } from "@/i18n";
 import { formatAgo, formatTime } from "@/lib/format";
 import {
   createColumnHelper,
@@ -20,7 +21,7 @@ import {
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react";
 import { CancelJobButton } from "./cancel-job-button";
 import { JobStateBadge } from "./job-state-badge";
-import { JOB_KIND_LABEL, JOB_METHOD_LABEL, type JobStatus } from "../types";
+import { jobKindLabel, jobMethodLabel, type JobStatus } from "../types";
 
 const features = tableFeatures({
   rowSortingFeature,
@@ -45,13 +46,11 @@ function Time({ unix, fallback }: { unix?: number; fallback: string }) {
 
 const columns = col.columns([
   col.accessor("method", {
-    header: "操作",
+    header: () => t("tools.jobs.field.action"),
     sortFn: "text",
     cell: (info) => (
       <div className="flex min-w-0 flex-col">
-        <span className="truncate">
-          {JOB_METHOD_LABEL[info.getValue()] ?? info.getValue()}
-        </span>
+        <span className="truncate">{jobMethodLabel(info.getValue())}</span>
         <code className="truncate font-mono text-xs text-muted-foreground">
           {info.row.original.id}
         </code>
@@ -59,34 +58,40 @@ const columns = col.columns([
     ),
   }),
   col.accessor("kind", {
-    header: "类别",
+    header: () => t("tools.jobs.field.kind"),
     sortFn: "text",
-    cell: (info) => JOB_KIND_LABEL[info.getValue()] ?? info.getValue(),
+    cell: (info) => jobKindLabel(info.getValue()),
   }),
   col.accessor("state", {
-    header: "状态",
+    header: () => t("tools.jobs.field.state"),
     sortFn: "text",
     cell: (info) => <JobStateBadge state={info.getValue()} />,
   }),
   col.accessor("started", {
-    header: "开始",
+    header: () => t("tools.jobs.field.started"),
     sortFn: "basic",
     cell: (info) => <Time unix={info.getValue()} fallback="—" />,
   }),
   col.accessor((j) => j.finished ?? 0, {
     id: "finished",
-    header: "结束",
+    header: () => t("tools.jobs.field.finished"),
     sortFn: "basic",
     cell: (info) => (
       <Time
         unix={info.row.original.finished}
-        fallback={info.row.original.state === "running" ? "进行中" : "—"}
+        fallback={
+          info.row.original.state === "running"
+            ? t("tools.jobs.detail.inProgress")
+            : "—"
+        }
       />
     ),
   }),
   col.display({
     id: "actions",
-    header: () => <span className="sr-only">操作</span>,
+    header: () => (
+      <span className="sr-only">{t("tools.jobs.field.action")}</span>
+    ),
     cell: ({ row }) =>
       row.original.state === "running" && row.original.cancellable ? (
         // the row opens the details; the stop button must not
@@ -97,7 +102,9 @@ const columns = col.columns([
           <CancelJobButton job={row.original} size="xs" />
         </span>
       ) : row.original.cancellable ? null : (
-        <span className="text-xs text-muted-foreground">不可停止</span>
+        <span className="text-xs text-muted-foreground">
+          {t("tools.jobs.table.notCancellable")}
+        </span>
       ),
   }),
 ]);

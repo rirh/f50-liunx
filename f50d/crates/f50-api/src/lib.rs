@@ -5,12 +5,14 @@
 //!   the same dispatch path a client uses (so it never reaches into a crate's internals);
 //! - [`meta`]: `f50.meta`, the method table itself (objects, methods, access, fields and their rules), for a
 //!   frontend to discover the API and for the generated reference;
+//! - [`live`]: `f50.live`, the read methods a page shows live, pushed to subscribers while there are any;
 //! - [`acl`]: the rpcd ACL generated from the same table, so access can never drift from the code.
 //!
 //! Objects that are only for the device itself (netifd's protocol handler, hotplug) are kept apart in
 //! [`Api::internal`] and never appear in an ACL: uhttpd refuses them to every login.
 
 pub mod acl;
+pub mod live;
 pub mod meta;
 pub mod status;
 
@@ -44,6 +46,8 @@ pub struct Api {
     internal: Arc<Vec<Object>>,
     all: Arc<Vec<Object>>,
     uploads: Arc<Vec<String>>,
+    /// The public objects the live topics read (everything but `f50.live` itself).
+    readable: Arc<Vec<Object>>,
 }
 
 impl Api {
@@ -63,9 +67,18 @@ impl Api {
         public.push(meta::object(described));
         let snapshot = Arc::new(public.clone());
         public.push(status::object(snapshot));
+        // the live topics read through the same table, f50.status included
+        let readable = Arc::new(public.clone());
+        public.push(live::object(readable.clone()));
         let all = public.iter().chain(internal.iter()).cloned().collect();
         let uploads = vec![s.update.upload_path().to_string_lossy().into_owned()];
-        Api { public: Arc::new(public), internal: Arc::new(internal), all: Arc::new(all), uploads: Arc::new(uploads) }
+        Api {
+            public: Arc::new(public),
+            internal: Arc::new(internal),
+            all: Arc::new(all),
+            uploads: Arc::new(uploads),
+            readable,
+        }
     }
 
     pub fn public(&self) -> &[Object] {
@@ -84,6 +97,17 @@ impl Api {
     /// One call, through validation, into the envelope.
     pub async fn call(&self, object: &str, method: &str, req: &Value) -> Value {
         f50_core::rpc::envelope(&f50_core::rpc::dispatch(&self.all, object, method, req).await)
+    }
+
+    /// Publishes the live topics while `subscribed` (see [`live::run`]).
+    pub fn run_live(
+        &self,
+        publish: live::Publish,
+        subscribed: tokio::sync::watch::Receiver<bool>,
+        tracker: &tokio_util::task::TaskTracker,
+        shutdown: tokio_util::sync::CancellationToken,
+    ) {
+        live::run(self.readable.clone(), publish, subscribed, tracker, shutdown);
     }
 
     /// The rpcd ACL for the public objects.

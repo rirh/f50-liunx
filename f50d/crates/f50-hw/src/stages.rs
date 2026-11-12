@@ -93,8 +93,14 @@ pub(crate) async fn hardware(hw: &Hw, steps: &mut Steps) {
     }
     hw.mark("hw-wifi-rules");
 
+    // the chip before the vendor extras (ten modprobes and the Mali GPU held it back ~2 s): netifd's own start of
+    // hostapd needs the phy, and the rules above are already in place for it
     match hw.platform().modules().module_dir().and_then(|d| d.file_name().map(|n| n.to_string_lossy().into_owned())) {
-        Some(krel) => order::load_extra(hw.platform(), &krel, steps).await,
+        Some(krel) => {
+            order::load_wifi(hw.platform(), &krel, steps).await;
+            hw.mark("hw-wifi");
+            order::load_extra(hw.platform(), &krel, steps).await;
+        }
         None => steps.failed("modules", "no module directory for the running kernel"),
     }
     hw.mark("hw-modules");

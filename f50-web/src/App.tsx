@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { Link, Route, Routes } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import { AppLayout } from "@/layout";
 import LoginPage from "@/views/login";
 
@@ -55,9 +56,11 @@ export function App() {
           path="*"
           element={
             <section className="flex flex-col items-center gap-6 py-16">
-              <h1 className="text-3xl font-semibold">404 · 页面不存在</h1>
+              <h1 className="text-3xl font-semibold">
+                {t("app.notFound.title")}
+              </h1>
               <Button asChild>
-                <Link to="/">返回仪表盘</Link>
+                <Link to="/">{t("app.notFound.back")}</Link>
               </Button>
             </section>
           }

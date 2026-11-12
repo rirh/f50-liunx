@@ -104,13 +104,22 @@ async fn get(d: &Data) -> Result<Value> {
     let auth =
         card.credentials().map(|c| format!("{:?}", c.auth).to_ascii_lowercase()).unwrap_or_else(|_| "invalid".into());
     let st = d.state();
+    let device = st.bearer.as_ref().map_or_else(|| cfg.device_for(slot).to_owned(), |b| b.device.clone());
+    // the device's byte counters since it came up: a page diffs two readings for the rate
+    let counter =
+        |name: &str| d.platform().sysfs().read_num::<u64>(format!("/sys/class/net/{device}/statistics/{name}"));
+    let bytes = match (counter("rx_bytes"), counter("tx_bytes")) {
+        (Some(rx), Some(tx)) => json!({ "rx": rx, "tx": tx }),
+        _ => Value::Null,
+    };
     Ok(json!({
         "state": st.phase,
         "hold": st.hold,
         "error": st.last_error,
         "since_s": st.since.map(|t| t.elapsed().as_secs()),
         "interface": cfg.interface,
-        "device": st.bearer.as_ref().map_or_else(|| cfg.device_for(slot).to_owned(), |b| b.device.clone()),
+        "device": device,
+        "bytes": bytes,
         "slot": slot.number(),
         "addresses": addresses,
         "dns": st.bearer.as_ref().map(|b| b.dns.clone()),

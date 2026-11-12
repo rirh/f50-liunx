@@ -8,21 +8,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { t, type Key } from "@/i18n";
 import { LeaveDialog } from "./leave-dialog";
 import { signalText } from "../security";
 import type { ClientMode, ClientStatus, FirewallState } from "../types";
 
-const MODE_LABEL: Record<ClientMode, string> = {
-  off: "无线电空闲",
-  client: "Wi-Fi 上网",
-  hotspot: "热点",
-};
-const FW_LABEL: Record<FirewallState, string> = {
-  none: "无规则",
-  closed: "已关闭（不转发）",
-  shared: "已共享给局域网",
-  unknown: "无法读取",
-};
+const MODE_LABEL = {
+  off: "network.client.status.mode.off",
+  client: "network.client.status.mode.client",
+  hotspot: "network.client.status.mode.hotspot",
+} satisfies Record<ClientMode, Key>;
+const FW_LABEL = {
+  none: "network.client.status.firewall.none",
+  closed: "network.client.status.firewall.closed",
+  shared: "network.client.status.firewall.shared",
+  unknown: "network.client.status.firewall.unknown",
+} satisfies Record<FirewallState, Key>;
 
 export function ClientStatusCard({
   status,
@@ -38,14 +39,20 @@ export function ClientStatusCard({
     <Card>
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-2">
-          {status.ssid ?? "未连接"}
+          {status.ssid ?? t("common.state.disconnected")}
           {status.mode === "client" && (
             <Badge variant={status.connected ? "default" : "secondary"}>
-              {status.connected ? "已连接" : "连接中"}
+              {status.connected
+                ? t("common.state.connected")
+                : t("network.client.status.connecting")}
             </Badge>
           )}
         </CardTitle>
-        <CardDescription>无线电当前：{MODE_LABEL[status.mode]}</CardDescription>
+        <CardDescription>
+          {t("network.client.status.radio", {
+            mode: t(MODE_LABEL[status.mode]),
+          })}
+        </CardDescription>
         <CardAction>
           <LeaveDialog
             disabled={busy || !status.active}
@@ -56,35 +63,42 @@ export function ClientStatusCard({
       <CardContent>
         <KvList
           items={[
-            { label: "信号", value: signalText(status.signal) },
             {
-              label: "地址",
+              label: t("network.client.status.signal"),
+              value: signalText(status.signal),
+            },
+            {
+              label: t("network.client.status.address"),
               value: status.address && (
                 <span className="font-mono">{status.address}</span>
               ),
             },
             {
-              label: "防火墙",
+              label: t("network.client.status.firewallLabel"),
               value: (
                 <span className="flex flex-wrap items-center gap-2">
-                  {FW_LABEL[status.firewall]}
+                  {t(FW_LABEL[status.firewall])}
                   {!status.firewall_ok && (
-                    <Badge variant="destructive">与状态不符</Badge>
+                    <Badge variant="destructive">
+                      {t("network.client.status.firewallMismatch")}
+                    </Badge>
                   )}
                 </span>
               ),
             },
             {
-              label: "已保存网络",
+              label: t("network.client.status.saved"),
               value: status.saved ? (
                 <span className="flex flex-wrap items-center gap-2">
                   {status.saved.ssid}
                   <Badge variant="outline">
-                    {status.saved.at_boot ? "开机自动连接" : "开机不连接"}
+                    {status.saved.at_boot
+                      ? t("network.client.status.atBoot")
+                      : t("network.client.status.notAtBoot")}
                   </Badge>
                 </span>
               ) : (
-                "无"
+                t("common.state.none")
               ),
             },
           ]}

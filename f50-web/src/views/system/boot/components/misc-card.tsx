@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { t } from "@/i18n";
 import { ChevronDownIcon } from "lucide-react";
 import type { MiscState, Slot, SlotInfo } from "../types";
 
@@ -45,7 +46,7 @@ function SlotRow({
       <TableCell className="tabular-nums">{info.tries}</TableCell>
       <TableCell>
         <Badge variant={info.successful ? "secondary" : "outline"}>
-          {info.successful ? "是" : "否"}
+          {info.successful ? t("common.state.yes") : t("common.state.no")}
         </Badge>
       </TableCell>
     </TableRow>
@@ -63,32 +64,42 @@ export function MiscCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>misc 启动控制块</CardTitle>
-        <CardDescription>引导程序读取的 A/B 槽位状态</CardDescription>
+        <CardTitle>{t("maintenance.boot.misc.title")}</CardTitle>
+        <CardDescription>
+          {t("maintenance.boot.misc.description")}
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {!misc ? (
           <Alert>
-            <AlertDescription>无法读取 misc 分区。</AlertDescription>
+            <AlertDescription>
+              {t("maintenance.boot.misc.unreadable")}
+            </AlertDescription>
           </Alert>
         ) : (
           <>
             <div className="flex flex-wrap gap-2">
               <Badge variant={misc.magic ? "secondary" : "destructive"}>
-                {misc.magic ? "标识正确" : "标识缺失"}
+                {misc.magic
+                  ? t("maintenance.boot.misc.magicOk")
+                  : t("maintenance.boot.misc.magicMissing")}
               </Badge>
               <Badge variant={misc.crc_ok ? "secondary" : "destructive"}>
-                {misc.crc_ok ? "CRC 正确" : "CRC 错误"}
+                {misc.crc_ok
+                  ? t("maintenance.boot.misc.crcOk")
+                  : t("maintenance.boot.misc.crcBad")}
               </Badge>
             </div>
             <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>槽位</TableHead>
-                    <TableHead>优先级</TableHead>
-                    <TableHead>剩余尝试</TableHead>
-                    <TableHead>已成功启动</TableHead>
+                    <TableHead>{t("maintenance.boot.misc.slot")}</TableHead>
+                    <TableHead>{t("maintenance.boot.misc.priority")}</TableHead>
+                    <TableHead>{t("maintenance.boot.misc.tries")}</TableHead>
+                    <TableHead>
+                      {t("maintenance.boot.misc.successful")}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -100,7 +111,7 @@ export function MiscCard({
             <Collapsible>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="sm" className="group self-start">
-                  原始数据
+                  {t("maintenance.boot.misc.raw")}
                   <ChevronDownIcon
                     data-icon="inline-end"
                     className="transition-transform group-data-[state=open]:rotate-180"

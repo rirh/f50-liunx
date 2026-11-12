@@ -16,14 +16,19 @@ export function Meter({
   return (
     <div className="flex min-w-0 flex-col gap-1.5 rounded-lg border p-3">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="truncate text-lg font-semibold tabular-nums">
+      <span className="text-lg leading-tight font-semibold break-words tabular-nums">
         {value}
       </span>
       {percent !== undefined && (
         <Progress value={percent ?? 0} aria-label={label} />
       )}
       {hint && (
-        <span className="truncate text-xs text-muted-foreground">{hint}</span>
+        <span
+          className="truncate text-xs text-muted-foreground"
+          title={typeof hint === "string" ? hint : undefined}
+        >
+          {hint}
+        </span>
       )}
     </div>
   );

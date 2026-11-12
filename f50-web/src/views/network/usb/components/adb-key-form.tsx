@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { PendingButton } from "@/components/f50/pending-button";
 import {
   Field,
@@ -6,6 +7,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,39 +19,42 @@ import { addAdbKey, usbKeys } from "../api";
 
 /** `adbd/auth.rs key_ok`: 700 base64 characters, `QAAAA` first, `=` padded; then an optional `user@host`. */
 function keyOk(line: string): boolean {
-  const t = line.trim();
-  const i = t.indexOf(" ");
-  const k = i < 0 ? t : t.slice(0, i);
+  const s = line.trim();
+  const i = s.indexOf(" ");
+  const k = i < 0 ? s : s.slice(0, i);
   return (
     k.length === 700 && k.startsWith("QAAAA") && /^[A-Za-z0-9+/]+=$/.test(k)
   );
 }
 
-const schema = z.object({
-  key: z
-    .string()
-    .min(1, "请粘贴公钥")
-    .max(800, "最多 800 个字符")
-    .refine((v) => isTextLine(v) && !v.startsWith("-"), "只能是一行文本")
-    .refine(
-      keyOk,
-      "不是有效的 adb 公钥（~/.android/adbkey.pub 的内容，以 QAAAA 开头）",
-    ),
-});
-type KeyForm = z.infer<typeof schema>;
+const schema = () =>
+  z.object({
+    key: z
+      .string()
+      .min(1, t("network.usb.adbKey.required"))
+      .max(800, t("network.usb.adbKey.tooLong"))
+      .refine(
+        (v) => isTextLine(v) && !v.startsWith("-"),
+        t("network.usb.adbKey.oneLine"),
+      )
+      .refine(keyOk, t("network.usb.adbKey.invalid")),
+  });
+type KeyForm = z.infer<ReturnType<typeof schema>>;
 
 export function AdbKeyForm() {
   const qc = useQueryClient();
+  const resolverSchema = useMemo(() => schema(), []);
   const form = useForm<KeyForm>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(resolverSchema),
     defaultValues: { key: "" },
     mode: "onTouched",
   });
   const add = useMutation({
     mutationFn: (v: KeyForm) => addAdbKey(v.key.trim()),
     onSuccess: (r) => {
-      if (r.added) toast.success(`已授权，共 ${r.keys} 个密钥`);
-      else toast.info("该密钥已授权");
+      if (r.added)
+        toast.success(t("network.usb.adbKey.added", { count: r.keys }));
+      else toast.info(t("network.usb.adbKey.exists"));
       form.reset({ key: "" });
       qc.invalidateQueries({ queryKey: usbKeys.info });
     },
@@ -66,7 +71,9 @@ export function AdbKeyForm() {
         name="key"
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="adb-key">授权电脑公钥</FieldLabel>
+            <FieldLabel htmlFor="adb-key">
+              {t("network.usb.adbKey.label")}
+            </FieldLabel>
             <Textarea
               id="adb-key"
               rows={4}
@@ -80,7 +87,7 @@ export function AdbKeyForm() {
               <FieldError errors={[fieldState.error]} />
             ) : (
               <FieldDescription>
-                粘贴电脑上 ~/.android/adbkey.pub 的内容
+                {t("network.usb.adbKey.hint")}
               </FieldDescription>
             )}
           </Field>
@@ -92,7 +99,9 @@ export function AdbKeyForm() {
         className="self-end"
         pending={add.isPending}
       >
-        {add.isPending ? "添加中" : "添加密钥"}
+        {add.isPending
+          ? t("network.usb.adbKey.adding")
+          : t("network.usb.adbKey.add")}
       </PendingButton>
     </form>
   );

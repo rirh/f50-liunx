@@ -16,6 +16,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -23,7 +24,7 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { setUsb, usbKeys } from "../api";
-import { NET_MODE_HINT, NET_MODE_LABEL } from "../labels";
+import { netModeHint, netModeLabel } from "../labels";
 import type { UsbInfo, UsbNetMode, UsbSetArgs } from "../types";
 
 const MODES: UsbNetMode[] = ["default", "ncm", "ecm", "rndis", "multi"];
@@ -50,7 +51,7 @@ export function UsbNetCard({ info }: { info: UsbInfo }) {
   const save = useMutation({
     mutationFn: setUsb,
     onSuccess: () => {
-      toast.success("已保存，下次开机生效");
+      toast.success(t("network.usb.net.saved"));
       qc.invalidateQueries({ queryKey: usbKeys.info });
     },
     onError: (e) => reportFormError(e, form.setError, FIELDS),
@@ -69,7 +70,7 @@ export function UsbNetCard({ info }: { info: UsbInfo }) {
     }
     if (v.name !== initial.name) args.name = v.name;
     if (Object.keys(args).length === 0) {
-      toast.info("没有需要保存的修改");
+      toast.info(t("network.shared.noChanges"));
       return;
     }
     save.mutate(args);
@@ -78,18 +79,16 @@ export function UsbNetCard({ info }: { info: UsbInfo }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>USB 网络</CardTitle>
-        <CardDescription>
-          设备模式下提供给电脑的网卡类型，重启后生效。
-        </CardDescription>
+        <CardTitle>{t("network.usb.net.title")}</CardTitle>
+        <CardDescription>{t("network.usb.net.description")}</CardDescription>
       </CardHeader>
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
         <CardContent className="flex flex-col gap-4">
           {hostRole && (
             <Alert>
-              <AlertTitle>主机模式下不可用</AlertTitle>
+              <AlertTitle>{t("network.usb.net.hostRole.title")}</AlertTitle>
               <AlertDescription>
-                请先切换到设备模式并取消开机主机模式。
+                {t("network.usb.net.hostRole.description")}
               </AlertDescription>
             </Alert>
           )}
@@ -102,7 +101,7 @@ export function UsbNetCard({ info }: { info: UsbInfo }) {
                   data-invalid={fieldState.invalid}
                   data-disabled={hostRole || undefined}
                 >
-                  <FieldLabel>网络模式</FieldLabel>
+                  <FieldLabel>{t("network.usb.net.mode")}</FieldLabel>
                   <ToggleGroup
                     type="single"
                     variant="outline"
@@ -115,14 +114,14 @@ export function UsbNetCard({ info }: { info: UsbInfo }) {
                   >
                     {MODES.map((m) => (
                       <ToggleGroupItem key={m} value={m}>
-                        {NET_MODE_LABEL[m]}
+                        {netModeLabel(m)}
                       </ToggleGroupItem>
                     ))}
                   </ToggleGroup>
                   {fieldState.error ? (
                     <FieldError errors={[fieldState.error]} />
                   ) : (
-                    <FieldDescription>{NET_MODE_HINT[net]}</FieldDescription>
+                    <FieldDescription>{netModeHint(net)}</FieldDescription>
                   )}
                 </Field>
               )}
@@ -135,7 +134,7 @@ export function UsbNetCard({ info }: { info: UsbInfo }) {
                   data-invalid={fieldState.invalid}
                   data-disabled={hostRole || net === "default" || undefined}
                 >
-                  <FieldLabel>生效范围</FieldLabel>
+                  <FieldLabel>{t("network.usb.net.scope")}</FieldLabel>
                   <ToggleGroup
                     type="single"
                     variant="outline"
@@ -146,15 +145,17 @@ export function UsbNetCard({ info }: { info: UsbInfo }) {
                     onValueChange={(v) => v && field.onChange(v)}
                   >
                     <ToggleGroupItem value="permanent">
-                      一直使用
+                      {t("network.usb.net.permanent")}
                     </ToggleGroupItem>
-                    <ToggleGroupItem value="once">仅下次开机</ToggleGroupItem>
+                    <ToggleGroupItem value="once">
+                      {t("network.usb.net.once")}
+                    </ToggleGroupItem>
                   </ToggleGroup>
                   {fieldState.error ? (
                     <FieldError errors={[fieldState.error]} />
                   ) : (
                     <FieldDescription>
-                      “仅下次开机”用过一次后恢复默认（NCM）
+                      {t("network.usb.net.onceHint")}
                     </FieldDescription>
                   )}
                 </Field>
@@ -165,7 +166,7 @@ export function UsbNetCard({ info }: { info: UsbInfo }) {
               name="name"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel>电脑端网卡名（Linux）</FieldLabel>
+                  <FieldLabel>{t("network.usb.net.name")}</FieldLabel>
                   <ToggleGroup
                     type="single"
                     variant="outline"
@@ -185,7 +186,9 @@ export function UsbNetCard({ info }: { info: UsbInfo }) {
         </CardContent>
         <CardFooter className="mt-4 flex justify-end">
           <PendingButton type="submit" pending={save.isPending}>
-            {save.isPending ? "保存中" : "保存"}
+            {save.isPending
+              ? t("common.action.saving")
+              : t("common.action.save")}
           </PendingButton>
         </CardFooter>
       </form>

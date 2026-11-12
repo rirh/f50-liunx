@@ -25,6 +25,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { SweepShine } from "@/components/ui/sweep-shine";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useAtom } from "jotai";
@@ -70,8 +71,8 @@ export function ConversationList({
             <SearchIcon />
           </InputGroupAddon>
           <InputGroupInput
-            aria-label="搜索会话"
-            placeholder="搜索号码或内容"
+            aria-label={t("sms.list.searchLabel")}
+            placeholder={t("sms.list.searchPlaceholder")}
             className="text-base sm:text-sm"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -80,7 +81,7 @@ export function ConversationList({
             <InputGroupAddon align="inline-end">
               <InputGroupButton
                 size="icon-xs"
-                aria-label="清除搜索"
+                aria-label={t("sms.list.clearSearch")}
                 onClick={() => setSearch("")}
               >
                 <XIcon />
@@ -96,14 +97,16 @@ export function ConversationList({
             value={filter}
             onValueChange={(v) => v && setFilter(v as ListFilter)}
           >
-            <ToggleGroupItem value="all">全部</ToggleGroupItem>
-            <ToggleGroupItem value="unread">未读</ToggleGroupItem>
+            <ToggleGroupItem value="all">{t("sms.list.all")}</ToggleGroupItem>
+            <ToggleGroupItem value="unread">
+              {t("sms.list.unread")}
+            </ToggleGroupItem>
           </ToggleGroup>
           <span className="text-xs text-muted-foreground">
             {query.isFetching && !query.isPending ? (
-              <SweepShine>刷新中</SweepShine>
+              <SweepShine>{t("common.action.refreshing")}</SweepShine>
             ) : (
-              `${totalConvs} 个会话`
+              t("sms.list.count", { count: totalConvs })
             )}
           </span>
         </div>
@@ -118,7 +121,7 @@ export function ConversationList({
           </div>
         ) : query.isError ? (
           <Alert variant="destructive" className="m-1 w-auto">
-            <AlertTitle>读取失败</AlertTitle>
+            <AlertTitle>{t("common.state.readFailed")}</AlertTitle>
             <AlertDescription className="flex flex-col items-start gap-2">
               {errorMessage(query.error)}
               <Button
@@ -126,7 +129,7 @@ export function ConversationList({
                 variant="outline"
                 onClick={() => void query.refetch()}
               >
-                重试
+                {t("common.action.retry")}
               </Button>
             </AlertDescription>
           </Alert>
@@ -137,12 +140,14 @@ export function ConversationList({
                 <InboxIcon />
               </EmptyMedia>
               <EmptyTitle>
-                {all.length === 0 ? "没有短信" : "没有匹配的会话"}
+                {all.length === 0
+                  ? t("sms.list.emptyTitle")
+                  : t("sms.list.noMatchTitle")}
               </EmptyTitle>
               <EmptyDescription>
                 {all.length === 0
-                  ? "收到的和发出的短信会显示在这里。"
-                  : "换个关键词，或切换到“全部”。"}
+                  ? t("sms.list.emptyDescription")
+                  : t("sms.list.noMatchDescription")}
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -168,9 +173,9 @@ export function ConversationList({
               onClick={() => void query.fetchNextPage()}
             >
               {query.isFetchingNextPage ? (
-                <SweepShine>加载中</SweepShine>
+                <SweepShine>{t("common.action.loading")}</SweepShine>
               ) : (
-                "加载更多会话"
+                t("sms.list.loadMore")
               )}
             </Button>
           </div>
@@ -213,8 +218,8 @@ function ConversationItem({
           </ItemTitle>
           <ItemDescription className="flex w-full items-center gap-2">
             <span className="min-w-0 flex-1 truncate">
-              {conv.last_dir === "out" && "我："}
-              {conv.preview || "（空）"}
+              {conv.last_dir === "out" && t("sms.list.me")}
+              {conv.preview || t("sms.list.blank")}
             </span>
             {conv.unread > 0 && (
               <Badge className="shrink-0">{conv.unread}</Badge>

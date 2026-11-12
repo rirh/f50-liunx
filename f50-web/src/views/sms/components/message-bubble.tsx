@@ -8,17 +8,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { CopyIcon, EllipsisVerticalIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { smsFullTime, smsShortTime } from "../lib/time";
 import type { SmsMessage } from "../types";
 
-const CODING_LABEL: Record<SmsMessage["coding"], string> = {
-  gsm: "GSM-7",
-  "8bit": "8 位",
-  ucs2: "UCS-2",
-};
+const codingLabel = (coding: SmsMessage["coding"]) =>
+  coding === "gsm"
+    ? "GSM-7"
+    : coding === "ucs2"
+      ? "UCS-2"
+      : t("sms.bubble.coding8bit");
 
 /** One message: incoming on the left, outgoing on the right, its time, parts and an incomplete long message marked. */
 export function MessageBubble({
@@ -33,8 +35,8 @@ export function MessageBubble({
   const out = message.dir === "out";
   const copy = () =>
     navigator.clipboard.writeText(message.text).then(
-      () => toast.success("已复制"),
-      () => toast.error("复制失败"),
+      () => toast.success(t("common.action.copied")),
+      () => toast.error(t("sms.toast.copyFailed")),
     );
   return (
     <Bubble
@@ -44,7 +46,7 @@ export function MessageBubble({
       aria-busy={deleting}
     >
       <BubbleContent className="whitespace-pre-wrap select-text">
-        {message.text || "（空）"}
+        {message.text || t("sms.list.blank")}
       </BubbleContent>
       <div
         className={cn(
@@ -56,22 +58,27 @@ export function MessageBubble({
           {smsShortTime(message.time, message.utc_offset)}
         </time>
         {message.parts > 1 && (
-          <span title={CODING_LABEL[message.coding]}>
-            {message.parts} 条拼接
+          <span title={codingLabel(message.coding)}>
+            {t("sms.bubble.parts", { count: message.parts })}
           </span>
         )}
         {message.incomplete && (
-          <Badge variant="destructive" title="长短信的部分分段尚未收到">
-            不完整 {message.incomplete.have}/{message.incomplete.total}
+          <Badge variant="destructive" title={t("sms.bubble.incompleteTitle")}>
+            {t("sms.bubble.incomplete", {
+              have: message.incomplete.have,
+              total: message.incomplete.total,
+            })}
           </Badge>
         )}
-        {message.status === "unread" && <Badge variant="secondary">未读</Badge>}
+        {message.status === "unread" && (
+          <Badge variant="secondary">{t("sms.bubble.unread")}</Badge>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon-xs"
-              aria-label="短信操作"
+              aria-label={t("sms.bubble.menu")}
               className="opacity-100 sm:opacity-0 sm:group-hover/sms:opacity-100 sm:focus-visible:opacity-100"
             >
               <EllipsisVerticalIcon />
@@ -81,7 +88,7 @@ export function MessageBubble({
             <DropdownMenuGroup>
               <DropdownMenuItem onSelect={() => void copy()}>
                 <CopyIcon />
-                复制内容
+                {t("sms.bubble.copyText")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
@@ -89,7 +96,7 @@ export function MessageBubble({
                 onSelect={() => onDelete(message)}
               >
                 <Trash2Icon />
-                删除
+                {t("common.action.delete")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>

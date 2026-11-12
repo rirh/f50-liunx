@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -61,8 +62,9 @@ export function LanSettingsForm({
 }) {
   const qc = useQueryClient();
   const initial = useMemo(() => lanDefaults(info), [info]);
+  const schema = useMemo(() => lanSchema(), []);
   const form = useForm<LanForm>({
-    resolver: zodResolver(lanSchema),
+    resolver: zodResolver(schema),
     defaultValues: initial,
     mode: "onTouched",
   });
@@ -73,9 +75,9 @@ export function LanSettingsForm({
     onSuccess: (_, args) => {
       if (args.address) {
         onMoved(consoleUrlAt(args.address));
-        toast.success("已保存，约 2 秒后局域网切换到新地址");
+        toast.success(t("network.lan.settings.savedMoved"));
       } else {
-        toast.success("已保存，约 2 秒后生效");
+        toast.success(t("network.lan.settings.saved"));
         qc.invalidateQueries({ queryKey: lanKeys.info });
       }
     },
@@ -91,7 +93,7 @@ export function LanSettingsForm({
   const onSubmit = (v: LanForm) => {
     const args = lanArgs(v, initial);
     if (Object.keys(args).length === 0) {
-      toast.info("没有需要保存的修改");
+      toast.info(t("network.shared.noChanges"));
       return;
     }
     if (args.address || args.netmask) setPending(args);
@@ -101,9 +103,9 @@ export function LanSettingsForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>局域网设置</CardTitle>
+        <CardTitle>{t("network.lan.settings.title")}</CardTitle>
         <CardDescription>
-          保存后约 2 秒网络与 DHCP 服务重新加载。
+          {t("network.lan.settings.description")}
         </CardDescription>
       </CardHeader>
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
@@ -115,7 +117,9 @@ export function LanSettingsForm({
                 name="address"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="lan-address">路由器地址</FieldLabel>
+                    <FieldLabel htmlFor="lan-address">
+                      {t("network.lan.settings.address")}
+                    </FieldLabel>
                     <Input
                       id="lan-address"
                       inputMode="decimal"
@@ -128,7 +132,7 @@ export function LanSettingsForm({
                       <FieldError errors={[fieldState.error]} />
                     ) : (
                       <FieldDescription>
-                        私有网段的 .1 地址；修改后控制台需通过新地址访问
+                        {t("network.lan.settings.addressHint")}
                       </FieldDescription>
                     )}
                   </Field>
@@ -139,7 +143,9 @@ export function LanSettingsForm({
                 name="netmask"
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="lan-netmask">子网掩码</FieldLabel>
+                    <FieldLabel htmlFor="lan-netmask">
+                      {t("network.lan.settings.netmask")}
+                    </FieldLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger
                         id="lan-netmask"
@@ -174,16 +180,33 @@ export function LanSettingsForm({
                     checked={field.value}
                     onCheckedChange={field.onChange}
                   />
-                  <FieldLabel htmlFor="lan-dhcp">启用 DHCP 服务</FieldLabel>
+                  <FieldLabel htmlFor="lan-dhcp">
+                    {t("network.lan.settings.dhcp")}
+                  </FieldLabel>
                 </Field>
               )}
             />
             <div className="grid gap-4 sm:grid-cols-3">
               {(
                 [
-                  ["dhcp_start", "起始偏移", "2-254", "numeric"],
-                  ["dhcp_limit", "地址数量", "1-253", "numeric"],
-                  ["leasetime", "租期", "如 12h、30m、infinite", "text"],
+                  [
+                    "dhcp_start",
+                    t("network.lan.settings.dhcpStart"),
+                    "2-254",
+                    "numeric",
+                  ],
+                  [
+                    "dhcp_limit",
+                    t("network.lan.settings.dhcpLimit"),
+                    "1-253",
+                    "numeric",
+                  ],
+                  [
+                    "leasetime",
+                    t("network.lan.settings.leasetime"),
+                    t("network.lan.settings.leasetimeHint"),
+                    "text",
+                  ],
                 ] as const
               ).map(([name, label, hint, mode]) => (
                 <Controller
@@ -216,7 +239,8 @@ export function LanSettingsForm({
             </div>
             {dhcp && range && (
               <FieldDescription>
-                地址池：<span className="font-mono">{range}</span>
+                {t("network.lan.settings.pool")}
+                <span className="font-mono">{range}</span>
               </FieldDescription>
             )}
           </FieldGroup>
@@ -228,36 +252,34 @@ export function LanSettingsForm({
             disabled={save.isPending || !form.formState.isDirty}
             onClick={() => form.reset(initial)}
           >
-            还原
+            {t("common.action.reset")}
           </Button>
           <PendingButton type="submit" pending={save.isPending}>
-            {save.isPending ? "保存中" : "保存并应用"}
+            {save.isPending
+              ? t("common.action.saving")
+              : t("network.shared.saveApply")}
           </PendingButton>
         </CardFooter>
       </form>
       <ConfirmDialog
         open={pending !== null}
         onOpenChange={(o) => !o && setPending(null)}
-        title="修改局域网地址？"
-        confirmText="保存并切换"
+        title={t("network.lan.settings.confirm.title")}
+        confirmText={t("network.lan.settings.confirm.confirm")}
         destructive
         description={
           <>
-            <span>
-              约 2
-              秒后局域网切换到新网段，所有连接的设备需要重新获取地址（可重新连接
-              Wi-Fi 或拔插 USB）。
-            </span>
+            <span>{t("network.lan.settings.confirm.description")}</span>
             {pending?.address ? (
               <span>
-                控制台将移到：
+                {t("network.lan.settings.confirm.consoleAt")}
                 <span className="font-mono break-all">
                   {consoleUrlAt(pending.address)}
                 </span>
               </span>
             ) : (
               <span>
-                新子网掩码：
+                {t("network.lan.settings.confirm.newNetmask")}
                 <span className="font-mono">{pending?.netmask}</span>
               </span>
             )}

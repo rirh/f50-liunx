@@ -4,6 +4,7 @@ import { PendingButton } from "@/components/f50/pending-button";
 import { QueryState } from "@/components/f50/query-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLinkIcon, RefreshCwIcon } from "lucide-react";
 import { getLan, lanKeys } from "./api";
@@ -18,8 +19,8 @@ export default function LanPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="局域网"
-        description="路由器地址、子网与 DHCP"
+        title={t("network.lan.title")}
+        description={t("network.lan.description")}
         actions={
           <PendingButton
             variant="outline"
@@ -28,15 +29,17 @@ export default function LanPage() {
             onClick={() => query.refetch()}
           >
             <RefreshCwIcon data-icon="inline-start" />
-            {query.isFetching ? "刷新中" : "刷新"}
+            {query.isFetching
+              ? t("common.action.refreshing")
+              : t("common.action.refresh")}
           </PendingButton>
         }
       />
       {moved && (
         <Alert>
-          <AlertTitle>局域网地址已修改</AlertTitle>
+          <AlertTitle>{t("network.lan.moved.title")}</AlertTitle>
           <AlertDescription className="flex flex-col items-start gap-2">
-            <span>重新连接网络后，请在新地址打开控制台（需重新登录）：</span>
+            <span>{t("network.lan.moved.description")}</span>
             <Button asChild size="sm" variant="outline">
               <a href={moved}>
                 <ExternalLinkIcon data-icon="inline-start" />

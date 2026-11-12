@@ -138,6 +138,11 @@ impl<'a> Attrs<'a> {
         self.get(id)?.get_u32()
     }
 
+    /// A one-byte attribute (`blob_get_u8`), as ubusd sends `UBUS_ATTR_ACTIVE`.
+    pub(crate) fn u8(&self, id: u8) -> Option<u8> {
+        self.get(id)?.payload.first().copied()
+    }
+
     pub(crate) fn str(&self, id: u8) -> Option<&'a str> {
         self.get(id)?.get_str()
     }
@@ -168,7 +173,6 @@ impl Body {
     }
 
     /// A one-byte attribute (`blob_put_int8`), as callers put `UBUS_ATTR_NO_REPLY`.
-    #[cfg(test)]
     pub(crate) fn u8(mut self, id: u8, value: u8) -> Result<Self, UbusError> {
         self.w.put(id, &[value])?;
         Ok(self)

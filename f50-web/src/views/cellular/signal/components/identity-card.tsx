@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { t, type Key } from "@/i18n";
 import { errorMessage, formatAgo, formatTime } from "@/lib/format";
 import { useMutation } from "@tanstack/react-query";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
@@ -17,7 +18,10 @@ import { toast } from "sonner";
 import { getIdentity } from "../api";
 import type { ModemIdentity } from "../types";
 
-const MSISDN_SRC = { sim: "SIM 卡", ims: "IMS 身份" } as const;
+const MSISDN_SRC = {
+  sim: "cellular.signal.identity.msisdnSrc.sim",
+  ims: "cellular.signal.identity.msisdnSrc.ims",
+} as const satisfies Record<string, Key>;
 
 function IdentityList({ d }: { d: ModemIdentity }) {
   const id = d.ident;
@@ -37,29 +41,30 @@ function IdentityList({ d }: { d: ModemIdentity }) {
           value: <span className="font-mono">{id?.iccid ?? "—"}</span>,
         },
         {
-          label: "本机号码",
+          label: t("cellular.signal.identity.ownNumber"),
           value: d.msisdn ? (
             <span className="font-mono">
               {d.msisdn}
               {d.msisdn_src && (
                 <span className="text-muted-foreground">
-                  {" "}
-                  （来自{MSISDN_SRC[d.msisdn_src]}）
+                  {t("cellular.signal.identity.from", {
+                    src: t(MSISDN_SRC[d.msisdn_src]),
+                  })}
                 </span>
               )}
             </span>
           ) : (
-            "未读到"
+            t("cellular.signal.identity.notRead")
           ),
         },
         {
-          label: "厂商 / 型号",
+          label: t("cellular.signal.identity.vendorModel"),
           value: [id?.mfg, id?.model].filter(Boolean).join(" ") || "—",
         },
-        { label: "固件", value: id?.fw ?? "—" },
-        { label: "SIM 卡槽", value: `SIM${d.slot}` },
+        { label: t("cellular.signal.identity.firmware"), value: id?.fw ?? "—" },
+        { label: t("cellular.shared.simSlot"), value: `SIM${d.slot}` },
         {
-          label: "读取时间",
+          label: t("cellular.signal.identity.readAt"),
           value: id?.ts ? formatAgo(id.ts) : "—",
           title: id?.ts ? formatTime(id.ts) : undefined,
         },
@@ -78,15 +83,15 @@ export function IdentityCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>设备与 SIM 标识</CardTitle>
+        <CardTitle>{t("cellular.signal.identity.title")}</CardTitle>
         <CardDescription>
-          IMEI、IMSI、ICCID 与本机号码属于隐私信息，按需显示
+          {t("cellular.signal.identity.description")}
         </CardDescription>
         <CardAction>
           {shown ? (
             <Button variant="outline" size="sm" onClick={() => reveal.reset()}>
               <EyeOffIcon data-icon="inline-start" />
-              隐藏
+              {t("common.action.hide")}
             </Button>
           ) : (
             <PendingButton
@@ -96,7 +101,7 @@ export function IdentityCard() {
               icon={<EyeIcon data-icon="inline-start" />}
               onClick={() => reveal.mutate()}
             >
-              显示
+              {t("common.action.show")}
             </PendingButton>
           )}
         </CardAction>
@@ -112,7 +117,7 @@ export function IdentityCard() {
           <IdentityList d={reveal.data} />
         ) : (
           <p className="text-sm text-muted-foreground">
-            已隐藏。点击「显示」读取。
+            {t("cellular.signal.identity.hidden")}
           </p>
         )}
       </CardContent>

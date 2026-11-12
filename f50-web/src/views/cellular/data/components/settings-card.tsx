@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { PendingButton } from "@/components/f50/pending-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { t, type Key } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -31,9 +33,9 @@ import { type DataForm, dataSchema } from "../schema";
 import type { AuthWrite, DataSettings, DataStatus } from "../types";
 
 const AUTH_NOTE = {
-  both: "当前：自动（PAP 或 CHAP，由网络选择）",
-  invalid: "当前保存的认证方式无效",
-} as const;
+  both: "cellular.data.settings.authBoth",
+  invalid: "cellular.data.settings.authInvalid",
+} as const satisfies Record<string, Key>;
 
 function defaults(d: DataStatus): DataForm {
   return {
@@ -50,13 +52,17 @@ function defaults(d: DataStatus): DataForm {
 export function SettingsCard({ d }: { d: DataStatus }) {
   const qc = useQueryClient();
   const form = useForm<DataForm>({
-    resolver: zodResolver(dataSchema),
+    resolver: zodResolver(useMemo(() => dataSchema(), [])),
     defaultValues: defaults(d),
   });
   const save = useMutation({
     mutationFn: setData,
     onSuccess: (r) => {
-      toast.success(r.redial ? "已保存，正在重新拨号" : "已保存");
+      toast.success(
+        r.redial
+          ? t("cellular.data.settings.savedRedial")
+          : t("cellular.shared.saved"),
+      );
       qc.invalidateQueries({ queryKey: dataKeys.get });
     },
     onError: (e) => reportFormError(e, form.setError),
@@ -74,16 +80,17 @@ export function SettingsCard({ d }: { d: DataStatus }) {
     if (v.password !== "") out.password = v.password;
     if (dirtyFields.pdp) out.pdp = v.pdp;
     if (dirtyFields.roaming) out.roaming = v.roaming;
-    if (Object.keys(out).length === 0) return toast.info("没有需要保存的更改");
+    if (Object.keys(out).length === 0)
+      return toast.info(t("cellular.shared.noChanges"));
     save.mutate(out);
   });
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>APN 设置</CardTitle>
+        <CardTitle>{t("cellular.data.settings.title")}</CardTitle>
         <CardDescription>
-          当前 SIM{d.slot} 的接入点；更改接入参数会重新拨号
+          {t("cellular.data.settings.description", { slot: d.slot })}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -97,11 +104,13 @@ export function SettingsCard({ d }: { d: DataStatus }) {
                 aria-invalid={!!errors.apn}
                 {...form.register("apn")}
               />
-              <FieldDescription>留空则使用网络默认接入点。</FieldDescription>
+              <FieldDescription>
+                {t("cellular.data.settings.apnHint")}
+              </FieldDescription>
               <FieldError errors={[errors.apn]} />
             </Field>
             <Field data-invalid={!!errors.pdp}>
-              <FieldLabel>IP 类型</FieldLabel>
+              <FieldLabel>{t("cellular.data.settings.pdp")}</FieldLabel>
               <Controller
                 control={form.control}
                 name="pdp"
@@ -123,7 +132,7 @@ export function SettingsCard({ d }: { d: DataStatus }) {
               <FieldError errors={[errors.pdp]} />
             </Field>
             <Field data-invalid={!!errors.auth}>
-              <FieldLabel>认证方式</FieldLabel>
+              <FieldLabel>{t("cellular.data.settings.auth")}</FieldLabel>
               <Controller
                 control={form.control}
                 name="auth"
@@ -136,21 +145,25 @@ export function SettingsCard({ d }: { d: DataStatus }) {
                     aria-invalid={!!errors.auth}
                     onValueChange={(v) => v && field.onChange(v as AuthWrite)}
                   >
-                    <ToggleGroupItem value="none">无</ToggleGroupItem>
+                    <ToggleGroupItem value="none">
+                      {t("cellular.data.settings.authNone")}
+                    </ToggleGroupItem>
                     <ToggleGroupItem value="pap">PAP</ToggleGroupItem>
                     <ToggleGroupItem value="chap">CHAP</ToggleGroupItem>
                   </ToggleGroup>
                 )}
               />
               {(auth === "both" || auth === "invalid") && (
-                <FieldDescription>{AUTH_NOTE[auth]}</FieldDescription>
+                <FieldDescription>{t(AUTH_NOTE[auth])}</FieldDescription>
               )}
               <FieldError errors={[errors.auth]} />
             </Field>
             {creds && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field data-invalid={!!errors.username}>
-                  <FieldLabel htmlFor="data-username">用户名</FieldLabel>
+                  <FieldLabel htmlFor="data-username">
+                    {t("cellular.data.settings.username")}
+                  </FieldLabel>
                   <Input
                     id="data-username"
                     autoComplete="off"
@@ -164,16 +177,22 @@ export function SettingsCard({ d }: { d: DataStatus }) {
                     htmlFor="data-password"
                     className="flex items-center gap-2"
                   >
-                    密码
+                    {t("cellular.data.settings.password")}
                     <Badge variant={d.password_set ? "secondary" : "outline"}>
-                      {d.password_set ? "已设置" : "未设置"}
+                      {d.password_set
+                        ? t("cellular.data.settings.passwordSet")
+                        : t("cellular.data.settings.passwordUnset")}
                     </Badge>
                   </FieldLabel>
                   <Input
                     id="data-password"
                     type="password"
                     autoComplete="new-password"
-                    placeholder={d.password_set ? "留空保持不变" : ""}
+                    placeholder={
+                      d.password_set
+                        ? t("cellular.data.settings.passwordKeep")
+                        : ""
+                    }
                     aria-invalid={!!errors.password}
                     {...form.register("password")}
                   />
@@ -184,11 +203,13 @@ export function SettingsCard({ d }: { d: DataStatus }) {
             <FieldSeparator />
             <Field orientation="horizontal" data-invalid={!!errors.roaming}>
               <FieldContent>
-                <FieldLabel htmlFor="data-roaming">数据漫游</FieldLabel>
+                <FieldLabel htmlFor="data-roaming">
+                  {t("cellular.data.settings.roaming")}
+                </FieldLabel>
                 <FieldDescription>
                   {d.roaming_held
-                    ? "正在漫游，数据因未允许漫游而暂停"
-                    : "漫游时是否使用移动数据"}
+                    ? t("cellular.data.settings.roamingHeld")
+                    : t("cellular.data.settings.roamingHint")}
                 </FieldDescription>
                 <FieldError errors={[errors.roaming]} />
               </FieldContent>
@@ -215,14 +236,14 @@ export function SettingsCard({ d }: { d: DataStatus }) {
           pending={save.isPending}
           disabled={!isDirty}
         >
-          保存
+          {t("common.action.save")}
         </PendingButton>
         <Button
           variant="outline"
           disabled={!isDirty || save.isPending}
           onClick={() => form.reset(defaults(d))}
         >
-          还原
+          {t("common.action.reset")}
         </Button>
       </CardFooter>
     </Card>

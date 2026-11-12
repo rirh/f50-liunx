@@ -17,6 +17,8 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Separator } from "@/components/ui/separator";
+import { usePoll } from "@/hooks/use-live";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { NeighbourTable } from "./neighbour-table";
 import { formatAgeMs, unit } from "../../shared/format";
@@ -30,17 +32,21 @@ import type {
   Registration,
 } from "../types";
 
-const SIG_SRC_LABEL = {
-  nr: "NR 服务小区",
-  lte: "LTE 服务小区",
-  cesq: "CESQ",
-} as const;
+const sigSrcLabel = (src: "nr" | "lte" | "cesq") =>
+  src === "nr"
+    ? t("cellular.signal.cells.nrServing")
+    : src === "lte"
+      ? t("cellular.signal.cells.lteServing")
+      : "CESQ";
 
 function lteItems(c: LteServing): KvItem[] {
   return [
-    { label: "频段 / EARFCN", value: `B${c.band} / ${c.earfcn}` },
+    {
+      label: t("cellular.signal.cells.bandEarfcn"),
+      value: `B${c.band} / ${c.earfcn}`,
+    },
     { label: "PCI", value: c.pci },
-    { label: "带宽", value: c.bw || "—" },
+    { label: t("cellular.signal.cells.bandwidth"), value: c.bw || "—" },
     { label: "eNB / CID", value: `${c.enb ?? "—"} / ${c.cid ?? "—"}` },
     { label: "TAC", value: c.tac ? c.tac.toUpperCase() : "—" },
     {
@@ -48,9 +54,12 @@ function lteItems(c: LteServing): KvItem[] {
       value: `${unit(c.rsrp, "dBm")} / ${unit(c.rsrq, "dB")}`,
     },
     { label: "SINR", value: unit(c.sinr, "dB") },
-    { label: "MCS 下/上", value: `${c.dl_mcs ?? "—"} / ${c.ul_mcs ?? "—"}` },
     {
-      label: "BLER 下/上",
+      label: t("cellular.signal.cells.mcs"),
+      value: `${c.dl_mcs ?? "—"} / ${c.ul_mcs ?? "—"}`,
+    },
+    {
+      label: t("cellular.signal.cells.bler"),
       value: `${unit(c.dl_bler, "%")} / ${unit(c.ul_bler, "%")}`,
     },
   ];
@@ -58,18 +67,27 @@ function lteItems(c: LteServing): KvItem[] {
 
 function nrItems(c: NrServing): KvItem[] {
   return [
-    { label: "频段 / ARFCN", value: `n${c.band} / ${c.arfcn}` },
+    {
+      label: t("cellular.signal.cells.bandArfcn"),
+      value: `n${c.band} / ${c.arfcn}`,
+    },
     { label: "PCI", value: c.pci },
-    { label: "带宽", value: unit(c.bw_mhz, "MHz") },
+    {
+      label: t("cellular.signal.cells.bandwidth"),
+      value: unit(c.bw_mhz, "MHz"),
+    },
     { label: "gNB / CID", value: `${c.gnb ?? "—"} / ${c.cid ?? "—"}` },
     {
       label: "RSRP / RSRQ",
       value: `${unit(c.rsrp, "dBm")} / ${unit(c.rsrq, "dB")}`,
     },
     { label: "SINR", value: unit(c.sinr, "dB") },
-    { label: "MCS 下/上", value: `${c.dl_mcs ?? "—"} / ${c.ul_mcs ?? "—"}` },
     {
-      label: "BLER 下/上",
+      label: t("cellular.signal.cells.mcs"),
+      value: `${c.dl_mcs ?? "—"} / ${c.ul_mcs ?? "—"}`,
+    },
+    {
+      label: t("cellular.signal.cells.bler"),
       value: `${unit(c.dl_bler, "%")} / ${unit(c.ul_bler, "%")}`,
     },
   ];
@@ -80,12 +98,17 @@ function regText(r: Registration | null | undefined) {
   const tail = [r.tac && `TAC ${r.tac}`, r.cid && `CID ${r.cid}`]
     .filter(Boolean)
     .join(" · ");
-  return `${REG_STAT_LABEL[r.stat] ?? r.stat}${tail ? ` · ${tail}` : ""}`;
+  const k = REG_STAT_LABEL[r.stat];
+  return `${k ? t(k) : r.stat}${tail ? ` · ${tail}` : ""}`;
 }
 
 function qosText(q: Qos | null | undefined) {
   if (!q) return "—";
-  return `QCI ${q.qci} · 下行 ${unit(q.dl, "Mbit/s")} · 上行 ${unit(q.ul, "Mbit/s")}`;
+  return t("cellular.signal.cells.qos", {
+    qci: q.qci,
+    dl: unit(q.dl, "Mbit/s"),
+    ul: unit(q.ul, "Mbit/s"),
+  });
 }
 
 function Section({
@@ -112,14 +135,16 @@ function CellsBody({ d }: { d: CellDetail | null }) {
   if (!d || d.error) {
     return d?.error ? (
       <Alert variant="destructive">
-        <AlertTitle>没有小区读数</AlertTitle>
+        <AlertTitle>{t("cellular.signal.cells.noReading")}</AlertTitle>
         <AlertDescription>{d.error}</AlertDescription>
       </Alert>
     ) : (
       <Empty>
         <EmptyHeader>
-          <EmptyTitle>尚无读数</EmptyTitle>
-          <EmptyDescription>采集器还没有完成第一轮读取。</EmptyDescription>
+          <EmptyTitle>{t("cellular.signal.cells.emptyTitle")}</EmptyTitle>
+          <EmptyDescription>
+            {t("cellular.signal.cells.emptyDescription")}
+          </EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
@@ -129,10 +154,10 @@ function CellsBody({ d }: { d: CellDetail | null }) {
     <div className="flex flex-col gap-5">
       <KvList
         items={[
-          { label: "LTE 注册", value: regText(d.reg) },
-          { label: "5G 注册", value: regText(d.reg5g) },
+          { label: t("cellular.signal.cells.regLte"), value: regText(d.reg) },
+          { label: t("cellular.signal.cells.reg5g"), value: regText(d.reg5g) },
           {
-            label: "运营商",
+            label: t("cellular.shared.operator"),
             value: d.operator
               ? [d.operator.name, d.operator.plmn]
                   .filter(Boolean)
@@ -140,38 +165,47 @@ function CellsBody({ d }: { d: CellDetail | null }) {
               : "—",
           },
           {
-            label: "信号来源",
-            value: d.sig_src ? SIG_SRC_LABEL[d.sig_src] : "—",
+            label: t("cellular.signal.cells.sigSrc"),
+            value: d.sig_src ? sigSrcLabel(d.sig_src) : "—",
           },
           {
-            label: "载波聚合",
-            value: ca ? `下行 CA（${d.lte?.bw}）` : "未启用",
+            label: t("cellular.signal.cells.ca"),
+            value: ca
+              ? t("cellular.signal.cells.caOn", { bw: d.lte?.bw })
+              : t("cellular.signal.cells.caOff"),
           },
-          { label: "承载 QoS", value: qosText(d.qos) },
+          {
+            label: t("cellular.signal.cells.bearerQos"),
+            value: qosText(d.qos),
+          },
         ]}
       />
       <div className="grid gap-5 lg:grid-cols-2">
         <Section
-          title="LTE 服务小区"
+          title={t("cellular.signal.cells.lteServing")}
           badge={ca && <Badge variant="secondary">CA</Badge>}
         >
           {d.lte ? (
             <KvList items={lteItems(d.lte)} />
           ) : (
-            <p className="text-sm text-muted-foreground">无 LTE 服务小区</p>
+            <p className="text-sm text-muted-foreground">
+              {t("cellular.signal.cells.noLte")}
+            </p>
           )}
         </Section>
-        <Section title="NR 服务小区">
+        <Section title={t("cellular.signal.cells.nrServing")}>
           {d.nr ? (
             <KvList items={nrItems(d.nr)} />
           ) : (
-            <p className="text-sm text-muted-foreground">无 NR 服务小区</p>
+            <p className="text-sm text-muted-foreground">
+              {t("cellular.signal.cells.noNr")}
+            </p>
           )}
         </Section>
       </div>
       <Separator />
       <Section
-        title="邻区"
+        title={t("cellular.signal.cells.neighbours")}
         badge={<Badge variant="outline">{d.neigh?.length ?? 0}</Badge>}
       >
         <NeighbourTable rows={d.neigh ?? []} />
@@ -184,15 +218,16 @@ export function CellsCard() {
   const query = useQuery({
     queryKey: signalKeys.cells,
     queryFn: getCells,
-    refetchInterval: 5000,
+    refetchInterval: usePoll(5000, "cells"),
   });
   return (
     <Card>
       <CardHeader>
-        <CardTitle>小区信息</CardTitle>
+        <CardTitle>{t("cellular.signal.cells.title")}</CardTitle>
         <CardDescription>
-          服务小区、邻区、载波聚合与 QoS · 每 5 秒刷新 · 读数{" "}
-          {formatAgeMs(query.data?.age_ms)}
+          {t("cellular.signal.cells.description", {
+            age: formatAgeMs(query.data?.age_ms),
+          })}
         </CardDescription>
       </CardHeader>
       <CardContent>

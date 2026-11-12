@@ -67,7 +67,11 @@ impl Splitter {
     fn flush(&mut self, out: &mut Vec<Event>) {
         let line = String::from_utf8_lossy(self.pending.trim_ascii()).into_owned();
         self.pending.clear();
-        if !line.is_empty() {
+        if line == ">" {
+            // the F50's modem ends its prompt with a CR ("\r\n> \r", measured on stty_nr13), which would otherwise
+            // turn it into a line and the send would wait for a prompt that already came
+            out.push(Event::Prompt);
+        } else if !line.is_empty() {
             out.push(Event::Line(line));
         }
     }
@@ -151,6 +155,9 @@ mod tests {
     fn prompt_without_line_end() {
         assert_eq!(feed(&[b"\r\n> "]), vec![Event::Prompt]);
         assert_eq!(feed(&[b"\r\n>"]), vec![Event::Prompt]);
+        assert_eq!(feed(&[b"\r\n> \r"]), vec![Event::Prompt]);
+        assert_eq!(feed(&[b"\r\n> ", b"\r"]), vec![Event::Prompt]);
+        assert_eq!(feed(&[b"\r\n>", b" \r\n"]), vec![Event::Prompt]);
         assert_eq!(feed(&[b"\r\n> x\r\n"]), vec![line("> x")]);
     }
 

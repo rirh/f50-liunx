@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { t } from "@/i18n";
 import {
   createColumnHelper,
   tableFeatures,
@@ -20,31 +21,44 @@ const col = createColumnHelper<typeof features, SystemCopy>();
 const columns = [
   col.display({
     id: "name",
-    header: "系统",
+    header: () => t("maintenance.update.systems.name"),
     cell: ({ row }) => (
       <span className="flex items-center gap-2">
         <span className="font-mono">{row.original.name}</span>
-        {row.original.running && <Badge variant="secondary">运行中</Badge>}
+        {row.original.running && (
+          <Badge variant="secondary">{t("common.state.running")}</Badge>
+        )}
       </span>
     ),
   }),
   col.display({
     id: "release",
-    header: "版本",
+    header: () => t("maintenance.update.systems.release"),
     cell: ({ row }) => (
       <span className="font-mono">{row.original.release ?? "—"}</span>
     ),
   }),
   col.display({
     id: "previous",
-    header: "回滚备份",
+    header: () => t("maintenance.update.systems.previous"),
     cell: ({ row }) => {
       const p = row.original.previous;
-      if (!p) return <span className="text-muted-foreground">无</span>;
+      if (!p)
+        return (
+          <span className="text-muted-foreground">
+            {t("common.state.none")}
+          </span>
+        );
       return (
         <span className="flex items-center gap-2">
-          <span className="font-mono">{p.release ?? "未知版本"}</span>
-          {p.running && <Badge variant="outline">当前运行</Badge>}
+          <span className="font-mono">
+            {p.release ?? t("maintenance.update.status.unknownRelease")}
+          </span>
+          {p.running && (
+            <Badge variant="outline">
+              {t("maintenance.update.systems.running")}
+            </Badge>
+          )}
         </span>
       );
     },
@@ -89,7 +103,7 @@ export function SystemsTable({ systems }: { systems: SystemCopy[] }) {
               colSpan={columns.length}
               className="text-center text-muted-foreground"
             >
-              没有已安装的系统
+              {t("maintenance.update.systems.empty")}
             </TableCell>
           </TableRow>
         )}

@@ -23,6 +23,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { formatTime } from "@/lib/format";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,14 +45,15 @@ export function TimezoneForm({
     const list = zoneList();
     return current && !list.includes(current) ? [current, ...list] : list;
   }, [current]);
+  const schema = useMemo(() => timezoneSchema(), []);
   const form = useForm<TimezoneValues>({
-    resolver: zodResolver(timezoneSchema),
+    resolver: zodResolver(schema),
     values: { zone: current ?? "UTC" },
   });
   const save = useMutation({
     mutationFn: (v: TimezoneValues) => setTimezone(v.zone),
     onSuccess: (r) => {
-      toast.success(`时区已改为 ${r.timezone}`);
+      toast.success(t("system.settings.timezone.saved", { zone: r.timezone }));
       qc.invalidateQueries({ queryKey: infoKey });
     },
     onError: (e) => reportFormError(e, form.setError, { zone: "zone" }),
@@ -59,9 +61,11 @@ export function TimezoneForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>时区</CardTitle>
+        <CardTitle>{t("system.settings.timezone.title")}</CardTitle>
         <CardDescription>
-          设备时间：{formatTime(time)}（按浏览器时区显示）
+          {t("system.settings.timezone.description", {
+            time: formatTime(time),
+          })}
         </CardDescription>
       </CardHeader>
       <form
@@ -75,7 +79,9 @@ export function TimezoneForm({
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="timezone">时区</FieldLabel>
+                  <FieldLabel htmlFor="timezone">
+                    {t("system.settings.timezone.label")}
+                  </FieldLabel>
                   <Combobox
                     items={zones}
                     value={field.value}
@@ -85,12 +91,14 @@ export function TimezoneForm({
                   >
                     <ComboboxInput
                       id="timezone"
-                      placeholder="搜索时区，如 Asia/Shanghai"
+                      placeholder={t("system.settings.timezone.placeholder")}
                       aria-invalid={fieldState.invalid}
                       onBlur={field.onBlur}
                     />
                     <ComboboxContent>
-                      <ComboboxEmpty>没有匹配的时区</ComboboxEmpty>
+                      <ComboboxEmpty>
+                        {t("system.settings.timezone.empty")}
+                      </ComboboxEmpty>
                       <ComboboxList>
                         {(z: string) => (
                           <ComboboxItem key={z} value={z}>
@@ -101,8 +109,7 @@ export function TimezoneForm({
                     </ComboboxContent>
                   </Combobox>
                   <FieldDescription>
-                    IANA 时区名（如 Asia/Shanghai）或
-                    UTC。设备上缺少该时区数据时会被拒绝。
+                    {t("system.settings.timezone.hint")}
                   </FieldDescription>
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
@@ -118,7 +125,7 @@ export function TimezoneForm({
             pending={save.isPending}
             disabled={!form.formState.isDirty}
           >
-            保存
+            {t("common.action.save")}
           </PendingButton>
         </CardFooter>
       </form>

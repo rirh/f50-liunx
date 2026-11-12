@@ -8,6 +8,7 @@ import {
   InputGroupTextarea,
 } from "@/components/ui/input-group";
 import { SweepShine } from "@/components/ui/sweep-shine";
+import { t } from "@/i18n";
 import { SendIcon, XIcon } from "lucide-react";
 import { SmsCounter } from "./sms-counter";
 import { useSendForm } from "./use-send-form";
@@ -23,7 +24,7 @@ export function Composer({ peer }: { peer: string }) {
   if (!NUMBER_RE.test(peer)) {
     return (
       <p className="border-t p-3 text-sm text-muted-foreground">
-        该发件人不是电话号码，无法回复。
+        {t("sms.composer.notNumber")}
       </p>
     );
   }
@@ -33,14 +34,18 @@ export function Composer({ peer }: { peer: string }) {
       {job && (
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
-            <JobProgress id={job.id} title="发送短信" onDone={onJobDone} />
+            <JobProgress
+              id={job.id}
+              title={t("sms.composer.jobTitle")}
+              onDone={onJobDone}
+            />
           </div>
           {!running && (
             <Button
               type="button"
               variant="ghost"
               size="icon-sm"
-              aria-label="关闭"
+              aria-label={t("common.action.close")}
               onClick={dismissJob}
             >
               <XIcon />
@@ -51,8 +56,8 @@ export function Composer({ peer }: { peer: string }) {
       <Field data-invalid={!!error}>
         <InputGroup>
           <InputGroupTextarea
-            aria-label="短信内容"
-            placeholder="输入短信…"
+            aria-label={t("sms.composer.textLabel")}
+            placeholder={t("sms.composer.placeholder")}
             rows={2}
             className="max-h-40 min-h-12 text-base sm:text-sm"
             aria-invalid={!!error}
@@ -76,7 +81,11 @@ export function Composer({ peer }: { peer: string }) {
               aria-busy={pending}
             >
               <SendIcon data-icon="inline-start" />
-              {pending ? <SweepShine>发送中</SweepShine> : "发送"}
+              {pending ? (
+                <SweepShine>{t("sms.composer.sending")}</SweepShine>
+              ) : (
+                t("sms.composer.send")
+              )}
             </InputGroupButton>
           </InputGroupAddon>
         </InputGroup>

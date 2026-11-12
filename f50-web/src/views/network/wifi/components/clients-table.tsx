@@ -6,18 +6,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { t } from "@/i18n";
 import { columnHelper } from "@/lib/table";
 import type { WifiStation } from "../types";
 
 const col = columnHelper<WifiStation>();
 const columns = [
-  col.accessor("name", { header: "名称", cell: (c) => c.getValue() ?? "—" }),
+  col.accessor("name", {
+    header: () => t("network.wifi.clients.name"),
+    cell: (c) => c.getValue() ?? "—",
+  }),
   col.accessor("ip", {
-    header: "IP 地址",
+    header: () => t("network.wifi.clients.ip"),
     cell: (c) => <span className="font-mono">{c.getValue() ?? "—"}</span>,
   }),
   col.accessor("mac", {
-    header: "MAC 地址",
+    header: () => t("network.wifi.clients.mac"),
     cell: (c) => <span className="font-mono">{c.getValue()}</span>,
   }),
 ];
@@ -26,9 +30,9 @@ export function WifiClientsTable({ clients }: { clients: WifiStation[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>已连接设备</CardTitle>
+        <CardTitle>{t("network.wifi.clients.title")}</CardTitle>
         <CardDescription>
-          hostapd 报告的终端，地址和名称来自 DHCP 租约
+          {t("network.wifi.clients.description")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -36,7 +40,7 @@ export function WifiClientsTable({ clients }: { clients: WifiStation[] }) {
           columns={columns}
           data={clients}
           getRowId={(c) => c.mac}
-          empty="没有设备连接到热点"
+          empty={t("network.wifi.clients.empty")}
         />
       </CardContent>
     </Card>

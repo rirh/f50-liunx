@@ -108,7 +108,14 @@ async fn daemon() -> Result<()> {
     install_acl(&platform, &api).await;
 
     wiring::start(&services, &platform, &cfg, &tracker, &shutdown);
-    tracker.spawn(bus::serve(api, shutdown.clone()));
+    // f50.live: published while a page (uhttpd's /ubus/subscribe) or a shell listens
+    let (notifier, notes) = f50_ubus::notifier(&[f50_api::live::OBJECT]);
+    if let Some(subscribed) = notifier.subscribed(f50_api::live::OBJECT) {
+        let n = notifier.clone();
+        let publish: f50_api::live::Publish = Arc::new(move |kind, v| n.notify(f50_api::live::OBJECT, kind, v));
+        api.run_live(publish, subscribed, &tracker, shutdown.clone());
+    }
+    tracker.spawn(bus::serve(api, notes, shutdown.clone()));
     tracing::info!("ready");
 
     shutdown.cancelled().await;

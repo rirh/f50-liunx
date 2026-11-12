@@ -28,12 +28,14 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { t, type Key } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { ConfirmDialog } from "../../shared/confirm-dialog";
+import { pskHint } from "../../shared/text-rules";
 import { setWifi, wifiKeys } from "../api";
 import { channelsFor, widthsFor } from "../channels";
 import {
@@ -45,21 +47,21 @@ import {
 } from "../schema";
 import type { WifiInfo, WifiSetArgs } from "../types";
 
-const ARG_LABEL: Record<keyof WifiSetArgs, string> = {
-  ssid: "名称",
-  password: "密码",
-  band: "频段",
-  channel: "信道",
-  width: "频宽",
-  hidden: "隐藏",
-  country: "国家",
-};
+const ARG_LABEL = {
+  ssid: "network.wifi.settings.arg.ssid",
+  password: "network.wifi.settings.arg.password",
+  band: "network.wifi.settings.arg.band",
+  channel: "network.wifi.settings.arg.channel",
+  width: "network.wifi.settings.arg.width",
+  hidden: "network.wifi.settings.arg.hidden",
+  country: "network.wifi.settings.arg.country",
+} satisfies Record<keyof WifiSetArgs, Key>;
 
 function argText(k: keyof WifiSetArgs, v: unknown): string {
-  if (k === "password") return "（新密码）";
-  if (k === "hidden") return v ? "是" : "否";
+  if (k === "password") return t("network.wifi.settings.newPassword");
+  if (k === "hidden") return v ? t("common.state.yes") : t("common.state.no");
   if (k === "band") return `${String(v)} GHz`;
-  if (v === "auto") return "自动";
+  if (v === "auto") return t("common.state.auto");
   if (k === "width") return `${String(v)} MHz`;
   return String(v);
 }
@@ -78,7 +80,7 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
   const save = useMutation({
     mutationFn: setWifi,
     onSuccess: () => {
-      toast.success("已保存，Wi-Fi 将在约 2 秒后重新加载");
+      toast.success(t("network.wifi.settings.saved"));
       form.reset({ ...form.getValues(), password: "" });
       qc.invalidateQueries({ queryKey: wifiKeys.info });
     },
@@ -110,7 +112,7 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
   const onSubmit = (v: WifiForm) => {
     const args = wifiArgs(v, initial);
     if (Object.keys(args).length === 0) {
-      toast.info("没有需要保存的修改");
+      toast.info(t("network.shared.noChanges"));
       return;
     }
     setPending(args);
@@ -119,27 +121,28 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>热点设置</CardTitle>
+        <CardTitle>{t("network.wifi.settings.title")}</CardTitle>
         <CardDescription>
-          只提交修改过的项；密码留空表示不修改。
+          {t("network.wifi.settings.description")}
         </CardDescription>
       </CardHeader>
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
         <CardContent className="flex flex-col gap-4">
           {info.client_mode && (
             <Alert>
-              <AlertTitle>无线电正用于 Wi-Fi 上网</AlertTitle>
+              <AlertTitle>
+                {t("network.wifi.settings.clientMode.title")}
+              </AlertTitle>
               <AlertDescription>
-                设置会先保存，热点恢复后生效。
+                {t("network.wifi.settings.clientMode.description")}
               </AlertDescription>
             </Alert>
           )}
           {saeNow && (
             <Alert>
-              <AlertTitle>此设备不支持 WPA3</AlertTitle>
+              <AlertTitle>{t("network.wifi.settings.noWpa3.title")}</AlertTitle>
               <AlertDescription>
-                保存任何修改都会把热点改为
-                WPA2-PSK（CCMP）；原密码不可用时需要输入新密码。
+                {t("network.wifi.settings.noWpa3.description")}
               </AlertDescription>
             </Alert>
           )}
@@ -149,7 +152,9 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
               name="ssid"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="wifi-ssid">网络名称（SSID）</FieldLabel>
+                  <FieldLabel htmlFor="wifi-ssid">
+                    {t("network.wifi.settings.ssid")}
+                  </FieldLabel>
                   <Input
                     id="wifi-ssid"
                     autoComplete="off"
@@ -165,15 +170,17 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
               name="password"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="wifi-password">密码</FieldLabel>
+                  <FieldLabel htmlFor="wifi-password">
+                    {t("network.wifi.settings.password")}
+                  </FieldLabel>
                   <Input
                     id="wifi-password"
                     type="password"
                     autoComplete="new-password"
                     placeholder={
                       info.password_set
-                        ? "已设置，留空不修改"
-                        : "未设置（开放网络）"
+                        ? t("network.wifi.settings.passwordSet")
+                        : t("network.wifi.settings.passwordUnset")
                     }
                     aria-invalid={fieldState.invalid}
                     {...field}
@@ -182,9 +189,9 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
                     <FieldError errors={[fieldState.error]} />
                   ) : (
                     <FieldDescription>
-                      8-63 个可打印 ASCII 字符
+                      {pskHint()}
                       {info.security === "open"
-                        ? "；开放热点设置密码后改为 WPA2"
+                        ? t("network.wifi.settings.openToWpa2")
                         : ""}
                     </FieldDescription>
                   )}
@@ -196,7 +203,7 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
               name="band"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel>频段</FieldLabel>
+                  <FieldLabel>{t("network.wifi.settings.band")}</FieldLabel>
                   <ToggleGroup
                     type="single"
                     variant="outline"
@@ -231,7 +238,9 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
               name="country"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="wifi-country">国家/地区代码</FieldLabel>
+                  <FieldLabel htmlFor="wifi-country">
+                    {t("network.wifi.settings.country")}
+                  </FieldLabel>
                   <Input
                     id="wifi-country"
                     maxLength={2}
@@ -257,7 +266,9 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
                     <FieldError errors={[fieldState.error]} />
                   ) : (
                     <FieldDescription>
-                      决定可用的 5 GHz 信道（{ap5Text(country)}）
+                      {t("network.wifi.settings.countryHint", {
+                        channels: ap5Text(country),
+                      })}
                     </FieldDescription>
                   )}
                 </Field>
@@ -268,7 +279,9 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
               name="channel"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="wifi-channel">信道</FieldLabel>
+                  <FieldLabel htmlFor="wifi-channel">
+                    {t("network.wifi.settings.channel")}
+                  </FieldLabel>
                   <Select
                     value={field.value}
                     onValueChange={(v) => {
@@ -296,10 +309,15 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
                         {channelOptions.map((c) => (
                           <SelectItem key={c} value={c}>
                             {c === "auto"
-                              ? "自动"
+                              ? t("common.state.auto")
                               : channels.includes(Number(c))
                                 ? c
-                                : `${c}（不可用）`}
+                                : t(
+                                    "network.wifi.settings.channelUnavailable",
+                                    {
+                                      channel: c,
+                                    },
+                                  )}
                           </SelectItem>
                         ))}
                       </SelectGroup>
@@ -309,7 +327,7 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
                     <FieldError errors={[fieldState.error]} />
                   ) : (
                     <FieldDescription>
-                      不提供 DFS 信道（驱动不支持雷达检测）
+                      {t("network.wifi.settings.channelHint")}
                     </FieldDescription>
                   )}
                 </Field>
@@ -320,7 +338,7 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
               name="width"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel>频宽</FieldLabel>
+                  <FieldLabel>{t("network.wifi.settings.width")}</FieldLabel>
                   <ToggleGroup
                     type="single"
                     variant="outline"
@@ -335,7 +353,7 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
                         value={w}
                         disabled={!widths.includes(w)}
                       >
-                        {w === "auto" ? "自动" : `${w} MHz`}
+                        {w === "auto" ? t("common.state.auto") : `${w} MHz`}
                       </ToggleGroupItem>
                     ))}
                   </ToggleGroup>
@@ -343,7 +361,7 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
                     <FieldError errors={[fieldState.error]} />
                   ) : (
                     <FieldDescription>
-                      不超过所选信道在该国家允许的最大频宽
+                      {t("network.wifi.settings.widthHint")}
                     </FieldDescription>
                   )}
                 </Field>
@@ -360,7 +378,7 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
                     onCheckedChange={field.onChange}
                   />
                   <FieldLabel htmlFor="wifi-hidden">
-                    隐藏网络名称（不广播 SSID）
+                    {t("network.wifi.settings.hidden")}
                   </FieldLabel>
                 </Field>
               )}
@@ -374,32 +392,33 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
             disabled={save.isPending || !form.formState.isDirty}
             onClick={() => form.reset(initial)}
           >
-            还原
+            {t("common.action.reset")}
           </Button>
           <PendingButton type="submit" pending={save.isPending}>
-            {save.isPending ? "保存中" : "保存并应用"}
+            {save.isPending
+              ? t("common.action.saving")
+              : t("network.shared.saveApply")}
           </PendingButton>
         </CardFooter>
       </form>
       <ConfirmDialog
         open={pending !== null}
         onOpenChange={(o) => !o && setPending(null)}
-        title="应用 Wi-Fi 设置？"
-        confirmText="应用"
+        title={t("network.wifi.settings.confirmTitle")}
+        confirmText={t("common.action.apply")}
         description={
           <>
-            <span>
-              Wi-Fi 会在约 2
-              秒后重新加载，所有热点客户端会短暂断开；如果你正通过热点访问控制台，可能需要用新设置重新连接。
-            </span>
+            <span>{t("network.wifi.settings.confirmDescription")}</span>
             {pending && (
               <span>
                 {Object.entries(pending)
-                  .map(
-                    ([k, v]) =>
-                      `${ARG_LABEL[k as keyof WifiSetArgs]}：${argText(k as keyof WifiSetArgs, v)}`,
+                  .map(([k, v]) =>
+                    t("network.shared.pair", {
+                      label: t(ARG_LABEL[k as keyof WifiSetArgs]),
+                      value: argText(k as keyof WifiSetArgs, v),
+                    }),
                   )
-                  .join("；")}
+                  .join(t("network.shared.sep"))}
               </span>
             )}
           </>
@@ -411,7 +430,9 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
 }
 
 function ap5Text(cc: string): string {
-  if (!/^[A-Z]{2}$/.test(cc)) return "请输入两位代码";
+  if (!/^[A-Z]{2}$/.test(cc)) return t("network.wifi.settings.ap5.enterCode");
   const l = channelsFor("5", cc);
-  return l.length ? `5 GHz：${l.join(" ")}` : "无可用 5 GHz 信道";
+  return l.length
+    ? t("network.wifi.settings.ap5.list", { channels: l.join(" ") })
+    : t("network.wifi.settings.ap5.none");
 }

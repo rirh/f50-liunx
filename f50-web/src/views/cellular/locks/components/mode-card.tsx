@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import type { ModeLabel } from "../types";
 import { type OnJob, useLockSet } from "../use-lock-set";
@@ -28,21 +29,27 @@ export function ModeCard({
 }) {
   const [mode, setMode] = useState<ModeLabel>(current);
   const set = useLockSet(onJob);
-  const label = (m: ModeLabel) => MODES.find((x) => x.value === m)?.label ?? m;
+  const label = (m: ModeLabel) => {
+    const k = MODES.find((x) => x.value === m)?.label;
+    return k ? t(k) : m;
+  };
+  const hint = MODES.find((m) => m.value === mode)?.hint;
   return (
     <Card>
       <CardHeader>
-        <CardTitle>网络模式</CardTitle>
+        <CardTitle>{t("cellular.locks.mode.title")}</CardTitle>
         <CardDescription>
-          更改后协议栈重启，蜂窝连接中断约半分钟
+          {t("cellular.locks.mode.description")}
         </CardDescription>
         <CardAction>
-          <Badge variant="secondary">当前：{label(current)}</Badge>
+          <Badge variant="secondary">
+            {t("cellular.locks.current", { value: label(current) })}
+          </Badge>
         </CardAction>
       </CardHeader>
       <CardContent>
         <Field>
-          <FieldLabel>模式</FieldLabel>
+          <FieldLabel>{t("cellular.locks.mode.label")}</FieldLabel>
           <ToggleGroup
             type="single"
             variant="outline"
@@ -53,13 +60,11 @@ export function ModeCard({
           >
             {MODES.map((m) => (
               <ToggleGroupItem key={m.value} value={m.value}>
-                {m.label}
+                {t(m.label)}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-          <FieldDescription>
-            {MODES.find((m) => m.value === mode)?.hint}
-          </FieldDescription>
+          <FieldDescription>{hint && t(hint)}</FieldDescription>
         </Field>
       </CardContent>
       <CardFooter>
@@ -68,12 +73,16 @@ export function ModeCard({
           disabled={disabled || mode === current}
           onClick={() =>
             set.mutate(
-              { kind: "mode", value: mode, title: `网络模式 → ${label(mode)}` },
+              {
+                kind: "mode",
+                value: mode,
+                title: t("cellular.locks.mode.job", { mode: label(mode) }),
+              },
               { onError: (e) => reportFormError(e) },
             )
           }
         >
-          应用
+          {t("common.action.apply")}
         </PendingButton>
       </CardFooter>
     </Card>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, type MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/use-theme";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { Moon, Sun } from "lucide-react";
 import { flushSync } from "react-dom";
@@ -26,7 +27,8 @@ export function ThemeToggleButton({
   const transitionRef = useRef<ThemeTransition | null>(null);
   const animationRef = useRef<Animation | null>(null);
   const buttonLabel =
-    label ?? (resolvedTheme === "dark" ? "切换为浅色模式" : "切换为深色模式");
+    label ??
+    (resolvedTheme === "dark" ? t("app.theme.toLight") : t("app.theme.toDark"));
 
   useEffect(
     () => () => {

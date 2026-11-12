@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { t } from "@/i18n";
 import { formatBytes } from "@/lib/format";
 import {
   createColumnHelper,
@@ -26,18 +27,18 @@ const col = createColumnHelper<typeof features, CycleUsage>();
 const columns = col.columns([
   col.accessor((r) => `${r.start} ~ ${r.last}`, {
     id: "period",
-    header: "周期",
+    header: () => t("cellular.traffic.cycles.period"),
   }),
   col.accessor("rx", {
-    header: "下载",
+    header: () => t("cellular.traffic.download"),
     cell: (c) => formatBytes(c.getValue()),
   }),
   col.accessor("tx", {
-    header: "上传",
+    header: () => t("cellular.traffic.upload"),
     cell: (c) => formatBytes(c.getValue()),
   }),
   col.accessor("used", {
-    header: "合计",
+    header: () => t("cellular.traffic.cycles.total"),
     cell: (c) => formatBytes(c.getValue()),
   }),
 ]);
@@ -53,8 +54,10 @@ export function CyclesTable({ cycles }: { cycles: CycleUsage[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>历史周期</CardTitle>
-        <CardDescription>最近 {cycles.length} 个计费周期</CardDescription>
+        <CardTitle>{t("cellular.traffic.cycles.title")}</CardTitle>
+        <CardDescription>
+          {t("cellular.traffic.cycles.description", { count: cycles.length })}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto rounded-lg border">

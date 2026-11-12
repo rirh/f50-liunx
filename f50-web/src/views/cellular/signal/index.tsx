@@ -1,15 +1,17 @@
 import { PageHeader } from "@/components/f50/page-header";
+import { t } from "@/i18n";
 import { CellsCard } from "./components/cells-card";
 import { IdentityCard } from "./components/identity-card";
 import { RadioCard } from "./components/radio-card";
 import { StatusCard } from "./components/status-card";
+import { TrendCard } from "./components/trend-card";
 
 export default function SignalPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="信号与小区"
-        description="注册状态、信号质量、服务小区与邻区（读数来自后台采集，不阻塞设备）"
+        title={t("cellular.signal.title")}
+        description={t("cellular.signal.description")}
       />
       <div className="grid gap-4 lg:grid-cols-2">
         <StatusCard />
@@ -18,6 +20,7 @@ export default function SignalPage() {
           <IdentityCard />
         </div>
       </div>
+      <TrendCard />
       <CellsCard />
     </div>
   );

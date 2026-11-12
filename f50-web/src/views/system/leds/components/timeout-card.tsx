@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { PendingButton } from "@/components/f50/pending-button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,6 +23,7 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@/components/ui/input-group";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { formatDuration } from "@/lib/format";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,11 +33,14 @@ import { type TimeoutValues, timeoutSchema } from "../schemas";
 import type { LedSettings } from "../types";
 
 const describe = (s: number) =>
-  s === 0 ? "常亮" : `${formatDuration(s)}无操作后熄灭`;
+  s === 0
+    ? t("system.leds.timeout.always")
+    : t("system.leds.timeout.after", { duration: formatDuration(s) });
 
 export function TimeoutCard({ data }: { data: LedSettings }) {
+  const schema = useMemo(() => timeoutSchema(), []);
   const form = useForm<TimeoutValues>({
-    resolver: zodResolver(timeoutSchema),
+    resolver: zodResolver(schema),
     values: { seconds: String(data.timeout) },
   });
   const onError = (e: unknown) =>
@@ -46,13 +51,17 @@ export function TimeoutCard({ data }: { data: LedSettings }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>自动熄灭</CardTitle>
-        <CardDescription>当前：{describe(data.timeout)}</CardDescription>
+        <CardTitle>{t("system.leds.timeout.title")}</CardTitle>
+        <CardDescription>
+          {t("system.leds.timeout.current", { text: describe(data.timeout) })}
+        </CardDescription>
         <CardAction>
           {data.timeout_default ? (
-            <Badge variant="secondary">设备默认</Badge>
+            <Badge variant="secondary">
+              {t("system.leds.timeout.default")}
+            </Badge>
           ) : (
-            <Badge variant="outline">自定义</Badge>
+            <Badge variant="outline">{t("system.leds.timeout.custom")}</Badge>
           )}
         </CardAction>
       </CardHeader>
@@ -67,7 +76,9 @@ export function TimeoutCard({ data }: { data: LedSettings }) {
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="led-timeout">熄灭延时</FieldLabel>
+                  <FieldLabel htmlFor="led-timeout">
+                    {t("system.leds.timeout.label")}
+                  </FieldLabel>
                   <InputGroup>
                     <InputGroupInput
                       {...field}
@@ -77,13 +88,16 @@ export function TimeoutCard({ data }: { data: LedSettings }) {
                       aria-invalid={fieldState.invalid}
                     />
                     <InputGroupAddon align="inline-end">
-                      <InputGroupText>秒</InputGroupText>
+                      <InputGroupText>
+                        {t("system.leds.timeout.seconds")}
+                      </InputGroupText>
                     </InputGroupAddon>
                   </InputGroup>
                   <FieldDescription>
-                    按键后经过这么久指示灯熄灭；0 表示常亮，最长 86400
-                    秒。设备默认 {data.default_timeout} 秒（
-                    {describe(data.default_timeout)}）。
+                    {t("system.leds.timeout.hint", {
+                      n: data.default_timeout,
+                      text: describe(data.default_timeout),
+                    })}
                   </FieldDescription>
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
@@ -99,7 +113,7 @@ export function TimeoutCard({ data }: { data: LedSettings }) {
             pending={save.isPending}
             disabled={busy || !form.formState.isDirty}
           >
-            保存
+            {t("common.action.save")}
           </PendingButton>
           <PendingButton
             type="button"
@@ -108,7 +122,7 @@ export function TimeoutCard({ data }: { data: LedSettings }) {
             disabled={busy || data.timeout_default}
             onClick={() => reset.mutate("default")}
           >
-            恢复默认
+            {t("common.action.restore")}
           </PendingButton>
         </CardFooter>
       </form>

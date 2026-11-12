@@ -4,6 +4,7 @@
  * a surrogate pair takes two). One part holds 160 septets / 70 units; a long message 153 / 67 per part, a character
  * never cut across parts. At most 10 parts, and the API refuses a text over 1530 characters.
  */
+import { t } from "@/i18n";
 
 export const MAX_PARTS = 10;
 export const MAX_CHARS = 1530;
@@ -90,11 +91,12 @@ export function smsEncoding(text: string): SmsEncoding {
 
 /** The zod refinement message for a text f50d would refuse, or null. */
 export function smsTextProblem(text: string): string | null {
-  if (!text) return "请输入短信内容";
+  if (!text) return t("sms.form.textRequired");
   const e = smsEncoding(text);
-  if (e.chars > MAX_CHARS) return `内容过长：${e.chars}/${MAX_CHARS} 字`;
+  if (e.chars > MAX_CHARS)
+    return t("sms.form.textTooLong", { chars: e.chars, max: MAX_CHARS });
   if (e.parts > MAX_PARTS)
-    return `需要 ${e.parts} 条短信发送，最多 ${MAX_PARTS} 条`;
+    return t("sms.form.tooManyParts", { parts: e.parts, max: MAX_PARTS });
   return null;
 }
 

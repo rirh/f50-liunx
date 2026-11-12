@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { t } from "@/i18n";
 import { formatAgo, formatTime } from "@/lib/format";
 import { HardDriveDownloadIcon } from "lucide-react";
 import { TextLink } from "./text-link";
@@ -8,7 +9,7 @@ import type { Part, UpdateBrief } from "../types";
 export function UpdateTile({ part }: { part: Part<UpdateBrief> | undefined }) {
   return (
     <Tile
-      title="系统更新"
+      title={t("dashboard.update.title")}
       icon={HardDriveDownloadIcon}
       to="/system/update"
       part={part}
@@ -16,30 +17,39 @@ export function UpdateTile({ part }: { part: Part<UpdateBrief> | undefined }) {
       {(u) => (
         <>
           <div className="flex items-center justify-between gap-3">
-            <Figure value={u.installed ?? "未知版本"} caption="当前版本" />
+            <Figure
+              value={u.installed ?? t("dashboard.update.unknownVersion")}
+              caption={t("dashboard.update.current")}
+            />
             {u.job ? (
-              <Badge>更新任务进行中</Badge>
+              <Badge>{t("dashboard.update.jobRunning")}</Badge>
             ) : u.notice ? (
-              <Badge>有新版本</Badge>
+              <Badge>{t("dashboard.update.available")}</Badge>
             ) : (
-              <Badge variant="secondary">已是最新</Badge>
+              <Badge variant="secondary">{t("dashboard.update.latest")}</Badge>
             )}
           </div>
           {u.restart_pending && (
-            <Badge variant="outline">更新已安装，等待重启</Badge>
+            <Badge variant="outline">
+              {t("dashboard.update.restartPending")}
+            </Badge>
           )}
           {u.notice && (
-            <p className="text-sm" title={formatTime(u.notice.at)}>
-              新版本 <span className="font-mono">{u.notice.tag}</span>（
-              {formatAgo(u.notice.at)}发现）
+            <p className="text-xs" title={formatTime(u.notice.at)}>
+              {t("dashboard.update.found", {
+                tag: u.notice.tag,
+                ago: formatAgo(u.notice.at),
+              })}
             </p>
           )}
           {(u.notice || u.job) && (
             <TextLink
               to="/system/update"
-              className="self-start text-sm text-primary"
+              className="self-start text-xs text-primary"
             >
-              {u.job ? "查看更新进度" : "前往更新"}
+              {u.job
+                ? t("dashboard.update.progress")
+                : t("dashboard.update.go")}
             </TextLink>
           )}
         </>

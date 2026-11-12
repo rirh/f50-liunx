@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { SweepShine } from "@/components/ui/sweep-shine";
 import { useJob } from "@/hooks/use-job";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { JOB_STATE_LABEL, type JobStatus, jobCancel } from "@/lib/jobs";
 import { useMutation } from "@tanstack/react-query";
@@ -22,7 +23,7 @@ export function JobProgress({
   const { data: job, error } = useJob(id, onDone);
   const cancel = useMutation({
     mutationFn: () => jobCancel(id),
-    onSuccess: () => toast.success("已请求停止"),
+    onSuccess: () => toast.success(t("app.job.stopRequested")),
     onError: (e) => toast.error(errorMessage(e)),
   });
 
@@ -58,7 +59,11 @@ export function JobProgress({
             aria-busy={cancel.isPending}
             onClick={() => cancel.mutate()}
           >
-            {cancel.isPending ? <SweepShine>停止中</SweepShine> : "停止"}
+            {cancel.isPending ? (
+              <SweepShine>{t("common.action.stopping")}</SweepShine>
+            ) : (
+              t("common.action.stop")
+            )}
           </Button>
         )}
       </AlertDescription>

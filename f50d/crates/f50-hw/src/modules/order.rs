@@ -123,6 +123,70 @@ async fn modprobe_or_insmod(p: &Platform, m: &str, f: &Path) -> f50_core::Result
     }
 }
 
+/// The SC2355 (Marlin3) Wi-Fi's PCIe host drivers: modules on the vendor 5.4 kernel, built in on mainline.
+const WIFI_PCIE: &[&str] = &["pcie-sprd-misc", "pcie-sprd"];
+/// The WCN platform driver, then the WLAN driver that makes wlan0 (`wifi-start`).
+const WIFI_DRIVERS: &[&str] = &["wcn_bsp", "sprd_wlan_combo"];
+/// How long the WLAN driver may take to make wlan0 once it is loaded.
+const WLAN0_WAIT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// The Wi-Fi chip's drivers (`wifi-start`), before netifd: the PCIe host, `wcn_bsp`, `sprd_wlan_combo`, then wlan0,
+/// then the firmware's ARM log off (`wcn_bsp` turns it on at boot and prints every packet of it to the kernel log).
+/// The WCN drivers cannot be reloaded: nothing is loaded when wlan0 is there or a driver is loaded already.
+pub(crate) async fn load_wifi(p: &Platform, krel: &str, steps: &mut Steps) {
+    let wlan0 = p.paths().sys("/sys/class/net/wlan0");
+    if wlan0.exists() {
+        steps.skipped("wifi-drivers", "wlan0 is there already");
+        return;
+    }
+    let m_dir = p.paths().sys(format!("/lib/modules/{krel}"));
+    for m in WIFI_PCIE {
+        // built in on mainline: a missing module is not a failure
+        let _ = p.modules().load(m, &[]).await;
+    }
+    let mut t = Tally::default();
+    for m in WIFI_DRIVERS {
+        if p.modules().loaded(m) {
+            continue;
+        }
+        let dir = m_dir.clone();
+        let mm = (*m).to_owned();
+        let r = match tokio::task::spawn_blocking(move || find_ko(&dir, &mm)).await.ok().flatten() {
+            Some(f) => modprobe_or_insmod(p, m, &f).await,
+            None => p.modules().load(m, &[]).await.map(|()| String::new()),
+        };
+        let failed = r.is_err();
+        t.add(m, r);
+        if failed {
+            // sprd_wlan_combo needs wcn_bsp's exports
+            break;
+        }
+    }
+    if !t.failed.is_empty() {
+        t.report(steps, "wifi-drivers");
+        return;
+    }
+    let start = std::time::Instant::now();
+    while !wlan0.exists() && start.elapsed() < WLAN0_WAIT {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+    if !wlan0.exists() {
+        steps
+            .failed("wifi-drivers", format!("loaded {}; no wlan0 after {}s", t.loaded.join(" "), WLAN0_WAIT.as_secs()));
+        return;
+    }
+    let armlog = p.paths().sys("/proc/mdbg/at_cmd");
+    if armlog.exists() {
+        let _ = std::fs::write(&armlog, "at+armlog=0\r");
+    }
+    let waited = start.elapsed().as_secs();
+    if t.loaded.is_empty() {
+        steps.skipped("wifi-drivers", format!("loaded already; wlan0 after {waited}s"));
+    } else {
+        steps.done("wifi-drivers", format!("loaded {}; wlan0 after {waited}s", t.loaded.join(" ")));
+    }
+}
+
 /// Everything `extra-modules` loaded, in its order.
 pub(crate) async fn load_extra(p: &Platform, krel: &str, steps: &mut Steps) {
     let m_dir = p.paths().sys(format!("/lib/modules/{krel}"));
@@ -200,6 +264,21 @@ pub(crate) async fn load_extra(p: &Platform, krel: &str, steps: &mut Steps) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn the_wifi_drivers_are_never_loaded_twice() {
+        let r = std::env::temp_dir().join(format!("f50-hw-wifi-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&r);
+        std::fs::create_dir_all(r.join("sys/class/net/wlan0")).expect("wlan0");
+        let p = Platform::new(f50_core::paths::Paths::new(&r), None);
+        let mut steps = Steps::new(crate::Stage::Hardware, None);
+        load_wifi(&p, "5.4.0", &mut steps).await;
+        let rep = steps.finish();
+        assert_eq!(rep.steps.len(), 1);
+        assert_eq!(rep.steps[0].name, "wifi-drivers");
+        assert_eq!(rep.steps[0].outcome, crate::report::Outcome::Skipped);
+        let _ = std::fs::remove_dir_all(&r);
+    }
 
     #[test]
     fn a_module_is_found_under_either_name() {

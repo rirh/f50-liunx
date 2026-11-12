@@ -7,6 +7,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCwIcon, SearchIcon } from "lucide-react";
 import { bootKey, getBoot } from "./api";
@@ -23,8 +24,8 @@ export default function Page() {
   return (
     <>
       <PageHeader
-        title="启动"
-        description="启动槽位、回退策略与各启动阶段的最近一次结果"
+        title={t("maintenance.boot.title")}
+        description={t("maintenance.boot.description")}
         actions={
           <PendingButton
             size="sm"
@@ -33,7 +34,7 @@ export default function Page() {
             onClick={() => query.refetch()}
           >
             <RefreshCwIcon data-icon="inline-start" />
-            刷新
+            {t("common.action.refresh")}
           </PendingButton>
         }
       />
@@ -45,13 +46,15 @@ export default function Page() {
               <MiscCard misc={info.misc} slot={info.slot} />
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-base font-semibold">启动阶段</h2>
+              <h2 className="text-base font-semibold">
+                {t("maintenance.boot.stages")}
+              </h2>
               <InputGroup className="w-full sm:w-64">
                 <InputGroupInput
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  placeholder="筛选步骤或说明"
-                  aria-label="筛选启动步骤"
+                  placeholder={t("maintenance.boot.filter.placeholder")}
+                  aria-label={t("maintenance.boot.filter.aria")}
                 />
                 <InputGroupAddon>
                   <SearchIcon />

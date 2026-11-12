@@ -1,7 +1,8 @@
+import { t } from "@/i18n";
 import { z } from "zod";
 import { ap5Channels, channelsFor, widthOf } from "./channels";
 import type { WifiInfo, WifiSetArgs } from "./types";
-import { PSK_HINT, SSID_HINT, pskOk, ssidOk } from "../shared/text-rules";
+import { pskHint, ssidHint, pskOk, ssidOk } from "../shared/text-rules";
 
 export const WIFI_FIELDS = [
   "ssid",
@@ -13,18 +14,19 @@ export const WIFI_FIELDS = [
   "country",
 ] as const;
 
-const base = z.object({
-  ssid: z.string().refine(ssidOk, SSID_HINT),
-  /** Empty: unchanged. */
-  password: z.string().refine((v) => v === "" || pskOk(v), PSK_HINT),
-  band: z.enum(["2.4", "5"]),
-  channel: z.string(),
-  width: z.enum(["auto", "20", "40", "80"]),
-  hidden: z.boolean(),
-  country: z.string().regex(/^[A-Z]{2}$/, "两位大写国家代码，如 CN"),
-});
+const base = () =>
+  z.object({
+    ssid: z.string().refine(ssidOk, ssidHint()),
+    /** Empty: unchanged. */
+    password: z.string().refine((v) => v === "" || pskOk(v), pskHint()),
+    band: z.enum(["2.4", "5"]),
+    channel: z.string(),
+    width: z.enum(["auto", "20", "40", "80"]),
+    hidden: z.boolean(),
+    country: z.string().regex(/^[A-Z]{2}$/, t("network.wifi.schema.country")),
+  });
 
-export type WifiForm = z.infer<typeof base>;
+export type WifiForm = z.infer<ReturnType<typeof base>>;
 
 export function wifiDefaults(info: WifiInfo): WifiForm {
   const width = widthOf(info.htmode) as WifiForm["width"];
@@ -44,7 +46,7 @@ export function wifiDefaults(info: WifiInfo): WifiForm {
  * country change (an unchanged one is not sent), a country only when it changes.
  */
 export function wifiSchema(initial: WifiForm) {
-  return base.superRefine((v, ctx) => {
+  return base().superRefine((v, ctx) => {
     const bandChanged = v.band !== initial.band;
     const countryChanged = v.country !== initial.country;
     const channelTouched =
@@ -57,8 +59,8 @@ export function wifiSchema(initial: WifiForm) {
           path: ["channel"],
           message:
             v.band === "2.4"
-              ? "2.4 GHz 信道为 1-13"
-              : `该国家不允许 5 GHz 信道 ${v.channel}（或为 DFS 信道）`,
+              ? t("network.wifi.schema.channel24")
+              : t("network.wifi.schema.channel5", { channel: v.channel }),
         });
       }
     }
@@ -66,7 +68,7 @@ export function wifiSchema(initial: WifiForm) {
       ctx.addIssue({
         code: "custom",
         path: ["width"],
-        message: "2.4 GHz 最大 40 MHz",
+        message: t("network.wifi.schema.width24"),
       });
     }
     if (
@@ -77,7 +79,7 @@ export function wifiSchema(initial: WifiForm) {
       ctx.addIssue({
         code: "custom",
         path: [bandChanged ? "band" : "country"],
-        message: `国家 ${v.country} 没有无 DFS 的 5 GHz 信道，请先切换到 2.4 GHz`,
+        message: t("network.wifi.schema.noBand5", { country: v.country }),
       });
     }
   });

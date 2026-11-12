@@ -11,6 +11,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { t } from "@/i18n";
 import { NAV } from "@/layout/nav";
 import { RouterIcon } from "lucide-react";
 
@@ -25,7 +26,7 @@ export function AppSidebar() {
             <SidebarMenuButton size="lg" asChild>
               <NavLink to="/">
                 <RouterIcon />
-                <span className="font-semibold">ZTE F50</span>
+                <span className="font-semibold">{t("app.brand")}</span>
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -34,7 +35,7 @@ export function AppSidebar() {
       <SidebarContent>
         {NAV.map((group) => (
           <SidebarGroup key={group.title}>
-            <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
+            <SidebarGroupLabel>{t(group.title)}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => (
@@ -42,14 +43,14 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       asChild
                       isActive={pathname === item.path}
-                      tooltip={item.title}
+                      tooltip={t(item.title)}
                     >
                       <NavLink
                         to={item.path}
                         onClick={() => isMobile && setOpenMobile(false)}
                       >
                         <item.icon />
-                        <span>{item.title}</span>
+                        <span>{t(item.title)}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

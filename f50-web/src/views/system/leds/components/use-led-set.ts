@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -11,7 +12,7 @@ export function useLedSet(key: LedKey, onError?: (e: unknown) => void) {
     mutationFn: (value: string) => setLed(key, value),
     onSuccess: (r) => {
       qc.setQueryData(ledKey, r);
-      toast.success("已保存");
+      toast.success(t("system.leds.saved"));
     },
     onError: onError ?? ((e) => toast.error(errorMessage(e))),
     onSettled: () => qc.invalidateQueries({ queryKey: ledKey }),

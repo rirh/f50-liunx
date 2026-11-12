@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { z } from "zod";
 import type { LanInfo, LanSetArgs } from "./types";
 
@@ -28,47 +29,43 @@ export const LAN_FIELDS = [
   "leasetime",
 ] as const;
 
-export const lanSchema = z
-  .object({
-    address: z
-      .string()
-      .regex(
-        LAN_ADDRESS,
-        "须为私有网段的 .1 地址，如 192.168.0.1、10.0.0.1、172.16.0.1",
-      ),
-    netmask: z.string().refine((m) => NETMASKS.includes(m), "不支持的子网掩码"),
-    dhcp: z.boolean(),
-    dhcp_start: z
-      .string()
-      .refine(
-        (v) => INT.test(v) && Number(v) >= 2 && Number(v) <= 254,
-        "2-254 之间的整数",
-      ),
-    dhcp_limit: z
-      .string()
-      .refine(
-        (v) => INT.test(v) && Number(v) >= 1 && Number(v) <= 253,
-        "1-253 之间的整数",
-      ),
-    leasetime: z
-      .string()
-      .regex(LEASETIME, "如 12h、30m 或 infinite（1-99999 分钟/小时）"),
-  })
-  .superRefine((v, ctx) => {
-    if (
-      INT.test(v.dhcp_start) &&
-      INT.test(v.dhcp_limit) &&
-      Number(v.dhcp_start) + Number(v.dhcp_limit) > 255
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["dhcp_limit"],
-        message: "起始偏移 + 数量不能超过 255",
-      });
-    }
-  });
+export const lanSchema = () =>
+  z
+    .object({
+      address: z.string().regex(LAN_ADDRESS, t("network.lan.schema.address")),
+      netmask: z
+        .string()
+        .refine((m) => NETMASKS.includes(m), t("network.lan.schema.netmask")),
+      dhcp: z.boolean(),
+      dhcp_start: z
+        .string()
+        .refine(
+          (v) => INT.test(v) && Number(v) >= 2 && Number(v) <= 254,
+          t("network.lan.schema.dhcpStart"),
+        ),
+      dhcp_limit: z
+        .string()
+        .refine(
+          (v) => INT.test(v) && Number(v) >= 1 && Number(v) <= 253,
+          t("network.lan.schema.dhcpLimit"),
+        ),
+      leasetime: z.string().regex(LEASETIME, t("network.lan.schema.leasetime")),
+    })
+    .superRefine((v, ctx) => {
+      if (
+        INT.test(v.dhcp_start) &&
+        INT.test(v.dhcp_limit) &&
+        Number(v.dhcp_start) + Number(v.dhcp_limit) > 255
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["dhcp_limit"],
+          message: t("network.lan.schema.poolOverflow"),
+        });
+      }
+    });
 
-export type LanForm = z.infer<typeof lanSchema>;
+export type LanForm = z.infer<ReturnType<typeof lanSchema>>;
 
 export function lanDefaults(info: LanInfo): LanForm {
   return {

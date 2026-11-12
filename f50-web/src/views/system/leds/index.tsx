@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { getLeds, ledKey } from "./api";
 import { BehaviourCard } from "./components/behaviour-card";
@@ -18,8 +19,8 @@ function Lamps({ data }: { data: LedSettings }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>指示灯</CardTitle>
-        <CardDescription>开关与亮度（拖动亮度滑块松开后保存）</CardDescription>
+        <CardTitle>{t("system.leds.lamps.title")}</CardTitle>
+        <CardDescription>{t("system.leds.lamps.description")}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">
         {data.lamps.map((lamp) => (
@@ -45,8 +46,8 @@ export default function Page() {
   return (
     <>
       <PageHeader
-        title="指示灯"
-        description="指示灯开关、亮度、自动熄灭与告警效果，修改立即生效"
+        title={t("system.leds.title")}
+        description={t("system.leds.description")}
       />
       <QueryState query={query} skeletonRows={6}>
         {(data) => (

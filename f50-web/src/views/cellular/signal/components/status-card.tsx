@@ -1,3 +1,4 @@
+import { AnimatedNumber } from "@/components/f50/animated-number";
 import { KvList } from "@/components/f50/kv-list";
 import { QueryState } from "@/components/f50/query-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -9,20 +10,40 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { usePoll } from "@/hooks/use-live";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { SignalBars } from "./signal-bars";
-import { formatAgeMs, unit } from "../../shared/format";
+import { formatAgeMs } from "../../shared/format";
 import { getStatus, signalKeys } from "../api";
 import { CFUN_LABEL, RAT_LABEL, SIM_STATE_LABEL } from "../labels";
 import type { ModemStatus } from "../types";
 
-function Metric({ label, value }: { label: string; value: string }) {
+/** One reading, easing to each new value (dBm and dB keep one decimal). */
+function Metric({
+  label,
+  value,
+  u,
+}: {
+  label: string;
+  value: number | null | undefined;
+  u: string;
+}) {
   return (
     <div className="flex min-w-0 flex-col gap-0.5 rounded-lg bg-muted/50 p-2">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="truncate font-medium tabular-nums">{value}</span>
+      <AnimatedNumber
+        value={value}
+        format={(n) => (n == null ? "—" : `${n.toFixed(1)} ${u}`)}
+        className="truncate font-medium"
+      />
     </div>
   );
+}
+
+function cfunText(cfun: number) {
+  const k = CFUN_LABEL[cfun];
+  return k ? t(k) : String(cfun);
 }
 
 function StatusBody({ s }: { s: ModemStatus }) {
@@ -31,41 +52,54 @@ function StatusBody({ s }: { s: ModemStatus }) {
     <div className="flex flex-col gap-4">
       {s.error && (
         <Alert variant="destructive">
-          <AlertTitle>调制解调器未应答</AlertTitle>
+          <AlertTitle>{t("cellular.signal.status.noAnswer")}</AlertTitle>
           <AlertDescription>{s.error}</AlertDescription>
         </Alert>
       )}
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={s.registered ? "default" : "destructive"}>
-          {s.registered ? "已注册" : "未注册"}
+          {s.registered
+            ? t("cellular.signal.status.registered")
+            : t("cellular.signal.status.unregistered")}
         </Badge>
         {s.rat && <Badge variant="secondary">{RAT_LABEL[s.rat]}</Badge>}
-        {s.roaming && <Badge variant="outline">漫游</Badge>}
-        {s.restarting && <Badge variant="outline">射频重启中</Badge>}
-        {!s.radio_allowed && <Badge variant="destructive">射频已关闭</Badge>}
+        {s.roaming && (
+          <Badge variant="outline">{t("cellular.signal.status.roaming")}</Badge>
+        )}
+        {s.restarting && (
+          <Badge variant="outline">
+            {t("cellular.signal.status.restarting")}
+          </Badge>
+        )}
+        {!s.radio_allowed && (
+          <Badge variant="destructive">
+            {t("cellular.signal.status.radioOff")}
+          </Badge>
+        )}
         <span className="ms-auto flex items-center gap-2 text-sm text-muted-foreground">
           <SignalBars bars={s.bars} />
           {s.bars}/5
         </span>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Metric label="RSRP" value={unit(sig?.rsrp, "dBm")} />
-        <Metric label="RSRQ" value={unit(sig?.rsrq, "dB")} />
-        <Metric label="SINR" value={unit(sig?.sinr, "dB")} />
-        <Metric label="RSSI" value={unit(sig?.rssi, "dBm")} />
+        <Metric label="RSRP" value={sig?.rsrp} u="dBm" />
+        <Metric label="RSRQ" value={sig?.rsrq} u="dB" />
+        <Metric label="SINR" value={sig?.sinr} u="dB" />
+        <Metric label="RSSI" value={sig?.rssi} u="dBm" />
       </div>
       <KvList
         items={[
-          { label: "运营商", value: s.operator ?? "—" },
-          { label: "SIM 卡槽", value: `SIM${s.slot}` },
+          { label: t("cellular.shared.operator"), value: s.operator ?? "—" },
+          { label: t("cellular.shared.simSlot"), value: `SIM${s.slot}` },
           {
-            label: "SIM 状态",
-            value: s.sim_state ? SIM_STATE_LABEL[s.sim_state] : "未检测",
+            label: t("cellular.signal.status.simState"),
+            value: s.sim_state
+              ? t(SIM_STATE_LABEL[s.sim_state])
+              : t("cellular.shared.notDetected"),
           },
           {
-            label: "射频 (CFUN)",
-            value:
-              s.cfun != null ? (CFUN_LABEL[s.cfun] ?? String(s.cfun)) : "—",
+            label: t("cellular.signal.status.cfun"),
+            value: s.cfun != null ? cfunText(s.cfun) : "—",
           },
         ]}
       />
@@ -77,14 +111,16 @@ export function StatusCard() {
   const query = useQuery({
     queryKey: signalKeys.status,
     queryFn: getStatus,
-    refetchInterval: 2000,
+    refetchInterval: usePoll(2000, "modem"),
   });
   return (
     <Card>
       <CardHeader>
-        <CardTitle>网络状态</CardTitle>
+        <CardTitle>{t("cellular.signal.status.title")}</CardTitle>
         <CardDescription>
-          每 2 秒刷新 · 读数 {formatAgeMs(query.data?.age_ms)}
+          {t("cellular.signal.status.description", {
+            age: formatAgeMs(query.data?.age_ms),
+          })}
         </CardDescription>
       </CardHeader>
       <CardContent>

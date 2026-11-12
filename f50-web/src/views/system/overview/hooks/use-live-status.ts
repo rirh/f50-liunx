@@ -1,43 +1,32 @@
-import { useRef } from "react";
+import { usePoll } from "@/hooks/use-live";
+import { useSeries } from "@/lib/series";
 import { useQuery } from "@tanstack/react-query";
 import { getStatus, systemKeys } from "../api";
-import type { CpuTimes, Sample, SystemStatus } from "../types";
-import { cpuPercent, memPercent } from "../utils";
+import type { Sample, SystemStatus } from "../types";
 
 export const POLL_MS = 3000;
-const KEEP = 40;
 
 export interface LiveStatus {
   status: SystemStatus;
-  /** The busy share since the previous poll (null on the first). */
+  /** The busy share since the previous reading (null on the first). */
   cpu: number | null;
   samples: Sample[];
 }
 
 /**
- * `f50.system status` every 3 s, with the CPU share diffed from the previous reading and the last two minutes kept
- * for the charts. The history lives in a ref filled by the query function, so a render never mutates it.
+ * `f50.system status`, pushed over `f50.live` (every 2 s) or polled every 3 s when the stream is down, with the
+ * history the live provider records from every reading (`lib/series`): the CPU share is its latest point.
  */
 export function useLiveStatus() {
-  const hist = useRef<{ prev: CpuTimes | null; samples: Sample[] }>({
-    prev: null,
-    samples: [],
-  });
+  const samples = useSeries("system");
   return useQuery({
-    queryKey: [...systemKeys.status, "live"],
-    queryFn: async (): Promise<LiveStatus> => {
-      const status = await getStatus();
-      const cpu = cpuPercent(hist.current.prev, status.load);
-      hist.current.prev = status.load;
-      const sample: Sample = {
-        t: Date.now(),
-        cpu,
-        mem: memPercent(status.memory),
-        temp: status.temperatures.hottest,
-      };
-      hist.current.samples = [...hist.current.samples, sample].slice(-KEEP);
-      return { status, cpu, samples: hist.current.samples };
-    },
-    refetchInterval: POLL_MS,
+    queryKey: systemKeys.status,
+    queryFn: getStatus,
+    refetchInterval: usePoll(POLL_MS, "system"),
+    select: (status: SystemStatus): LiveStatus => ({
+      status,
+      cpu: samples.at(-1)?.cpu ?? null,
+      samples,
+    }),
   });
 }

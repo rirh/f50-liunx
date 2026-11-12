@@ -9,6 +9,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
+import { joinList, t } from "@/i18n";
 import { errorMessage, formatBytes } from "@/lib/format";
 import { ApiError } from "@/lib/ubus";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,7 +17,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { UPDATE_KEY, applyFile, uploadCancel } from "../api";
 import { useStartJob } from "../hooks";
-import { SIG_LABEL } from "../labels";
+import { sigLabel } from "../labels";
 import type { Inspected } from "../types";
 
 interface FormValues {
@@ -48,7 +49,11 @@ export function InspectResult({
 
   const install = useMutation({
     mutationFn: (v: FormValues) => applyFile(r.sha256, v),
-    onSuccess: started(`安装离线更新包 ${r.tag ?? ""}`.trim()),
+    onSuccess: started(
+      r.tag
+        ? t("maintenance.update.inspect.jobTitle", { tag: r.tag })
+        : t("maintenance.update.jobTitle.applyFile"),
+    ),
     onError: (e) => {
       if (
         e instanceof ApiError &&
@@ -60,16 +65,20 @@ export function InspectResult({
   });
   const cancel = useMutation({
     mutationFn: uploadCancel,
-    onSuccess: () => toast.success("已删除上传的文件"),
+    onSuccess: () => toast.success(t("maintenance.update.offline.deleted")),
     onError: (e) => toast.error(errorMessage(e)),
     onSettled: () => qc.invalidateQueries({ queryKey: UPDATE_KEY }),
   });
 
   const submit = form.handleSubmit((v) => {
     if (needsUnsigned && !v.unsigned)
-      return form.setError("unsigned", { message: "未签名的更新包需要确认" });
+      return form.setError("unsigned", {
+        message: t("maintenance.update.inspect.unsignedRequired"),
+      });
     if (r.downgrade && !v.downgrade)
-      return form.setError("downgrade", { message: "降级需要确认" });
+      return form.setError("downgrade", {
+        message: t("maintenance.update.inspect.downgradeRequired"),
+      });
     install.mutate(v);
   });
 
@@ -78,10 +87,17 @@ export function InspectResult({
       <KvList
         items={[
           {
-            label: "版本",
-            value: <span className="font-mono">{r.tag ?? "未知"}</span>,
+            label: t("maintenance.update.inspect.release"),
+            value: (
+              <span className="font-mono">
+                {r.tag ?? t("common.state.unknown")}
+              </span>
+            ),
           },
-          { label: "大小", value: formatBytes(r.size) },
+          {
+            label: t("maintenance.update.inspect.size"),
+            value: formatBytes(r.size),
+          },
           {
             label: "SHA-256",
             value: (
@@ -89,39 +105,50 @@ export function InspectResult({
             ),
           },
           {
-            label: "签名",
+            label: t("maintenance.update.inspect.signature"),
             value: (
               <Badge
                 variant={r.signature === "valid" ? "secondary" : "destructive"}
               >
-                {SIG_LABEL[r.signature] ?? r.signature}
+                {sigLabel(r.signature)}
               </Badge>
             ),
           },
           {
-            label: "文件完整",
-            value: yesNo(r.whole, "全部校验通过", "有文件校验失败"),
+            label: t("maintenance.update.inspect.whole"),
+            value: yesNo(
+              r.whole,
+              t("maintenance.update.inspect.wholeOk"),
+              t("maintenance.update.inspect.wholeBad"),
+            ),
           },
           {
-            label: "适用本机",
+            label: t("maintenance.update.inspect.fits"),
             value: r.fits
-              ? `将更新：${r.systems.join("、")}`
-              : yesNo(false, "", "不适用于此设备"),
+              ? t("maintenance.update.offer.willUpdate", {
+                  systems: joinList(r.systems),
+                })
+              : yesNo(false, "", t("maintenance.update.inspect.notFit")),
           },
-          { label: "包含内核", value: r.kernel ? "是" : "否" },
           {
-            label: "降级",
+            label: t("maintenance.update.inspect.kernel"),
+            value: r.kernel ? t("common.state.yes") : t("common.state.no"),
+          },
+          {
+            label: t("maintenance.update.inspect.downgrade"),
             value: r.downgrade ? (
-              <Badge variant="destructive">比已安装版本旧</Badge>
+              <Badge variant="destructive">
+                {t("maintenance.update.inspect.older")}
+              </Badge>
             ) : (
-              "否"
+              t("common.state.no")
             ),
           },
         ]}
       />
       {r.refused && (
         <Alert variant="destructive">
-          <AlertTitle>此文件无法使用</AlertTitle>
+          <AlertTitle>{t("maintenance.update.inspect.refused")}</AlertTitle>
           <AlertDescription>{r.refused}</AlertDescription>
         </Alert>
       )}
@@ -143,7 +170,7 @@ export function InspectResult({
                     aria-invalid={!!errors.unsigned || undefined}
                   />
                   <FieldLabel htmlFor="apply-unsigned">
-                    我确认安装未经签名校验的更新包
+                    {t("maintenance.update.inspect.confirmUnsigned")}
                   </FieldLabel>
                   {errors.unsigned && (
                     <FieldError>{errors.unsigned.message}</FieldError>
@@ -168,7 +195,7 @@ export function InspectResult({
                     aria-invalid={!!errors.downgrade || undefined}
                   />
                   <FieldLabel htmlFor="apply-downgrade">
-                    我确认降级到较旧的版本
+                    {t("maintenance.update.inspect.confirmDowngrade")}
                   </FieldLabel>
                   {errors.downgrade && (
                     <FieldError>{errors.downgrade.message}</FieldError>
@@ -185,34 +212,44 @@ export function InspectResult({
           destructive={false}
           pending={install.isPending}
           disabled={busy || !usable || cancel.isPending}
-          title={`安装 ${r.tag ?? "此更新包"}？`}
-          confirmText="开始安装"
+          title={
+            r.tag
+              ? t("maintenance.update.offer.confirmTitle", { tag: r.tag })
+              : t("maintenance.update.inspect.confirmTitle")
+          }
+          confirmText={t("maintenance.update.offer.confirmText")}
           description={
             <span className="flex flex-col gap-2">
               <span>
-                将写入：{r.systems.join("、") || "—"}
-                {r.kernel ? "，以及内核" : ""}。完成后需重启生效。
+                {t(
+                  r.kernel
+                    ? "maintenance.update.inspect.willWriteKernel"
+                    : "maintenance.update.inspect.willWrite",
+                  { systems: joinList(r.systems) || "—" },
+                )}
               </span>
               <span className="font-medium text-destructive">
-                安装开始后无法停止。期间请保持电源连接，不要重启或拔出设备，否则可能导致无法启动。
+                {t("maintenance.update.offer.noStop")}
               </span>
             </span>
           }
           onConfirm={() => void submit()}
         >
-          {install.isPending ? "启动中" : "安装此更新包"}
+          {install.isPending
+            ? t("maintenance.update.starting")
+            : t("maintenance.update.inspect.install")}
         </ConfirmButton>
         <ConfirmButton
           size="sm"
           variant="outline"
           pending={cancel.isPending}
           disabled={busy || install.isPending}
-          title="删除上传的文件？"
-          description="删除后需要重新上传才能安装。"
-          confirmText="删除"
+          title={t("maintenance.update.offline.deleteTitle")}
+          description={t("maintenance.update.inspect.deleteBody")}
+          confirmText={t("common.action.delete")}
           onConfirm={() => cancel.mutate()}
         >
-          删除上传
+          {t("maintenance.update.inspect.delete")}
         </ConfirmButton>
       </div>
     </div>

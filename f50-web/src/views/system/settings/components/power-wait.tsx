@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
 import { SweepShine } from "@/components/ui/sweep-shine";
+import { t } from "@/i18n";
 import { logout } from "@/lib/ubus";
 import { useQuery } from "@tanstack/react-query";
 import { PowerOffIcon } from "lucide-react";
@@ -27,8 +28,8 @@ const SLOW_MS = 5 * 60_000;
 function useElapsed(since: number) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const t = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(t);
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
   }, []);
   return Math.max(0, Math.floor((now - since) / 1000));
 }
@@ -73,25 +74,26 @@ function RebootWait({ since }: { since: number }) {
         </EmptyMedia>
         <EmptyTitle>
           <SweepShine>
-            {back ? "设备已恢复，正在返回登录页" : "正在等待设备重启"}
+            {back
+              ? t("system.settings.wait.back")
+              : t("system.settings.wait.waiting")}
           </SweepShine>
         </EmptyTitle>
         <EmptyDescription>
-          已等待 {elapsed} 秒，每 3 秒检测一次。设备恢复响应后将自动返回登录页。
+          {t("system.settings.wait.elapsed", { n: elapsed })}
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
         {elapsed * 1000 > SLOW_MS && (
           <Alert variant="destructive">
-            <AlertTitle>设备长时间没有响应</AlertTitle>
+            <AlertTitle>{t("system.settings.wait.slowTitle")}</AlertTitle>
             <AlertDescription>
-              请检查设备指示灯和连接；如果设备回退到了 Android
-              系统，网页将无法访问。
+              {t("system.settings.wait.slowDescription")}
             </AlertDescription>
           </Alert>
         )}
         <Button variant="outline" size="sm" onClick={toLogin}>
-          直接返回登录页
+          {t("system.settings.wait.toLoginNow")}
         </Button>
       </EmptyContent>
     </Empty>
@@ -106,14 +108,14 @@ function PoweroffDone() {
         <EmptyMedia variant="icon">
           <PowerOffIcon />
         </EmptyMedia>
-        <EmptyTitle>设备正在关机</EmptyTitle>
+        <EmptyTitle>{t("system.settings.wait.offTitle")}</EmptyTitle>
         <EmptyDescription>
-          设备将在几秒内断电。需要时请按电源键重新开机，再重新登录。
+          {t("system.settings.wait.offDescription")}
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
         <Button variant="outline" size="sm" onClick={toLogin}>
-          返回登录页
+          {t("system.settings.wait.toLogin")}
         </Button>
       </EmptyContent>
     </Empty>

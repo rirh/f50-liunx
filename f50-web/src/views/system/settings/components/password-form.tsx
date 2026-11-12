@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { PendingButton } from "@/components/f50/pending-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -15,6 +16,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -26,16 +28,17 @@ import { type PasswordValues, passwordSchema } from "../schemas";
 const EMPTY: PasswordValues = { password: "", confirm: "" };
 
 export function PasswordForm() {
+  const schema = useMemo(() => passwordSchema(), []);
   const form = useForm<PasswordValues>({
-    resolver: zodResolver(passwordSchema),
+    resolver: zodResolver(schema),
     defaultValues: EMPTY,
   });
   const save = useMutation({
     mutationFn: (v: PasswordValues) => setPassword(v.password),
     onSuccess: () => {
       form.reset(EMPTY);
-      toast.success("root 密码已修改", {
-        description: "当前登录可能随之失效，届时请用新密码重新登录。",
+      toast.success(t("system.settings.password.saved"), {
+        description: t("system.settings.password.savedDescription"),
       });
     },
     onError: (e) => reportFormError(e, form.setError, { password: "password" }),
@@ -43,9 +46,9 @@ export function PasswordForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>管理密码</CardTitle>
+        <CardTitle>{t("system.settings.password.title")}</CardTitle>
         <CardDescription>
-          修改 root 用户的密码（网页登录与 SSH 共用）
+          {t("system.settings.password.description")}
         </CardDescription>
       </CardHeader>
       <form
@@ -59,7 +62,9 @@ export function PasswordForm() {
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="new-password">新密码</FieldLabel>
+                  <FieldLabel htmlFor="new-password">
+                    {t("system.settings.password.label")}
+                  </FieldLabel>
                   <Input
                     {...field}
                     id="new-password"
@@ -78,7 +83,9 @@ export function PasswordForm() {
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="confirm-password">确认新密码</FieldLabel>
+                  <FieldLabel htmlFor="confirm-password">
+                    {t("system.settings.password.confirmLabel")}
+                  </FieldLabel>
                   <Input
                     {...field}
                     id="confirm-password"
@@ -95,13 +102,13 @@ export function PasswordForm() {
           </FieldGroup>
           <Alert>
             <AlertDescription>
-              修改成功后，当前登录会话可能结束，需要用新密码重新登录。
+              {t("system.settings.password.note")}
             </AlertDescription>
           </Alert>
         </CardContent>
         <CardFooter>
           <PendingButton type="submit" pending={save.isPending}>
-            修改密码
+            {t("system.settings.password.submit")}
           </PendingButton>
         </CardFooter>
       </form>

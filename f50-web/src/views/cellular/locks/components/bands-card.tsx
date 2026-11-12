@@ -18,6 +18,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { errorMessage } from "@/lib/format";
 import { ApiError } from "@/lib/ubus";
@@ -55,14 +56,18 @@ export function BandsCard({
           .split(",")
           .map((b) => prefix + b)
           .join(" ")
-      : "自动（全部频段）";
+      : t("cellular.locks.bands.auto");
 
   const apply = () => {
     if (!BAND_LIST_RE.test(value))
-      return setError("最多 32 个频段，每个 1–3 位数字");
+      return setError(t("cellular.locks.bands.tooMany"));
     setError(undefined);
     set.mutate(
-      { kind: rat, value, title: `${name} 频段 → ${show(value)}` },
+      {
+        kind: rat,
+        value,
+        title: t("cellular.locks.bands.job", { name, bands: show(value) }),
+      },
       {
         onError: (e) => {
           if (e instanceof ApiError && e.field === "value")
@@ -76,19 +81,21 @@ export function BandsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{name} 频段锁定</CardTitle>
+        <CardTitle>{t("cellular.locks.bands.title", { name })}</CardTitle>
         <CardDescription className="break-words">
-          当前：{show(current)}
+          {t("cellular.locks.current", { value: show(current) })}
         </CardDescription>
         <CardAction>
           <Badge variant={current ? "default" : "secondary"}>
-            {current ? "已锁定" : "自动"}
+            {current
+              ? t("cellular.locks.bands.locked")
+              : t("cellular.locks.bands.autoBadge")}
           </Badge>
         </CardAction>
       </CardHeader>
       <CardContent>
         <Field data-invalid={!!error}>
-          <FieldLabel>选择频段</FieldLabel>
+          <FieldLabel>{t("cellular.locks.bands.pick")}</FieldLabel>
           <ToggleGroup
             type="multiple"
             variant="outline"
@@ -114,9 +121,11 @@ export function BandsCard({
             ))}
           </ToggleGroup>
           <FieldDescription>
-            不选任何频段即为自动。仅列出设备支持的频段。
+            {t("cellular.locks.bands.hint")}
             {unsupported.length > 0 &&
-              ` 当前锁定中含不支持的频段：${unsupported.map((b) => prefix + b).join(" ")}。`}
+              t("cellular.locks.bands.unsupported", {
+                bands: unsupported.map((b) => prefix + b).join(" "),
+              })}
           </FieldDescription>
           <FieldError>{error}</FieldError>
         </Field>
@@ -127,14 +136,14 @@ export function BandsCard({
           disabled={disabled || value === current}
           onClick={apply}
         >
-          应用
+          {t("common.action.apply")}
         </PendingButton>
         <Button
           variant="outline"
           disabled={disabled || set.isPending || picked.length === 0}
           onClick={() => setPicked([])}
         >
-          清空（自动）
+          {t("cellular.locks.bands.clear")}
         </Button>
       </CardFooter>
     </Card>

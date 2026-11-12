@@ -18,13 +18,14 @@ import {
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AdbKeyForm } from "./adb-key-form";
 import { ConfirmDialog } from "../../shared/confirm-dialog";
 import { setAdb, usbKeys } from "../api";
-import { ADB_STATE_LABEL } from "../labels";
+import { adbStateLabel } from "../labels";
 import type { AdbArgs, AdbSummary } from "../types";
 
 /** adb over USB: on/off and whom it lets in, the authorised keys. */
@@ -41,7 +42,9 @@ export function UsbAdbCard({
     mutationFn: setAdb,
     onSuccess: (r) => {
       toast.success(
-        r.restart ? "已保存，adb 正在重启（USB 连接会短暂中断）" : "已保存",
+        r.restart
+          ? t("network.usb.adb.savedRestart")
+          : t("network.usb.adb.saved"),
       );
       qc.invalidateQueries({ queryKey: usbKeys.info });
       if (r.restart)
@@ -59,7 +62,7 @@ export function UsbAdbCard({
     <Card>
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-2">
-          ADB 调试
+          {t("network.usb.adb.title")}
           <Badge
             variant={
               adb.state === "open"
@@ -69,54 +72,69 @@ export function UsbAdbCard({
                   : "secondary"
             }
           >
-            {ADB_STATE_LABEL[adb.state]}
+            {adbStateLabel(adb.state)}
           </Badge>
         </CardTitle>
-        <CardDescription>
-          通过 USB 的 adb（root shell）。修改后 USB 连接会短暂中断。
-        </CardDescription>
+        <CardDescription>{t("network.usb.adb.description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {adb.state === "open" && (
           <Alert variant="destructive">
-            <AlertTitle>adb 处于开放模式</AlertTitle>
+            <AlertTitle>{t("network.usb.adb.openAlert.title")}</AlertTitle>
             <AlertDescription>
-              任何插入 USB 口的电脑都能免密码获得 root shell。
+              {t("network.usb.adb.openAlert.description")}
             </AlertDescription>
           </Alert>
         )}
         {adb.damaged && (
           <Alert variant="destructive">
-            <AlertTitle>adb 配置文件损坏</AlertTitle>
+            <AlertTitle>{t("network.usb.adb.damaged.title")}</AlertTitle>
             <AlertDescription>
-              /etc/mu300/adb 既不是 on 也不是 off，adb
-              保持关闭。重新开关一次即可修复。
+              {t("network.usb.adb.damaged.description")}
             </AlertDescription>
           </Alert>
         )}
         {adb.state === "keys" && adb.keys === 0 && (
           <Alert>
-            <AlertTitle>尚未授权任何密钥</AlertTitle>
+            <AlertTitle>{t("network.usb.adb.noKeys.title")}</AlertTitle>
             <AlertDescription>
-              仅授权密钥模式下没有密钥，任何电脑都无法连接。
+              {t("network.usb.adb.noKeys.description")}
             </AlertDescription>
           </Alert>
         )}
         {hostRole && adb.on && (
           <Alert>
-            <AlertTitle>主机模式</AlertTitle>
+            <AlertTitle>{t("network.usb.adb.hostRole.title")}</AlertTitle>
             <AlertDescription>
-              端口为主机模式时 adb 不可用，切回设备模式后恢复。
+              {t("network.usb.adb.hostRole.description")}
             </AlertDescription>
           </Alert>
         )}
         <KvList
           items={[
-            { label: "已授权密钥", value: `${adb.keys} 个` },
-            { label: "在 USB 功能中", value: adb.in_gadget ? "是" : "否" },
-            { label: "守护进程", value: adb.running ? "运行中" : "未运行" },
+            {
+              label: t("network.usb.adb.keys"),
+              value: t("network.usb.adb.keyCount", { count: adb.keys }),
+            },
+            {
+              label: t("network.usb.adb.inGadget"),
+              value: adb.in_gadget
+                ? t("common.state.yes")
+                : t("common.state.no"),
+            },
+            {
+              label: t("network.usb.adb.daemon"),
+              value: adb.running
+                ? t("common.state.running")
+                : t("common.state.stopped"),
+            },
             ...(adb.auth_reason
-              ? [{ label: "授权说明", value: adb.auth_reason }]
+              ? [
+                  {
+                    label: t("network.usb.adb.authReason"),
+                    value: adb.auth_reason,
+                  },
+                ]
               : []),
           ]}
         />
@@ -131,10 +149,12 @@ export function UsbAdbCard({
                 mutation.mutate({ state: on ? "on" : "off" })
               }
             />
-            <FieldLabel htmlFor="adb-on">启用 adb</FieldLabel>
+            <FieldLabel htmlFor="adb-on">
+              {t("network.usb.adb.enable")}
+            </FieldLabel>
           </Field>
           <Field data-disabled={busy || undefined}>
-            <FieldLabel>访问控制</FieldLabel>
+            <FieldLabel>{t("network.usb.adb.access")}</FieldLabel>
             <ToggleGroup
               type="single"
               variant="outline"
@@ -147,13 +167,17 @@ export function UsbAdbCard({
                 else if (v === "keys") mutation.mutate({ auth: "keys" });
               }}
             >
-              <ToggleGroupItem value="keys">仅授权密钥</ToggleGroupItem>
-              <ToggleGroupItem value="open">开放</ToggleGroupItem>
+              <ToggleGroupItem value="keys">
+                {t("network.usb.adb.authKeys")}
+              </ToggleGroupItem>
+              <ToggleGroupItem value="open">
+                {t("network.usb.adb.authOpen")}
+              </ToggleGroupItem>
             </ToggleGroup>
             <FieldDescription>
               {busy
-                ? "正在保存…"
-                : "推荐“仅授权密钥”，并在下方添加电脑的 adbkey.pub"}
+                ? t("network.usb.adb.savingHint")
+                : t("network.usb.adb.accessHint")}
             </FieldDescription>
           </Field>
           <FieldSeparator />
@@ -163,14 +187,11 @@ export function UsbAdbCard({
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="改为开放模式？"
-        confirmText="改为开放"
+        title={t("network.usb.adb.confirmOpen.title")}
+        confirmText={t("network.usb.adb.confirmOpen.confirm")}
         destructive
         description={
-          <span>
-            开放后，任何插入 USB 口的电脑都能免密码获得设备的 root
-            shell。仅在可信环境中临时使用。
-          </span>
+          <span>{t("network.usb.adb.confirmOpen.description")}</span>
         }
         onConfirm={() => mutation.mutate({ auth: "open" })}
       />

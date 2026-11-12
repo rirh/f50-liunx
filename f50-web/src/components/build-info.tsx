@@ -1,6 +1,6 @@
 import { useEffect } from "react";
+import { dateLocale, t } from "@/i18n";
 import { format, formatDistanceToNow, isValid, parseISO } from "date-fns";
-import { zhCN } from "date-fns/locale";
 import { name, version } from "../../package.json";
 
 const buildTime = import.meta.env.VITE_BUILD_TIME;
@@ -8,10 +8,10 @@ const buildDate = parseISO(buildTime ?? "");
 const validBuildTime = isValid(buildDate);
 const formattedBuildTime = validBuildTime
   ? format(buildDate, "yyyy-MM-dd HH:mm:ss xxx")
-  : "未知";
+  : null;
 const compactBuildTime = validBuildTime
   ? format(buildDate, "yyyy-MM-dd HH:mm")
-  : "未知";
+  : null;
 let printed = false;
 
 export function BuildInfo() {
@@ -29,7 +29,7 @@ export function BuildInfo() {
       );
 
     print(name, version);
-    print("build time", formattedBuildTime);
+    print("build time", formattedBuildTime ?? "unknown");
 
     // Only browser-public Vite values belong here. Never expose process.env.
     const variables = Object.entries(import.meta.env)
@@ -43,12 +43,12 @@ export function BuildInfo() {
   }, []);
 
   const relativeTime = validBuildTime
-    ? formatDistanceToNow(buildDate, { addSuffix: true, locale: zhCN })
+    ? formatDistanceToNow(buildDate, { addSuffix: true, locale: dateLocale() })
     : "";
   return (
     <section
       className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground"
-      aria-label="构建信息"
+      aria-label={t("app.build.label")}
     >
       <span className="inline-flex items-center gap-2">
         <span>{name}</span>
@@ -57,13 +57,13 @@ export function BuildInfo() {
         </span>
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <span>构建于</span>
+        <span>{t("app.build.builtAt")}</span>
         <time
           dateTime={validBuildTime ? buildTime : undefined}
-          title={`${formattedBuildTime} ${relativeTime}`}
+          title={`${formattedBuildTime ?? t("app.build.unknown")} ${relativeTime}`}
           className="tabular-nums"
         >
-          {compactBuildTime}
+          {compactBuildTime ?? t("app.build.unknown")}
         </time>
       </span>
     </section>

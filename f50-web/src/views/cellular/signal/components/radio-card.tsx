@@ -14,6 +14,8 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
+import { usePoll } from "@/hooks/use-live";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -27,7 +29,7 @@ export function RadioCard() {
   const status = useQuery({
     queryKey: signalKeys.status,
     queryFn: getStatus,
-    refetchInterval: 2000,
+    refetchInterval: usePoll(2000, "modem"),
   });
   const { job, start } = useJobSlot();
   const refresh = () => qc.invalidateQueries({ queryKey: ["cellular"] });
@@ -35,15 +37,21 @@ export function RadioCard() {
   const radio = useMutation({
     mutationFn: setRadio,
     onSuccess: (r, on) => {
-      if (r.job) start(r.job, on ? "开启射频" : "关闭射频");
-      else toast.success("已保存，下次使用该卡时生效");
+      if (r.job)
+        start(
+          r.job,
+          on
+            ? t("cellular.shared.jobRadioOn")
+            : t("cellular.shared.jobRadioOff"),
+        );
+      else toast.success(t("cellular.signal.radio.savedNext"));
       refresh();
     },
     onError: (e) => reportFormError(e),
   });
   const restart = useMutation({
     mutationFn: restartModem,
-    onSuccess: (r) => start(r.job, "重启调制解调器"),
+    onSuccess: (r) => start(r.job, t("cellular.signal.radio.jobRestart")),
     onError: (e) => reportFormError(e),
   });
 
@@ -52,9 +60,9 @@ export function RadioCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>射频控制</CardTitle>
+        <CardTitle>{t("cellular.signal.radio.title")}</CardTitle>
         <CardDescription>
-          当前 SIM 卡的射频开关会保存，重启后保持
+          {t("cellular.signal.radio.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -62,12 +70,14 @@ export function RadioCard() {
           <Field orientation="horizontal" data-disabled={busy}>
             <FieldContent>
               <FieldLabel htmlFor="modem-radio">
-                射频{s ? `（SIM${s.slot}）` : ""}
+                {s
+                  ? t("cellular.signal.radio.labelSlot", { slot: s.slot })
+                  : t("cellular.signal.radio.label")}
               </FieldLabel>
               <FieldDescription>
                 {radio.isPending
-                  ? "正在切换…"
-                  : "关闭后该卡不再联网，移动数据随之断开"}
+                  ? t("cellular.signal.radio.switching")
+                  : t("cellular.signal.radio.offHint")}
               </FieldDescription>
             </FieldContent>
             <Switch
@@ -80,21 +90,21 @@ export function RadioCard() {
           </Field>
           <Field orientation="horizontal">
             <FieldContent>
-              <FieldLabel>重启调制解调器</FieldLabel>
+              <FieldLabel>{t("cellular.signal.radio.restart")}</FieldLabel>
               <FieldDescription>
-                重启协议栈，蜂窝连接会中断约半分钟
+                {t("cellular.signal.radio.restartHint")}
               </FieldDescription>
             </FieldContent>
             <ConfirmButton
               size="sm"
-              title="重启调制解调器？"
-              description="协议栈将重启，蜂窝网络和移动数据会中断约半分钟，随后自动恢复。"
-              confirmText="重启"
+              title={t("cellular.signal.radio.confirmTitle")}
+              description={t("cellular.signal.radio.confirmDescription")}
+              confirmText={t("common.action.reboot")}
               pending={restart.isPending}
               disabled={busy || !s?.radio_allowed}
               onConfirm={() => restart.mutate()}
             >
-              重启
+              {t("common.action.reboot")}
             </ConfirmButton>
           </Field>
         </FieldGroup>

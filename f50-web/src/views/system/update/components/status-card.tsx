@@ -8,20 +8,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { type Key, t } from "@/i18n";
 import { formatBytes } from "@/lib/format";
 import { SystemsTable } from "./systems-table";
 import type { UpdateStatus } from "../types";
 
-const KEY_LABEL = {
-  ok: "已安装",
-  none: "未安装（无法校验签名）",
-  unsafe: "不安全（已拒绝使用）",
-} as const;
-const FALLBACK_LABEL = {
-  auto: "自动回退 GitHub",
-  never: "从不回退",
-  always: "总是使用 GitHub",
-} as const;
+const KEY_LABEL: Record<string, Key> = {
+  ok: "maintenance.update.status.key.ok",
+  none: "maintenance.update.status.key.none",
+  unsafe: "maintenance.update.status.key.unsafe",
+} satisfies Record<UpdateStatus["signing"]["key"], Key>;
+const FALLBACK_LABEL: Record<string, Key> = {
+  auto: "maintenance.update.status.fallback.auto",
+  never: "maintenance.update.status.fallback.never",
+  always: "maintenance.update.status.fallback.always",
+} satisfies Record<UpdateStatus["source"]["fallback"], Key>;
 
 function Disk({ disk }: { disk: UpdateStatus["disk"] }) {
   if (disk.free_kb == null || disk.total_kb == null) return <>—</>;
@@ -30,15 +31,22 @@ function Disk({ disk }: { disk: UpdateStatus["disk"] }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="flex flex-wrap items-center gap-2">
-        可用 {formatBytes(disk.free_kb * 1024)} / 共{" "}
-        {formatBytes(disk.total_kb * 1024)}
+        {t("maintenance.update.status.diskFree", {
+          free: formatBytes(disk.free_kb * 1024),
+          total: formatBytes(disk.total_kb * 1024),
+        })}
         {!enough && (
           <Badge variant="destructive">
-            不足 {formatBytes(disk.need_all_kb * 1024)}
+            {t("maintenance.update.status.diskShort", {
+              need: formatBytes(disk.need_all_kb * 1024),
+            })}
           </Badge>
         )}
       </span>
-      <Progress value={used} aria-label="Linux 分区已用空间" />
+      <Progress
+        value={used}
+        aria-label={t("maintenance.update.status.diskUsed")}
+      />
     </div>
   );
 }
@@ -47,64 +55,88 @@ export function StatusCard({ status: s }: { status: UpdateStatus }) {
   return (
     <Card size="sm">
       <CardHeader>
-        <CardTitle>已安装</CardTitle>
+        <CardTitle>{t("maintenance.update.status.title")}</CardTitle>
         <CardDescription>
-          当前运行的版本、内核与启动镜像，以及可用于回滚的备份
+          {t("maintenance.update.status.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <KvList
           items={[
             {
-              label: "当前版本",
-              value: <span className="font-mono">{s.installed ?? "未知"}</span>,
+              label: t("maintenance.update.status.version"),
+              value: (
+                <span className="font-mono">
+                  {s.installed ?? t("common.state.unknown")}
+                </span>
+              ),
             },
             {
-              label: "运行内核",
+              label: t("maintenance.update.status.kernel"),
               value: (
                 <span className="font-mono">{s.kernel.running ?? "—"}</span>
               ),
             },
             {
-              label: "内核系列",
-              value: `${s.kernel.choice}（可选 ${s.kernel.choices.join(" / ")}）`,
+              label: t("maintenance.update.status.kernelSeries"),
+              value: t("maintenance.update.status.kernelChoice", {
+                choice: s.kernel.choice,
+                choices: s.kernel.choices.join(" / "),
+              }),
             },
             {
-              label: "启动镜像",
+              label: t("maintenance.update.status.boot"),
               value: (
                 <span className="font-mono">
-                  {s.boot.release ?? "—"} · {s.boot.kernel ?? "—"} · 槽位{" "}
-                  {s.boot.slot}
+                  {s.boot.release ?? "—"} · {s.boot.kernel ?? "—"} ·{" "}
+                  {t("maintenance.update.status.slot", { slot: s.boot.slot })}
                 </span>
               ),
             },
             {
-              label: "启动镜像备份",
+              label: t("maintenance.update.status.bootBackup"),
               value: s.boot.previous ? (
                 <span className="flex flex-wrap items-center gap-2 font-mono">
-                  {s.boot.previous.release ?? "未知版本"} ·{" "}
-                  {s.boot.previous.kernel ?? "—"}
+                  {s.boot.previous.release ??
+                    t("maintenance.update.status.unknownRelease")}{" "}
+                  · {s.boot.previous.kernel ?? "—"}
                   {!s.boot.previous.usable && (
-                    <Badge variant="outline">槽位不符，不可回滚</Badge>
+                    <Badge variant="outline">
+                      {t("maintenance.update.status.slotMismatch")}
+                    </Badge>
                   )}
                 </span>
               ) : (
-                "无"
+                t("common.state.none")
               ),
             },
             {
-              label: "默认启动",
+              label: t("maintenance.update.status.defaultBoot"),
               value: s.boot.default === "linux" ? "Linux" : "Android",
             },
-            { label: "Linux 分区", value: <Disk disk={s.disk} /> },
             {
-              label: "发布密钥",
-              value: KEY_LABEL[s.signing.key] ?? s.signing.key,
+              label: t("maintenance.update.status.disk"),
+              value: <Disk disk={s.disk} />,
             },
             {
-              label: "更新源",
+              label: t("maintenance.update.status.signingKey"),
+              value: KEY_LABEL[s.signing.key]
+                ? t(KEY_LABEL[s.signing.key])
+                : s.signing.key,
+            },
+            {
+              label: t("maintenance.update.status.source"),
               value: s.source.mirror
-                ? `镜像（${FALLBACK_LABEL[s.source.fallback] ?? s.source.fallback}${s.source.fell_back ? "，本次已回退" : ""}）`
+                ? t(
+                    s.source.fell_back
+                      ? "maintenance.update.status.mirrorFellBack"
+                      : "maintenance.update.status.mirror",
+                    {
+                      fallback: FALLBACK_LABEL[s.source.fallback]
+                        ? t(FALLBACK_LABEL[s.source.fallback])
+                        : s.source.fallback,
+                    },
+                  )
                 : "GitHub",
             },
           ]}

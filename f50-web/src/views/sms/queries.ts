@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
+import { usePoll } from "@/hooks/use-live";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import {
   useInfiniteQuery,
@@ -37,7 +39,7 @@ export function useUnread() {
   return useQuery({
     queryKey: smsKeys.unread,
     queryFn: unreadCounts,
-    refetchInterval: POLL_MS,
+    refetchInterval: usePoll(POLL_MS, "sms"),
   });
 }
 
@@ -97,7 +99,7 @@ export function useSyncSms() {
   return useMutation({
     mutationFn: syncSms,
     onSuccess: () => {
-      toast.success("已开始同步 SIM 卡中的短信");
+      toast.success(t("sms.toast.syncStarted"));
       // the sync runs in the background: look again shortly
       window.setTimeout(() => void invalidate(), 3000);
     },
@@ -113,8 +115,8 @@ export function useDeleteSms() {
     onSuccess: (r) =>
       toast.success(
         r.sim_deleted > 0
-          ? `已删除 ${r.deleted} 条（SIM 卡中 ${r.sim_deleted} 条）`
-          : `已删除 ${r.deleted} 条`,
+          ? t("sms.toast.deletedSim", { count: r.deleted, sim: r.sim_deleted })
+          : t("sms.toast.deleted", { count: r.deleted }),
       ),
     onError: (e) => toast.error(errorMessage(e)),
     onSettled: () => invalidate(),
@@ -147,8 +149,8 @@ export function useDeleteConversation() {
     onSuccess: (r) =>
       toast.success(
         r.simDeleted > 0
-          ? `已删除 ${r.deleted} 条（SIM 卡中 ${r.simDeleted} 条）`
-          : `已删除 ${r.deleted} 条`,
+          ? t("sms.toast.deletedSim", { count: r.deleted, sim: r.simDeleted })
+          : t("sms.toast.deleted", { count: r.deleted }),
       ),
     onError: (e) => toast.error(errorMessage(e)),
     onSettled: () => invalidate(),

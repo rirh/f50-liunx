@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { MAX_CHARS, MAX_PARTS, smsEncoding } from "../lib/encoding";
 
@@ -19,10 +20,17 @@ export function SmsCounter({
         className,
       )}
       aria-live="polite"
-      title={`${e.chars} 字 · ${e.units} 个${e.coding === "gsm" ? "七位字符" : " UTF-16 单元"} · 每条 ${e.perPart}`}
+      title={t(
+        e.coding === "gsm" ? "sms.counter.titleGsm" : "sms.counter.titleUcs2",
+        { chars: e.chars, units: e.units, perPart: e.perPart },
+      )}
     >
-      {e.coding === "gsm" ? "GSM-7" : "UCS-2"} · {e.parts}/{MAX_PARTS} 条 · 剩{" "}
-      {e.remaining}
+      {t("sms.counter.text", {
+        coding: e.coding === "gsm" ? "GSM-7" : "UCS-2",
+        parts: e.parts,
+        max: MAX_PARTS,
+        remaining: e.remaining,
+      })}
     </span>
   );
 }

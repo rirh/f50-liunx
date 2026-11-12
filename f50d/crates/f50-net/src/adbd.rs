@@ -65,8 +65,16 @@ pub(crate) fn summary(net: &Net) -> Value {
         "auth_reason": why,
         "keys": auth::key_count(net),
         "in_gadget": gadget::linked(net),
-        "running": lock(&net.inner.adbd).is_some(),
+        "running": lock(&net.inner.adbd).is_some() || any_adbd(&net.platform().paths().sys("/proc")),
     })
+}
+
+/// An adbd this daemon did not start (one an older init script or a hand started, with `f50d.main.adbd` off).
+fn any_adbd(proc_dir: &std::path::Path) -> bool {
+    let Ok(rd) = std::fs::read_dir(proc_dir) else { return false };
+    rd.filter_map(Result::ok)
+        .filter(|e| e.file_name().to_str().is_some_and(|n| n.bytes().all(|b| b.is_ascii_digit())))
+        .any(|e| std::fs::read_to_string(e.path().join("comm")).is_ok_and(|c| c.trim_end() == "adbd"))
 }
 
 /// `f50.usb adb`: on/off (kept across reboots and updates) and whom it lets in. The USB connection drops for a

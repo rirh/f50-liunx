@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -49,7 +50,11 @@ export function UsbRoleCard({ info }: { info: UsbInfo }) {
   const save = useMutation({
     mutationFn: setUsb,
     onSuccess: (r) => {
-      toast.success(r.pending ? "已保存，端口即将切换角色" : "已保存");
+      toast.success(
+        r.pending
+          ? t("network.usb.roleCard.saved")
+          : t("network.usb.adb.saved"),
+      );
       qc.invalidateQueries({ queryKey: usbKeys.all });
       // the switch runs a moment after the reply
       if (r.pending)
@@ -66,7 +71,7 @@ export function UsbRoleCard({ info }: { info: UsbInfo }) {
       v.role === initial.role &&
       (v.role === "device" || v.at_boot === initial.at_boot)
     ) {
-      toast.info("没有需要保存的修改");
+      toast.info(t("network.shared.noChanges"));
       return;
     }
     const args: UsbSetArgs =
@@ -80,18 +85,21 @@ export function UsbRoleCard({ info }: { info: UsbInfo }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>端口角色</CardTitle>
+        <CardTitle>{t("network.usb.roleCard.title")}</CardTitle>
         <CardDescription>
-          设备：作为 USB 网卡连接电脑；主机：接入 USB 有线网卡（需外部供电的
-          Hub）。
+          {t("network.usb.roleCard.description")}
         </CardDescription>
       </CardHeader>
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
         <CardContent className="flex flex-col gap-4">
           {!supported && (
             <Alert>
-              <AlertTitle>不支持切换角色</AlertTitle>
-              <AlertDescription>此内核没有 USB 角色切换接口。</AlertDescription>
+              <AlertTitle>
+                {t("network.usb.roleCard.unsupported.title")}
+              </AlertTitle>
+              <AlertDescription>
+                {t("network.usb.roleCard.unsupported.description")}
+              </AlertDescription>
             </Alert>
           )}
           <FieldGroup>
@@ -103,7 +111,7 @@ export function UsbRoleCard({ info }: { info: UsbInfo }) {
                   data-invalid={fieldState.invalid}
                   data-disabled={!supported || undefined}
                 >
-                  <FieldLabel>角色</FieldLabel>
+                  <FieldLabel>{t("network.usb.roleCard.role")}</FieldLabel>
                   <ToggleGroup
                     type="single"
                     variant="outline"
@@ -113,8 +121,12 @@ export function UsbRoleCard({ info }: { info: UsbInfo }) {
                     aria-invalid={fieldState.invalid}
                     onValueChange={(v) => v && field.onChange(v)}
                   >
-                    <ToggleGroupItem value="device">设备</ToggleGroupItem>
-                    <ToggleGroupItem value="host">主机</ToggleGroupItem>
+                    <ToggleGroupItem value="device">
+                      {t("network.usb.roleCard.device")}
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="host">
+                      {t("network.usb.status.host")}
+                    </ToggleGroupItem>
                   </ToggleGroup>
                   <FieldError errors={[fieldState.error]} />
                 </Field>
@@ -137,15 +149,14 @@ export function UsbRoleCard({ info }: { info: UsbInfo }) {
                     aria-invalid={fieldState.invalid}
                   />
                   <FieldLabel htmlFor="usb-at-boot">
-                    每次开机都使用主机模式
+                    {t("network.usb.roleCard.atBoot")}
                   </FieldLabel>
                   <FieldError errors={[fieldState.error]} />
                 </Field>
               )}
             />
             <FieldDescription>
-              开机主机模式会清除 USB
-              网络模式设置；选择“设备”会取消开机主机模式。
+              {t("network.usb.roleCard.atBootHint")}
             </FieldDescription>
           </FieldGroup>
         </CardContent>
@@ -155,7 +166,9 @@ export function UsbRoleCard({ info }: { info: UsbInfo }) {
             pending={save.isPending}
             disabled={!supported}
           >
-            {save.isPending ? "保存中" : "应用"}
+            {save.isPending
+              ? t("common.action.saving")
+              : t("common.action.apply")}
           </PendingButton>
         </CardFooter>
       </form>
@@ -163,19 +176,17 @@ export function UsbRoleCard({ info }: { info: UsbInfo }) {
         open={pending !== null}
         onOpenChange={(o) => !o && setPending(null)}
         title={
-          pending?.role === "host" ? "切换到主机模式？" : "切换到设备模式？"
+          pending?.role === "host"
+            ? t("network.usb.roleCard.confirmHost.title")
+            : t("network.usb.roleCard.confirmDevice.title")
         }
-        confirmText="切换"
+        confirmText={t("network.usb.roleCard.switch")}
         destructive
         description={
           pending?.role === "host" ? (
-            <span>
-              USB 网络和 adb 会断开：如果你正通过 USB
-              访问控制台，将无法继续访问，请改用 Wi-Fi。F50 无法为 USB
-              设备供电，请使用带电源的 Hub。
-            </span>
+            <span>{t("network.usb.roleCard.confirmHost.description")}</span>
           ) : (
-            <span>USB 网卡将从局域网移除，端口恢复为电脑的 USB 网络。</span>
+            <span>{t("network.usb.roleCard.confirmDevice.description")}</span>
           )
         }
         onConfirm={() => pending && save.mutate(pending)}

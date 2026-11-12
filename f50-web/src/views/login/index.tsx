@@ -1,4 +1,5 @@
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { LanguageSwitcher } from "@/components/f50/language-switcher";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { SweepShine } from "@/components/ui/sweep-shine";
 import { useSession } from "@/hooks/use-session";
+import { t } from "@/i18n";
 import { GlobalChrome } from "@/layout";
 import { errorMessage } from "@/lib/format";
 import { login } from "@/lib/ubus";
@@ -26,18 +28,20 @@ import { RouterIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-const schema = z.object({
-  username: z.string().min(1, "请输入用户名"),
-  password: z.string(),
-});
-type Values = z.infer<typeof schema>;
+/** Built at render: the message is in the current language. */
+const schema = () =>
+  z.object({
+    username: z.string().min(1, t("app.login.usernameRequired")),
+    password: z.string(),
+  });
+type Values = z.infer<ReturnType<typeof schema>>;
 
 export default function LoginPage() {
   const session = useSession();
   const navigate = useNavigate();
   const from = (useLocation().state as { from?: string } | null)?.from ?? "/";
   const form = useForm<Values>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema()),
     defaultValues: { username: "root", password: "" },
   });
   const signIn = useMutation({
@@ -53,11 +57,12 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <RouterIcon />
-            ZTE F50
+            {t("app.brand")}
+            <span className="ms-auto">
+              <LanguageSwitcher />
+            </span>
           </CardTitle>
-          <CardDescription>
-            使用设备的系统账户登录（OpenWrt 的 root 密码）
-          </CardDescription>
+          <CardDescription>{t("app.login.description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit((v) => signIn.mutate(v))}>
@@ -70,7 +75,9 @@ export default function LoginPage() {
                 </Alert>
               )}
               <Field data-invalid={!!form.formState.errors.username}>
-                <FieldLabel htmlFor="username">用户名</FieldLabel>
+                <FieldLabel htmlFor="username">
+                  {t("app.login.username")}
+                </FieldLabel>
                 <Input
                   id="username"
                   autoComplete="username"
@@ -80,7 +87,9 @@ export default function LoginPage() {
                 <FieldError errors={[form.formState.errors.username]} />
               </Field>
               <Field>
-                <FieldLabel htmlFor="password">密码</FieldLabel>
+                <FieldLabel htmlFor="password">
+                  {t("app.login.password")}
+                </FieldLabel>
                 <Input
                   id="password"
                   type="password"
@@ -93,7 +102,11 @@ export default function LoginPage() {
                 disabled={signIn.isPending}
                 aria-busy={signIn.isPending}
               >
-                {signIn.isPending ? <SweepShine>登录</SweepShine> : "登录"}
+                {signIn.isPending ? (
+                  <SweepShine>{t("app.login.submit")}</SweepShine>
+                ) : (
+                  t("app.login.submit")
+                )}
               </Button>
             </FieldGroup>
           </form>

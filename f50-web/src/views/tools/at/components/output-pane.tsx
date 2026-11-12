@@ -16,6 +16,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useAtom } from "jotai";
@@ -48,16 +49,18 @@ export function OutputPane() {
 
   const copy = () =>
     navigator.clipboard.writeText(asText(entries)).then(
-      () => toast.success("已复制输出"),
-      () => toast.error("复制失败"),
+      () => toast.success(t("tools.at.output.copied")),
+      () => toast.error(t("tools.at.output.copyFailed")),
     );
 
   return (
     <Card className="min-h-0 gap-3">
       <CardHeader>
-        <CardTitle>输出</CardTitle>
+        <CardTitle>{t("tools.at.output.title")}</CardTitle>
         <CardDescription>
-          {entries.length > 0 ? `${entries.length} 条记录` : "尚无输出"}
+          {entries.length > 0
+            ? t("tools.at.output.count", { count: entries.length })
+            : t("tools.at.output.empty")}
         </CardDescription>
         <CardAction className="flex gap-2">
           <Button
@@ -67,7 +70,7 @@ export function OutputPane() {
             onClick={() => void copy()}
           >
             <CopyIcon data-icon="inline-start" />
-            复制
+            {t("common.action.copy")}
           </Button>
           <Button
             variant="outline"
@@ -76,7 +79,7 @@ export function OutputPane() {
             onClick={() => setEntries([])}
           >
             <EraserIcon data-icon="inline-start" />
-            清空
+            {t("common.action.clear")}
           </Button>
         </CardAction>
       </CardHeader>
@@ -92,9 +95,9 @@ export function OutputPane() {
                 <EmptyMedia variant="icon">
                   <TerminalIcon />
                 </EmptyMedia>
-                <EmptyTitle>还没有命令</EmptyTitle>
+                <EmptyTitle>{t("tools.at.output.emptyTitle")}</EmptyTitle>
                 <EmptyDescription>
-                  在下方输入 AT 命令，例如 AT+CSQ。
+                  {t("tools.at.output.emptyDescription")}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>

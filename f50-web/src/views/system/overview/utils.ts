@@ -1,3 +1,4 @@
+import { t } from "@/i18n";
 import type { CpuTimes, Disk, Memory } from "./types";
 
 /** The busy share between two cumulative readings, 0-100. */
@@ -42,11 +43,11 @@ export function formatMhz(khz: number | null | undefined): string {
 }
 
 /** Thermal zone names as the kernel has them, with a Chinese hint for the known ones. */
-const ZONE_LABEL: Record<string, string> = {
-  "soc-thmzone": "SoC",
-  "apcpu0-thmzone": "CPU",
-  "nr0-thmzone": "基带",
-  "board-thmzone": "主板",
+const ZONE_LABEL: Record<string, () => string> = {
+  "soc-thmzone": () => "SoC",
+  "apcpu0-thmzone": () => "CPU",
+  "nr0-thmzone": () => t("system.overview.zone.modem"),
+  "board-thmzone": () => t("system.overview.zone.board"),
 };
 
-export const zoneLabel = (name: string) => ZONE_LABEL[name] ?? name;
+export const zoneLabel = (name: string) => ZONE_LABEL[name]?.() ?? name;

@@ -3,6 +3,7 @@ import { JobProgress } from "@/components/f50/job-progress";
 import { PageHeader } from "@/components/f50/page-header";
 import { PendingButton } from "@/components/f50/pending-button";
 import { QueryState } from "@/components/f50/query-state";
+import { t } from "@/i18n";
 import type { JobStatus } from "@/lib/jobs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RefreshCwIcon } from "lucide-react";
@@ -45,7 +46,9 @@ export default function WifiClientPage() {
     );
     if (j.state === "done")
       toast.success(
-        j.method.endsWith("join") ? "已加入网络" : "已断开，热点正在恢复",
+        j.method.endsWith("join")
+          ? t("network.client.joined")
+          : t("network.client.left"),
       );
     qc.invalidateQueries({ queryKey: clientKeys.status });
     qc.invalidateQueries({ queryKey: ["f50.wifi"] });
@@ -54,8 +57,8 @@ export default function WifiClientPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="Wi-Fi 上网"
-        description="把其他 Wi-Fi 网络作为上网线路（优先于移动数据）"
+        title={t("network.client.title")}
+        description={t("network.client.description")}
         actions={
           <PendingButton
             variant="outline"
@@ -64,7 +67,9 @@ export default function WifiClientPage() {
             onClick={() => query.refetch()}
           >
             <RefreshCwIcon data-icon="inline-start" />
-            {query.isFetching ? "刷新中" : "刷新"}
+            {query.isFetching
+              ? t("common.action.refreshing")
+              : t("common.action.refresh")}
           </PendingButton>
         }
       />
@@ -83,7 +88,11 @@ export default function WifiClientPage() {
               status={status}
               busy={busy}
               onLeaveStarted={(id) =>
-                setJob({ id, title: "断开网络", running: true })
+                setJob({
+                  id,
+                  title: t("network.client.leaveJob"),
+                  running: true,
+                })
               }
             />
             <ScanCard disabled={busy} onJoin={onJoin} />
@@ -93,7 +102,11 @@ export default function WifiClientPage() {
               onOpenChange={(o) => !o && setTarget(null)}
               onStarted={(id, ssid) => {
                 setTarget(null);
-                setJob({ id, title: `加入 ${ssid}`, running: true });
+                setJob({
+                  id,
+                  title: t("network.client.joinJob", { ssid }),
+                  running: true,
+                });
               }}
             />
           </div>

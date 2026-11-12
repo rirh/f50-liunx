@@ -9,6 +9,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { formatAgo, formatTime } from "@/lib/format";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -67,10 +68,12 @@ function Editors({
           <Empty>
             <EmptyHeader>
               <EmptyTitle>
-                {s.refreshing ? "正在读取锁定状态…" : "尚未读取锁定状态"}
+                {s.refreshing
+                  ? t("cellular.locks.reading")
+                  : t("cellular.locks.notRead")}
               </EmptyTitle>
               <EmptyDescription>
-                锁定状态在后台读取，完成后自动显示。
+                {t("cellular.locks.readHint")}
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -104,20 +107,20 @@ export default function LocksPage() {
   const sim2 = sim.data?.active === 2;
   const running =
     s?.applying && s.applying !== job?.id
-      ? { id: s.applying, title: "射频操作进行中" }
+      ? { id: s.applying, title: t("cellular.locks.radioBusy") }
       : null;
   const disabled = sim2 || !!s?.applying;
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="网络锁定"
-        description="网络模式、频段、小区与 EN-DC；每次更改都会重启协议栈，蜂窝连接中断约半分钟"
+        title={t("cellular.locks.title")}
+        description={t("cellular.locks.description")}
         actions={
           <>
             {s?.lock && (
               <Badge variant="outline" title={formatTime(s.lock.ts)}>
-                读取于 {formatAgo(s.lock.ts)}
+                {t("cellular.locks.readAt", { ago: formatAgo(s.lock.ts) })}
               </Badge>
             )}
             <PendingButton
@@ -127,16 +130,16 @@ export default function LocksPage() {
               icon={<RefreshCwIcon data-icon="inline-start" />}
               onClick={() => refresh.mutate()}
             >
-              重新读取
+              {t("cellular.locks.reread")}
             </PendingButton>
           </>
         }
       />
       {sim2 && (
         <Alert>
-          <AlertTitle>SIM2 不支持锁定</AlertTitle>
+          <AlertTitle>{t("cellular.locks.sim2Title")}</AlertTitle>
           <AlertDescription>
-            当前使用内置卡（SIM2），频段、模式与小区锁定只适用于 SIM1。
+            {t("cellular.locks.sim2Description")}
           </AlertDescription>
         </Alert>
       )}

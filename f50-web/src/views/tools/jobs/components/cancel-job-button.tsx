@@ -1,10 +1,11 @@
 import { ConfirmButton } from "@/components/f50/confirm-button";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cancelJob, jobKeys } from "../api";
 import type { JobStatus } from "../types";
-import { JOB_METHOD_LABEL } from "../types";
+import { jobMethodLabel } from "../types";
 
 /** Stops a running job after asking. */
 export function CancelJobButton({
@@ -17,7 +18,7 @@ export function CancelJobButton({
   const qc = useQueryClient();
   const cancel = useMutation({
     mutationFn: () => cancelJob(job.id),
-    onSuccess: () => toast.success("已请求停止任务"),
+    onSuccess: () => toast.success(t("tools.jobs.cancel.requested")),
     onError: (e) => toast.error(errorMessage(e)),
     onSettled: () =>
       Promise.all([
@@ -29,13 +30,16 @@ export function CancelJobButton({
     <ConfirmButton
       size={size}
       variant="outline"
-      title="停止任务"
-      description={`停止“${JOB_METHOD_LABEL[job.method] ?? job.method}”（${job.id}）？已完成的部分不会撤销。`}
-      confirmText="停止"
+      title={t("tools.jobs.cancel.title")}
+      description={t("tools.jobs.cancel.description", {
+        name: jobMethodLabel(job.method),
+        id: job.id,
+      })}
+      confirmText={t("common.action.stop")}
       pending={cancel.isPending}
       onConfirm={() => cancel.mutate()}
     >
-      停止
+      {t("common.action.stop")}
     </ConfirmButton>
   );
 }

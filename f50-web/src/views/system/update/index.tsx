@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/f50/page-header";
 import { QueryState } from "@/components/f50/query-state";
+import { t } from "@/i18n";
 import { JobPanel } from "./components/job-panel";
 import { OfflineCard } from "./components/offline-card";
 import { ReleasesCard } from "./components/releases-card";
@@ -13,8 +14,8 @@ export default function UpdatePage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="系统更新"
-        description="在线或离线更新系统与启动镜像，必要时回滚"
+        title={t("maintenance.update.title")}
+        description={t("maintenance.update.description")}
       />
       <QueryState query={status} skeletonRows={6}>
         {(s) => {

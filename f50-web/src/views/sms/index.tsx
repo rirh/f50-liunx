@@ -7,6 +7,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useAtom } from "jotai";
 import { MessageSquareTextIcon } from "lucide-react";
@@ -26,8 +27,8 @@ export default function SmsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="短信"
-        description="收发短信；列表每 15 秒自动刷新。"
+        title={t("sms.page.title")}
+        description={t("sms.page.description")}
         actions={<SmsActions onDeletedAll={() => setPeer(null)} />}
       />
       <Card className="grid h-[calc(100dvh-13rem)] min-h-[28rem] grid-cols-1 gap-0 overflow-hidden py-0 md:grid-cols-[20rem_1fr]">
@@ -45,9 +46,9 @@ export default function SmsPage() {
                 <EmptyMedia variant="icon">
                   <MessageSquareTextIcon />
                 </EmptyMedia>
-                <EmptyTitle>选择一个会话</EmptyTitle>
+                <EmptyTitle>{t("sms.page.pickTitle")}</EmptyTitle>
                 <EmptyDescription>
-                  从左侧选择会话查看短信，或点击“新短信”。
+                  {t("sms.page.pickDescription")}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>

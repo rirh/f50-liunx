@@ -5,6 +5,7 @@
  * `{ ok: true, data }` or `{ ok: false, code, error, field }`; `f50()` unwraps it and throws an `ApiError` for a
  * refusal. A rejected session (expired, logged out elsewhere) clears the stored one and returns to the login page.
  */
+import { type Key, t } from "@/i18n";
 import { apiRequest } from "@/lib/request";
 
 export const ANONYMOUS_SESSION = "00000000000000000000000000000000";
@@ -29,12 +30,20 @@ export type ApiErrorCode =
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
   readonly field?: string;
+  /** The message is f50d's own (English) text, shown after the name of the code; otherwise it is the console's. */
+  readonly fromDevice: boolean;
 
-  constructor(code: ApiErrorCode, message: string, field?: string) {
+  constructor(
+    code: ApiErrorCode,
+    message: string,
+    field?: string,
+    fromDevice = false,
+  ) {
     super(message);
     this.name = "ApiError";
     this.code = code;
     this.field = field;
+    this.fromDevice = fromDevice;
   }
 }
 
@@ -65,16 +74,16 @@ interface RpcResponse {
   error?: { code: number; message: string };
 }
 
-// ubus status codes (UBUS_STATUS_*)
-const UBUS_STATUS: Record<number, [ApiErrorCode, string]> = {
-  2: ["bad-request", "参数无效"],
-  3: ["unknown-method", "没有这个方法"],
-  4: ["not-found", "设备上没有这个服务（f50d 未运行？）"],
-  5: ["failed", "没有返回数据"],
-  6: ["unauthorized", "没有权限，或登录已过期"],
-  7: ["timeout", "设备响应超时"],
-  8: ["unsupported", "不支持"],
-  10: ["transport", "无法连接设备上的服务"],
+// ubus status codes (UBUS_STATUS_*): the code, and the message's key (read when the error is made)
+const UBUS_STATUS: Record<number, [ApiErrorCode, Key]> = {
+  2: ["bad-request", "app.error.ubus.badRequest"],
+  3: ["unknown-method", "app.error.ubus.noMethod"],
+  4: ["not-found", "app.error.ubus.noObject"],
+  5: ["failed", "app.error.ubus.noData"],
+  6: ["unauthorized", "app.error.ubus.denied"],
+  7: ["timeout", "app.error.ubus.timeout"],
+  8: ["unsupported", "app.error.ubus.unsupported"],
+  10: ["transport", "app.error.ubus.noConnection"],
 };
 
 let rpcId = 0;
@@ -110,30 +119,31 @@ export async function ubusCall<T = unknown>(
   } catch (e) {
     throw new ApiError(
       "transport",
-      e instanceof Error ? e.message : "无法连接设备",
+      e instanceof Error ? e.message : t("app.error.unreachable"),
     );
   }
   if (response.error) {
     // -32002: the session is unknown or has no access
     if (response.error.code === -32002) {
       if (!probe) sessionExpired();
-      throw new ApiError("unauthorized", "登录已过期，请重新登录");
+      throw new ApiError("unauthorized", t("app.error.sessionExpired"));
     }
     // -32000 / -32601: uhttpd found no such object or method on the bus: the device answers, f50d (or this method
     // of it) is not there - an older image, or the daemon not running
     if (response.error.code === -32000 || response.error.code === -32601) {
       throw new ApiError(
         "not-found",
-        `设备上没有 ${object}.${method}：f50d 未安装或未运行`,
+        t("app.error.missingMethod", { method: `${object}.${method}` }),
       );
     }
     throw new ApiError("transport", response.error.message);
   }
   const [status, data] = response.result ?? [9];
   if (status !== 0) {
-    const [code, message] =
-      UBUS_STATUS[status] ??
-      (["failed", `ubus 错误 ${status}`] as [ApiErrorCode, string]);
+    const known = UBUS_STATUS[status];
+    const [code, message]: [ApiErrorCode, string] = known
+      ? [known[0], t(known[1])]
+      : ["failed", t("app.error.ubus.other", { status })];
     if (code === "unauthorized" && !probe) sessionExpired();
     throw new ApiError(code, message);
   }
@@ -156,13 +166,14 @@ export async function f50<T = unknown>(
 ): Promise<T> {
   const env = await ubusCall<Envelope<T>>(object, method, args);
   if (!env || typeof env !== "object" || !("ok" in env)) {
-    throw new ApiError("failed", "设备返回了无法识别的数据");
+    throw new ApiError("failed", t("app.error.unreadable"));
   }
   if (!env.ok) {
     throw new ApiError(
       env.code ?? "failed",
-      env.error ?? "操作失败",
+      env.error ?? t("app.error.failed"),
       env.field,
+      !!env.error,
     );
   }
   return env.data as T;
@@ -183,7 +194,7 @@ export async function login(
         e instanceof ApiError &&
         (e.code === "unauthorized" || e.code === "transport")
       ) {
-        throw new ApiError("unauthorized", "用户名或密码错误");
+        throw new ApiError("unauthorized", t("app.login.wrong"));
       }
       throw e;
     },

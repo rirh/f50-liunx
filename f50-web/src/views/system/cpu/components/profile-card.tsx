@@ -9,28 +9,27 @@ import {
 } from "@/components/ui/card";
 import { SweepShine } from "@/components/ui/sweep-shine";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { type Key, t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cpuKey, setProfile } from "../api";
 import type { CpuProfile, CpuStatus } from "../types";
 
-const PROFILE_TEXT: Record<CpuProfile, { label: string; description: string }> =
-  {
-    saving: {
-      label: "省电",
-      description:
-        "schedutil 调度，最高频率限制在硬件最高频率约 60% 以内的档位，发热和功耗最低。",
-    },
-    balanced: {
-      label: "均衡",
-      description: "schedutil 调度，按负载升降频，不限制最高频率。默认配置。",
-    },
-    performance: {
-      label: "性能",
-      description: "performance 调度，始终运行在最高频率，响应最快但发热最大。",
-    },
-  };
+const PROFILE_TEXT: Record<CpuProfile, { label: Key; description: Key }> = {
+  saving: {
+    label: "system.cpu.profile.label.saving",
+    description: "system.cpu.profile.text.saving",
+  },
+  balanced: {
+    label: "system.cpu.profile.label.balanced",
+    description: "system.cpu.profile.text.balanced",
+  },
+  performance: {
+    label: "system.cpu.profile.label.performance",
+    description: "system.cpu.profile.text.performance",
+  },
+};
 
 export function ProfileCard({ data }: { data: CpuStatus }) {
   const qc = useQueryClient();
@@ -38,7 +37,11 @@ export function ProfileCard({ data }: { data: CpuStatus }) {
     mutationFn: setProfile,
     onSuccess: (r) => {
       qc.setQueryData(cpuKey, r);
-      toast.success(`已切换到${PROFILE_TEXT[r.profile].label}模式`);
+      toast.success(
+        t("system.cpu.profile.switched", {
+          profile: t(PROFILE_TEXT[r.profile].label),
+        }),
+      );
     },
     onError: (e) => toast.error(errorMessage(e)),
     onSettled: () => qc.invalidateQueries({ queryKey: cpuKey }),
@@ -48,17 +51,21 @@ export function ProfileCard({ data }: { data: CpuStatus }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>CPU 性能模式</CardTitle>
+        <CardTitle>{t("system.cpu.profile.title")}</CardTitle>
         <CardDescription>
           {data.saved
-            ? "已保存，开机时自动应用"
-            : "未保存过，使用默认的均衡模式"}
+            ? t("system.cpu.profile.saved")
+            : t("system.cpu.profile.unsaved")}
         </CardDescription>
         <CardAction>
           {data.throttling ? (
-            <Badge variant="destructive">正在限频</Badge>
+            <Badge variant="destructive">
+              {t("system.cpu.profile.throttling")}
+            </Badge>
           ) : (
-            <Badge variant="outline">未限频</Badge>
+            <Badge variant="outline">
+              {t("system.cpu.profile.notThrottling")}
+            </Badge>
           )}
         </CardAction>
       </CardHeader>
@@ -82,9 +89,9 @@ export function ProfileCard({ data }: { data: CpuStatus }) {
               className="flex-1 sm:flex-none sm:px-6"
             >
               {apply.isPending && apply.variables === p ? (
-                <SweepShine>{PROFILE_TEXT[p].label}</SweepShine>
+                <SweepShine>{t(PROFILE_TEXT[p].label)}</SweepShine>
               ) : (
-                PROFILE_TEXT[p].label
+                t(PROFILE_TEXT[p].label)
               )}
             </ToggleGroupItem>
           ))}
@@ -92,9 +99,9 @@ export function ProfileCard({ data }: { data: CpuStatus }) {
         <dl className="grid gap-2 text-sm sm:grid-cols-3">
           {data.profiles.map((p) => (
             <div key={p} className="flex flex-col gap-0.5">
-              <dt className="font-medium">{PROFILE_TEXT[p].label}</dt>
+              <dt className="font-medium">{t(PROFILE_TEXT[p].label)}</dt>
               <dd className="text-muted-foreground">
-                {PROFILE_TEXT[p].description}
+                {t(PROFILE_TEXT[p].description)}
               </dd>
             </div>
           ))}

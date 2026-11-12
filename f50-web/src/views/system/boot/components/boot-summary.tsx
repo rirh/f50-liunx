@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { t } from "@/i18n";
 import type { BootInfo } from "../types";
 
 const yes = (b: boolean, on: string, off: string) => (
@@ -18,22 +19,22 @@ export function BootSummary({ info }: { info: BootInfo }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>启动控制</CardTitle>
+        <CardTitle>{t("maintenance.boot.summary.title")}</CardTitle>
         <CardDescription>
-          决定设备保持启动 Linux 还是回退到 Android（只读）
+          {t("maintenance.boot.summary.description")}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <KvList
           items={[
             {
-              label: "Linux 所在槽位",
+              label: t("maintenance.boot.summary.slot"),
               value: (
                 <span className="font-mono">{info.slot.toUpperCase()}</span>
               ),
             },
             {
-              label: "默认启动",
+              label: t("maintenance.boot.summary.defaultBoot"),
               value: (
                 <span className="flex flex-wrap items-center gap-2">
                   <Badge variant={linuxDefault ? "secondary" : "outline"}>
@@ -41,39 +42,49 @@ export function BootSummary({ info }: { info: BootInfo }) {
                   </Badge>
                   <span className="text-muted-foreground">
                     {linuxDefault
-                      ? "每次正常启动后重新武装 Linux"
-                      : "每次 Linux 启动都只是一次性尝试"}
+                      ? t("maintenance.boot.summary.linuxDefault")
+                      : t("maintenance.boot.summary.androidDefault")}
                   </span>
                 </span>
               ),
             },
             {
-              label: "允许失败次数",
-              value: `连续 ${info.attempts} 次启动失败后回退到 Android`,
+              label: t("maintenance.boot.summary.attempts"),
+              value: t("maintenance.boot.summary.attemptsValue", {
+                count: info.attempts,
+              }),
             },
             {
-              label: "锁定 Linux",
+              label: t("maintenance.boot.summary.locked"),
               value: (
                 <span className="flex flex-wrap items-center gap-2">
-                  {yes(info.locked, "已锁定", "未锁定")}
+                  {yes(
+                    info.locked,
+                    t("maintenance.boot.summary.lockedOn"),
+                    t("maintenance.boot.summary.lockedOff"),
+                  )}
                   {info.locked && (
                     <span className="text-muted-foreground">
-                      无论启动结果如何都保持 Linux
+                      {t("maintenance.boot.summary.lockedHint")}
                     </span>
                   )}
                 </span>
               ),
             },
             {
-              label: "上次成功后的启动次数",
+              label: t("maintenance.boot.summary.sinceGood"),
               value:
                 info.boots_since_good == null
                   ? "—"
                   : String(info.boots_since_good),
             },
             {
-              label: "启动控制块可写",
-              value: yes(info.writable, "可写", "不可写"),
+              label: t("maintenance.boot.summary.writable"),
+              value: yes(
+                info.writable,
+                t("maintenance.boot.summary.writableOn"),
+                t("maintenance.boot.summary.writableOff"),
+              ),
             },
           ]}
         />

@@ -1,0 +1,262 @@
+import type { Messages } from "../zh";
+
+const m: Messages["system"] = {
+  overview: {
+    title: "System info",
+    description: "Device details, live load and connected clients",
+    refresh: "Refresh info",
+    zone: { modem: "Modem", board: "Board" },
+    clients: {
+      title: "Clients",
+      description:
+        "Clients on the Wi-Fi hotspot and DHCP leases (refreshed every 15 s)",
+      col: {
+        name: "Name",
+        ip: "IP address",
+        signal: "Signal",
+        tx: "TX rate",
+        rx: "RX rate",
+        connected: "Connected",
+        left: "Time left",
+      },
+      expired: "Expired",
+      wifiTab: "Wi-Fi clients ({n})",
+      leasesTab: "DHCP leases ({n})",
+      filterPlaceholder: "Filter by name, IP, MAC",
+      filterLabel: "Filter clients",
+      emptyWifi: "No Wi-Fi clients connected",
+      emptyLeases: "No DHCP leases",
+    },
+    chart: { mem: "Memory", temp: "Hottest" },
+    live: {
+      title: "Live status",
+      descLive:
+        "Pushed live (about every 2 s); CPU use is the average between two samples",
+      descPoll:
+        "Refreshed every 3 s; CPU use is the average between two samples",
+      badge: "Live",
+      heatTitle: "Overheating",
+      heatDescription:
+        "The device is too hot and the CPU is throttled. Improve cooling or reduce the load.",
+      updateTitle: "New version {version}",
+      updateDescription: "The update service found a newer system version.",
+      updateAction: "Go to update",
+      usbDevice: "Device mode",
+      usbHost: "Host mode",
+      speedUnknown: "Speed unknown",
+      speedMax: "{now} · max {max}",
+      cpuHint: "{n} cores · {freqs}",
+      mem: "Memory",
+      hottest: "Hottest",
+      modem: "Modem temp",
+      boardHint: "Board {temp}",
+      wifi: "Wi-Fi clients",
+      leasesHint: "DHCP leases {n}",
+      conns: "Conntrack",
+      connsHint: "Connections being tracked",
+      usb: "USB link",
+      uptime: "Uptime",
+    },
+    info: {
+      title: "Device info",
+      description: "Model, version, memory and storage",
+      notMounted: "Not mounted",
+      msisdnSrc: { sim: "SIM card", ims: "IMS identity" },
+      numberSource: "(SIM{slot} · from {src})",
+      notRead: "Not available",
+      hideNumber: "Hide own number",
+      model: "Model",
+      release: "System version",
+      kernel: "Kernel",
+      hostname: "Hostname",
+      ownNumber: "Own number",
+      timezone: "Time zone",
+      time: "Device time",
+      uptime: "Uptime",
+      cpuValue: "{n} cores · {clusters} clusters",
+      zram: "ZRAM swap",
+      zramOn: "Enabled",
+      zramDetail: "{size} · {algorithm} · {stored} stored ({ram} of RAM)",
+      mem: "Memory",
+      swap: "Swap",
+      rootfs: "System partition",
+      data: "Data partition",
+    },
+  },
+  settings: {
+    title: "System settings",
+    description: "Hostname, time zone, admin password and power",
+    rebooting: "The device is rebooting",
+    poweringOff: "The device is shutting down",
+    hostname: {
+      title: "Hostname",
+      description: "The device's name on the local network",
+      label: "Hostname",
+      hint: "1–63 letters, digits or hyphens; cannot start or end with a hyphen.",
+      saved: "Hostname changed to {name}",
+      required: "Enter a hostname",
+      tooLong: "At most 63 characters",
+      invalid:
+        "Only letters, digits and hyphens; cannot start or end with a hyphen",
+    },
+    timezone: {
+      title: "Time zone",
+      description: "Device time: {time} (shown in the browser's time zone)",
+      label: "Time zone",
+      placeholder: "Search time zones, e.g. Asia/Shanghai",
+      empty: "No matching time zone",
+      hint: "An IANA time zone name (e.g. Asia/Shanghai) or UTC. Rejected if the device lacks data for that zone.",
+      saved: "Time zone changed to {zone}",
+      required: "Choose a time zone",
+      invalid: "Invalid time zone name",
+    },
+    password: {
+      title: "Admin password",
+      description: "Change the root password (shared by web sign-in and SSH)",
+      label: "New password",
+      confirmLabel: "Confirm new password",
+      note: "Once changed, the current session may end and you will need to sign in with the new password.",
+      submit: "Change password",
+      saved: "root password changed",
+      savedDescription:
+        "The current session may stop working; sign in again with the new password when it does.",
+      required: "Enter a new password",
+      tooLong: "At most 128 characters",
+      tooManyBytes: "At most 128 bytes",
+      control: "Cannot contain control characters",
+      confirmRequired: "Enter the new password again",
+      mismatch: "The passwords do not match",
+    },
+    power: {
+      title: "Power",
+      description:
+        "Rebooting or shutting down disconnects all clients and mobile data",
+      rebootTitle: "Reboot the device?",
+      rebootDescription:
+        "The device reboots in 2 seconds and is unreachable for about 1–2 minutes. You will need to sign in again.",
+      poweroffTitle: "Shut down the device?",
+      poweroffDescription:
+        "The device shuts down in 2 seconds. It can only be turned back on with the power button; the web console cannot wake it.",
+      poweroff: "Shut down",
+    },
+    wait: {
+      back: "The device is back; returning to sign-in",
+      waiting: "Waiting for the device to reboot",
+      elapsed:
+        "Waited {n} s, checking every 3 s. You will return to sign-in once the device responds.",
+      slowTitle: "The device has not responded for a long time",
+      slowDescription:
+        "Check the device's lights and connection. If it fell back to the Android system, the web console is unreachable.",
+      toLoginNow: "Go to sign-in now",
+      offTitle: "The device is shutting down",
+      offDescription:
+        "Power will be cut in a few seconds. Press the power button to turn it on again, then sign in.",
+      toLogin: "Back to sign-in",
+    },
+  },
+  cpu: {
+    description: "Performance mode, frequency policies and thermal status",
+    profile: {
+      title: "CPU performance mode",
+      saved: "Saved; applied at boot",
+      unsaved: "Never saved; using the default balanced mode",
+      throttling: "Throttling",
+      notThrottling: "Not throttled",
+      switched: "Switched to {profile} mode",
+      label: {
+        saving: "Power saving",
+        balanced: "Balanced",
+        performance: "Performance",
+      },
+      text: {
+        saving:
+          "schedutil governor, maximum frequency capped at the step within about 60% of the hardware maximum; least heat and power.",
+        balanced:
+          "schedutil governor, scales with load, no cap on the maximum frequency. The default.",
+        performance:
+          "performance governor, always at the maximum frequency; fastest response but the most heat.",
+      },
+    },
+    policies: {
+      title: "Frequency policies",
+      description:
+        "Governor and frequency of each CPU cluster (refreshed every 5 s)",
+      empty: "The kernel provides no CPU frequency scaling (cpufreq)",
+      curLabel: "{name} current frequency",
+      col: {
+        name: "Policy",
+        cpus: "Cores",
+        governor: "Governor",
+        cur: "Current",
+        limit: "Limits",
+        hw: "Hardware range",
+      },
+    },
+    thermal: {
+      title: "Thermal",
+      description:
+        "Kernel thermal zones, trip points and bound cooling devices (a state above 0 means throttling or cooling)",
+      empty: "No thermal zones",
+      enabled: "Enabled",
+      disabled: "Disabled",
+      trip: {
+        passive: "Passive",
+        active: "Active",
+        hot: "Hot",
+        critical: "Critical",
+      },
+      col: {
+        zone: "Zone",
+        temp: "Temperature",
+        mode: "State",
+        trips: "Trip points",
+        cooling: "Cooling devices",
+      },
+    },
+  },
+  leds: {
+    title: "LEDs",
+    saved: "Saved",
+    description:
+      "LED switches, brightness, auto-off and alarm effects; changes apply at once",
+    lamps: {
+      title: "LEDs",
+      description:
+        "Switch and brightness (brightness saves when you release the slider)",
+      network: "Network LED",
+      networkText:
+        "Blue: 2G/3G/4G data; white: 5G data; red: no service; blinking red: searching for a network.",
+      wifi: "Wi-Fi LED",
+      wifiText: "Lit while the hotspot is on.",
+      offNote: " When off it stays dark (the overheating alarm still shows).",
+      brightness: "Brightness",
+      brightnessLabel: "{lamp} brightness",
+    },
+    behaviour: {
+      title: "Effects",
+      description: "Boot indicator and overheating alarm",
+      boot: "Boot indicator",
+      bootHint:
+        "Cycles through the colours while booting until startup finishes (up to 3 minutes).",
+      thermal: "Overheating alarm",
+      thermalHint:
+        "Only sets how the alarm looks; when it fires is up to the thermal daemon.",
+      thermalOption: { siren: "Siren", blink: "Blinking red", off: "Hidden" },
+    },
+    timeout: {
+      title: "Auto-off",
+      current: "Current: {text}",
+      always: "Always on",
+      after: "Off after {duration} idle",
+      default: "Device default",
+      custom: "Custom",
+      label: "Off delay",
+      seconds: "s",
+      hint: "How long after a key press the LEDs go dark; 0 keeps them on, at most 86400 seconds. Device default {n} s ({text}).",
+      required: "Enter the number of seconds",
+      invalid: "Enter a whole number without leading zeros",
+      tooLong: "At most 86400 seconds (24 hours)",
+    },
+  },
+};
+export default m;

@@ -16,6 +16,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { isJobStarted } from "@/lib/jobs";
 import { useMutation } from "@tanstack/react-query";
@@ -57,9 +58,9 @@ export function ScanCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>附近的网络</CardTitle>
+        <CardTitle>{t("network.client.scan.title")}</CardTitle>
         <CardDescription>
-          热点运行时无线电无法扫描，可直接输入网络名称加入（重启后生效）。
+          {t("network.client.scan.description")}
         </CardDescription>
         <CardAction className="flex flex-wrap gap-2">
           <Button
@@ -69,7 +70,7 @@ export function ScanCard({
             onClick={() => onJoin(null)}
           >
             <PlusIcon data-icon="inline-start" />
-            手动加入
+            {t("network.client.scan.manual")}
           </Button>
           <PendingButton
             size="sm"
@@ -78,7 +79,9 @@ export function ScanCard({
             onClick={() => scan.mutate()}
           >
             <RadarIcon data-icon="inline-start" />
-            {scanning ? "扫描中" : "扫描"}
+            {scanning
+              ? t("network.client.scan.scanning")
+              : t("network.client.scan.scan")}
           </PendingButton>
         </CardAction>
       </CardHeader>
@@ -87,7 +90,7 @@ export function ScanCard({
           <JobProgress
             key={job}
             id={job}
-            title="扫描网络"
+            title={t("network.client.scan.job")}
             onDone={(j) => {
               setJobRunning(false);
               if (j.state === "done") {
@@ -107,9 +110,9 @@ export function ScanCard({
           !job && (
             <Empty>
               <EmptyHeader>
-                <EmptyTitle>尚未扫描</EmptyTitle>
+                <EmptyTitle>{t("network.client.scan.emptyTitle")}</EmptyTitle>
                 <EmptyDescription>
-                  点击“扫描”列出附近的网络（约 4-75 秒）。
+                  {t("network.client.scan.emptyDescription")}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>

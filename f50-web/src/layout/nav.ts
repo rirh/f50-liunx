@@ -1,6 +1,8 @@
+import { type Key, t } from "@/i18n";
 import {
   ActivityIcon,
   ArrowUpDownIcon,
+  CardSimIcon,
   CpuIcon,
   GaugeIcon,
   HardDriveDownloadIcon,
@@ -16,76 +18,94 @@ import {
   ScrollTextIcon,
   SettingsIcon,
   SignalIcon,
-  CardSimIcon,
   TerminalIcon,
   UsbIcon,
   WifiIcon,
 } from "lucide-react";
 
 export interface NavItem {
-  title: string;
+  title: Key;
   path: string;
   icon: LucideIcon;
 }
 
 export interface NavGroup {
-  title: string;
+  title: Key;
   items: NavItem[];
 }
 
-/** Every page of the app, as the sidebar shows them (the routes in App.tsx match these paths). */
+/**
+ * Every page of the app, as the sidebar shows them (the routes in App.tsx match these paths). Grouped by how often
+ * they are used: the everyday figures first, then the connections, the device, and last what needs care (locks, AT
+ * commands) or is for diagnosis.
+ */
 export const NAV: NavGroup[] = [
   {
-    title: "概览",
-    items: [{ title: "仪表盘", path: "/", icon: LayoutDashboardIcon }],
-  },
-  {
-    title: "蜂窝网络",
+    title: "nav.group.overview",
     items: [
-      { title: "信号与小区", path: "/cellular/signal", icon: SignalIcon },
-      { title: "SIM 卡", path: "/cellular/sim", icon: CardSimIcon },
-      { title: "网络锁定", path: "/cellular/locks", icon: LockIcon },
-      { title: "移动数据", path: "/cellular/data", icon: ArrowUpDownIcon },
-      { title: "流量统计", path: "/cellular/traffic", icon: GaugeIcon },
-      { title: "短信", path: "/sms", icon: MessageSquareIcon },
-    ],
-  },
-  {
-    title: "网络",
-    items: [
-      { title: "Wi-Fi 热点", path: "/network/wifi", icon: WifiIcon },
-      { title: "Wi-Fi 上网", path: "/network/wifi-client", icon: ActivityIcon },
-      { title: "局域网", path: "/network/lan", icon: NetworkIcon },
-      { title: "USB", path: "/network/usb", icon: UsbIcon },
-    ],
-  },
-  {
-    title: "系统",
-    items: [
-      { title: "系统信息", path: "/system/overview", icon: InfoIcon },
-      { title: "系统设置", path: "/system/settings", icon: SettingsIcon },
-      { title: "CPU", path: "/system/cpu", icon: CpuIcon },
-      { title: "指示灯", path: "/system/leds", icon: LightbulbIcon },
+      { title: "nav.page.dashboard", path: "/", icon: LayoutDashboardIcon },
       {
-        title: "系统更新",
+        title: "nav.page.systemInfo",
+        path: "/system/overview",
+        icon: InfoIcon,
+      },
+    ],
+  },
+  {
+    title: "nav.group.mobile",
+    items: [
+      { title: "nav.page.signal", path: "/cellular/signal", icon: SignalIcon },
+      { title: "nav.page.data", path: "/cellular/data", icon: ArrowUpDownIcon },
+      { title: "nav.page.traffic", path: "/cellular/traffic", icon: GaugeIcon },
+      { title: "nav.page.sms", path: "/sms", icon: MessageSquareIcon },
+      { title: "nav.page.sim", path: "/cellular/sim", icon: CardSimIcon },
+    ],
+  },
+  {
+    title: "nav.group.connect",
+    items: [
+      { title: "nav.page.wifi", path: "/network/wifi", icon: WifiIcon },
+      {
+        title: "nav.page.wifiClient",
+        path: "/network/wifi-client",
+        icon: ActivityIcon,
+      },
+      { title: "nav.page.lan", path: "/network/lan", icon: NetworkIcon },
+      { title: "nav.page.usb", path: "/network/usb", icon: UsbIcon },
+    ],
+  },
+  {
+    title: "nav.group.device",
+    items: [
+      {
+        title: "nav.page.settings",
+        path: "/system/settings",
+        icon: SettingsIcon,
+      },
+      {
+        title: "nav.page.update",
         path: "/system/update",
         icon: HardDriveDownloadIcon,
       },
-      { title: "启动", path: "/system/boot", icon: PowerIcon },
-      { title: "系统日志", path: "/system/logs", icon: ScrollTextIcon },
+      { title: "nav.page.cpu", path: "/system/cpu", icon: CpuIcon },
+      { title: "nav.page.leds", path: "/system/leds", icon: LightbulbIcon },
     ],
   },
   {
-    title: "工具",
+    title: "nav.group.advanced",
     items: [
-      { title: "AT 终端", path: "/tools/at", icon: TerminalIcon },
-      { title: "后台任务", path: "/tools/jobs", icon: ListChecksIcon },
+      { title: "nav.page.locks", path: "/cellular/locks", icon: LockIcon },
+      { title: "nav.page.at", path: "/tools/at", icon: TerminalIcon },
+      { title: "nav.page.jobs", path: "/tools/jobs", icon: ListChecksIcon },
+      { title: "nav.page.logs", path: "/system/logs", icon: ScrollTextIcon },
+      { title: "nav.page.boot", path: "/system/boot", icon: PowerIcon },
     ],
   },
 ];
 
+/** The page title for the header, in the current language. */
 export function titleOf(pathname: string): string {
   for (const g of NAV)
-    for (const i of g.items) if (i.path === pathname) return i.title;
+    for (const i of g.items) if (i.path === pathname) return t(i.title);
   return "";
 }

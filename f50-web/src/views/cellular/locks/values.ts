@@ -2,15 +2,16 @@
  * The value syntax `f50.lock set` accepts (f50-modem/src/lock/codec.rs `validate`), checked before sending. Every
  * value is also a ubus Word: `[a-z0-9:,_-]*`, at most 127 bytes, not starting with "-".
  */
+import type { Key } from "@/i18n";
 import type { ModeLabel } from "./types";
 
-export const MODES: { value: ModeLabel; label: string; hint: string }[] = [
-  { value: "auto", label: "自动", hint: "2G/3G/4G/5G 自动" },
-  { value: "auto152", label: "自动（无 2G）", hint: "自动，但不使用 2G" },
-  { value: "4g", label: "仅 4G", hint: "只使用 LTE" },
-  { value: "nsa", label: "5G NSA", hint: "LTE 锚点 + NR" },
-  { value: "sa", label: "5G SA", hint: "5G 独立组网" },
-];
+export const MODES: { value: ModeLabel; label: Key; hint: Key }[] = (
+  ["auto", "auto152", "4g", "nsa", "sa"] as const
+).map((value) => ({
+  value,
+  label: `cellular.locks.modes.${value}.label` as const,
+  hint: `cellular.locks.modes.${value}.hint` as const,
+}));
 
 /** Bands: empty (automatic) or up to 32 numbers of up to 3 digits. */
 export function bandsValue(bands: number[]): string {

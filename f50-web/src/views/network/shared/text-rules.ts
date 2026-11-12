@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 /** The text rules f50d checks (`f50_core::rpc` and `f50-net/src/rules.rs`), mirrored for the forms. */
 
 const encoder = new TextEncoder();
@@ -40,6 +42,5 @@ export function rawKeyOk(s: string): boolean {
   return /^[0-9a-fA-F]{64}$/.test(s);
 }
 
-export const SSID_HINT =
-  "1-32 字节，不含控制字符，首尾不能是空格，不能以 - 开头";
-export const PSK_HINT = "8-63 个可打印 ASCII 字符";
+export const ssidHint = () => t("network.shared.ssidHint");
+export const pskHint = () => t("network.shared.pskHint");

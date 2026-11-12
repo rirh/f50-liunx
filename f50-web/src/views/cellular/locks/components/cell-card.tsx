@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LocateFixedIcon, XIcon } from "lucide-react";
@@ -26,12 +27,13 @@ import { z } from "zod";
 import { type OnJob, useLockSet } from "../use-lock-set";
 import { ARFCN_RE, PCI_RE, cellValue, parseCell } from "../values";
 
-const schema = z.object({
-  rat: z.enum(["lte", "nr"]),
-  arfcn: z.string().regex(ARFCN_RE, "1–7 位数字"),
-  pci: z.string().regex(PCI_RE, "1–4 位数字"),
-});
-type Values = z.infer<typeof schema>;
+const schema = () =>
+  z.object({
+    rat: z.enum(["lte", "nr"]),
+    arfcn: z.string().regex(ARFCN_RE, t("cellular.locks.cell.digits7")),
+    pci: z.string().regex(PCI_RE, t("cellular.locks.cell.digits4")),
+  });
+type Values = z.infer<ReturnType<typeof schema>>;
 
 const RAT_NAME = { lte: "LTE", nr: "NR" } as const;
 
@@ -46,7 +48,7 @@ export function CellCard({
   onJob: OnJob;
 }) {
   const form = useForm<Values>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema()),
     defaultValues: { rat: "nr", arfcn: "", pci: "" },
   });
   const add = useLockSet(onJob);
@@ -69,7 +71,11 @@ export function CellCard({
       {
         kind: "cell",
         value,
-        title: `锁定小区 ${RAT_NAME[v.rat]} ${v.arfcn} / PCI ${v.pci}`,
+        title: t("cellular.locks.cell.job", {
+          rat: RAT_NAME[v.rat],
+          arfcn: v.arfcn,
+          pci: v.pci,
+        }),
       },
       { onError: (e) => reportFormError(e, form.setError, { value: "arfcn" }) },
     );
@@ -80,15 +86,19 @@ export function CellCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>小区锁定</CardTitle>
+        <CardTitle>{t("cellular.locks.cell.title")}</CardTitle>
         <CardDescription>
-          只驻留在指定小区；重启后靠「启动时自动应用」恢复
+          {t("cellular.locks.cell.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted-foreground">已锁定：</span>
-          {parsed.length === 0 && <Badge variant="secondary">无</Badge>}
+          <span className="text-muted-foreground">
+            {t("cellular.locks.cell.locked")}
+          </span>
+          {parsed.length === 0 && (
+            <Badge variant="secondary">{t("common.state.none")}</Badge>
+          )}
           {parsed.map((c) => (
             <Badge
               key={`${c.rat}:${c.arfcn},${c.pci}`}
@@ -102,7 +112,7 @@ export function CellCard({
         <form id="cell-lock-form" onSubmit={submit}>
           <FieldGroup>
             <Field>
-              <FieldLabel>制式</FieldLabel>
+              <FieldLabel>{t("cellular.locks.cell.rat")}</FieldLabel>
               <Controller
                 control={form.control}
                 name="rat"
@@ -148,9 +158,7 @@ export function CellCard({
                 <FieldError errors={[err.pci]} />
               </Field>
             </div>
-            <FieldDescription>
-              可在「信号与小区」页的服务小区或邻区中查到 ARFCN 与 PCI。
-            </FieldDescription>
+            <FieldDescription>{t("cellular.locks.cell.hint")}</FieldDescription>
           </FieldGroup>
         </form>
       </CardContent>
@@ -161,25 +169,25 @@ export function CellCard({
           pending={add.isPending}
           disabled={busy}
         >
-          添加锁定
+          {t("cellular.locks.cell.add")}
         </PendingButton>
         <PendingButton
           variant="outline"
           pending={quickPending("auto")}
           disabled={busy}
           icon={<LocateFixedIcon data-icon="inline-start" />}
-          onClick={() => run("auto", "锁定当前服务小区")}
+          onClick={() => run("auto", t("cellular.locks.cell.serving"))}
         >
-          锁定当前服务小区
+          {t("cellular.locks.cell.serving")}
         </PendingButton>
         {hasNr && (
           <PendingButton
             variant="outline"
             pending={quickPending("off-nr")}
             disabled={busy}
-            onClick={() => run("off-nr", "解除 NR 小区锁定")}
+            onClick={() => run("off-nr", t("cellular.locks.cell.unlockNrJob"))}
           >
-            解除 NR
+            {t("cellular.locks.cell.unlockNr")}
           </PendingButton>
         )}
         {hasLte && (
@@ -187,22 +195,24 @@ export function CellCard({
             variant="outline"
             pending={quickPending("off-lte")}
             disabled={busy}
-            onClick={() => run("off-lte", "解除 LTE 小区锁定")}
+            onClick={() =>
+              run("off-lte", t("cellular.locks.cell.unlockLteJob"))
+            }
           >
-            解除 LTE
+            {t("cellular.locks.cell.unlockLte")}
           </PendingButton>
         )}
         <ConfirmButton
           variant="outline"
-          title="解除全部小区锁定？"
-          description="NR 与 LTE 的小区锁定都会解除，协议栈随后重启。"
-          confirmText="解除"
+          title={t("cellular.locks.cell.unlockAllTitle")}
+          description={t("cellular.locks.cell.unlockAllDescription")}
+          confirmText={t("cellular.locks.cell.unlock")}
           pending={quickPending("off")}
           disabled={busy || parsed.length === 0}
-          onConfirm={() => run("off", "解除全部小区锁定")}
+          onConfirm={() => run("off", t("cellular.locks.cell.unlockAllJob"))}
         >
           <XIcon data-icon="inline-start" />
-          全部解除
+          {t("cellular.locks.cell.unlockAll")}
         </ConfirmButton>
       </CardFooter>
     </Card>

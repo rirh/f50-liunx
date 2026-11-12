@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use f50_api::Api;
 use f50_core::rpc::{Object, WireType};
-use f50_ubus::{ArgType, Client, DEFAULT_SOCKET, Invoke, MethodSpec, ObjectSpec, UbusError};
+use f50_ubus::{ArgType, Client, DEFAULT_SOCKET, Invoke, MethodSpec, NotifyQueue, ObjectSpec, UbusError};
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
@@ -40,15 +40,15 @@ fn specs(objects: &[Object]) -> Vec<ObjectSpec> {
 }
 
 /// Registers every object and answers until `shutdown`. Each invocation goes through `Api::call`: validation,
-/// dispatch, the envelope.
-pub async fn serve(api: Api, shutdown: CancellationToken) {
+/// dispatch, the envelope. `notes` are the notifications to send (`f50.live`) and their subscription state.
+pub async fn serve(api: Api, notes: NotifyQueue, shutdown: CancellationToken) {
     let objects = specs(api.all());
     let api = Arc::new(api);
     let invoke: Invoke = Arc::new(move |object: String, method: String, args: Value| {
         let api = api.clone();
         Box::pin(async move { api.call(&object, &method, &args).await })
     });
-    if let Err(e) = f50_ubus::serve(PathBuf::from(DEFAULT_SOCKET), objects, invoke, shutdown).await {
+    if let Err(e) = f50_ubus::serve_notifying(PathBuf::from(DEFAULT_SOCKET), objects, invoke, notes, shutdown).await {
         tracing::error!(error = %e, "the ubus server stopped");
     }
 }

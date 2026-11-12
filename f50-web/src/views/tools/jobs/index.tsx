@@ -18,6 +18,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { SweepShine } from "@/components/ui/sweep-shine";
+import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { ListChecksIcon, RefreshCwIcon } from "lucide-react";
 import { jobKeys, listJobs } from "./api";
@@ -39,8 +40,8 @@ export default function JobsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="后台任务"
-        description="发送短信、长时间 AT 命令、更新等耗时操作在后台运行；设备重启前保留。"
+        title={t("tools.jobs.page.title")}
+        description={t("tools.jobs.page.description")}
         actions={
           <Button
             variant="outline"
@@ -50,20 +51,26 @@ export default function JobsPage() {
             onClick={() => void query.refetch()}
           >
             <RefreshCwIcon data-icon="inline-start" />
-            {refreshing ? <SweepShine>刷新中</SweepShine> : "刷新"}
+            {refreshing ? (
+              <SweepShine>{t("common.action.refreshing")}</SweepShine>
+            ) : (
+              t("common.action.refresh")
+            )}
           </Button>
         }
       />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            任务列表
-            {running > 0 && <Badge>{running} 个进行中</Badge>}
+            {t("tools.jobs.list.title")}
+            {running > 0 && (
+              <Badge>{t("tools.jobs.list.running", { count: running })}</Badge>
+            )}
           </CardTitle>
           <CardDescription>
             {running > 0
-              ? "有任务在运行，每 3 秒自动刷新。"
-              : "点击一行查看状态、结果和日志。"}
+              ? t("tools.jobs.list.runningDescription")
+              : t("tools.jobs.list.idleDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -75,9 +82,9 @@ export default function JobsPage() {
                     <EmptyMedia variant="icon">
                       <ListChecksIcon />
                     </EmptyMedia>
-                    <EmptyTitle>没有任务</EmptyTitle>
+                    <EmptyTitle>{t("tools.jobs.list.emptyTitle")}</EmptyTitle>
                     <EmptyDescription>
-                      本次开机以来还没有后台任务。
+                      {t("tools.jobs.list.emptyDescription")}
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>

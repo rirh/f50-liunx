@@ -6,6 +6,7 @@
  * `crypto.subtle` the digest is one call over the whole file, so the file is read into memory first (a release bundle
  * is 40-400 MB: that much RAM for a moment); the incremental path holds one chunk at a time.
  */
+import { t } from "@/i18n";
 
 const K = new Uint32Array([
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
@@ -145,7 +146,10 @@ export async function sha256File(
   for (;;) {
     if (signal?.aborted) {
       await reader.cancel();
-      throw new DOMException("已取消", "AbortError");
+      throw new DOMException(
+        t("maintenance.update.upload.cancelled"),
+        "AbortError",
+      );
     }
     const { value, done: end } = await reader.read();
     if (end) break;

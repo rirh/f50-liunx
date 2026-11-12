@@ -8,6 +8,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { isUnsupported } from "@/lib/ubus";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -39,7 +40,7 @@ export function QueryState<T>({
       return (
         <Empty>
           <EmptyHeader>
-            <EmptyTitle>此设备不支持</EmptyTitle>
+            <EmptyTitle>{t("app.query.unsupported")}</EmptyTitle>
             <EmptyDescription>{errorMessage(query.error)}</EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -47,11 +48,11 @@ export function QueryState<T>({
     }
     return (
       <Alert variant="destructive">
-        <AlertTitle>读取失败</AlertTitle>
+        <AlertTitle>{t("app.query.failed")}</AlertTitle>
         <AlertDescription className="flex flex-col items-start gap-2">
           {errorMessage(query.error)}
           <Button size="sm" variant="outline" onClick={() => query.refetch()}>
-            重试
+            {t("app.query.retry")}
           </Button>
         </AlertDescription>
       </Alert>

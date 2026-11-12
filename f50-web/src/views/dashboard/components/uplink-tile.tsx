@@ -1,8 +1,9 @@
 import { KvList } from "@/components/f50/kv-list";
 import { Badge } from "@/components/ui/badge";
+import { t } from "@/i18n";
 import { RadioTowerIcon } from "lucide-react";
 import { Figure, Tile } from "./tile";
-import { UPLINK_MODE_LABEL } from "../labels";
+import { UPLINK_MODE_LABEL, label } from "../labels";
 import type { Part, WifiClientInfo } from "../types";
 
 export function UplinkTile({
@@ -12,7 +13,7 @@ export function UplinkTile({
 }) {
   return (
     <Tile
-      title="Wi-Fi 上行"
+      title={t("dashboard.uplink.title")}
       icon={RadioTowerIcon}
       to="/network/wifi-client"
       part={part}
@@ -24,47 +25,62 @@ export function UplinkTile({
               value={
                 c.mode === "client"
                   ? (c.ssid ?? "—")
-                  : UPLINK_MODE_LABEL[c.mode]
+                  : label(UPLINK_MODE_LABEL, c.mode)
               }
               caption={
                 c.mode === "client"
                   ? c.connected
-                    ? "已连接"
-                    : "连接中"
-                  : "未作为上行使用"
+                    ? t("common.state.connected")
+                    : t("dashboard.uplink.connecting")
+                  : t("dashboard.uplink.unused")
               }
             />
             {c.mode === "client" && (
               <Badge variant={c.connected ? "default" : "outline"}>
-                {c.connected ? "在线" : "未连通"}
+                {c.connected
+                  ? t("dashboard.uplink.online")
+                  : t("dashboard.uplink.offline")}
               </Badge>
             )}
           </div>
           {c.active && !c.firewall_ok && (
-            <Badge variant="destructive">防火墙规则异常</Badge>
+            <Badge variant="destructive">
+              {t("dashboard.uplink.firewall")}
+            </Badge>
           )}
-          <KvList
-            items={[
-              {
-                label: "信号",
-                value: c.signal != null ? `${c.signal} dBm` : "—",
-              },
-              {
-                label: "地址",
-                value: c.address ? (
-                  <span className="font-mono text-xs">{c.address}</span>
-                ) : (
-                  "—"
-                ),
-              },
-              {
-                label: "已保存网络",
-                value: c.saved
-                  ? `${c.saved.ssid}${c.saved.at_boot ? "（开机连接）" : ""}`
-                  : "无",
-              },
-            ]}
-          />
+          {c.mode === "client" ? (
+            <KvList
+              dense
+              items={[
+                {
+                  label: t("dashboard.uplink.signal"),
+                  value: c.signal != null ? `${c.signal} dBm` : "—",
+                },
+                {
+                  label: t("dashboard.uplink.address"),
+                  value: c.address ? (
+                    <span className="font-mono">{c.address}</span>
+                  ) : (
+                    "—"
+                  ),
+                },
+              ]}
+            />
+          ) : (
+            <KvList
+              dense
+              items={[
+                {
+                  label: t("dashboard.uplink.saved"),
+                  value: c.saved
+                    ? c.saved.at_boot
+                      ? t("dashboard.uplink.atBoot", { ssid: c.saved.ssid })
+                      : c.saved.ssid
+                    : t("common.state.none"),
+                },
+              ]}
+            />
+          )}
         </>
       )}
     </Tile>

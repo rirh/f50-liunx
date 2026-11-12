@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import type { JobStatus } from "@/lib/jobs";
 import { ApiError } from "@/lib/ubus";
@@ -11,17 +12,15 @@ import { sendSms, smsKeys } from "../api";
 import { NUMBER_RE, smsTextProblem } from "../lib/encoding";
 import type { SendResult } from "../types";
 
-const schema = z.object({
-  number: z
-    .string()
-    .trim()
-    .regex(NUMBER_RE, "号码只能是数字，可带开头的 +，最多 20 位"),
-  text: z.string().superRefine((v, ctx) => {
-    const p = smsTextProblem(v);
-    if (p) ctx.addIssue({ code: "custom", message: p });
-  }),
-});
-export type SendValues = z.infer<typeof schema>;
+const schema = () =>
+  z.object({
+    number: z.string().trim().regex(NUMBER_RE, t("sms.form.numberInvalid")),
+    text: z.string().superRefine((v, ctx) => {
+      const p = smsTextProblem(v);
+      if (p) ctx.addIssue({ code: "custom", message: p });
+    }),
+  });
+export type SendValues = z.infer<ReturnType<typeof schema>>;
 
 /**
  * The send form both the composer and the new-message dialog use: validation as f50d checks it, the send job's
@@ -30,7 +29,7 @@ export type SendValues = z.infer<typeof schema>;
 export function useSendForm(number: string, onSent?: (number: string) => void) {
   const qc = useQueryClient();
   const form = useForm<SendValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(useMemo(() => schema(), [])),
     defaultValues: { number, text: "" },
   });
   const [job, setJob] = useState<{ id: string; number: string } | null>(null);
@@ -57,12 +56,16 @@ export function useSendForm(number: string, onSent?: (number: string) => void) {
     void qc.invalidateQueries({ queryKey: smsKeys.all });
     if (j.state === "done") {
       const r = j.result as SendResult | undefined;
-      toast.success(r && r.parts > 1 ? `已发送（${r.parts} 条）` : "已发送");
+      toast.success(
+        r && r.parts > 1
+          ? t("sms.toast.sentParts", { count: r.parts })
+          : t("sms.toast.sent"),
+      );
       form.reset({ number: form.getValues("number"), text: "" });
       setJob(null);
       if (job) onSent?.(job.number);
     } else {
-      toast.error(j.error?.message ?? "发送失败");
+      toast.error(j.error?.message ?? t("sms.toast.sendFailed"));
     }
   };
 

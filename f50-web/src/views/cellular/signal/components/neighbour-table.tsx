@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { t } from "@/i18n";
 import {
   createColumnHelper,
   createSortedRowModel,
@@ -39,14 +40,14 @@ const orLow = (v: number | null | undefined) => v ?? Number.NEGATIVE_INFINITY;
 
 const columns = col.columns([
   col.accessor("rat", {
-    header: "制式",
+    header: () => t("cellular.signal.neighbours.rat"),
     sortFn: "text",
     cell: (c) => (
       <Badge variant="secondary">{c.getValue() === "nr" ? "NR" : "LTE"}</Badge>
     ),
   }),
   col.accessor("band", {
-    header: "频段",
+    header: () => t("cellular.signal.neighbours.band"),
     sortFn: "basic",
     cell: (c) => `${c.row.original.rat === "nr" ? "n" : "B"}${c.getValue()}`,
   }),
@@ -85,8 +86,10 @@ export function NeighbourTable({ rows }: { rows: Neighbour[] }) {
     return (
       <Empty>
         <EmptyHeader>
-          <EmptyTitle>没有邻区</EmptyTitle>
-          <EmptyDescription>最近一次完整读数没有报告邻区。</EmptyDescription>
+          <EmptyTitle>{t("cellular.signal.neighbours.emptyTitle")}</EmptyTitle>
+          <EmptyDescription>
+            {t("cellular.signal.neighbours.emptyDescription")}
+          </EmptyDescription>
         </EmptyHeader>
       </Empty>
     );

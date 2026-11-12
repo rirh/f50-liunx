@@ -8,16 +8,19 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
+import { type Key, t } from "@/i18n";
 import { useLedSet } from "./use-led-set";
 import type { Lamp } from "../types";
 
-const LAMP_TEXT: Record<Lamp, { label: string; description: string }> = {
+const LAMP_TEXT: Record<Lamp, { label: Key; description: Key }> = {
   network: {
-    label: "网络指示灯",
-    description:
-      "蓝色：2G/3G/4G 数据；白色：5G 数据；红色：无服务；红色闪烁：正在搜索网络。",
+    label: "system.leds.lamps.network",
+    description: "system.leds.lamps.networkText",
   },
-  wifi: { label: "Wi-Fi 指示灯", description: "热点开启时点亮。" },
+  wifi: {
+    label: "system.leds.lamps.wifi",
+    description: "system.leds.lamps.wifiText",
+  },
 };
 
 /** The brightness slider: moves locally, saves on release. Remount (key) when the saved value changes. */
@@ -38,7 +41,9 @@ function Brightness({
   return (
     <Field data-disabled={disabled || undefined}>
       <div className="flex items-center justify-between gap-2">
-        <FieldLabel htmlFor={id}>亮度</FieldLabel>
+        <FieldLabel htmlFor={id}>
+          {t("system.leds.lamps.brightness")}
+        </FieldLabel>
         <span
           className="flex items-center gap-1.5 text-sm tabular-nums"
           aria-live="polite"
@@ -55,7 +60,9 @@ function Brightness({
         value={[v]}
         disabled={disabled || set.isPending}
         aria-busy={set.isPending}
-        aria-label={`${LAMP_TEXT[lamp].label}亮度`}
+        aria-label={t("system.leds.lamps.brightnessLabel", {
+          lamp: t(LAMP_TEXT[lamp].label),
+        })}
         onValueChange={([n]) => setV(n)}
         onValueCommit={([n]) => {
           if (n !== value) set.mutate(String(n));
@@ -84,9 +91,10 @@ export function LampRow({
     <div className="flex flex-col gap-4 rounded-lg border p-4">
       <Field orientation="horizontal">
         <FieldContent>
-          <FieldLabel htmlFor={id}>{LAMP_TEXT[lamp].label}</FieldLabel>
+          <FieldLabel htmlFor={id}>{t(LAMP_TEXT[lamp].label)}</FieldLabel>
           <FieldDescription>
-            {LAMP_TEXT[lamp].description}关闭后保持熄灭（过热告警仍会显示）。
+            {t(LAMP_TEXT[lamp].description)}
+            {t("system.leds.lamps.offNote")}
           </FieldDescription>
         </FieldContent>
         {set.isPending && <Spinner />}
