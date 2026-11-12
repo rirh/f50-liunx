@@ -21,7 +21,9 @@ pub fn start(s: &Services, platform: &Platform, cfg: &Config, tracker: &TaskTrac
     tracker.spawn(leds(s.clone(), platform.clone(), shutdown.clone()));
     tracker.spawn(keys(s.clone(), cfg.factory_reset, shutdown.clone()));
     tracker.spawn(net_boot(s.clone(), shutdown.clone()));
-    s.net.adbd_start();
+    if cfg.adbd {
+        s.net.adbd_start();
+    }
 }
 
 fn network_led(snap: &RadioSnapshot, sim: Option<SimState>) -> NetworkLed {

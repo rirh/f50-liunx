@@ -113,7 +113,9 @@ async fn daemon() -> Result<()> {
 
     shutdown.cancelled().await;
     tracing::info!("stopping");
-    services.net.adbd_stop();
+    if cfg.adbd {
+        services.net.adbd_stop();
+    }
     tracker.close();
     if tokio::time::timeout(DRAIN, tracker.wait()).await.is_err() {
         tracing::warn!("some tasks did not stop in time");

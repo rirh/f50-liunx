@@ -3,3 +3,5 @@ config f50d 'main'
 	option log 'info'
 	# 1: holding the reset key 10 s wipes the settings (firstboot) and reboots
 	option factory_reset '0'
+	# 0: f50d leaves adbd alone (another service runs it)
+	option adbd '1'
