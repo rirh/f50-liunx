@@ -1,0 +1,11 @@
+#!/bin/sh
+# Apply the UI customization to Aurora itself, including non-MU300 LuCI pages.
+# The optional root is used while assembling an image.
+set -eu
+header=${1:-}/usr/share/ucode/luci/template/themes/aurora/header.ut
+[ -f "$header" ] || exit 0
+sed -i '/^[[:space:]]*<a class="brand" href="\/">{{ hostname }}<\/a>[[:space:]]*$/d' "$header"
+if grep -q 'class="brand"' "$header"; then
+    echo "Aurora header layout changed; the hostname label was not removed" >&2
+    exit 1
+fi

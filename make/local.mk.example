@@ -1,0 +1,13 @@
+# Copy to make/local.mk; never store passwords here.
+DEVICE = http://192.168.77.1
+PORT = 27547
+SSH_USER = root
+SSH_PORT = 22
+
+# Set only when SSH uses a different host from DEVICE.
+# SSH_HOST = 192.168.77.1
+# SSH_IDENTITY = ~/.ssh/id_ed25519
+
+# Optional: use the host key recorded during this workspace's F50 setup.
+# SSH_KNOWN_HOSTS = work/deploy/vpn/known_hosts
+# SSH_HOST_KEY_ALIAS = f50-openwrt
