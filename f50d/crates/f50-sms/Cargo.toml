@@ -1,0 +1,21 @@
+[package]
+name = "f50-sms"
+description = "SMS on the F50: the message pool, PDU encoding and decoding, receiving and sending"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+f50-core.workspace = true
+f50-at.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

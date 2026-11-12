@@ -23,7 +23,6 @@ var callSysinfo = rpc.declare({ object: 'mu300dash', method: 'sysinfo', expect: 
 var callAct    = rpc.declare({ object: 'mu300dash', method: 'act', params: [ 'op', 'arg' ], expect: { '': {} }, nobatch: true });
 var callAt     = rpc.declare({ object: 'mu300dash', method: 'at', params: [ 'cmd', 'confirm' ], expect: { '': {} }, nobatch: true });
 var callAtJob  = rpc.declare({ object: 'mu300dash', method: 'at_job', expect: { '': {} }, nobatch: true });
-var callOpsLog = rpc.declare({ object: 'mu300dash', method: 'ops_log', expect: { '': {} }, nobatch: true });
 var callAtHist = rpc.declare({ object: 'mu300dash', method: 'at_history', expect: { '': {} }, nobatch: true });
 var callLockGet = rpc.declare({ object: 'mu300dash', method: 'lock_get', expect: { '': {} }, nobatch: true });
 var callLockFresh = rpc.declare({ object: 'mu300dash', method: 'lock_get', params: [ 'fresh' ], expect: { '': {} }, nobatch: true });
@@ -39,57 +38,20 @@ var callUsbGet = rpc.declare({ object: 'mu300dash', method: 'usb_get', expect: {
 var callUsbSet = rpc.declare({ object: 'mu300dash', method: 'usb_set', params: [ 'kind', 'value', 'scope', 'auto' ], expect: { '': {} }, nobatch: true });
 var callUsbNetList = rpc.declare({ object: 'mu300dash', method: 'usb_net_list', expect: { '': {} }, nobatch: true });
 var callUsbNetAdd = rpc.declare({ object: 'mu300dash', method: 'usb_net_add', params: [ 'iface' ], expect: { '': {} }, nobatch: true });
-var callLangGet = rpc.declare({ object: 'mu300dash', method: 'lang_get', expect: { '': {} }, nobatch: true });
-var callLangSet = rpc.declare({ object: 'mu300dash', method: 'lang_set', params: [ 'op', 'codes', 'source' ], expect: { '': {} }, nobatch: true });
-var callPowerGet = rpc.declare({ object: 'mu300dash', method: 'power_get', expect: { '': {} }, nobatch: true });
-var callPowerSet = rpc.declare({ object: 'mu300dash', method: 'power_set', params: [ 'op', 'key', 'value' ], expect: { '': {} }, nobatch: true });
 var callSimGet = rpc.declare({ object: 'mu300dash', method: 'sim_get', expect: { '': {} }, nobatch: true });
 var callSimSet = rpc.declare({ object: 'mu300dash', method: 'sim_set', params: [ 'op', 'value' ], expect: { '': {} }, nobatch: true });
 var callSimcardGet = rpc.declare({ object: 'mu300dash', method: 'simcard_get', expect: { '': {} }, nobatch: true });
 var callSimcardSet = rpc.declare({ object: 'mu300dash', method: 'simcard_set', params: [ 'kind', 'slot', 'state' ], expect: { '': {} }, nobatch: true });
-var callTtlGet = rpc.declare({ object: 'mu300dash', method: 'ttl_get', expect: { '': {} }, nobatch: true });
-var callTtlSet = rpc.declare({ object: 'mu300dash', method: 'ttl_set', params: [ 'value' ], expect: { '': {} }, nobatch: true });
-/* the TCP congestion control of the device's own connections (value default|cubic|bbr), and the dual boot's state */
-var callTcpGet = rpc.declare({ object: 'mu300dash', method: 'tcp_get', expect: { '': {} }, nobatch: true });
-var callTcpSet = rpc.declare({ object: 'mu300dash', method: 'tcp_set', params: [ 'value' ], expect: { '': {} }, nobatch: true });
-var callBootGet = rpc.declare({ object: 'mu300dash', method: 'boot_get', expect: { '': {} }, nobatch: true });
-/* System > LEDs: mu300-led's settings (key: timeout, network, wifi, battery, *_brightness, boot, thermal) */
-var callLedGet = rpc.declare({ object: 'mu300dash', method: 'led_get', expect: { '': {} }, nobatch: true });
-var callLedSet = rpc.declare({ object: 'mu300dash', method: 'led_set', params: [ 'key', 'value' ], expect: { '': {} }, nobatch: true });
-var callFwdGet = rpc.declare({ object: 'mu300dash', method: 'forward_get', expect: { '': {} }, nobatch: true });
-var callFwdSet = rpc.declare({ object: 'mu300dash', method: 'forward_set', params: [ 'enabled', 'template', 'allow',
-	'deny', 'keywords', 'clear', 'webhook', 'webhook_url', 'webhook_format', 'webhook_headers', 'telegram',
-	'telegram_token', 'telegram_chat', 'email', 'email_host', 'email_port', 'email_tls', 'email_user', 'email_password',
-	'email_from', 'email_to', 'sms', 'sms_number', 'webhook_body', 'webhook_expect', 'webhook_secret', 'timeout',
-	'power' ], expect: { '': {} }, nobatch: true });
-var callFwdTest = rpc.declare({ object: 'mu300dash', method: 'forward_test', expect: { '': {} }, nobatch: true });
-var callFwdLogClear = rpc.declare({ object: 'mu300dash', method: 'forward_log_clear', expect: { '': {} }, nobatch: true });
 var callCpuGet = rpc.declare({ object: 'mu300dash', method: 'cpu_get', expect: { '': {} }, nobatch: true });
 var callCpuSet = rpc.declare({ object: 'mu300dash', method: 'cpu_set', params: [ 'profile' ], expect: { '': {} }, nobatch: true });
-/* a core online/offline (op core, cpu 1-63) or CPU0's low latency (op lowlatency), state on|off; saved */
-var callCpuTune = rpc.declare({ object: 'mu300dash', method: 'cpu_tune', params: [ 'op', 'cpu', 'state' ], expect: { '': {} }, nobatch: true });
-/* the CPU voltage offset, EXPERIMENTAL (op set|off|stress; the backend checks every field again) */
-var callCpuVoltageGet = rpc.declare({ object: 'mu300dash', method: 'cpu_voltage_get', expect: { '': {} }, nobatch: true });
-var callCpuVoltageSet = rpc.declare({ object: 'mu300dash', method: 'cpu_voltage_set',
-	params: [ 'op', 'offsets', 'confirm', 'minutes' ], expect: { '': {} }, nobatch: true });
-var callPackagesGet = rpc.declare({ object: 'mu300dash', method: 'packages_get', expect: { '': {} }, nobatch: true });
-var callPackagesAct = rpc.declare({ object: 'mu300dash', method: 'packages_act', params: [ 'op' ], expect: { '': {} }, nobatch: true });
 /* System > Update: what is installed and offered, the one update task, and every action (each parameter a fixed word,
  * a release tag, a size or a SHA-256; the backend checks them again) */
 var callUpdateGet = rpc.declare({ object: 'mu300dash', method: 'update_get', params: [ 'sizes' ], expect: { '': {} }, nobatch: true });
-/* System > Backup of settings (mu300-api backup.export / backup.import, FINDINGS 155) */
-var callBackupExport = rpc.declare({ object: 'mu300dash', method: 'backup_export', params: [ 'passphrase', 'with_password' ],
-	expect: { '': {} }, nobatch: true });
-var callBackupImport = rpc.declare({ object: 'mu300dash', method: 'backup_import',
-	params: [ 'file', 'passphrase', 'dry_run', 'force', 'skip' ], expect: { '': {} }, nobatch: true });
-var callBackupJob = rpc.declare({ object: 'mu300dash', method: 'backup_job', expect: { '': {} }, nobatch: true });
 var callUpdateJob = rpc.declare({ object: 'mu300dash', method: 'update_job', expect: { '': {} }, nobatch: true });
 var callUpdateAct = rpc.declare({ object: 'mu300dash', method: 'update_act',
 	params: [ 'op', 'tag', 'systems', 'kernel', 'sha256', 'size', 'flags', 'confirm', 'url' ], expect: { '': {} }, nobatch: true });
 var callTrafficGet = rpc.declare({ object: 'mu300dash', method: 'traffic_get', expect: { '': {} }, nobatch: true });
 var callTrafficSet = rpc.declare({ object: 'mu300dash', method: 'traffic_set', params: [ 'op', 'value' ], expect: { '': {} }, nobatch: true });
-/* System > Terminal: a one-time token for ttyd (rpcd mu300term, ACL luci-app-mu300-terminal) */
-var callTermToken = rpc.declare({ object: 'mu300term', method: 'token', expect: { '': {} }, nobatch: true });
 /* The live rates' one read: the mu300rates object (rpcd's ucode plugin) returns /proc/net/dev, in rpcd itself (no
  * process started, no AT), every second. Sent on its own (nobatch): a declared call is batched with whatever else is
  * pending, and then waits for the status snapshot, which takes a few hundred milliseconds and made the rates come
@@ -763,25 +725,16 @@ function choiceBox(title, message, choices, opts) {
  * an instance of it */
 return baseclass.extend({
 	callStatus: callStatus, callSignal: callSignal, callSysinfo: callSysinfo, callAct: callAct, callAt: callAt, callAtHist: callAtHist,
-	callAtJob: callAtJob, callOpsLog: callOpsLog, backoff: backoff, ageText: ageText,
+	callAtJob: callAtJob, backoff: backoff, ageText: ageText,
 	callLockGet: callLockGet, callLockFresh: callLockFresh, callLockSet: callLockSet, callLockJob: callLockJob,
 	callSmsList: callSmsList, callSmsShow: callSmsShow, callSmsSend: callSmsSend, callSmsJob: callSmsJob,
 	callSmsDel: callSmsDel, callSmsSync: callSmsSync,
 	callUsbGet: callUsbGet, callUsbSet: callUsbSet,
 	callUsbNetList: callUsbNetList, callUsbNetAdd: callUsbNetAdd,
-	callLangGet: callLangGet, callLangSet: callLangSet,
-	callPowerGet: callPowerGet, callPowerSet: callPowerSet,
 	callSimGet: callSimGet, callSimSet: callSimSet, callSimcardGet: callSimcardGet, callSimcardSet: callSimcardSet,
-	callTtlGet: callTtlGet, callTtlSet: callTtlSet,
-	callTcpGet: callTcpGet, callTcpSet: callTcpSet, callBootGet: callBootGet,
-	callLedGet: callLedGet, callLedSet: callLedSet,
-	callFwdGet: callFwdGet, callFwdSet: callFwdSet, callFwdTest: callFwdTest, callFwdLogClear: callFwdLogClear,
-	callCpuGet: callCpuGet, callCpuSet: callCpuSet, callCpuTune: callCpuTune, callCpuVoltageGet: callCpuVoltageGet, callCpuVoltageSet: callCpuVoltageSet,
-	callPackagesGet: callPackagesGet, callPackagesAct: callPackagesAct,
+	callCpuGet: callCpuGet, callCpuSet: callCpuSet,
 	callUpdateGet: callUpdateGet, callUpdateJob: callUpdateJob, callUpdateAct: callUpdateAct,
-	callBackupExport: callBackupExport, callBackupImport: callBackupImport, callBackupJob: callBackupJob,
 	callTrafficGet: callTrafficGet, callTrafficSet: callTrafficSet, callNetDev: callNetDev, netDev: netDev,
-	callTermToken: callTermToken,
 	carrierName: carrierName, qLevel: qLevel, qLevelLabel: qLevelLabel, qLabel: qLabel, qCol: qCol, qScore: qScore,
 	esc: esc, fmtBytes: fmtBytes, fmtRate: fmtRate, fmtUptime: fmtUptime, PLMN_CN: PLMN_CN,
 	injectCss: injectCss, v: v, set: set, cellIdentity: cellIdentity, spark: spark, neighborRows: neighborRows,

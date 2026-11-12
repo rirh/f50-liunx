@@ -14,8 +14,6 @@
 #
 # A received message that lands in the pool runs /etc/mu300/sms-hook (MU300_SMS_HOOK), when that is executable, with
 # SMS_FROM, SMS_DATE, SMS_TEXT and SMS_ID in its environment, in the background (forwarding to a phone, a webhook...).
-# It is also handed to the panel's SMS forwarding (mu300-sms-forward enqueue, MU300_SMS_FORWARD), which does nothing
-# unless forwarding is on.
 #
 # The SIM is where a received message is safe until the pool has it: the modem stores it there and announces it
 # (+CMTI), and the only "acknowledgement" this side gives is deleting it from the SIM. That happens only once the
@@ -84,7 +82,6 @@ LOCK=$RUNDIR/mu300-sms-pool.$(printf '%s' "$POOL" | { md5sum 2>/dev/null || cksu
 
 die() { echo "mu300-sms: $*" >&2; exit 1; }
 
-FORWARD=${MU300_SMS_FORWARD:-/opt/mu300/bin/mu300-sms-forward}
 PARTIAL_WAIT=${MU300_SMS_PARTIAL_WAIT:-3600}
 case $PARTIAL_WAIT in ''|*[!0-9]*) PARTIAL_WAIT=3600 ;; esac
 
@@ -477,7 +474,6 @@ take() {
         return 1
     fi
     printf '%s %s\n' "$_fp" "$MSGDIR/$_id" >> "$_fps"
-    echo "$_id" >> "$_newids"
     _new=$((_new + 1))
     # the hook gets it from the pool's copy, so it never depends on the SIM still holding it; its output and its exit
     # do not concern the sync
@@ -519,8 +515,8 @@ absorb() {
     # send (AT lock, then pool lock) and sync can never wait for each other.
     pool_lock
     # the fingerprints the pool holds, so a sync is idempotent and the SIM index of a message that moved is updated
-    _fps=$_tmp.fp; _seen=$_tmp.sim; _move=$_tmp.move; _newids=$_tmp.new
-    : > "$_fps"; : > "$_seen"; : > "$_move"; : > "$_newids"
+    _fps=$_tmp.fp; _seen=$_tmp.sim; _move=$_tmp.move
+    : > "$_fps"; : > "$_seen"; : > "$_move"
     for _f in "$MSGDIR"/[0-9]*; do
         case $_f in *.part) continue ;; esac   # a write in progress (or one a crash left behind)
         [ -f "$_f" ] || continue
@@ -600,13 +596,6 @@ absorb() {
     # what this sync took is on the disk before any of it leaves the SIM: each file was (store_msg), now the names
     # in the pool directory and next_id
     [ "$_new" -gt 0 ] && durable "$MSGDIR" "$POOL/next_id" "$POOL"
-    # forwarding (when it is on) queues what is new and delivers in the background; with nothing new, a delivery
-    # waiting for its retry is resumed (after a reboot, say)
-    if [ -x "$FORWARD" ]; then
-        # shellcheck disable=SC2046 -- ids: digits only
-        if [ -s "$_newids" ]; then "$FORWARD" enqueue $(cat "$_newids"); else "$FORWARD" kick; fi </dev/null >/dev/null 2>&1
-    fi
-    rm -f "$_newids"
     # off the SIM, after the pool lock (AT calls): what the pool now holds, and what it was told to forget. The parked
     # parts the pool took (or knew) go the same way, by their names.
     grep -E '^[0-9]+$' "$_move" > "$_move.sim" 2>/dev/null

@@ -247,9 +247,9 @@ class Requests(ApiCase):
                 self.assertEqual((rc, o['error']), (1, 'bad-request'), raw)
             # nothing at all is the empty request; so is white space
             for raw in ('', ' \n'):
-                self.assertEqual(self.call(shell, 'extra.list', raw=raw)[0], 0)
+                self.assertEqual(self.call(shell, 'job.status', raw=raw)[0], 0)
             # larger than 64 KiB
-            rc, o, _ = self.call(shell, 'extra.list', raw='{"a":"' + 'x' * 70000 + '"}')
+            rc, o, _ = self.call(shell, 'job.status', raw='{"a":"' + 'x' * 70000 + '"}')
             self.assertEqual(o['error'], 'bad-request')
 
     def test_methods_fields_arguments_and_root(self):
@@ -257,7 +257,7 @@ class Requests(ApiCase):
             for m in ('nope', 'wifi.get;reboot', '../x', 'WIFI.GET', 'hello overview'):
                 rc, o, _ = self.call(shell, m)
                 self.assertEqual((rc, o['error']), (1, 'unknown-method'), m)
-            self.refused(shell, 'extra.list', {'x': 1}, 'unknown-field', 'x')
+            self.refused(shell, 'system.get', {'x': 1}, 'unknown-field', 'x')
             self.refused(shell, 'wifi.power', {'state': 'on', 'also': 'x'}, 'unknown-field', 'also')
             r = subprocess.run(shell + [str(API), 'hello', 'extra'], input=b'{}', capture_output=True, env=self.env())
             self.assertEqual(json.loads(r.stdout)['error'], 'bad-request')
@@ -288,14 +288,12 @@ class Overview(ApiCase):
             self.assertEqual((o['api'], o['system'], o['device'], o['release']), (1, 'ubuntu', 'f50', 'v2026.10.15'))
             listed = subprocess.run(shell + [str(API), '--methods'], capture_output=True, text=True, env=self.env()).stdout.split()
             self.assertEqual(o['methods'], listed)
-            self.assertFalse(o['features']['vpn'])
+            for gone in ('vpn', 'vpn_extra', 'forward'):
+                self.assertNotIn(gone, o['features'])
             self.assertTrue(o['features']['wifi_client'])
             self.assertEqual(o['features']['sms'], 'cli')
             self.assertFalse(o['features']['locks'])
             self.assertEqual(o['job'], {'kind': '', 'state': 'none'})
-            self.tool('mu300-vpn')
-            self.assertTrue(self.ok(shell, 'hello')['features']['vpn'])
-            (self.bin / 'mu300-vpn').unlink()
 
     def test_overview(self):
         self.out('mu300-at', '')
@@ -564,27 +562,6 @@ class MobileData(ApiCase):
             self.assertIn(['mu300-sim', 'card', 'none'], self.calls('mu300-sim'))
             self.clear_calls()
 
-    def test_voice(self):
-        """FINDINGS 184: voice.get is mobile-data voice --json --read; voice.set the fixed words, the slot 1/2 as 0/1."""
-        for shell in self.each_shell():
-            self.refused(shell, 'voice.get', {}, 'unsupported', 'mobile-data')
-            self.tool('mobile-data')
-            self.out('mobile-data', '{"slot":0,"slots":[{"volte":true,"vonr":null},{"volte":true,"vonr":null}],"live":null}\n')
-            o = self.ok(shell, 'voice.get')
-            self.assertEqual(o['voice']['slots'][0], {'volte': True, 'vonr': None})
-            self.assertEqual(self.calls('mobile-data')[-1], ['mobile-data', 'voice', '--json', '--read'])
-            for bad in ({'slot': 3, 'kind': 'volte', 'state': 'on'}, {'slot': 1, 'kind': 'ims', 'state': 'on'},
-                        {'slot': 1, 'kind': 'volte', 'state': '-x'}):
-                self.refused(shell, 'voice.set', bad, 'bad-value')
-            self.refused(shell, 'voice.set', {'slot': 1, 'kind': 'volte'}, 'missing', 'state')
-            self.out('mobile-data', 'vonr off for the SIM in slot 1 (saved; sent when that card\'s radio next starts)\n')
-            o = self.ok(shell, 'voice.set', {'slot': 2, 'kind': 'vonr', 'state': 'off'})
-            self.assertEqual(self.calls('mobile-data')[-1], ['mobile-data', 'voice', 'vonr', 'off', '--slot', '1'])
-            self.out('mobile-data', '', rc=1, err='the modem did not take volte off; nothing was saved')
-            self.refused(shell, 'voice.set', {'slot': 1, 'kind': 'volte', 'state': 'off'}, 'failed',
-                         'the modem did not take volte off; nothing was saved')
-            (self.bin / 'mobile-data').unlink()
-
     def test_radio(self):
         """FINDINGS 185: radio.get is mu300-sim-radio status --json; radio.set slot 1/2/"all" as 0/1/all."""
         for shell in self.each_shell():
@@ -653,14 +630,6 @@ class Luci(ApiCase):
                 self.refused(shell, 'sms.send', {'number': num, 'text': 'x'}, 'bad-value', 'number')
             self.refused(shell, 'sms.send', {'number': '1', 'text': 'x' * 481}, 'bad-value', 'text')
             self.refused(shell, 'sms.send', {'number': '1', 'text': ''}, 'bad-value', 'text')
-            # forwarding: the panel's adapter itself; an answer that is not JSON is a failure, never pasted in
-            self.refused(shell, 'sms.forward', {}, 'unsupported')
-            ad = self.root / 'usr/libexec/unisoc-modem'
-            ad.mkdir(parents=True, exist_ok=True)
-            (ad / 'forward').write_text('#!/bin/sh\necho garbage\n')
-            (ad / 'forward').chmod(0o755)
-            self.refused(shell, 'sms.forward', {}, 'failed')
-            (ad / 'forward').unlink()
 
 
 class Sms(ApiCase):
@@ -678,82 +647,6 @@ class Sms(ApiCase):
             self.refused(shell, 'sms.delete', {'id': '3 4'}, 'bad-value', 'id')
 
 
-class Vpn(ApiCase):
-    def setUp(self):
-        super().setUp()
-        self.tool('mu300-vpn')
-
-    def test_without_the_module(self):
-        (self.bin / 'mu300-vpn').unlink()
-        for shell in self.each_shell():
-            self.assertEqual(self.ok(shell, 'vpn.status'), {'ok': 1, 'installed': False, 'extra': True})
-            self.refused(shell, 'vpn.profiles', {}, 'not-installed')
-            self.assertEqual(self.ok(shell, 'vpn.install'), {'ok': 1, 'job': 'vpn-install'})
-            j = self.wait_job(shell)
-            self.assertEqual((j['kind'], j['state'], j['rc']), ('vpn-install', 'done', 0))
-            self.assertIn(['mu300-extra', 'install', 'vpn'], self.calls('mu300-extra'))
-
-    def test_a_link_goes_to_the_clis_stdin_only(self):
-        self.out('mu300-vpn', 'p-1\n')
-        for shell in self.each_shell():
-            o = self.ok(shell, 'vpn.add', {'source': 'link', 'data': '  ' + LINK + '\r\n', 'name': 'Work $(x)'})
-            self.assertEqual(o['id'], 'p-1')
-            self.assertEqual(self.calls('mu300-vpn')[-1], ['mu300-vpn', 'profile', 'import', '-', 'Work $(x)'])
-            self.assertEqual((self.tmp / 'stdin.mu300-vpn').read_text(), LINK + '\n')
-            self.assertNotIn('3f6a1c2e', self.everything_written())
-            for bad in ('http://x', 'vless://', 'vless://a b', 'javascript:alert(1)', 'vless://' + 'a' * 8000):
-                self.refused(shell, 'vpn.add', {'source': 'link', 'data': bad}, 'bad-value', 'data')
-            for name in ('-x', ' x', 'a\nb', 'x' * 65):
-                self.refused(shell, 'vpn.add', {'source': 'link', 'data': LINK, 'name': name}, 'bad-value', 'name')
-            # a config pasted whole: tabs and newlines are fine, other control characters are not
-            self.ok(shell, 'vpn.add', {'source': 'text', 'data': '[Interface]\n\tPrivateKey = abc\n'})
-            self.refused(shell, 'vpn.add', {'source': 'text', 'data': 'a\u0007'}, 'bad-request')
-            # what the CLI says when it refuses: its last line, without the link's secret part
-            self.out('mu300-vpn', '', rc=1, err='bad link vless://3f6a1c2e@host:1?x=y\nprofile not added\n')
-            o = self.refused(shell, 'vpn.add', {'source': 'link', 'data': LINK}, 'failed')
-            self.assertNotIn('3f6a1c2e', json.dumps(o))
-            self.out('mu300-vpn', 'p-1\n')
-
-    def test_a_url_job_takes_it_on_stdin_from_a_file_that_is_gone(self):
-        url = 'https://sub.example.com/api/v1/client/subscribe?token=abcdef123456'
-        for shell in self.each_shell():
-            self.ok(shell, 'job.clear')
-            self.refused(shell, 'vpn.add_url', {'url': 'http://sub.example.com/x'}, 'bad-value', 'url')
-            self.refused(shell, 'vpn.add_url', {'url': 'https://a b'}, 'bad-value', 'url')
-            self.assertEqual(self.ok(shell, 'vpn.add_url', {'url': url}), {'ok': 1, 'job': 'vpn-import'})
-            j = self.wait_job(shell)
-            self.assertEqual(j['rc'], 0)
-            self.assertEqual(self.calls('mu300-vpn')[-1], ['mu300-vpn', 'profile', 'import', '--url', '-'])
-            self.assertEqual((self.tmp / 'stdin.mu300-vpn').read_text(), url + '\n')
-            self.assertFalse((self.run_dir / 'job/in').exists())
-            self.assertNotIn('abcdef123456', self.everything_written())
-
-    def test_reads_and_switches(self):
-        for shell in self.each_shell():
-            self.out('mu300-vpn', '{"enabled":true,"profile":"p-1","killswitch":"on"}\n')
-            self.assertEqual(self.ok(shell, 'vpn.status')['status']['profile'], 'p-1')
-            self.ok(shell, 'vpn.status', {'exit_ip': True})
-            self.assertEqual(self.calls('mu300-vpn')[-1], ['mu300-vpn', 'status', '--json', '--exit-ip'])
-            self.out('mu300-vpn', '{"KILL_SWITCH":"on","IPV6":"0","XRAY_BIN":"/x"}\n')
-            self.assertEqual(self.ok(shell, 'vpn.settings')['settings'], {'KILL_SWITCH': 'on', 'IPV6': '0'})
-            for m, req, argv in (('vpn.service', {'op': 'off'}, ['off']), ('vpn.killswitch', {'value': 'on'}, ['killswitch', 'on']),
-                                 ('vpn.use', {'id': 'p-2'}, ['use', 'p-2']), ('vpn.rename', {'id': 'p-2', 'name': 'Ev'}, ['profile', 'set', 'p-2', 'NAME', 'Ev']),
-                                 ('vpn.remove', {'id': 'p-2'}, ['profile', 'remove', 'p-2']),
-                                 ('vpn.setting', {'key': 'IPV6', 'value': 'auto'}, ['settings', 'set', 'IPV6', 'auto']),
-                                 ('vpn.sub_remove', {'id': 's-1', 'keep': True}, ['subscription', 'remove', 's-1', '--keep-profiles'])):
-                self.ok(shell, m, req)
-                self.assertEqual(self.calls('mu300-vpn')[-1], ['mu300-vpn'] + argv, m)
-            for m, req in (('vpn.use', {'id': '-x'}), ('vpn.use', {'id': 'P1'}), ('vpn.setting', {'key': 'XRAY_BIN', 'value': '/bin/sh'}),
-                           ('vpn.service', {'op': 'start'}), ('vpn.logs', {'lines': 5000})):
-                self.assertEqual(self.call(shell, m, req)[1]['error'], 'bad-value', (m, req))
-            self.out('mu300-vpn', '[{"name":"xray","installed":true}]\n')
-            self.assertEqual(self.ok(shell, 'vpn.engines')['engines'], [{'name': 'xray', 'installed': True}])
-            self.assertEqual(self.calls('mu300-vpn')[-1], ['mu300-vpn', 'engines', '--json'])
-            # JSON that is not JSON is refused, not passed on
-            self.out('mu300-vpn', '[1,2\n')
-            self.refused(shell, 'vpn.profiles', {}, 'failed')
-
-
 class UsbLanAdb(ApiCase):
     def test_lan_address(self):
         for shell in self.each_shell():
@@ -763,23 +656,6 @@ class UsbLanAdb(ApiCase):
             self.assertEqual((self.root / 'etc/mu300/lan.conf').read_text(), 'LAN_IP=10.20.30.1\n')
             self.assertEqual(self.ok(shell, 'lan.get')['ip'], '10.20.30.1')
             self.assertEqual(self.calls('later')[-1][-2:], ['restart', 'mu300-lan'])
-
-    def test_adb_keys_mode_takes_the_callers_key_first(self):
-        for shell in self.each_shell():
-            self.refused(shell, 'adb.auth', {'mode': 'keys'}, 'missing', 'key')
-            for key in ('short', PUBKEY + '\nssh-rsa x', PUBKEY.replace('B', '$', 1), '-' + PUBKEY):
-                self.refused(shell, 'adb.auth', {'mode': 'keys', 'key': key}, 'bad-value', 'key')
-            self.clear_calls()
-            self.ok(shell, 'adb.auth', {'mode': 'keys', 'key': PUBKEY})
-            self.assertEqual(self.calls('mu300-usb')[0], ['mu300-usb', 'adb', 'key', '-'])
-            self.assertEqual((self.tmp / 'stdin.mu300-usb').read_text(), PUBKEY + '\n')
-            self.assertEqual(self.calls('later')[-1][-4:], [str(self.bin / 'mu300-usb'), 'adb', 'auth', 'keys'])
-            # a key that is not taken: keys mode is not switched on
-            self.out('mu300-usb', '', rc=1, err='mu300-usb: not a key\n')
-            self.clear_calls()
-            self.refused(shell, 'adb.auth', {'mode': 'keys', 'key': PUBKEY}, 'failed')
-            self.assertEqual(self.calls('later'), [])
-            self.out('mu300-usb', '')
 
     def test_usb_role_is_the_u30_airs(self):
         for shell in self.each_shell():
@@ -814,12 +690,9 @@ class System(ApiCase):
             self.assertEqual(self.calls('timedatectl')[-1], ['timedatectl', 'set-timezone', 'Europe/Istanbul'])
             self.ok(shell, 'system.ssh', {'state': 'off'})
             self.assertEqual(self.calls('systemctl')[-1], ['systemctl', 'disable', '--now', 'ssh.socket', 'ssh.service'])
-            self.ok(shell, 'system.boot', {'target': 'android'})
-            self.assertEqual(self.calls('mu300-next-boot')[-1], ['mu300-next-boot', 'android'])
-            self.refused(shell, 'system.boot', {'target': 'recovery'}, 'bad-value', 'target')
             o = self.ok(shell, 'system.get')
             self.assertEqual((o['user'], o['boot']['default'], o['kernel_choice']), ('ubuntu', 'linux', '6.18'))
-            self.assertEqual(o['extras'][0], {'name': 'vpn', 'installed': False, 'release': ''})
+            self.assertNotIn('extras', o)
 
     def test_openwrt_password_and_timezone(self):
         (self.root / 'etc/openwrt_release').write_text('x\n')
@@ -857,24 +730,11 @@ class Jobs(ApiCase):
         self.tool('mu300-update', 'echo "mu300-update\x1f$1\x1f$2" >> "$STUBLOG/calls"; sleep 3')
         for shell in self.each_shell():
             self.ok(shell, 'job.clear')
-            self.refused(shell, 'kernel.set', {'version': '6.1'}, 'bad-value', 'version')
-            self.refused(shell, 'kernel.set', {'version': '7.4'}, 'bad-value', 'version')
-            # (7.2 is retired: no release has it, and the device's tools no longer offer it)
-            self.refused(shell, 'kernel.set', {'version': '7.2'}, 'bad-value', 'version')
-            self.ok(shell, 'kernel.set', {'version': '7.3'})
+            self.ok(shell, 'update.apply')
             self.assertFalse(self.ok(shell, 'job.status')['job']['cancel'])
             self.refused(shell, 'job.cancel', {}, 'unsupported')
             self.wait_job(shell)
-            self.assertIn(['mu300-update', 'kernel', '7.3'], self.calls('mu300-update'))
-
-    def test_extras(self):
-        for shell in self.each_shell():
-            self.ok(shell, 'job.clear')
-            for n in ('vpn;reboot', 'bogus', '--from'):
-                self.refused(shell, 'extra.install', {'name': n}, 'bad-value', 'name')
-            self.ok(shell, 'extra.install', {'name': 'panel'})
-            self.wait_job(shell)
-            self.assertIn(['mu300-extra', 'install', 'panel'], self.calls('mu300-extra'))
+            self.assertIn(['mu300-update', 'apply'], [c[:2] for c in self.calls('mu300-update')])
 
     def test_joining_a_network_takes_the_password_on_stdin(self):
         for shell in self.each_shell():
@@ -924,7 +784,7 @@ class Static(unittest.TestCase):
 
 class PanelAdapters(ApiCase):
     """Ubuntu has the control panel's lock and forwarding programs too (FINDINGS 189): lock.get/lock.set and the
-    sms.forward methods call them directly; the AT terminal's history, the card's state, the USB network mode."""
+    sms methods call them directly; the AT terminal's history, the card's state, the USB network mode."""
 
     def setUp(self):
         super().setUp()
@@ -950,8 +810,8 @@ class PanelAdapters(ApiCase):
     def test_hello_has_them(self):
         for shell in self.each_shell():
             f = self.ok(shell, 'hello')['features']
-            self.assertEqual((f['locks'], f['forward'], f['usb_net']), (True, True, True))
-            for m in ('sim.state', 'sms.forward_set', 'sms.forward_test', 'sms.forward_log_clear', 'usb.net', 'at.history'):
+            self.assertEqual((f['locks'], f['usb_net']), (True, True))
+            for m in ('sim.state', 'usb.net', 'at.history'):
                 self.assertIn(m, self.ok(shell, 'hello')['methods'])
 
     def test_locks_through_the_lock_program(self):
@@ -983,55 +843,6 @@ class PanelAdapters(ApiCase):
             self.assertEqual(o, {'ok': 1, 'checked': True})
             self.assertEqual(self.calls('later'), [])
             (self.dash / 'lock.json').unlink()
-
-    def test_forwarding_settings_on_stdin_only(self):
-        req = {'enabled': True, 'template': '{text}\n-- {sender}', 'allow': 'BANK*\n+90555', 'webhook': True,
-               'webhook_url': 'https://hook.example.com/s3cret', 'webhook_headers': 'Authorization: Bearer hdrsecret',
-               'webhook_format': 'json', 'webhook_expect': 'errcode=0', 'telegram': False, 'telegram_token': '123456:' + 'A' * 30,
-               'email': False, 'email_password': 'mailsecret', 'sms': False, 'clear': 'telegram_token',
-               'webhook_secret': 'ppsecret', 'timeout': '30', 'power': True}
-        for shell in self.each_shell():
-            self.assertEqual(self.ok(shell, 'sms.forward')['data'], {'ok': 1})
-            self.assertEqual(self.calls('forward')[-1], ['forward', 'get'])
-            self.ok(shell, 'sms.forward_set', req)
-            self.assertEqual(self.calls('forward')[-1], ['forward', 'set'])
-            sent = json.loads((self.tmp / 'stdin.forward').read_text())
-            self.assertEqual((sent['enabled'], sent['webhook'], sent['telegram'], sent['email'], sent['sms']), ('1', '1', '0', '0', '0'))
-            for k in ('template', 'allow', 'webhook_url', 'webhook_headers', 'telegram_token', 'email_password', 'clear',
-                      'webhook_secret', 'timeout'):
-                self.assertEqual(sent[k], req[k], k)
-            self.assertEqual(sent['power'], '1')
-            # a client that does not know the battery notices sends none: none goes on (the saved setting stays)
-            self.ok(shell, 'sms.forward_set', {'enabled': True})
-            self.assertNotIn('power', json.loads((self.tmp / 'stdin.forward').read_text()))
-            self.refused(shell, 'sms.forward_set', {'power': 'maybe'}, 'bad-value', 'power')
-            self.ok(shell, 'sms.forward_set', req)
-            self.assertEqual((self.tmp / 'fwdcheck').read_text().strip(), '')
-            # no secret in an argument list, and no request file left behind
-            for c in self.calls():
-                self.assertFalse(any(x in '\x1f'.join(c) for x in ('s3cret', 'hdrsecret', 'mailsecret', 'AAAAAAAAAA',
-                                                                   'ppsecret')), c)
-            self.assertEqual([f.name for f in self.run_dir.iterdir() if f.name.startswith('fwd.')], [])
-            # the adapter's refusal is the answer's detail
-            (self.tmp / 'fwdout').write_text('{"ok":0,"error":"Invalid Telegram bot token"}\n')
-            self.refused(shell, 'sms.forward_set', {'telegram': True}, 'failed', 'Invalid Telegram bot token')
-            (self.tmp / 'fwdout').write_text('{"ok":1,"checked":1}\n')
-            rc, o, _ = self.call(shell, 'sms.forward_set', req, MU300_API_CHECK='1')
-            self.assertEqual(o, {'ok': 1, 'checked': True})
-            self.assertEqual((self.tmp / 'fwdcheck').read_text().strip(), '1')
-            (self.tmp / 'fwdout').write_text('{"ok":1}\n')
-            self.refused(shell, 'sms.forward_set', {'nope': '1'}, 'unknown-field', 'nope')
-            self.refused(shell, 'sms.forward_set', {'enabled': 'yes'}, 'bad-value', 'enabled')
-            self.refused(shell, 'sms.forward_set', {'template': 5}, 'bad-value', 'template')
-            # a control character is refused when the request is read (json.awk)
-            self.refused(shell, 'sms.forward_set', {'template': 'a\u007fb'}, 'bad-request')
-            self.refused(shell, 'sms.forward_set', {'webhook_body': 'x' * 4097}, 'bad-value', 'webhook_body')
-            (self.tmp / 'fwdout').write_text('{"ok":1,"started":1}\n')
-            self.assertEqual(self.ok(shell, 'sms.forward_test'), {'ok': 1, 'started': True})
-            self.assertEqual(self.calls('forward')[-1], ['forward', 'test'])
-            (self.tmp / 'fwdout').write_text('{"ok":1}\n')
-            self.ok(shell, 'sms.forward_log_clear')
-            self.assertEqual(self.calls('forward')[-1], ['forward', 'logclear'])
 
     def test_at_history(self):
         for shell in self.each_shell():
@@ -1133,51 +944,10 @@ class ModemTools(ApiCase):
             self.out('mu300-at', 'ERROR\n', rc=1)
             self.assertEqual(self.ok(shell, 'at.send', {'command': 'AT+X'})['rc'], 1)
 
-    def test_ussd(self):
-        for shell in self.each_shell():
-            self.out('mu300-ussd', 'Balance: 10 TL')
-            self.assertEqual(self.ok(shell, 'ussd.send', {'code': '*100#'})['text'], 'Balance: 10 TL')
-            self.assertEqual(self.calls('mu300-ussd')[-1], ['mu300-ussd', '-t', '45', '*100#'])
-            self.ok(shell, 'ussd.cancel')
-            self.assertEqual(self.calls('mu300-ussd')[-1], ['mu300-ussd', '--cancel'])
-            for bad in ('-t', '*100#;reboot', '', '1 2'):
-                self.refused(shell, 'ussd.send', {'code': bad}, 'bad-value', 'code')
-
     def test_modem_restart(self):
         for shell in self.each_shell():
             self.ok(shell, 'modem.restart')
             self.assertEqual(self.calls('later')[-1][-2:], ['restart', 'mu300-mobile-data.service'])
-
-    def test_ttl(self):
-        for shell in self.each_shell():
-            self.out('mu300-ttl', 'TTL=64\nBACKEND=tc\nIFACES=sipa_eth0\nOFFLOAD=\n')
-            self.assertEqual(self.ok(shell, 'ttl.get'), {'ok': 1, 'enabled': True, 'value': 64, 'backend': 'tc'})
-            self.out('mu300-ttl', 'TTL=\nBACKEND=weird\n')
-            self.assertEqual(self.ok(shell, 'ttl.get'), {'ok': 1, 'enabled': False, 'value': None, 'backend': 'none'})
-            self.ok(shell, 'ttl.set', {'value': '65'})
-            self.assertEqual(self.calls('mu300-ttl')[-1], ['mu300-ttl', 'set', '65'])
-            self.ok(shell, 'ttl.set', {'value': 65})                  # a JSON number as well
-            self.assertEqual(self.calls('mu300-ttl')[-1], ['mu300-ttl', 'set', '65'])
-            self.ok(shell, 'ttl.set', {'value': 'off'})
-            self.assertEqual(self.calls('mu300-ttl')[-1], ['mu300-ttl', 'off'])
-            for bad in ('0', '256', '064', '-1', 'on', 256, 0, 64.5, True):
-                self.refused(shell, 'ttl.set', {'value': bad}, 'bad-value', 'value')
-
-    def test_tcp(self):
-        # mu300-tcp (kanoqwq's b9f71e72): what the kernel offers of cubic and bbr, nothing else; the value checked
-        for shell in self.each_shell():
-            self.out('mu300-tcp', 'SAVED=bbr\nCURRENT=bbr\nQDISC=fq\nOFFERED=cubic bbr\nSUPPORTED=1\nDEFAULT=cubic\n')
-            self.assertEqual(self.ok(shell, 'tcp.get'), {'ok': 1, 'supported': True, 'saved': 'bbr', 'current': 'bbr',
-                                                         'qdisc': 'fq', 'default': 'cubic', 'offered': ['cubic', 'bbr']})
-            # the 5.4 kernel: no BBR offered; odd words are not passed on
-            self.out('mu300-tcp', 'SAVED=reno\nCURRENT=cu"bic\nQDISC=pfifo_fast\nOFFERED=cubic reno\nSUPPORTED=1\nDEFAULT=\n')
-            self.assertEqual(self.ok(shell, 'tcp.get'), {'ok': 1, 'supported': True, 'saved': 'default', 'current': '',
-                                                         'qdisc': 'pfifo_fast', 'default': '', 'offered': ['cubic']})
-            for v in ('bbr', 'cubic', 'default'):
-                self.ok(shell, 'tcp.set', {'value': v})
-                self.assertEqual(self.calls('mu300-tcp')[-1], ['mu300-tcp', 'set', v])
-            for bad in ('reno', 'BBR', '-x', 'bbr;reboot', ''):
-                self.refused(shell, 'tcp.set', {'value': bad}, 'bad-value', 'value')
 
     def test_traffic(self):
         for shell in self.each_shell():
@@ -1213,139 +983,21 @@ class ModemTools(ApiCase):
             self.out('mu300-traffic', 'nope\n')
             self.refused(shell, 'traffic.get', {}, 'failed')
 
-    def test_power(self):
-        status = ('state: active\nprofile: battery (automatic)\nsupply: battery\nbattery: 80 %\n'
-                  'SAVER_BELOW=20 CHARGE_TO=80\nPOWER_ON_CHARGER=1\nRESUME_AT=60 CHARGE_PAUSE=1 FULL_ONCE=0\nplugged: WIFI_IDLE=0 RADIO_IDLE=keep LEDS_IDLE=on CPU=full\n'
-                  'battery: WIFI_IDLE=10 RADIO_IDLE=lte LEDS_IDLE=off CPU=eco\nsaver: WIFI_IDLE=5 RADIO_IDLE=off LEDS_IDLE=off CPU=eco\n')
-        (self.root / 'etc/mu300/power.conf').write_text('PROFILE=saver\n')
-        for shell in self.each_shell():
-            self.out('mu300-power', status)
-            o = self.ok(shell, 'power.get')
-            self.assertEqual((o['state'], o['profile'], o['why'], o['supply']), ('active', 'battery', 'automatic', 'battery'))
-            self.assertEqual(o['conf']['PROFILE'], 'saver')
-            self.assertEqual((o['conf']['SAVER_BELOW'], o['conf']['CHARGE_TO']), (20, 80))
-            self.assertEqual(o['conf']['POWER_ON_CHARGER'], 1)
-            self.assertEqual((o['conf']['RESUME_AT'], o['conf']['CHARGE_PAUSE'], o['conf']['FULL_ONCE']), (60, 1, 0))
-            self.assertEqual(o['conf']['battery'], {'WIFI_IDLE': 10, 'RADIO_IDLE': 'lte', 'LEDS_IDLE': 'off', 'CPU': 'eco'})
-            for req, argv in (({'key': 'PROFILE', 'value': 'auto'}, ['profile', 'auto']),
-                              ({'key': 'CHARGE_TO', 'value': 80}, ['set', 'CHARGE_TO', '80']),
-                              ({'key': 'POWER_ON_CHARGER', 'value': 0}, ['set', 'POWER_ON_CHARGER', '0']),
-                              ({'key': 'RESUME_AT', 'value': 60}, ['set', 'RESUME_AT', '60']),
-                              ({'key': 'CHARGE_PAUSE', 'value': 1}, ['set', 'CHARGE_PAUSE', '1']),
-                              ({'key': 'FULL_ONCE', 'value': 1}, ['set', 'FULL_ONCE', '1']),
-                              ({'key': 'saver.RADIO_IDLE', 'value': 'off'}, ['set', 'saver.RADIO_IDLE', 'off']),
-                              ({'key': 'battery.WIFI_IDLE', 'value': 15}, ['set', 'battery.WIFI_IDLE', '15'])):
-                self.ok(shell, 'power.set', req)
-                self.assertEqual(self.calls('mu300-power')[-1], ['mu300-power'] + argv)
-            for req in ({'key': 'PROFILE', 'value': 'x'}, {'key': 'FOO', 'value': 1}, {'key': 'CHARGE_TO', 'value': 101},
-                        {'key': 'POWER_ON_CHARGER', 'value': 2}, {'key': 'RESUME_AT', 'value': 100},
-                        {'key': 'CHARGE_PAUSE', 'value': 2}, {'key': 'FULL_ONCE', 'value': -1},
-                        {'key': 'battery.CPU', 'value': 'turbo'}):
-                self.assertEqual(self.call(shell, 'power.set', req)[1]['error'], 'bad-value', req)
-
-    def test_leds_and_zram(self):
-        for shell in self.each_shell():
-            (self.root / 'etc/mu300/led.conf').unlink(missing_ok=True)
-            self.out('mu300-led', '')
-            self.assertEqual(self.ok(shell, 'led.get'), {'ok': 1, 'timeout': None, 'device': 'f50', 'settings': None})
-            self.ok(shell, 'led.set', {'timeout': 120})
-            self.assertEqual((self.root / 'etc/mu300/led.conf').read_text(), 'LED_TIMEOUT=120\n')
-            self.assertEqual(self.ok(shell, 'led.get')['timeout'], 120)
-            # mu300-led's settings as they are (the lamps, switches, brightness, boot indicator, heat alarm)
-            self.out('mu300-led', '{"device":"f50","lamps":["network","wifi"],"dimmable":["network","wifi"],'
-                                  '"network":false,"network_brightness":40,"boot":true,"thermal":"blink"}\n')
-            o = self.ok(shell, 'led.get')['settings']
-            self.assertEqual((o['lamps'], o['network'], o['network_brightness'], o['boot'], o['thermal']),
-                             (['network', 'wifi'], False, 40, True, 'blink'))
-            self.clear_calls()
-            self.ok(shell, 'led.set', {'network': False, 'wifi_brightness': 30, 'boot': True, 'thermal': 'off'})
-            self.assertEqual((self.root / 'etc/mu300/led.conf').read_text(),
-                             'LED_TIMEOUT=120\nLED_NETWORK=0\nLED_BOOT=1\nLED_WIFI_BRIGHTNESS=30\nLED_THERMAL=off\n')
-            self.assertEqual(self.calls('later')[-1][-1], 'refresh')
-            self.ok(shell, 'led.set', {'timeout_default': True})
-            self.assertNotIn('LED_TIMEOUT', (self.root / 'etc/mu300/led.conf').read_text())
-            self.clear_calls()
-            self.ok(shell, 'led.set', {'test': True})
-            self.assertEqual(self.calls('later')[-1][-1], 'test')
-            self.refused(shell, 'led.set', {}, 'missing', 'timeout')
-            self.refused(shell, 'led.set', {'timeout': -1}, 'bad-value', 'timeout')
-            for req, field in (({'network': 'off'}, 'network'), ({'battery_brightness': 0}, 'battery_brightness'),
-                               ({'wifi_brightness': 101}, 'wifi_brightness'), ({'thermal': 'loud'}, 'thermal'),
-                               ({'timeout': 5, 'timeout_default': True}, 'timeout_default'), ({'colour': 'red'}, 'colour')):
-                self.refused(shell, 'led.set', req, 'unknown-field' if field == 'colour' else 'bad-value', field)
-            (self.root / 'etc/mu300/led.conf').unlink()
-            self.out('mu300-zram', 'zram swap: on, 700 MiB, lz4, priority 100\n  empty\n')
-            o = self.ok(shell, 'zram.get')
-            self.assertEqual((o['active'], o['enabled']), (True, True))
-            self.out('mu300-zram', 'zram swap: off (/etc/mu300/zram.conf: ZRAM_ENABLE=0; mu300-zram on)\n')
-            o = self.ok(shell, 'zram.get')
-            self.assertEqual((o['active'], o['enabled']), (False, False))
-            self.ok(shell, 'zram.set', {'state': 'on'})
-            self.assertEqual(self.calls('mu300-zram')[-1], ['mu300-zram', 'on'])
-            self.refused(shell, 'zram.set', {'state': 'stop'}, 'bad-value', 'state')
-
     def test_cpu(self):
         for shell in self.each_shell():
             self.out('mu300-cpu', '{"profile":"balanced"}\n')
             o = self.ok(shell, 'cpu.get')
-            self.assertEqual((o['cpu'], o['voltage']), ({'profile': 'balanced'}, {'profile': 'balanced'}))
+            self.assertEqual(o['cpu'], {'profile': 'balanced'})
+            self.assertNotIn('voltage', o)
             self.ok(shell, 'cpu.profile', {'name': 'saving'})
             self.assertEqual(self.calls('mu300-cpu')[-1], ['mu300-cpu', 'profile', 'saving'])
             self.refused(shell, 'cpu.profile', {'name': 'turbo'}, 'bad-value', 'name')
-            # the voltage offset: never without the word
-            self.refused(shell, 'cpu.voltage', {'op': 'set', 'offsets': '-3125,0,0'}, 'missing', 'confirm')
-            self.refused(shell, 'cpu.voltage', {'op': 'set', 'offsets': '-3125,0,0', 'confirm': 'yes'}, 'bad-value', 'confirm')
-            self.refused(shell, 'cpu.voltage', {'op': 'set', 'offsets': '1,2', 'confirm': 'EXPERIMENTAL'}, 'bad-value', 'offsets')
-            self.ok(shell, 'cpu.voltage', {'op': 'set', 'offsets': '-3125,0,0', 'confirm': 'EXPERIMENTAL'})
-            self.assertEqual(self.calls('mu300-cpu')[-1], ['mu300-cpu', 'voltage', 'set', '-3125,0,0', '--confirm', 'EXPERIMENTAL'])
-            self.ok(shell, 'cpu.voltage', {'op': 'off'})
-            self.assertEqual(self.calls('mu300-cpu')[-1], ['mu300-cpu', 'voltage', 'off'])
-            self.ok(shell, 'cpu.voltage', {'op': 'stress', 'minutes': 10})
-            self.assertEqual(self.calls('mu300-cpu')[-1], ['mu300-cpu', 'voltage', 'stress', '10', '--background'])
-            self.refused(shell, 'cpu.voltage', {'op': 'stress', 'minutes': 121}, 'bad-value', 'minutes')
-            # a core and CPU0's low latency (FINDINGS 200); never CPU0
-            self.ok(shell, 'cpu.core', {'cpu': 7, 'state': 'off'})
-            self.assertEqual(self.calls('mu300-cpu')[-1], ['mu300-cpu', 'core', '7', 'off'])
-            self.refused(shell, 'cpu.core', {'cpu': 0, 'state': 'off'}, 'bad-value', 'cpu')
-            self.refused(shell, 'cpu.core', {'cpu': 7, 'state': 'down'}, 'bad-value', 'state')
-            self.ok(shell, 'cpu.lowlatency', {'state': 'on'})
-            self.assertEqual(self.calls('mu300-cpu')[-1], ['mu300-cpu', 'lowlatency', 'on'])
-            self.refused(shell, 'cpu.lowlatency', {'state': '1'}, 'bad-value', 'state')
 
-    def test_update_status_and_source(self):
+    def test_update_status(self):
         for shell in self.each_shell():
             self.out('mu300-update', '{"systems":[]}\n')
             o = self.ok(shell, 'update.status')
             self.assertEqual(o['status'], {'systems': []})
-            self.ok(shell, 'update.source', {'url': 'https://mirror.example.com/mu300'})
-            self.assertEqual(self.calls('mu300-update')[-1], ['mu300-update', 'source', 'https://mirror.example.com/mu300'])
-            self.ok(shell, 'update.source', {'url': 'off'})
-            self.assertEqual(self.calls('mu300-update')[-1], ['mu300-update', 'source', 'off'])
-            for bad in ('ftp://x', '-x', 'https://a b', 'https://x/\n'):
-                self.refused(shell, 'update.source', {'url': bad}, 'bad-value' if bad != 'https://x/\n' else 'bad-value', 'url')
-
-    def test_packages_and_docker(self):
-        for shell in self.each_shell():
-            self.out('mu300-user-packages', 'nothing written down')
-            self.assertEqual(self.ok(shell, 'packages.get')['text'], 'nothing written down')
-            self.ok(shell, 'packages.act', {'op': 'dismiss'})
-            self.assertEqual(self.calls('mu300-user-packages')[-1], ['mu300-user-packages', 'dismiss'])
-            self.ok(shell, 'job.clear')
-            self.assertEqual(self.ok(shell, 'packages.act', {'op': 'retry'}), {'ok': 1, 'job': 'packages-retry'})
-            self.wait_job(shell)
-            self.refused(shell, 'packages.act', {'op': 'run'}, 'bad-value', 'op')
-            self.out('docker', 'web\tnginx:1\trunning\tUp 2 hours\ndb "x"\tpg\texited\tExited (0)\n')
-            self.out('systemctl', 'active\n')
-            o = self.ok(shell, 'docker.status')
-            self.assertEqual(o['containers'][1], {'name': 'db "x"', 'image': 'pg', 'state': 'exited', 'status': 'Exited (0)'})
-            self.assertEqual((o['installed'], o['active'], len(o['containers'])), (True, 'active', 2))
-            (self.stubs / 'docker').unlink()
-            # without Docker (a machine that has one of its own on /usr/bin cannot show this)
-            if not shutil.which('docker', path='/usr/bin:/bin'):
-                self.assertEqual(self.ok(shell, 'docker.status', PATH=f'{self.stubs}:/usr/bin:/bin'), {'ok': 1, 'installed': False})
-            (self.stubs / 'docker').write_text(RECORD)
-            (self.stubs / 'docker').chmod(0o755)
-
 
 if __name__ == '__main__':
     unittest.main()

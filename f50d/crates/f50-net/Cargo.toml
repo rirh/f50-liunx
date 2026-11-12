@@ -1,0 +1,22 @@
+[package]
+name = "f50-net"
+description = "The F50's networks: the Wi-Fi hotspot, the Wi-Fi client uplink, the LAN, the USB port's role and network function, adbd"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+f50-core.workspace = true
+f50-platform.workspace = true
+libc.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

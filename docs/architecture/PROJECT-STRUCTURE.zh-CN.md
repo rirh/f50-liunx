@@ -112,7 +112,7 @@ systems/openwrt/
 | `root/usr/share/luci/menu.d/` | 菜单名称、排序和页面路由 | `/usr/share/luci/menu.d/` |
 | `root/usr/share/rpcd/acl.d/` | 页面可调用哪些接口、读写哪些资源 | `/usr/share/rpcd/acl.d/` |
 | `root/usr/share/rpcd/ucode/` | 用 ucode 实现的 RPC 服务，例如网速采样 | `/usr/share/rpcd/ucode/` |
-| `root/usr/libexec/rpcd/` | `mu300dash`、`mu300vpn`、`mu300term` 等接口实现 | `/usr/libexec/rpcd/` |
+| `root/usr/libexec/rpcd/` | `mu300dash` 接口实现 | `/usr/libexec/rpcd/` |
 | `root/usr/libexec/unisoc-modem/` | 将面板操作转成设备命令的适配器，如 AT、锁频、流量、升级 | `/usr/libexec/unisoc-modem/` |
 | `root/usr/share/unisoc-modem/` | 适配器共用的 Shell 函数 | `/usr/share/unisoc-modem/` |
 | `root/etc/config/` | 插件的 UCI 默认配置 | `/etc/config/` |

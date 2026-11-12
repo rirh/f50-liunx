@@ -62,9 +62,9 @@ flowchart TB
     adb["adb shell · Cockpit 面板<br/>安装器的设备管理"]
 
     uhttpd["uhttpd<br/>/cgi-bin/luci/admin/ubus"]
-    rpcd["rpcd 接口<br/>mu300dash · mu300vpn · mu300term · mu300rates"]
+    rpcd["rpcd 接口<br/>mu300dash · mu300rates"]
     adapters["unisoc-modem 适配器<br/>at · cell · lock · traffic · update …"]
-    api["mu300-api<br/>102 个 JSON 方法，逐字段校验"]
+    api["mu300-api<br/>49 个 JSON 方法，逐字段校验"]
 
     cmds["设备命令 /opt/mu300/bin<br/>mobile-data · mu300-sim · wifi-client · mu300-update · mu300-at …"]
 
@@ -90,6 +90,8 @@ flowchart TB
 - `mu300-api` 在锁频、短信转发和短信池上会反过来调用面板的适配器和 `mu300dash`（图中虚线）。
 - 所有 AT 命令经 `mu300-at` 交给常驻的 `mu300-atd`。SIPC 串口关闭后会卡死，所以通道只由守护进程持有。
 - 数据面不经过上述链路：蜂窝数据是 `sipa_eth0`，由 netifd 的 `mu300cell` 协议作为 `wan` 管理；`br-lan` 桥接 Wi-Fi 热点（`wlan0`）和 USB 网卡（`usb0`）。
+
+> 2026-11-12 精简后：rpcd 只剩 `mu300dash`（31 个方法）和 `mu300rates`，`mu300-api` 剩 49 个方法；统一接口 `mu300d`（Rust）见 [device-tools/mu300d](../../device-tools/mu300d/README.md)。下面的核对记录是精简前的设备状态。
 
 ## 3. 设备核对记录（2026-11-12）
 

@@ -260,13 +260,10 @@ class Mu300Dash(ShellTest):
 
 
 class Inventory(Mu300Dash):
-    METHODS = {'sysinfo', 'status', 'signal', 'act', 'at', 'at_job', 'at_history', 'ops_log', 'lock_get', 'lock_set', 'lock_job', 'sms_list',
+    METHODS = {'sysinfo', 'status', 'signal', 'act', 'at', 'at_job', 'at_history', 'lock_get', 'lock_set', 'lock_job', 'sms_list',
                'sms_show', 'sms_send', 'sms_job', 'sms_delete', 'sms_sync', 'usb_get', 'usb_set', 'usb_net_list', 'usb_net_add',
-               'lang_get', 'lang_set', 'power_get', 'power_set',
-               'ttl_get', 'ttl_set', 'led_get', 'led_set', 'tcp_get', 'tcp_set', 'boot_get', 'cpu_get', 'cpu_set', 'cpu_tune', 'cpu_voltage_get', 'cpu_voltage_set', 'forward_get',
-               'forward_set', 'forward_test',
-               'forward_log_clear', 'traffic_get', 'traffic_set', 'packages_get', 'packages_act', 'sim_get', 'sim_set', 'simcard_get', 'simcard_set',
-               'update_get', 'update_job', 'update_act', 'backup_export', 'backup_import', 'backup_job'}
+               'cpu_get', 'cpu_set', 'traffic_get', 'traffic_set', 'sim_get', 'sim_set', 'simcard_get', 'simcard_set',
+               'update_get', 'update_job', 'update_act'}
 
     def test_list_declares_every_method(self):
         for shell in self.each_shell():
@@ -288,8 +285,7 @@ class Inventory(Mu300Dash):
     def test_the_changed_scripts_parse(self):
         for shell in self.each_shell():
             for p in [DASH, LIB] + [ADAPTERS / n for n in ('action', 'at', 'boot-replay', 'cell', 'dashboard-info',
-                                                         'device-usb', 'lock', 'languages', 'power', 'ttl', 'led',
-                                                         'tcp', 'boot', 'cpu', 'forward', 'traffic', 'packages', 'update')]:
+                                                         'device-usb', 'lock', 'cpu', 'traffic', 'update')]:
                 with self.subTest(p=p.name):
                     r = subprocess.run(shell + ['-n', str(p)], capture_output=True, text=True)
                     self.assertEqual(r.returncode, 0, r.stderr)
@@ -305,9 +301,6 @@ class Refusals(Mu300Dash):
         ('act', {'op': 'data', 'arg': 'up'}, 'arg', 'up'),
         ('act', {'op': 'wifi', 'arg': 'off'}, 'arg', 'off'),
         ('act', {'op': 'roaming', 'arg': 'off'}, 'arg', 'off'),
-        ('act', {'op': 'vpn', 'arg': 'start'}, 'arg', 'start'),
-        ('act', {'op': 'os', 'arg': 'android'}, 'arg', 'android'),
-        ('act', {'op': 'os', 'arg': 'lock'}, 'arg', 'lock'),
         ('act', {'op': 'reboot'}, 'arg', ''),
         ('act', {'op': 'poweroff'}, 'arg', ''),
         ('act', {'op': 'modem-reset'}, 'arg', ''),
@@ -333,21 +326,8 @@ class Refusals(Mu300Dash):
         ('sms_delete', {'id': '3'}, 'id', '3'),
         ('sms_delete', {'id': '3'}, 'sim', '1'),
         ('usb_set', {'kind': 'role', 'value': 'host', 'scope': '', 'auto': '0'}, 'kind', 'role'),
-        ('lang_set', {'op': 'enable', 'codes': 'de'}, 'op', 'enable'),
-        ('power_set', {'op': 'set', 'key': 'battery.WIFI_IDLE', 'value': '15'}, 'op', 'set'),
-        ('power_set', {'op': 'set', 'key': 'battery.WIFI_IDLE', 'value': '15'}, 'key', 'battery.WIFI_IDLE'),
-        ('power_set', {'op': 'set', 'key': 'battery.WIFI_IDLE', 'value': '15'}, 'value', '15'),
-        ('power_set', {'op': 'set', 'key': 'RESUME_AT', 'value': '60'}, 'key', 'RESUME_AT'),
-        ('power_set', {'op': 'set', 'key': 'CHARGE_PAUSE', 'value': '1'}, 'key', 'CHARGE_PAUSE'),
-        ('power_set', {'op': 'set', 'key': 'FULL_ONCE', 'value': '1'}, 'key', 'FULL_ONCE'),
-        ('power_set', {'op': 'wake'}, 'key', ''),
-        ('power_set', {'op': 'wake'}, 'value', ''),
         ('sim_set', {'op':'switch','value':'1'}, 'op','switch'),
         ('sim_set', {'op':'switch','value':'1'}, 'value','1'),
-        ('lang_set', {'op': 'enable', 'codes': 'de'}, 'codes', 'de'),
-        ('lang_set', {'op': 'disable', 'codes': 'de pt_br'}, 'codes', 'de pt_br'),
-        ('lang_set', {'op': 'use', 'codes': 'en'}, 'codes', 'en'),
-        ('lang_set', {'op': 'install', 'source': 'file'}, 'source', 'file'),
         ('usb_set', {'kind': 'role', 'value': 'host', 'scope': '', 'auto': '0'}, 'value', 'host'),
         ('usb_set', {'kind': 'role', 'value': 'host', 'scope': '', 'auto': '0'}, 'auto', '0'),
         ('usb_set', {'kind': 'role', 'value': 'host', 'scope': '', 'auto': '0'}, 'scope', ''),
@@ -355,18 +335,6 @@ class Refusals(Mu300Dash):
         ('usb_set', {'kind': 'net', 'value': 'ncm', 'scope': 'once', 'auto': '1'}, 'scope', 'once'),
         ('usb_set', {'kind': 'net', 'value': 'ncm', 'scope': 'once', 'auto': '1'}, 'auto', '1'),
         ('usb_net_add', {}, 'iface', 'eth1'),
-        ('ttl_set', {}, 'value', '64'),
-        ('ttl_set', {}, 'value', 'off'),
-        ('led_set', {'key': 'network', 'value': '0'}, 'key', 'network'),
-        ('led_set', {'key': 'network', 'value': '0'}, 'value', '0'),
-        ('led_set', {'key': 'wifi_brightness', 'value': '40'}, 'value', '40'),
-        ('led_set', {'key': 'timeout', 'value': 'default'}, 'value', 'default'),
-        ('led_set', {'key': 'thermal', 'value': 'blink'}, 'value', 'blink'),
-        ('tcp_set', {}, 'value', 'bbr'),
-        ('tcp_set', {}, 'value', 'default'),
-        ('packages_act', {}, 'op', 'retry'),
-        ('packages_act', {}, 'op', 'repair_dns'),
-        ('packages_act', {}, 'op', 'dismiss'),
         # the Update page: every parameter is a fixed word, a release tag, a size or a SHA-256
         ('update_get', {}, 'sizes', '1'),
         ('update_act', {'op': 'check'}, 'op', 'check'),
@@ -393,15 +361,7 @@ class Refusals(Mu300Dash):
         ('traffic_set', {'op': 'daily_cut', 'value': 'on'}, 'value', 'on'),
         ('traffic_set', {'op': 'count', 'value': 'rx'}, 'value', 'rx'),
         # the CPU voltage offset (EXPERIMENTAL): three signed numbers, the confirmation word, the minutes
-        ('cpu_voltage_set', {'op': 'set', 'offsets': '-3125,0,0', 'confirm': 'EXPERIMENTAL'}, 'op', 'set'),
-        ('cpu_voltage_set', {'op': 'set', 'offsets': '-3125,0,0', 'confirm': 'EXPERIMENTAL'}, 'offsets', '-3125,0,0'),
-        ('cpu_voltage_set', {'op': 'set', 'offsets': '-3125,0,0', 'confirm': 'EXPERIMENTAL'}, 'confirm', 'EXPERIMENTAL'),
-        ('cpu_voltage_set', {'op': 'stress', 'minutes': '10'}, 'minutes', '10'),
-        ('cpu_voltage_set', {'op': 'off'}, 'op', 'off'),
         # a core and CPU0's low latency (FINDINGS 200)
-        ('cpu_tune', {'op': 'core', 'cpu': '7', 'state': 'off'}, 'cpu', '7'),
-        ('cpu_tune', {'op': 'core', 'cpu': '7', 'state': 'off'}, 'state', 'off'),
-        ('cpu_tune', {'op': 'lowlatency', 'state': 'on'}, 'state', 'on'),
     ]
 
     def test_hostile_values_are_refused(self):
@@ -714,12 +674,8 @@ class Passthrough(Mu300Dash):
         ('act', {'op': 'radio', 'arg': 'on'}, [['setsid', 'action', 'radio', 'on']]),
         ('act', {'op': 'reboot', 'arg': None}, [['setsid', 'action', 'reboot', '']]),
         ('act', {'op': 'poweroff', 'arg': None}, [['setsid', 'action', 'poweroff', '']]),
-        ('act', {'op': 'vpn', 'arg': 'stop'}, [['setsid', 'action', 'vpn', 'stop']]),
         ('act', {'op': 'wifi', 'arg': 'off'}, [['action', 'wifi', 'off']]),
         ('act', {'op': 'roaming', 'arg': 'on'}, [['action', 'roaming', 'on']]),
-        ('act', {'op': 'os', 'arg': 'android'}, [['action', 'os', 'android']]),
-        ('act', {'op': 'os', 'arg': 'lock'}, [['action', 'os', 'lock']]),
-        ('act', {'op': 'os', 'arg': 'unlock'}, [['action', 'os', 'unlock']]),
         # no cache yet: a reading in the background, then the cache (never the modem inside the request)
         ('lock_get', {}, [['setsid', 'lock', 'refresh'], ['lock', 'get', 'cached']]),
         ('lock_get', {'fresh': '1'}, [['setsid', 'lock', 'refresh'], ['lock', 'get', 'cached']]),
@@ -749,32 +705,8 @@ class Passthrough(Mu300Dash):
         ('usb_net_list', {}, [['device-usb', 'net-list']]),
         ('usb_net_add', {'iface': 'eth1'}, [['device-usb', 'net-add', 'eth1']]),
         ('usb_net_add', {'iface': 'enx00e04c680001'}, [['device-usb', 'net-add', 'enx00e04c680001']]),
-        ('lang_get', {}, [['languages', 'get']]),
-        ('lang_set', {'op': 'enable', 'codes': 'de pt_br'}, [['languages', 'enable', 'de', 'pt_br']]),
-        ('lang_set', {'op': 'disable', 'codes': 'all'}, [['languages', 'disable', 'all']]),
-        ('lang_set', {'op': 'use', 'codes': 'auto'}, [['languages', 'use', 'auto']]),
-        ('lang_set', {'op': 'use', 'codes': 'zh_cn'}, [['languages', 'use', 'zh_cn']]),
-        ('lang_set', {'op': 'install', 'source': 'release'}, [['languages', 'install', 'release']]),
-        ('lang_set', {'op': 'install', 'source': 'file'}, [['languages', 'install', 'file']]),
-        ('lang_set', {'op': 'remove'}, [['languages', 'remove']]),
-        ('power_get', {}, [['power', 'get']]),
-        ('power_set', {'op': 'set', 'key': 'battery.WIFI_IDLE', 'value': '15'}, [['power', 'set', 'battery.WIFI_IDLE', '15']]),
-        ('power_set', {'op': 'set', 'key': 'PROFILE', 'value': 'saver'}, [['power', 'set', 'PROFILE', 'saver']]),
-        ('power_set', {'op': 'wake'}, [['power', 'wake']]),
-        ('power_set', {'op': 'idle'}, [['power', 'idle']]),
-        ('ttl_get', {}, [['ttl', 'get']]),
-        ('tcp_get', {}, [['tcp', 'get']]),
-        ('boot_get', {}, [['boot', 'get']]),
-        ('cpu_voltage_get', {}, [['cpu', 'voltage-get']]),
         ('cpu_voltage_set', {'op': 'set', 'offsets': '-6250,-3125,0', 'confirm': 'EXPERIMENTAL'},
          [['cpu', 'voltage-set', 'set', '-6250,-3125,0', 'EXPERIMENTAL']]),
-        ('cpu_voltage_set', {'op': 'set', 'offsets': '0,0,0'}, [['cpu', 'voltage-set', 'off']]),
-        ('cpu_voltage_set', {'op': 'off'}, [['cpu', 'voltage-set', 'off']]),
-        ('cpu_voltage_set', {'op': 'stress', 'minutes': '120'}, [['cpu', 'voltage-set', 'stress', '120']]),
-        ('packages_get', {}, [['packages', 'get']]),
-        ('packages_act', {'op': 'retry'}, [['packages', 'act', 'retry']]),
-        ('packages_act', {'op': 'repair_dns'}, [['packages', 'act', 'repair_dns']]),
-        ('packages_act', {'op': 'dismiss'}, [['packages', 'act', 'dismiss']]),
         # the Update page: always the same eight arguments, in the same places (an empty one stays an argument)
         ('update_get', {}, [['update', 'get']]),
         ('update_get', {'sizes': '1'}, [['update', 'get', '1']]),
@@ -807,20 +739,6 @@ class Passthrough(Mu300Dash):
         ('sim_get', {}, [['sim', 'status', '--json']]),
         ('sim_set', {'op':'default','value':'2'}, [['sim','default','2']]),
         ('sim_set', {'op':'hot','value':'1'}, [['sim','hot','1']]),
-        ('ttl_set', {'value': '64'}, [['ttl', 'set', '64']]),
-        ('ttl_set', {'value': 128}, [['ttl', 'set', '128']]),
-        ('ttl_set', {'value': '255'}, [['ttl', 'set', '255']]),
-        ('ttl_set', {'value': '1'}, [['ttl', 'set', '1']]),
-        ('ttl_set', {'value': 'off'}, [['ttl', 'set', 'off']]),
-        ('led_get', {}, [['led', 'get']]),
-        ('led_set', {'key': 'battery', 'value': '0'}, [['led', 'set', 'battery', '0']]),
-        ('led_set', {'key': 'wifi_brightness', 'value': 1}, [['led', 'set', 'wifi_brightness', '1']]),
-        ('led_set', {'key': 'timeout', 'value': '86400'}, [['led', 'set', 'timeout', '86400']]),
-        ('led_set', {'key': 'timeout', 'value': 'default'}, [['led', 'set', 'timeout', 'default']]),
-        ('led_set', {'key': 'thermal', 'value': 'siren'}, [['led', 'set', 'thermal', 'siren']]),
-        ('tcp_set', {'value': 'bbr'}, [['tcp', 'set', 'bbr']]),
-        ('tcp_set', {'value': 'cubic'}, [['tcp', 'set', 'cubic']]),
-        ('tcp_set', {'value': 'default'}, [['tcp', 'set', 'default']]),
         ('traffic_get', {}, [['traffic', 'get']]),
         ('traffic_set', {'op': 'reset_day', 'value': '31'}, [['traffic', 'set', 'reset_day', '31']]),
         ('traffic_set', {'op': 'cap', 'value': '0'}, [['traffic', 'set', 'cap', '0']]),
@@ -834,12 +752,7 @@ class Passthrough(Mu300Dash):
         ('traffic_set', {'op': 'count', 'value': 'tx'}, [['traffic', 'set', 'count', 'tx']]),
         ('traffic_set', {'op': 'plan', 'value': 'Gece 50GB "x" $(id) \u6708'}, [['traffic', 'set', 'plan', 'Gece 50GB "x" $(id) \u6708']]),
         ('traffic_set', {'op': 'plan', 'value': ''}, [['traffic', 'set', 'plan', '']]),
-        ('forward_get', {}, [['forward', 'get']]),
-        ('forward_set', {'enabled': '1', 'telegram_token': 'x'}, [['forward', 'set']]),
-        ('forward_test', {}, [['forward', 'test']]),
-        ('forward_log_clear', {}, [['forward', 'logclear']]),
         # it takes nothing: what a caller adds never becomes an argument
-        ('forward_log_clear', {'path': '/etc/passwd', 'op': 'x;id'}, [['forward', 'logclear']]),
     ]
 
     def test_valid_values_reach_the_adapter(self):
@@ -888,17 +801,6 @@ class Passthrough(Mu300Dash):
             self.assertEqual(recs, [['sms', 'send', '--stdin', '123']])
             self.assertEqual(json.loads(stdins[0]), {'a': '$(id)'})
 
-    def test_forwarding_secrets_go_on_stdin(self):
-        # the settings carry a bot token and a password: the adapter gets the request on stdin, never in an argument
-        req = {'enabled': '1', 'telegram_token': '123456789:AAHsecretTokenValue_0123456789',
-               'email_password': "pa$(reboot)'ss", 'template': '{text}\n-- {sender}'}
-        for shell in self.each_shell():
-            r, recs, stdins = self.call(shell, 'forward_set', req)
-            self.assertEqual(self.reply(r)['ok'], 1, r.stdout)
-            self.assertEqual(recs, [['forward', 'set']])
-            self.assertEqual(json.loads(stdins[0]), req)
-
-
 NASTY = 'he said "hi" \\ back\\slash\nnew line\ttab\rcr \x01 \x1f end'
 NASTY_JSON = json.dumps({'ok': 1, 'op': NASTY, 'name': NASTY, 'nested': {'k': [NASTY]}}, ensure_ascii=False)
 
@@ -913,9 +815,6 @@ class Replies(Mu300Dash):
         ('sms_show', {'id': '1'}), ('sms_send', {'num': '123', 'text': 'x'}), ('sms_delete', {'id': '1'}),
         ('sms_sync', {}), ('usb_get', {}), ('usb_set', {'kind': 'role', 'value': 'device', 'auto': '0'}),
         ('usb_net_list', {}), ('usb_net_add', {'iface': 'eth1'}), ('ttl_get', {}), ('ttl_set', {'value': '64'}),
-        ('tcp_get', {}), ('tcp_set', {'value': 'bbr'}), ('boot_get', {}),
-        ('forward_get', {}), ('forward_set', {'enabled': '0'}), ('forward_test', {}),
-        ('forward_log_clear', {}), ('packages_get', {}), ('packages_act', {'op': 'dismiss'}),
         ('update_get', {}), ('update_job', {}), ('update_act', {'op': 'check'}),
     ]
     OUTPUTS = {
@@ -1051,324 +950,6 @@ class Adapters(Mu300Dash):
                 self.assertEqual(r.returncode, 2, r.stderr)
 
 
-class LanguagesAdapter(ShellTest):
-    """unisoc-modem/languages: what the Languages page gets and starts, through a stub mu300-extra and uci"""
-
-    def setUp(self):
-        super().setUp()
-        self.disk = self.tmp / 'disk'
-        self.job = self.tmp / 'job'
-        self.job.mkdir(mode=0o700)
-        self.upload = self.tmp / 'upload.tar.gz'
-        # mu300-extra: records its arguments and MU300_EXTRA_FILE (and what that file holds), prints a list
-        self.stub('mu300-extra', 'printf "%s|" "$@" >> "$STUBLOG/extra.log"; '
-                                 'printf "file=%s\\n" "${MU300_EXTRA_FILE:-}" >> "$STUBLOG/extra.log"; '
-                                 '[ -z "${MU300_EXTRA_FILE:-}" ] || cat "$MU300_EXTRA_FILE" >> "$STUBLOG/extra.log"; '
-                                 'case "$1 ${2:-}" in "lang list"|"lang ") '
-                                 'printf "de\\tenabled\\tDeutsch (German)\\nja\\tdisabled\\tA \\"q\\" \\\\\\\\ b\\n" ;; esac')
-        self.stub('setsid', '"$@"')
-        self.uci = {'luci.main.lang': 'en', 'luci.languages.tr': 'T\u00fcrk\u00e7e (Turkish)', 'luci.languages.de': 'Deutsch (German)'}
-        lines = ''.join(f"{k}) printf '%s\\n' '{v}' ;; " for k, v in self.uci.items())
-        show = ''.join(f"printf \"%s='%s'\\n\" '{k}' '{v}'; " for k, v in self.uci.items() if k.startswith('luci.languages.'))
-        self.stub('uci', 'echo "$*" >> "$STUBLOG/uci.log"; a=; for x; do [ "$x" = -q ] || a="$a $x"; done; set -- $a; '
-                         f'case $1 in get) case $2 in {lines} *) exit 1 ;; esac ;; '
-                         f'show) printf "luci.languages=internal\\n"; {show} ;; esac; exit 0')
-
-    def run_ad(self, shell, *args):
-        r = self.script(shell, ADAPTERS / 'languages', *args, MU300_EXTRA_CMD=self.stubs / 'mu300-extra',
-                        MU300_DISK=self.disk, MU300_LANG_UPLOAD=self.upload, MU300_LANG_JOB_DIR=self.job)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        return json.loads(r.stdout)
-
-    def wait_job(self):
-        deadline = time.monotonic() + 10
-        while time.monotonic() < deadline and (self.job / 'lang-job.state').read_text().strip() == 'running':
-            time.sleep(0.05)
-        time.sleep(0.1)
-
-    def log(self):
-        p = self.tmp / 'extra.log'
-        t = p.read_text() if p.exists() else ''
-        p.unlink(missing_ok=True)
-        return t
-
-    def test_get_reports_and_escapes(self):
-        for shell in self.each_shell():
-            r = self.run_ad(shell, 'get')
-            self.assertEqual(r['extra']['installed'], 0)
-            self.assertEqual(r['current'], 'en')
-            self.assertEqual(sorted(l['code'] for l in r['luci']), ['de', 'tr'])
-            (self.disk / 'extra/lang/i18n').mkdir(parents=True, exist_ok=True)
-            (self.disk / 'extra/lang/i18n/mu300.de.lmo').write_text('x')
-            (self.disk / 'extra/lang/release').write_text('v1\n')
-            r = self.run_ad(shell, 'get')
-            self.assertEqual(r['extra'], {'installed': 1, 'release': 'v1', 'languages': [
-                {'code': 'de', 'name': 'Deutsch (German)', 'enabled': 1, 'panel': 1},
-                {'code': 'ja', 'name': 'A "q" \\ b', 'enabled': 0, 'panel': 0}]}, shell)
-            shutil.rmtree(self.disk)
-
-    def test_switch_and_use_check_again(self):
-        (self.disk / 'extra/lang/i18n').mkdir(parents=True)
-        for shell in self.each_shell():
-            self.assertEqual(self.run_ad(shell, 'enable', 'de', 'ja'), {'ok': 1})
-            self.assertEqual(self.log(), 'lang|enable|de|ja|file=\n')
-            for bad in (('enable', 'de;x'), ('disable', '-rf'), ('enable',)):
-                self.assertEqual(self.run_ad(shell, *bad)['ok'], 0, bad)
-            self.assertEqual(self.log(), '')
-            self.assertEqual(self.run_ad(shell, 'use', 'de'), {'ok': 1})
-            self.assertEqual(self.run_ad(shell, 'use', 'auto'), {'ok': 1})
-            # only a language LuCI offers
-            self.assertEqual(self.run_ad(shell, 'use', 'fr')['ok'], 0)
-            self.assertEqual(self.run_ad(shell, 'use', 'de;x')['ok'], 0)
-            self.assertIn('set luci.main.lang=de', (self.tmp / 'uci.log').read_text())
-            self.assertNotIn('lang=fr', (self.tmp / 'uci.log').read_text())
-
-    def test_an_upload_is_moved_out_of_tmp_before_anything_reads_it(self):
-        for shell in self.each_shell():
-            self.upload.write_bytes(b'PACK')
-            r = self.run_ad(shell, 'install', 'file')
-            self.assertEqual(r, {'ok': 1, 'started': 1})
-            self.assertFalse(self.upload.exists(), 'the upload is moved away')
-            self.wait_job()
-            # mu300-extra got the private copy, which is gone after the job
-            log = self.log()
-            self.assertEqual(log, f'install|lang|file={self.job}/lang-upload.tar.gz\nPACK', shell)
-            self.assertFalse((self.job / 'lang-upload.tar.gz').exists())
-            self.assertEqual(self.run_ad(shell, 'get')['job']['state'], 'done')
-            # a link planted at the upload path is not followed
-            secret = self.tmp / 'secret'
-            secret.write_text('root:x')
-            os.symlink(secret, self.upload)
-            r = self.run_ad(shell, 'install', 'file')
-            self.assertEqual(r['ok'], 0)
-            self.assertEqual(self.log(), '')
-            self.upload.unlink()
-            self.assertEqual(self.run_ad(shell, 'install', 'file')['ok'], 0)   # nothing uploaded
-            self.assertEqual(self.run_ad(shell, 'install', '/etc/shadow')['ok'], 0)
-            self.assertEqual(self.run_ad(shell, 'install', 'release'), {'ok': 1, 'started': 1})
-            self.wait_job()
-            self.assertEqual(self.log(), 'install|lang|file=\n')
-            # a job that died without saying how it ended (killed, a reboot) is a failed one, not one running forever
-            (self.job / 'lang-job.state').write_text('running\n')
-            (self.job / 'lang-job.pid').write_text('999999\n')
-            self.assertEqual(self.run_ad(shell, 'get')['job']['state'], 'failed')
-            (self.job / 'lang-job.pid').unlink()
-
-
-class TtlAdapter(ShellTest):
-    """unisoc-modem/ttl: mu300-ttl's state as JSON for the TTL page, and set/off with the value checked again"""
-
-    def setUp(self):
-        super().setUp()
-        self.state = self.tmp / 'state'
-        self.state.write_text('TTL=64\nBACKEND=tc\nIFACES=sipa_eth0 sipa_eth1\nOFFLOAD=1\n')
-        # mu300-ttl: records its arguments; "state" prints $STUBLOG/state; set fails with $STUBLOG/fail's text
-        self.stub('mu300-ttl', 'echo "$*" >> "$STUBLOG/ttl.log"\n'
-                               'case $1 in state) cat "$STUBLOG/state" ;;\n'
-                               '  *) echo "TTL: something"; [ -e "$STUBLOG/fail" ] && { cat "$STUBLOG/fail" >&2; exit 1; } ;; esac\n'
-                               'exit 0')
-
-    def run_ad(self, shell, *args):
-        r = self.script(shell, ADAPTERS / 'ttl', *args, MU300_TTL_CMD=self.stubs / 'mu300-ttl')
-        self.assertEqual(r.returncode, 0, r.stderr)
-        return json.loads(r.stdout)
-
-    def log(self):
-        p = self.tmp / 'ttl.log'
-        t = p.read_text() if p.exists() else ''
-        p.unlink(missing_ok=True)
-        return t
-
-    def test_get(self):
-        for shell in self.each_shell():
-            self.state.write_text('TTL=64\nBACKEND=tc\nIFACES=sipa_eth0 sipa_eth1\nOFFLOAD=1\n')
-            self.assertEqual(self.run_ad(shell, 'get'), {'ok': 1, 'enabled': 1, 'value': 64, 'backend': 'tc',
-                                                         'offload': 1, 'iface': ['sipa_eth0', 'sipa_eth1']})
-            self.state.write_text('TTL=128\nBACKEND=nft\nIFACES=\nOFFLOAD=0\n')
-            self.assertEqual(self.run_ad(shell, 'get'), {'ok': 1, 'enabled': 1, 'value': 128, 'backend': 'nft',
-                                                         'offload': 0, 'iface': []})
-            # off, Ubuntu (no fw4), and whatever odd text: still JSON, nothing odd passed on
-            self.state.write_text('TTL=\nBACKEND=none\nIFACES=\nOFFLOAD=\n')
-            self.assertEqual(self.run_ad(shell, 'get'), {'ok': 1, 'enabled': 0, 'value': None, 'backend': 'none',
-                                                         'offload': None, 'iface': []})
-            self.state.write_text('TTL=6"4\nBACKEND=x"y\nIFACES=sipa_eth0 a"b\\c\nOFFLOAD=1"\n')
-            self.assertEqual(self.run_ad(shell, 'get'), {'ok': 1, 'enabled': 0, 'value': None, 'backend': 'none',
-                                                         'offload': None, 'iface': ['sipa_eth0']})
-
-    def test_set_and_off(self):
-        for shell in self.each_shell():
-            self.log()
-            for v in ('1', '64', '65', '128', '255'):
-                self.assertEqual(self.run_ad(shell, 'set', v), {'ok': 1}, v)
-                self.assertEqual(self.log(), f'set {v}\n')
-            self.assertEqual(self.run_ad(shell, 'set', 'off'), {'ok': 1})
-            self.assertEqual(self.log(), 'off\n')
-
-    def test_bad_values_run_nothing(self):
-        for shell in self.each_shell():
-            self.log()
-            for v in ('0', '256', '1000', '064', '-1', '', 'abc', '6 4', '64;reboot', '$(id)', '--help', 'OFF'):
-                with self.subTest(v=v):
-                    r = self.run_ad(shell, 'set', v)
-                    self.assertEqual(r, {'ok': 0, 'error': 'Invalid TTL'})
-                    self.assertEqual(self.log(), '')
-            self.assertEqual(self.run_ad(shell, 'rm')['ok'], 0)
-            self.assertEqual(self.log(), '')
-
-    def test_a_failure_says_why(self):
-        (self.tmp / 'fail').write_text('first\nthe rule could not be set "x" \\ (tc and nftables)\n')
-        for shell in self.each_shell():
-            r = self.run_ad(shell, 'set', '64')
-            self.assertEqual(r, {'ok': 0, 'error': 'The TTL could not be set',
-                                 'detail': 'the rule could not be set "x" \\ (tc and nftables)'})
-
-
-class TcpAdapter(ShellTest):
-    """unisoc-modem/tcp: mu300-tcp's state as JSON for the Device page's card, and set with the value checked again"""
-
-    def setUp(self):
-        super().setUp()
-        self.state = self.tmp / 'state'
-        self.stub('mu300-tcp', 'echo "$*" >> "$STUBLOG/tcp.log"\n'
-                               'case $1 in state) cat "$STUBLOG/state" ;;\n'
-                               '  *) [ -e "$STUBLOG/fail" ] && { cat "$STUBLOG/fail" >&2; exit 1; } ;; esac\n'
-                               'exit 0')
-
-    def run_ad(self, shell, *args):
-        r = self.script(shell, ADAPTERS / 'tcp', *args, MU300_TCP_CMD=self.stubs / 'mu300-tcp')
-        self.assertEqual(r.returncode, 0, r.stderr)
-        return json.loads(r.stdout)
-
-    def log(self):
-        p = self.tmp / 'tcp.log'
-        t = p.read_text() if p.exists() else ''
-        p.unlink(missing_ok=True)
-        return t
-
-    def test_get(self):
-        for shell in self.each_shell():
-            self.state.write_text('SAVED=bbr\nCURRENT=bbr\nQDISC=fq\nOFFERED=cubic bbr\nSUPPORTED=1\nDEFAULT=cubic\n')
-            self.assertEqual(self.run_ad(shell, 'get'), {'ok': 1, 'supported': 1, 'saved': 'bbr', 'current': 'bbr',
-                                                         'qdisc': 'fq', 'default': 'cubic', 'offered': ['cubic', 'bbr']})
-            # the 5.4 kernel (no BBR); nothing saved; odd words not passed on
-            self.state.write_text('SAVED=\nCURRENT=cu"bic\nQDISC=pfifo_fast\nOFFERED=cubic reno\nSUPPORTED=0\nDEFAULT=\n')
-            self.assertEqual(self.run_ad(shell, 'get'), {'ok': 1, 'supported': 0, 'saved': 'default', 'current': '',
-                                                         'qdisc': 'pfifo_fast', 'default': None, 'offered': ['cubic']})
-
-    def test_set_and_bad_values(self):
-        for shell in self.each_shell():
-            self.log()
-            for v in ('default', 'cubic', 'bbr'):
-                self.assertEqual(self.run_ad(shell, 'set', v), {'ok': 1}, v)
-                self.assertEqual(self.log(), f'set {v}\n')
-            for v in ('', 'reno', 'BBR', '-x', 'bbr;reboot', '$(id)'):
-                with self.subTest(v=v):
-                    self.assertEqual(self.run_ad(shell, 'set', v), {'ok': 0, 'error': 'Invalid congestion control'})
-                    self.assertEqual(self.log(), '')
-            (self.tmp / 'fail').write_text('this kernel has no bbr congestion control\n')
-            self.assertEqual(self.run_ad(shell, 'set', 'bbr'), {'ok': 0, 'error': 'The kernel did not accept the network settings',
-                                                                'detail': 'this kernel has no bbr congestion control'})
-            (self.tmp / 'fail').unlink()
-
-
-class BootAdapter(ShellTest):
-    """unisoc-modem/boot: mu300-next-boot status as the dashboard's boot card (read only)"""
-
-    def run_ad(self, shell, status):
-        (self.tmp / 'status').write_text(status)
-        self.stub('mu300-next-boot', '[ "$1" = status ] || { echo "$*" >> "$STUBLOG/nb.log"; exit 1; }; cat "$STUBLOG/status"')
-        r = self.script(shell, ADAPTERS / 'boot', 'get', MU300_NEXT_BOOT=self.stubs / 'mu300-next-boot')
-        self.assertEqual(r.returncode, 0, r.stderr)
-        return json.loads(r.stdout)
-
-    def test_states(self):
-        for shell in self.each_shell():
-            self.assertEqual(self.run_ad(shell, 'default boot: linux\nlocked: yes (Android only by hand)\n'
-                                                'failed boots in a row before Android: 5 (only while ...)\n'
-                                                'boot control: writable\nmisc bootloader_control: 00\n'),
-                             {'ok': 1, 'available': 1, 'default': 'linux', 'temporary': False, 'locked': 1, 'attempts': 5,
-                              'writable': 1})
-            self.assertEqual(self.run_ad(shell, 'default boot: android\nlocked: no\n'
-                                                'failed boots in a row before Android: 3\nboot control: not writable\n'),
-                             {'ok': 1, 'available': 1, 'default': 'android', 'temporary': True, 'locked': 0, 'attempts': 3,
-                              'writable': 0})
-            self.assertEqual(self.run_ad(shell, 'default boot: "x\n'),
-                             {'ok': 1, 'available': 1, 'default': 'unknown', 'temporary': None, 'locked': 0,
-                              'attempts': None, 'writable': 0})
-            self.assertFalse((self.tmp / 'nb.log').exists())   # nothing but status
-
-    def test_without_dual_boot(self):
-        for shell in self.each_shell():
-            r = self.script(shell, ADAPTERS / 'boot', 'get', MU300_NEXT_BOOT=self.tmp / 'none')
-            self.assertEqual(json.loads(r.stdout), {'ok': 1, 'available': 0})
-            r = self.script(shell, ADAPTERS / 'boot', 'set', MU300_NEXT_BOOT=self.tmp / 'none')
-            self.assertEqual(json.loads(r.stdout)['ok'], 0)
-
-
-class LedAdapter(ShellTest):
-    """unisoc-modem/led: mu300-led's settings as JSON for the LED page, and one setting at a time, checked again"""
-
-    def setUp(self):
-        super().setUp()
-        self.settings = self.tmp / 'settings'
-        self.settings.write_text('{"device":"u30air","lamps":["network","wifi","battery"],"dimmable":["battery"],'
-                                 '"timeout":60,"network":true,"battery_brightness":100,"thermal":"siren"}\n')
-        self.stub('mu300-led', 'echo "$*" >> "$STUBLOG/led.log"\n'
-                               'case $1 in settings) cat "$STUBLOG/settings" ;;\n'
-                               '  *) [ -e "$STUBLOG/fail" ] && { cat "$STUBLOG/fail" >&2; exit 2; } ;; esac\n'
-                               'exit 0')
-
-    def run_ad(self, shell, *args):
-        r = self.script(shell, ADAPTERS / 'led', *args, MU300_LED_CMD=self.stubs / 'mu300-led')
-        self.assertEqual(r.returncode, 0, r.stderr)
-        return json.loads(r.stdout)
-
-    def log(self):
-        p = self.tmp / 'led.log'
-        t = p.read_text() if p.exists() else ''
-        p.unlink(missing_ok=True)
-        return t
-
-    def test_get(self):
-        good = self.settings.read_text()
-        for shell in self.each_shell():
-            self.settings.write_text(good)
-            o = self.run_ad(shell, 'get')
-            self.assertEqual((o['ok'], o['device'], o['lamps'], o['dimmable'], o['timeout']),
-                             (1, 'u30air', ['network', 'wifi', 'battery'], ['battery'], 60))
-            self.settings.write_text('mu300-led: not JSON\n')
-            self.assertEqual(self.run_ad(shell, 'get'), {'ok': 0, 'error': 'The LED settings could not be read'})
-
-    def test_set(self):
-        for shell in self.each_shell():
-            self.log()
-            for k, v in (('network', '0'), ('wifi', '1'), ('battery_brightness', '1'), ('network_brightness', '100'),
-                         ('timeout', '0'), ('timeout', '86400'), ('timeout', 'default'), ('boot', '1'),
-                         ('thermal', 'off')):
-                self.assertEqual(self.run_ad(shell, 'set', k, v), {'ok': 1}, (k, v))
-                self.assertEqual(self.log(), f'set {k} {v}\n')
-
-    def test_bad_values_run_nothing(self):
-        for shell in self.each_shell():
-            self.log()
-            for k, v in (('network', '2'), ('wifi', ''), ('battery_brightness', '0'), ('wifi_brightness', '101'),
-                         ('timeout', '86401'), ('timeout', '060'), ('timeout', '-1'), ('boot', 'on'),
-                         ('thermal', 'siren;reboot'), ('network', '$(id)'), ('colour', '1'), ('', ''), ('--help', '1')):
-                with self.subTest(k=k, v=v):
-                    r = self.run_ad(shell, 'set', k, v)
-                    self.assertEqual(r['ok'], 0)
-                    self.assertEqual(self.log(), '')
-            self.assertEqual(self.run_ad(shell, 'rm')['ok'], 0)
-            self.assertEqual(self.log(), '')
-
-    def test_a_failure_says_why(self):
-        (self.tmp / 'fail').write_text('mu300-led set: could not write "/etc/mu300/led.conf"\n')
-        for shell in self.each_shell():
-            self.assertEqual(self.run_ad(shell, 'set', 'boot', '1'),
-                             {'ok': 0, 'error': 'The LED setting could not be saved',
-                              'detail': 'mu300-led set: could not write "/etc/mu300/led.conf"'})
-
-
 class TrafficAdapter(ShellTest):
     """unisoc-modem/traffic: the Data usage page's adapter over mu300-traffic (a stub that records its arguments)."""
 
@@ -1423,43 +1004,12 @@ class TrafficAdapter(ShellTest):
                              {'ok': 0, 'error': 'Data usage is not available on this system'})
 
 
-class Backup(Mu300Dash):
-    """System > Backup of settings (FINDINGS 155): the request goes on to mu300-api as it came; the reply (the file, or
-    what a restore changes) is never kept in the call log."""
-
-    def test_passed_to_the_api_and_never_logged(self):
-        api = self.tmp / 'api'
-        api.write_text('#!/bin/sh\necho "$1" >> "$STUBLOG/api.args"; cat > "$STUBLOG/api.in"\n'
-                       'printf \'{"ok":1,"name":"b.json","encrypted":false,"file":"wifi secret hotspotsecret1"}\\n\'\n')
-        api.chmod(0o755)
-        for shell in self.each_shell():
-            (self.tmp / 'api.args').unlink(missing_ok=True)
-            r, calls, _ = self.call(shell, 'backup_export', {'passphrase': 'correct horse battery'}, MU300_DASH_API=api)
-            self.assertEqual(json.loads(r.stdout)['file'], 'wifi secret hotspotsecret1')
-            self.assertEqual(json.loads((self.tmp / 'api.in').read_text()), {'passphrase': 'correct horse battery'})
-            big = {'file': 'x' * 100000, 'dry_run': True}
-            r, _, _ = self.call(shell, 'backup_import', big, MU300_DASH_API=api)
-            self.assertEqual(json.loads(r.stdout)['ok'], 1)
-            self.assertEqual(json.loads((self.tmp / 'api.in').read_text()), big)
-            self.call(shell, 'backup_job', {}, MU300_DASH_API=api)
-            self.assertEqual((self.tmp / 'api.args').read_text().split(), ['backup.export', 'backup.import', 'job.status'])
-            for log in self.tmp.glob('run*/dash/*'):
-                if log.is_file():
-                    self.assertNotIn('hotspotsecret1', log.read_text(errors='replace'), log)
-                    self.assertNotIn('correct horse', log.read_text(errors='replace'), log)
-            # another method's request stays limited to 16 KiB
-            r, _, _ = self.call(shell, 'forward_set', {'template': 'x' * 20000}, MU300_DASH_API=api)
-            self.assertIn('Request too large', r.stdout)
-
-
 class Acl(unittest.TestCase):
     # SMS bodies (one-time codes) and the AT history (AT+CPIN PINs) are not for read-only users (ruling R14)
-    READ = {'sysinfo', 'status', 'signal', 'lock_get', 'lock_job', 'usb_get', 'usb_net_list', 'lang_get', 'power_get', 'ttl_get', 'led_get',
-            'tcp_get', 'boot_get', 'cpu_get', 'cpu_voltage_get', 'traffic_get', 'ops_log', 'packages_get', 'sim_get', 'simcard_get', 'update_get', 'update_job'}
+    READ = {'sysinfo', 'status', 'signal', 'lock_get', 'lock_job', 'usb_get', 'usb_net_list', 'cpu_get', 'traffic_get',
+            'sim_get', 'simcard_get', 'update_get', 'update_job'}
     WRITE = {'act', 'at', 'at_job', 'at_history', 'lock_set', 'sms_list', 'sms_show', 'sms_send', 'sms_job', 'sms_delete', 'sms_sync',
-             'usb_set', 'usb_net_add', 'lang_set', 'power_set', 'ttl_set', 'led_set', 'tcp_set', 'cpu_set', 'cpu_tune', 'cpu_voltage_set', 'forward_get',
-             'forward_set', 'forward_test', 'forward_log_clear', 'traffic_set', 'packages_act', 'sim_set', 'simcard_set',
-             'update_act', 'backup_export', 'backup_import', 'backup_job'}
+             'usb_set', 'usb_net_add', 'cpu_set', 'traffic_set', 'sim_set', 'simcard_set', 'update_act'}
 
     def test_actions_need_write_access(self):
         acl = json.loads(ACL.read_text())['luci-app-mu300']
@@ -1468,16 +1018,15 @@ class Acl(unittest.TestCase):
         self.assertEqual(read, self.READ)
         self.assertEqual(write, self.WRITE)
         self.assertEqual(read | write, Inventory.METHODS)
-        # the Languages page, the VPN pages and the Update page upload to fixed paths (a language pack; a VPN config
-        # and a VPN extra's tarball; a release file, which goes to the Linux partition, into a directory only root
-        # can enter), and only with write access; mu300vpn has its own read/write split (test_mu300vpn)
+        # only the Update page uploads, to one fixed path (a release file, which goes to the Linux partition, into a
+        # directory only root can enter), and only with write access
         self.assertEqual(acl['write'].get('cgi-io'), ['upload'])
-        self.assertEqual(acl['write'].get('file'), {'/tmp/mu300-extra-lang.tar.gz': ['write'],
-                                                    '/tmp/mu300-vpn-upload': ['write'],
-                                                    '/tmp/mu300-vpn-extra.tar.gz': ['write'],
-                                                    '/mnt/mu300-disk/.mu300-upload/update.zip': ['write']})
-        self.assertEqual(set(acl['read']['ubus']), {'mu300dash', 'mu300rates', 'mu300vpn'})
-        self.assertEqual(set(acl['write']['ubus']), {'mu300dash', 'mu300vpn'})
+        self.assertEqual(acl['write'].get('file'), {'/mnt/mu300-disk/.mu300-upload/update.zip': ['write']})
+        self.assertEqual(set(acl['read']['ubus']), {'mu300dash', 'mu300rates'})
+        self.assertEqual(set(acl['write']['ubus']), {'mu300dash'})
+        # the pages read the adapter settings; nothing in the browser may rewrite them (the AT port, the SMS command)
+        self.assertEqual(acl['read'].get('uci'), {'unisoc_modem': ['*']})
+        self.assertNotIn('uci', acl['write'])
         self.assertNotIn('cgi-io', acl['read'])
         # the dashboard's live rates come from one fixed method that takes no argument: no file read access at all
         # (a /proc/<pid> glob would have matched paths far beyond the interface counters)
@@ -2013,76 +1562,3 @@ if __name__ == '__main__':
     unittest.main()
 
 
-class PackagesAdapter(ShellTest):
-    """unisoc-modem/packages: the record of mu300-user-packages as JSON for the panel (hostile names and text from the
-    record never break it), retry and repair-dns started in the background, dismiss inline, anything else refused"""
-
-    def setUp(self):
-        super().setUp()
-        self.d = self.tmp / 'rec'
-        self.orph = self.tmp / 'orph'
-        (self.orph / 'etc/config').mkdir(parents=True)
-        (self.orph / 'etc/config/openclash').write_text('x')
-        (self.orph / 'etc/config/bad"name').write_text('x')
-        self.d.mkdir()
-        for f, t in {'wanted': 'luci-app-openclash\nnano\nbad"pkg\nddns-scripts\n', 'done': 'nano\n',
-                     'failed': 'luci-app-openclash ERROR: "quoted" \\ \x01 text\nbad"pkg x\n', 'state': 'failed\n',
-                     'from': 'v2026.10.12\n', 'dns-note': 'DNS goes to 127.0.0.1#7874 "x"\n'}.items():
-            (self.d / f).write_text(t)
-        self.stub('mu300-user-packages', 'echo "$*" >> "$STUBLOG/upk.log"; [ "$1" = brief ] && echo "1 of 3 \\"back\\""; exit 0')
-        self.stub('setsid', 'echo "setsid $*" >> "$STUBLOG/upk.log"')
-
-    def run_ad(self, shell, *args):
-        r = self.script(shell, ADAPTERS / 'packages', *args, MU300_UPK_CMD=self.stubs / 'mu300-user-packages',
-                        MU300_UPK_DIR=self.d, MU300_UPK_ORPH=self.orph, MU300_UPK_LOCK=self.tmp / 'lock')
-        self.assertEqual(r.returncode, 0, r.stderr)
-        return json.loads(r.stdout)
-
-    def log(self):
-        p = self.tmp / 'upk.log'
-        t = p.read_text() if p.exists() else ''
-        p.unlink(missing_ok=True)
-        return t
-
-    def test_get(self):
-        for shell in self.each_shell():
-            o = self.run_ad(shell, 'get')
-            self.assertEqual(o['ok'], 1)
-            self.assertEqual(o['recorded'], 1)
-            self.assertEqual(o['state'], 'failed')
-            self.assertEqual(o['from'], 'v2026.10.12')
-            self.assertEqual(o['summary'], '1 of 3 "back"')
-            self.assertEqual(o['wanted'], ['luci-app-openclash', 'nano', 'ddns-scripts'])
-            self.assertEqual(o['done'], ['nano'])
-            self.assertEqual(o['pending'], ['ddns-scripts'])
-            self.assertEqual(o['failed'], [{'name': 'luci-app-openclash', 'why': 'ERROR: "quoted" \\ \x01 text'}])
-            self.assertEqual(o['orphaned'], ['etc/config/openclash'])
-            self.assertEqual(o['dns'], 'DNS goes to 127.0.0.1#7874 "x"')
-            self.assertEqual(o['running'], 0)
-            # nothing recorded
-            for f in self.d.iterdir():
-                f.unlink()
-            o = self.run_ad(shell, 'get')
-            self.assertEqual((o['recorded'], o['state'], o['wanted'], o['dns']), (0, 'none', [], None))
-            self.setUp()
-
-    def test_act(self):
-        for shell in self.each_shell():
-            self.log()
-            self.assertEqual(self.run_ad(shell, 'act', 'retry'), {'ok': 1, 'started': 1})
-            self.assertEqual(self.run_ad(shell, 'act', 'repair_dns'), {'ok': 1, 'started': 1})
-            self.assertEqual(self.run_ad(shell, 'act', 'dismiss'), {'ok': 1})
-            log = self.log()
-            self.assertIn(f'setsid {self.stubs}/mu300-user-packages retry\n', log)
-            self.assertIn(f'setsid {self.stubs}/mu300-user-packages repair-dns\n', log)
-            self.assertIn('dismiss\n', log)
-            for bad in ('repair-dns', 'skip', 'retry;reboot', '', '-h'):
-                with self.subTest(op=bad):
-                    self.assertEqual(self.run_ad(shell, 'act', bad)['ok'], 0)
-                    self.assertEqual(self.log(), '')
-            # one at a time
-            (self.tmp / 'lock').mkdir()
-            self.assertEqual(self.run_ad(shell, 'act', 'retry'), {'ok': 0, 'error': 'Reinstalling is running already'})
-            self.assertEqual(self.run_ad(shell, 'get')['running'], 1)
-            (self.tmp / 'lock').rmdir()
-            self.assertEqual(self.log(), 'brief\n')      # only the status, nothing started

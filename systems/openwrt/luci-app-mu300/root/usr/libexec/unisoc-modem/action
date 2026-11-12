@@ -7,7 +7,6 @@
 #   mu300-dash-act modem-reset      the SFUN 5/3/2/4 sequence mobile-data uses for sim-reset
 # modem-reset: under mobile-data's radio lock, or "busy" (lib.sh radio_locked); radio: mu300-sim-radio, which takes
 # the lock itself (mobile-data rf-apply)
-#   mu300-dash-act vpn start|stop   /etc/init.d/mu300-vpn
 #   mu300-dash-act reboot|poweroff  restart or power off the whole box, after a 3 s grace for the HTTP reply
 #
 # Every op prints one JSON line on stdout. The rpcd backend (/usr/libexec/rpcd/mu300dash)
@@ -124,45 +123,12 @@ case "${1:-}:${2:-}" in
         fi
         ok "modem-reset"
         ;;
-    vpn:start|vpn:stop)
-        # the VPN module (github.com/dikeckaan/mu300-linux-vpn) brings the service; without it there is none (the message
-        # is a translated one of the panel)
-        if [ -x /opt/mu300/bin/mu300-vpn ] && [ -x /etc/init.d/mu300-vpn ]; then
-            /etc/init.d/mu300-vpn "$2" >/dev/null 2>&1
-            ok "vpn $2"
-        else
-            fail "vpn $2" "VPN integration is not provided by this platform"
-        fi
-        ;;
     reboot:|poweroff:)
         sleep 3   # the reply has to make it out first
         "$1"      # procd stops the services and unmounts as usual; never forced
         ;;
-    os:android)
-        # arm inline (fast, failures surface to the page); reboot DETACHED so
-        # the reply reaches the browser before the box goes down - a reboot
-        # inside the rpcd call kills the ubus reply pipe first
-        if [ ! -x /opt/mu300/bin/mu300-next-boot ]; then
-            fail "os android" "Dual-boot integration is not provided by this platform"
-        elif out=$(/opt/mu300/bin/mu300-next-boot android 2>&1); then
-            ok "os android"
-            setsid sh -c 'sleep 3; reboot' >/dev/null 2>&1 &
-        else
-            fail "os android" "mu300-next-boot failed" "$out"
-        fi
-        ;;
-    os:lock|os:unlock)
-        # mu300-next-boot lock: Linux never goes to Android by itself; unlock: back to the failed-boot attempts
-        if [ ! -x /opt/mu300/bin/mu300-next-boot ]; then
-            fail "os $2" "Dual-boot integration is not provided by this platform"
-        elif out=$(/opt/mu300/bin/mu300-next-boot "$2" 2>&1); then
-            ok "os $2"
-        else
-            fail "os $2" "mu300-next-boot failed" "$out"
-        fi
-        ;;
     *)
-        echo "usage: $0 radio on|off | data up|down | roaming on|off | wifi on|off | modem-reset | vpn start|stop | reboot | poweroff | os android|lock|unlock" >&2
+        echo "usage: $0 radio on|off | data up|down | roaming on|off | wifi on|off | modem-reset | reboot | poweroff" >&2
         printf '{"ok":0,"error":"Unknown op"}\n'
         exit 2
         ;;

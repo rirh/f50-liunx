@@ -445,99 +445,6 @@ class Backend(sec.Mu300Dash):
             self.assertLessEqual(int(env['lock']) + int(env['budget']), 17)
 
 
-class OpsLog(sec.Mu300Dash):
-    """The panel's calls of this boot (RAM) and the one before (flash): names, times, outcomes - never a value."""
-
-    def setUp(self):
-        super().setUp()
-        self.dir = self.tmp / 'run-shared'
-        self.flash = self.tmp / 'flash'
-
-    def go(self, shell, method, params=None, **env):
-        self.dir.mkdir(exist_ok=True)
-        return self.call(shell, method, params, MU300_DASH_DIR=self.dir, MU300_DASH_OPS_DIR=self.flash, **env)
-
-    def lines(self):
-        return [line for line in (self.dir / 'ops.log').read_text().split('\n') if line]
-
-    def reboot(self):
-        shutil.rmtree(self.dir)
-
-    def test_what_a_line_holds(self):
-        for shell in self.each_shell():
-            self.reboot() if self.dir.exists() else None
-            self.go(shell, 'at', {'cmd': 'AT+CPIN="1234"', 'confirm': '1'})
-            self.go(shell, 'at', {'cmd': 'ATD+905551234567', 'confirm': '1'})
-            self.go(shell, 'at', {'cmd': 'AT+CFUN=0'})                       # not confirmed
-            self.go(shell, 'act', {'op': 'radio', 'arg': 'off'})
-            self.output('lock', '{"ok":1,"started":1,"id":"AbCdE12345","kind":"lte"}')   # lock start's answer
-            self.go(shell, 'lock_set', {'kind': 'lte', 'val': '1,3'})
-            (self.out / 'lock').unlink()
-            self.go(shell, 'status', {})                                     # a quick, good read: no line
-            (self.adapters / 'cell').write_text('#!/bin/sh\nprintf \'{"ts":5,"error":"x"}\' > "$MU300_DASH_DIR/sig.json"\n')
-            self.go(shell, 'signal', {})                                     # the modem did not answer: a line
-            self.output('sms', '')
-            self.go(shell, 'sms_list', {})                                   # a failed read: a line
-            (self.out / 'sms').unlink()
-            self.go(shell, 'sms_send', {'num': '+905551234567', 'text': 'secret code 4711'})
-            got = self.lines()
-            text = '\n'.join(got)
-            for secret in ('1234', '905551234567', '4711', 'secret', 'off', '1,3'):
-                self.assertNotIn(secret, text)
-            words = [line.split()[2:] for line in got]
-            self.assertEqual([w[:-2] for w in words], [['at', 'AT+CPIN='], ['at', 'ATD'], ['at', 'AT+CFUN='],
-                                                       ['act', 'radio'], ['lock_set', 'lte'], ['signal'], ['sms_list'],
-                                                       ['sms_send']])
-            self.assertEqual([w[-1] for w in words], ['ok', 'ok', 'confirm', 'ok', 'ok', 'error', 'error', 'ok'])
-            for w in words:
-                self.assertRegex(w[-2], r'^\d+\.\d\ds$')
-
-    def test_a_killed_call_is_found_afterwards(self):
-        # rpcd kills a call at 30 s (SIGKILL): its marker stays, and the next call writes it as killed
-        for shell in self.each_shell():
-            self.reboot() if self.dir.exists() else None
-            self.dir.mkdir()
-            (self.dir / 'ops.run.999999').write_text('10-11 12:00:00 signal\n')
-            self.go(shell, 'act', {'op': 'wifi', 'arg': 'on'})
-            self.assertEqual(self.lines()[0], '10-11 12:00:00 signal - killed')
-            self.assertEqual(list(self.dir.glob('ops.run.*')), [])
-
-    def test_flash_keeps_this_boot_and_the_one_before(self):
-        for shell in self.each_shell():
-            self.reboot() if self.dir.exists() else None
-            shutil.rmtree(self.flash, ignore_errors=True)
-            self.go(shell, 'act', {'op': 'wifi', 'arg': 'on'})
-            first = (self.flash / 'panel-ops.log').read_text()
-            self.assertIn(' act wifi ', first)
-            # within the flush interval nothing more is written
-            self.go(shell, 'act', {'op': 'data', 'arg': 'up'})
-            self.assertEqual((self.flash / 'panel-ops.log').read_text(), first)
-            # the service's stop writes it now
-            self.dir.mkdir(exist_ok=True)
-            r = self.script(shell, sec.DASH, 'flush-ops', MU300_DASH_DIR=self.dir, MU300_DASH_OPS_DIR=self.flash)
-            self.assertEqual(r.returncode, 0, r.stderr)
-            self.assertIn(' act data ', (self.flash / 'panel-ops.log').read_text())
-            # a reboot: RAM is empty; the first call of the new boot keeps the old copy as the previous boot's
-            self.reboot()
-            self.go(shell, 'act', {'op': 'wifi', 'arg': 'off'})
-            self.assertIn(' act data ', (self.flash / 'panel-ops.prev.log').read_text())
-            self.assertNotIn(' act data ', (self.flash / 'panel-ops.log').read_text())
-            obj = self.reply(self.go(shell, 'ops_log', {})[0])
-            self.assertEqual(obj['ok'], 1)
-            self.assertIn(' act wifi ', obj['now'])
-            self.assertIn(' act data ', obj['prev'])
-            # reading the log is not itself logged
-            self.assertNotIn('ops_log', obj['now'])
-
-    def test_the_log_stays_small(self):
-        for shell in self.each_shell():
-            self.reboot() if self.dir.exists() else None
-            self.dir.mkdir()
-            (self.dir / 'ops.log').write_text(''.join(f'10-11 12:00:00 act wifi 0.01s ok {i}\n' for i in range(260)))
-            self.go(shell, 'act', {'op': 'wifi', 'arg': 'on'})
-            self.assertEqual(len(self.lines()), 200)
-
-
 COMMON = lui.COMMON
 VIEWS = lui.VIEWS
 
@@ -574,7 +481,6 @@ const flush = () => new Promise((r) => setImmediate(r));
         self.assertGreater(len(r), 30)
         self.assertEqual([m for o, m, nb in r if not nb], [])
         self.assertIn(['mu300dash', 'at_job', True], r)
-        self.assertIn(['mu300dash', 'ops_log', True], r)
 
     def test_backoff(self):
         r = self.node("return [0, 1, 2, 3, 4, 9].map((n) => M.backoff(1500, n)).concat([ M.backoff(1, 2) ]);")
@@ -699,17 +605,6 @@ return { ap: ap, sta: required.slice() };'''
         self.assertIn('fetchMaxRows: 250', log)
         self.assertIn('EVERY_MS = 15000', log)
         self.assertIn("this.super('pollLog', arguments)", log)
-
-    def test_the_device_page_shows_the_operations(self):
-        body = '''
-M.callUsbGet = () => Promise.resolve({ ok: 1, role: 'device' });
-M.callOpsLog = () => Promise.resolve({ ok: 1, now: 'a 1\\nb 2', prev: '' });
-const root = V.render({ ok: 1, role: 'device' }); await flush();
-get('mud-usb-ops-show').on.click[0](); for (let i = 0; i < 4; i++) await flush();
-return get('mud-usb-ops').children.map((c) => c.textContent);'''
-        r = self.run_view('device', body)['result']
-        self.assertEqual(r, ['This boot', 'b 2\na 1', 'Previous boot', '(empty)'])
-
 
 if __name__ == '__main__':
     unittest.main()

@@ -36,36 +36,6 @@ function roamingNow(c) {
 	return null;
 }
 
-/* NR bands the modem's SPLBAND masks can carry (unisoc-modem/lock NR_A/NR_B/NR_S): n6 is supported but not in the
- * tables, so an automatic NR read-back can never list it */
-var NR_CODEC = [ 1, 2, 3, 5, 7, 8, 12, 20, 25, 28, 66, 70, 71, 74, 34, 38, 39, 40, 41, 50, 51, 77, 78, 79,
-	75, 76, 80, 81, 82, 83, 84, 86 ];
-var BAND_CAPS = { nr: [ 1, 5, 6, 8, 28, 41, 78 ], lte: [ 1, 3, 5, 8, 34, 38, 39, 40, 41 ] };
-
-/* lockDeviations(lock_get reply) -> the settings that are not automatic, as short labels ([] = all automatic), or
- * null when the state is unknown. A band lock is automatic when nothing is locked or every supported band (that the
- * masks can carry) is in it - the modem reads the cleared mask back as the full set. */
-function lockDeviations(l) {
-	if (!l || l.error || !l.mode) return null;
-	var out = [], caps = l.caps || {};
-	var names = { auto152: _('Automatic without 2G (152)'), '4g': _('4G only'), sa: '5G SA', nsa: '5G NSA' };
-	if (l.mode.label && l.mode.label !== 'auto')
-		out.push(_('Network mode: %s').format(names[l.mode.label] || l.mode.label));
-	if (l.endc && l.endc !== '1') out.push(_('EN-DC off'));
-	[ 'lte', 'nr' ].forEach(function(rat) {
-		var locked = String((l[rat] && l[rat].locked) || '').split(',').map(Number).filter(function(b) { return b > 0; });
-		if (!locked.length) return;
-		var cap = String(caps[rat] || '').split(',').map(Number).filter(function(b) { return b > 0; });
-		if (!cap.length) cap = BAND_CAPS[rat];
-		if (rat === 'nr') cap = cap.filter(function(b) { return NR_CODEC.indexOf(b) >= 0; });
-		if (cap.every(function(b) { return locked.indexOf(b) >= 0; })) return;
-		var p = rat === 'nr' ? 'n' : 'B';
-		out.push((rat === 'nr' ? _('NR band lock: %s') : _('LTE band lock: %s')).format(p + locked.join(' ' + p)));
-	});
-	if ((l.cells || []).length) out.push(_('Cell lock: %s').format(l.cells.join(' ')));
-	return out;
-}
-
 /* The engineering port gives only MCS/BLER; the modulation is derived here from the common 3GPP MCS table 1,
  * without an extra AT request for a display item. LTE uplink has other MCS boundaries than downlink/NR. */
 function modulation(mcs, rat, uplink) {
@@ -128,7 +98,6 @@ return view.extend({
 		var first = L.resolveDefault(M.callStatus()).then(function(st) {
 			self.update(st || {});
 		});
-		this.loadBoot();
 		/* LuCI poll.add() truncates intervals to whole seconds. Use a one-shot
 		 * timer so 1.5 s remains 1.5 s and slow requests never overlap; after a
 		 * failed snapshot the next one waits longer (M.backoff), up to 18 s. */
@@ -168,24 +137,6 @@ return view.extend({
 	unload: function() {
 		clearTimeout(this._refreshTimer);
 		clearTimeout(this._rateTimer);
-	},
-
-	/* The dual boot's state under the boot buttons (mu300-next-boot status, read only; kanoqwq's f6b0668d): the default
-	 * boot, whether this boot is a one-time one (the default is Android: the next restart goes there), and whether the
-	 * boot control blocks can be written, which the buttons need. Read once, and again after a boot button. */
-	loadBoot: function() {
-		var root = this._root;
-		return L.resolveDefault(M.callBootGet(), {}).then(function(b) {
-			var box = root.querySelector('#mud-boot');
-			if (!box) return;
-			if (!b || b.ok !== 1 || !b.available) { box.style.display = 'none'; return; }
-			box.style.display = '';
-			var set = function(id, text) { root.querySelector('#mud-boot-' + id).textContent = text; };
-			set('default', b.default === 'linux' ? 'Linux' + (b.locked ? ' (' + _('Linux locked') + ')' : '')
-				: b.default === 'android' ? 'Android' : _('Unknown'));
-			set('temp', b.temporary === true ? _('Yes: the next restart starts Android') : b.temporary === false ? _('No') : _('Unknown'));
-			set('ctl', b.writable ? _('Writable') : _('This boot image cannot change the boot'));
-		});
 	},
 
 	/* One reading of the fast lane: rates over the time since the last one (a counter that went down - the interface
@@ -359,13 +310,6 @@ return view.extend({
     <button class="mud-btn" id="mud-btn-wifi">${_('Wi-Fi hotspot')}</button>
     <button class="mud-btn warn" id="mud-btn-modem">${_('Restart modem')}</button>
     <button class="mud-btn warn" id="mud-btn-reboot">${_('Power off or restart')}</button>
-    <button class="mud-btn warn" id="mud-btn-android">${_('Switch to Android')}</button>
-    <button class="mud-btn" id="mud-btn-bootlock">${_('Lock Linux')}</button>
-  </div>
-  <div class="mud-rows" id="mud-boot" style="display:none;margin-top:10px">
-    <div class="mud-r"><span class="mud-k">${_('Default boot')}</span><span class="mud-v" id="mud-boot-default">--</span></div>
-    <div class="mud-r"><span class="mud-k">${_('One-time boot')}</span><span class="mud-v" id="mud-boot-temp">--</span></div>
-    <div class="mud-r"><span class="mud-k">${_('Boot control')}</span><span class="mud-v" id="mud-boot-ctl">--</span></div>
   </div>
 </div>
 <div class="mud-sec">
@@ -444,47 +388,6 @@ return view.extend({
 				{ label: _('Restart'), value: 'reboot', danger: true }
 			]).then(function(op) { if (op === 'poweroff' || op === 'reboot') act(op, null, null, btn); });
 		};
-		/* The network mode and band locks live in the modem's NV, which Android shares: they stay in force there (#96).
-		 * When the last lock state shows anything not automatic, the dialog says so and offers to reset first; when
-		 * the state cannot be read, it is the plain dialog. The switch itself is never blocked. */
-		q('btn-android').onclick = function() {
-			var btn = this;
-			var msg = [ _('The next boot will enter Android and reboot now. This management page and cellular sharing will disconnect.'),
-				_('To return to OpenWrt, run mu300-next-boot linux in Android and reboot.'),
-				_('Or do nothing: after five boots that do not finish, it falls back automatically.') ].join('\n');
-			var go = function() { act('os', 'android', _('Preparing Android boot and rebooting…'), btn); };
-			L.resolveDefault(M.callLockGet(), null).then(function(l) {
-				if (l && l.mode) self.lastLock = l;
-				var lk = lockDeviations(self.lastLock);
-				if (!lk || !lk.length)
-					return M.confirmBox(_('Switch to Android'), msg, { danger: true, okText: _('Switch and reboot') })
-						.then(function(ok) { if (ok) go(); });
-				return M.choiceBox(_('Switch to Android'),
-					_('Not automatic: %s. The network mode and band locks are stored in the modem and stay in force in Android too; if the network does not match them, Android shows No Service.').format(lk.join(', ')) +
-						'\n\n' + msg,
-					[ { label: _('Cancel'), value: '' },
-					  { label: _('Switch and reboot'), value: 'plain', danger: true },
-					  { label: _('Reset locks and switch'), value: 'reset', danger: true } ])
-					.then(function(choice) {
-						if (choice === 'plain') go();
-						else if (choice === 'reset') self.resetLocksThen(self.lastLock, btn, go);
-					});
-			});
-		};
-		q('btn-bootlock').onclick = function() {
-			var btn = this;
-			var locked = !!(self.lastInfo && self.lastInfo.capabilities && self.lastInfo.capabilities.bootlock);
-			(locked
-				? M.confirmBox(_('Unlock Linux'),
-					_('After five boots in a row that do not finish, the device falls back to Android again.'),
-					{ okText: _('Unlock') })
-				: M.confirmBox(_('Lock Linux'),
-					[ _('The device will never switch to Android by itself, not even after failed boots: Android only from this page (Switch to Android) or with mu300-next-boot android.'),
-					  _('A new kernel from an update still gets its first boots on trial, and locks again once one of them succeeds.'),
-					  _('If the system itself no longer starts, the device waits on USB (telnet) instead of going to Android.') ].join('\n'),
-					{ danger: true, okText: _('Lock') })
-			).then(function(go) { if (go) act('os', locked ? 'unlock' : 'lock', null, btn).then(function() { self.loadBoot(); }); });
-		};
 		q('reveal').onclick = function() {
 			self.identShown = !self.identShown;
 			M.v('reveal').textContent = self.identShown ? _('Hide SIM identifiers') : _('Show SIM identifiers');
@@ -549,47 +452,6 @@ return view.extend({
 			}
 			self.lockedCell = (l || {}).cells || [];
 			self.repaintNeigh();
-		});
-	},
-
-	/* Reset every lock to automatic (lock_set reset: one SFUN restart, the saved settings cleared), wait until the
-	 * lock cache shows a read newer than the one before (or two minutes pass), then run then(). A refused reset stops
-	 * here: the user asked for the reset first. */
-	/* The reset is verified by the backend (unisoc-modem/lock reset: the writes' answers checked, the settings read
-	 * back before and after the restart, the saved locks deleted only then) and its result comes with lock_get as
-	 * "reset"; a result newer than the one shown before the click decides. A failed reset stops the switch: Android
-	 * would come up with the locks the modem still has. */
-	resetLocksThen: function(before, btn, then) {
-		var base = (before && before.ts) || 0, prevEnd = ((before || {}).reset || {}).end || 0, tries = 0;
-		M.busy(btn, true);
-		M.toast(_('Resetting the network locks to automatic (SFUN restart, about 30 seconds)…'), { type: 'busy' });
-		L.resolveDefault(M.callLockSet('reset', 'auto'), null).then(function(r) {
-			r = r || {};
-			if (!r.ok) {
-				M.busy(btn, false);
-				M.toast(_('Failed: %s').format(M.errText(r)), { type: 'error' });
-				return;
-			}
-			var step = function() {
-				L.resolveDefault(M.callLockGet(), null).then(function(l) {
-					l = l || {};
-					var res = l.reset || {}, done = res.state && res.state !== 'running' && (res.end || 0) > prevEnd;
-					if (done && res.state !== 'ok') {
-						M.busy(btn, false);
-						M.toast(_('Reset failed: %s. The saved lock settings were kept.').format(
-							M.errText({ error: res.error, detail: res.cmd || res.step })), { type: 'error' });
-						return;
-					}
-					var fresh = l.ts && l.ts > base, auto = done || (fresh && !(lockDeviations(l) || [ 1 ]).length);
-					if (auto || ++tries > 60) {
-						M.busy(btn, false);
-						if (!auto)
-							M.toast(_('The lock reset was not confirmed in time; switching anyway.'), { type: 'error' });
-						then();
-					} else setTimeout(step, 2500);
-				});
-			};
-			setTimeout(step, 2500);
 		});
 	},
 
@@ -937,15 +799,6 @@ return view.extend({
 		M.set('model', i.model || '--');
 		M.set('fwos', i.fw || '--');
 		M.set('modem', (i.modem && i.modem.alive ? _('Online') : _('No response')) + (i.modem && i.modem.atd ? '' : ' · ' + _('AT adapter unavailable')));
-		var androidBtn = M.v('btn-android');
-		if (androidBtn) androidBtn.style.display = i.capabilities && i.capabilities.dualboot ? '' : 'none';
-		var lockBtn = M.v('btn-bootlock');
-		if (lockBtn) {
-			lockBtn.style.display = i.capabilities && i.capabilities.dualboot ? '' : 'none';
-			var lk = !!(i.capabilities && i.capabilities.bootlock);
-			lockBtn.className = 'mud-btn' + (lk ? ' on' : '');
-			lockBtn.textContent = lk ? _('Linux locked') : _('Lock Linux');
-		}
 
 		var b;
 		b = M.v('btn-data'); b.className = 'mud-btn' + (w.up ? ' on' : ''); b.textContent = _('Data connection');

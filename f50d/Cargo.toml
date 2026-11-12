@@ -1,0 +1,81 @@
+# f50d: the ZTE F50 device daemon for OpenWrt. One process owns the modem's AT channels, the radio state, mobile data,
+# SMS, Wi-Fi/LAN/USB, the system and updates, and publishes them as ubus objects (rpcd sessions and ACLs guard them
+# over HTTP). See README.md for the crate map and the dependency rules.
+
+[workspace]
+resolver = "3"
+members = [
+    "crates/f50-core",
+    "crates/f50-ubus",
+    "crates/f50-platform",
+    "crates/f50-at",
+    "crates/f50-modem",
+    "crates/f50-data",
+    "crates/f50-sms",
+    "crates/f50-net",
+    "crates/f50-system",
+    "crates/f50-hw",
+    "crates/f50-update",
+    "crates/f50-api",
+    "crates/f50d",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+publish = false
+
+# Every crate takes its dependencies from here; a crate never names a version of its own. Adding a dependency is a
+# workspace decision (README.md, "Dependencies").
+[workspace.dependencies]
+f50-core = { path = "crates/f50-core" }
+f50-ubus = { path = "crates/f50-ubus" }
+f50-platform = { path = "crates/f50-platform" }
+f50-at = { path = "crates/f50-at" }
+f50-modem = { path = "crates/f50-modem" }
+f50-data = { path = "crates/f50-data" }
+f50-sms = { path = "crates/f50-sms" }
+f50-net = { path = "crates/f50-net" }
+f50-system = { path = "crates/f50-system" }
+f50-hw = { path = "crates/f50-hw" }
+f50-update = { path = "crates/f50-update" }
+f50-api = { path = "crates/f50-api" }
+
+libc = "0.2.191"
+minisign-verify = "0.2.5"
+regex = { version = "1.13.1", default-features = false, features = ["std", "unicode-perl"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sha2 = "0.10.9"
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["rt", "rt-multi-thread", "macros", "process", "io-util", "time", "net", "sync", "signal", "fs"] }
+tokio-util = { version = "0.7.19", features = ["rt"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "std"] }
+
+[workspace.lints.rust]
+# unsafe is allowed only in the modules that talk to the kernel directly (termios, process groups, setuid,
+# capabilities, mounts); each such module says `#[allow(unsafe_code)]` and every block carries a SAFETY comment
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+unused_must_use = "deny"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+todo = "warn"
+unwrap_used = "warn"
+expect_used = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+large_futures = "warn"
+await_holding_lock = "deny"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

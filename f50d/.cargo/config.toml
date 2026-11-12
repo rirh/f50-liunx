@@ -1,0 +1,6 @@
+# The device build: a static aarch64 binary, linked by rust-lld (no cross C toolchain needed)
+[target.aarch64-unknown-linux-musl]
+linker = "rust-lld"
+
+[alias]
+device = "build --release --locked --target aarch64-unknown-linux-musl -p f50d"

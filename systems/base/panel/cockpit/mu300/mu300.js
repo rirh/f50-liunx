@@ -299,7 +299,7 @@
         var sig = card(_('Mobile network'), 'mu-signal'), data = card(_('Mobile data'), 'mu-data');
         var dev = card(_('Device'), 'mu-device'), usage = card(_('Data usage'), 'mu-usage');
         var wifi = card(_('Wi-Fi hotspot'), 'mu-ov-wifi'), vpn = card(_('VPN'), 'mu-ov-vpn');
-        [ sig, data, dev, usage, wifi, vpn ].forEach(function (c) { grid.appendChild(c); });
+        [ sig, data, dev, usage, wifi ].concat(has('vpn.status') ? [ vpn ] : []).forEach(function (c) { grid.appendChild(c); });
         rateCard(grid);
         var rec = grid.appendChild(card(_('Recovery'), 'mu-recovery'));
         var sb = sig.appendChild(el('div')), db = data.appendChild(el('div')), vb = dev.appendChild(el('div'));
@@ -365,7 +365,7 @@
             }, function (ex) { clear(pb).appendChild(note(errText(ex), 'error')); });
         }
         every(10000, refresh);
-        every(30000, vpnRefresh);
+        if (has('vpn.status')) every(30000, vpnRefresh);
     };
 
     /* network recovery: the dial again (modem.restart), the whole device (system.reboot) */
@@ -1424,7 +1424,6 @@
         if (has('led.get')) ledCard(grid);
         if (has('zram.get')) zramCard(grid);
         if (has('cpu.get')) cpuCards(grid);
-        if (!has('power.get')) grid.appendChild(note(_('Update the device to see its power settings here.')));
     };
     function powerCards(root) {
         var c = root.appendChild(card(_('Power'), 'mu-power'));
@@ -1860,16 +1859,13 @@
     pages.updates = function (root) {
         var uc = root.appendChild(card(_('Updates'), 'mu-updates'));
         var ub = uc.appendChild(el('div'));
-        var kc = root.appendChild(card(_('Kernel'), 'mu-kernel'));
-        var kb = kc.appendChild(el('div'));
-        var mc = root.appendChild(card(_('Mirror (release files)'), 'mu-mirror'));
-        var mb = mc.appendChild(el('div'));
-        var ec = root.appendChild(card(_('Extras'), 'mu-extras'));
-        var eb = ec.appendChild(el('div'));
+        var kb = has('kernel.set') ? root.appendChild(card(_('Kernel'), 'mu-kernel')).appendChild(el('div')) : null;
+        var mb = has('update.source') ? root.appendChild(card(_('Mirror (release files)'), 'mu-mirror')).appendChild(el('div')) : null;
+        var eb = has('extra.list') ? root.appendChild(card(_('Extras'), 'mu-extras')).appendChild(el('div')) : null;
         function refresh() {
             var st = has('update.status') ? load(ub, 'update.status', {}, function (o) {
                 ub.appendChild(pre(o.version || ''));
-                mirror(o.source || '');
+                if (mb) mirror(o.source || '');
             }) : Promise.resolve();
             st.then(function () {
                 var cb = button(_('Check for updates'), function () { act(cb, 'update.check', {}); });
@@ -1879,7 +1875,7 @@
                 }, 'danger');
                 ub.appendChild(actions([ cb, ab ]));
             });
-            load(kb, 'system.get', {}, function (o) {
+            if (kb) load(kb, 'system.get', {}, function (o) {
                 kb.appendChild(row(_('Kernel running'), o.kernel));
                 kb.appendChild(row(_('Kernel chosen'), o.kernel_choice));
                 kb.appendChild(note(_('5.4 is the vendor kernel (Android\'s drivers); 6.18 is the mainline long-term kernel; 7.3 the stable mainline one. A change downloads the kernel and takes effect at the next reboot.')));
@@ -1893,7 +1889,7 @@
                 });
                 kb.appendChild(field(_('Kernel'), k));
                 kb.appendChild(actions([ kbtn ]));
-                extras(o.extras || []);
+                if (eb) extras(o.extras || []);
             });
             if (has('packages.get')) packages();
         }
@@ -2022,7 +2018,7 @@
     var TABS = [ [ 'overview', _('Overview'), 'overview' ], [ 'mobile', _('Mobile network'), 'data.get' ], [ 'sms', _('SMS'), 'sms.list' ],
         [ 'at', _('AT terminal'), 'at.send' ], [ 'usage', _('Data usage'), 'traffic.get' ], [ 'wifi', _('Wi-Fi'), 'wifi.get' ],
         [ 'vpn', _('VPN'), 'vpn.status' ], [ 'power', _('Power and CPU'), 'cpu.get' ], [ 'system', _('System'), 'system.get' ],
-        [ 'updates', _('Updates'), 'extra.list' ], [ 'backup', _('Backup'), 'backup.export' ] ];
+        [ 'updates', _('Updates'), 'update.status' ], [ 'backup', _('Backup'), 'backup.export' ] ];
     function tabOk(t) { return !S.hello || has(t[2]); }
     function showPage(name) {
         var t = TABS.filter(function (x) { return x[0] === name; })[0];

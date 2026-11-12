@@ -25,31 +25,9 @@
 #   at_job            that background job: running, or its reply.
 #   sms_job           the send sms_send started in the background: running, or how it went (sms_send's old reply).
 #   at_history        that history, raw text.
-#   ops_log           the panel's recent calls (method, time taken, outcome) of this boot and
-#                     the one before: no values, no replies (see run_m).
-#   lang_get, lang_set  LuCI's languages and the lang extra (unisoc-modem/languages, mu300-extra)
-#   power_get, power_set  the power profiles (unisoc-modem/power, mu300-power)
-#   ttl_get, ttl_set value  the TTL of mobile data (unisoc-modem/ttl, mu300-ttl); value off or 1-255
-#   tcp_get, tcp_set value  the TCP congestion control of the device's own connections (unisoc-modem/tcp, mu300-tcp);
-#                     value default|cubic|bbr
-#   boot_get          the dual boot's state, read only (unisoc-modem/boot, mu300-next-boot status)
-#   led_get, led_set key value  the LED settings (unisoc-modem/led, mu300-led): the lamps' switches and brightness,
-#                     the timeout, the boot indicator, the heat alarm's light
 #   traffic_get, traffic_set op value  the mobile data count, its billing cycle and cap (unisoc-modem/traffic,
 #                     mu300-traffic)
-#   forward_get, forward_set ..., forward_test, forward_log_clear  SMS forwarding (unisoc-modem/forward,
-#                     mu300-sms-forward); the settings go to the adapter on stdin, as sent: they hold secrets, never
-#                     an argument. forward_log_clear empties the delivery log and takes nothing.
 #   cpu_get, cpu_set profile  the CPU performance profile (unisoc-modem/cpu, mu300-cpu); saving|balanced|performance
-#   cpu_tune op cpu state  op core (cpu 1-63, state on|off: online or offline, saved) or op lowlatency (state on|off:
-#                     CPU0 without its idle states, saved); unisoc-modem/cpu, mu300-cpu (FINDINGS 200)
-#   cpu_voltage_get, cpu_voltage_set op [offsets confirm | minutes]  the CPU voltage offset, EXPERIMENTAL (unisoc-modem/
-#                     cpu, mu300-cpu voltage); op set (offsets "A,B,C" in uV; confirm: the word, for anything but 0,0,0),
-#                     off, or stress (minutes 1-120: the CPU stress test, in the background)
-#   packages_get, packages_act op  the packages installed before an update, installed again (unisoc-modem/packages,
-#                     mu300-user-packages); op retry|repair_dns|dismiss
-#   backup_export, backup_import, backup_job  System > Backup of settings: mu300-api's backup.export, backup.import
-#                     and job.status (mu300-backup, FINDINGS 155); their replies are never kept in the call log
 #   update_get [sizes], update_job, update_act op ...  the System > Update page (unisoc-modem/update, mu300-update):
 #                     what is installed and what is kept, the releases, the one update task and its log, and the
 #                     release source in force; update_act starts a check, an update, a rollback, a kernel change,
@@ -251,8 +229,6 @@ m_act() {
         radio|wifi)         allowed "$arg" '(on|off)' ;;
         data)               allowed "$arg" '(up|down)' ;;
         roaming)            allowed "$arg" '(on|off)' ;;
-        vpn)                allowed "$arg" '(start|stop)' ;;
-        os)                 allowed "$arg" '(android|lock|unlock)' ;;
         modem-reset|reboot|poweroff) [ -z "$arg" ] ;;
         *)                  refuse 'Unknown op'; return ;;
     esac || { refuse 'Invalid argument for this op'; return; }
@@ -266,13 +242,11 @@ m_act() {
     esac
     case $op in
         # the SFUN dance can run half a minute: never inside the request
-        radio|modem-reset|reboot|poweroff|vpn)
+        radio|modem-reset|reboot|poweroff)
             setsid "$DASH/action" "$op" "$arg" >/dev/null 2>&1 &
             printf '{"ok":1,"started":1,"op":%s}\n' "$(json_str "$op${arg:+ $arg}")"
             ;;
-        # os runs inline: arming takes milliseconds and a failure (misc write
-        # rejected, tool missing) must reach the page instead of a silent no-op
-        data|wifi|os|roaming)
+        data|wifi|roaming)
             out=$("$DASH/action" "$op" "$arg" 2>/dev/null)
             reply_obj "$out" 'The action gave no valid reply'
             ;;
@@ -657,10 +631,9 @@ sms_job_running() {
 # run_sms_job: the detached half of a send ("mu300dash sms-job", started by m_sms_send). mu300-sms bounds it: a
 # short wait for the AT lock, then its commands, each with mu300-at's own budget (SMS_JOB_T at the very most).
 run_sms_job() {
-    local num out rc=0 t0 dt how v
+    local num out rc=0
     num=$(cat "$SMS_JOB/num" 2>/dev/null) || exit 1
     echo $$ > "$SMS_JOB/pid"
-    t0=$(ticks)
     # the text on stdin (adapter contract: send --stdin NUMBER), never as an argument where it could read as an
     # option; a busy channel is "busy" within seconds, before anything is sent
     out=$(MU300_AT_LOCK_WAIT=$AT_LOCK_WAIT "$SMS" send --stdin "$num" < "$SMS_JOB/text" 2>&1) || rc=$?
@@ -669,11 +642,6 @@ run_sms_job() {
     now > "$SMS_JOB/end"
     # the message is in the pool now (or was refused): nothing keeps a copy of it here
     rm -f "$SMS_JOB/text" "$SMS_JOB/num"
-    # how it went, in the operations log (the request was logged when it started; a killed call was all it showed)
-    dt=$(( $(ticks) - t0 ))
-    v=$(sms_verdict "$out")
-    case $v in '{"ok":1'*) how=ok ;; *'"busy":1'*) how=busy ;; *) how=error ;; esac
-    ops_add "$(printf '%s sms_send result %d.%02ds %s' "$(date '+%m-%d %H:%M:%S')" $((dt / 100)) $((dt % 100)) "$how")"
 }
 
 m_sms_job() {
@@ -810,106 +778,6 @@ m_usb_net_add() {
     reply_obj "$("$DASH/device-usb" net-add "$iface" 2>/dev/null)" 'The USB adapter (device-usb) gave no valid reply'
 }
 
-# ---------------------------------------------------------------- languages
-# LuCI's languages and the lang extra (the Languages page): the adapter does the work through mu300-extra
-LANGS=${MU300_LANGS_BIN:-$DASH/languages}
-POWERA=${MU300_POWER_ADAPTER:-$DASH/power}
-m_power_get() { reply_obj "$("$POWERA" get 2>/dev/null)" 'The power adapter gave no valid reply'; }
-m_power_set() {
-    local op key value out
-    inp '@.op'; op=$V
-    inp '@.key'; key=$V
-    inp '@.value'; value=$V
-    allowed "$op" '(set|wake|idle)' || { refuse 'Unknown power operation'; return; }
-    case $op in
-        set)
-            allowed "$key" '(PROFILE|SAVER_BELOW|CHARGE_TO|POWER_ON_CHARGER|RESUME_AT|CHARGE_PAUSE|FULL_ONCE|(plugged|battery|saver)\.(WIFI_IDLE|RADIO_IDLE|LEDS_IDLE|CPU))' ||
-                { refuse 'Unknown power setting'; return; }
-            allowed "$value" '[a-z0-9]{1,5}' || { refuse 'Invalid power value'; return; }
-            out=$("$POWERA" set "$key" "$value" 2>/dev/null) ;;
-        *)  [ -z "$key$value" ] || { refuse 'Invalid power request'; return; }
-            out=$("$POWERA" "$op" 2>/dev/null) ;;
-    esac
-    reply_obj "$out" 'The power adapter gave no valid reply'
-}
-m_lang_get() { reply_obj "$("$LANGS" get 2>/dev/null)" 'The languages adapter gave no valid reply'; }
-
-# op: enable|disable (codes: up to 64 language codes, or all), use (one code, en or auto), install (source: release
-# or file - never a path: the upload goes to the one path the ACL allows), remove
-m_lang_set() {
-    local op codes source c n out
-    inp '@.op'; op=$V
-    inp '@.codes'; codes=$V
-    inp '@.source'; source=$V
-    allowed "$op" '(enable|disable|use|install|remove)' || { refuse 'Unknown language operation'; return; }
-    case $op in
-        enable|disable|use)
-            allowed "$codes" '(all|en|auto|[a-z]{2,3}(_[a-z]{2})?( [a-z]{2,3}(_[a-z]{2})?){0,63})' ||
-                { refuse 'Invalid language code'; return; }
-            n=0; for c in $codes; do n=$((n + 1)); done
-            case $op:$codes in
-                use:all|enable:en|enable:auto|disable:en|disable:auto) refuse 'Invalid language code'; return ;;
-            esac
-            [ "$op" != use ] || [ "$n" = 1 ] || { refuse 'Invalid language code'; return; }
-            # all, en and auto go alone
-            case " $codes " in *" all "*|*" en "*|*" auto "*) [ "$n" = 1 ] || { refuse 'Invalid language code'; return; } ;; esac
-            [ -z "$source" ] || { refuse 'Invalid language request'; return; }
-            # shellcheck disable=SC2086 -- checked above: words of [a-z_] only
-            out=$("$LANGS" "$op" $codes 2>/dev/null) ;;
-        install)
-            allowed "$source" '(release|file)' || { refuse 'Unknown source'; return; }
-            [ -z "$codes" ] || { refuse 'Invalid language request'; return; }
-            out=$("$LANGS" install "$source" 2>/dev/null) ;;
-        remove)
-            [ -z "$codes$source" ] || { refuse 'Invalid language request'; return; }
-            out=$("$LANGS" remove 2>/dev/null) ;;
-    esac
-    reply_obj "$out" 'The languages adapter gave no valid reply'
-}
-
-# ---------------------------------------------------------------- TTL
-# The TTL page: mu300-ttl through the adapter, which checks the value again
-TTLA=${MU300_TTL_BIN:-$DASH/ttl}
-m_ttl_get() { reply_obj "$("$TTLA" get 2>/dev/null)" 'The TTL adapter gave no valid reply'; }
-m_ttl_set() {
-    local value
-    inp '@.value'; value=$V
-    allowed "$value" '(off|[1-9][0-9]{0,2})' || { refuse 'Invalid TTL'; return; }
-    [ "$value" = off ] || [ "$value" -le 255 ] || { refuse 'Invalid TTL'; return; }
-    reply_obj "$("$TTLA" set "$value" 2>/dev/null)" 'The TTL adapter gave no valid reply'
-}
-
-# ------------------------------------------------------------ TCP, boot
-# The Device page's TCP congestion control card: mu300-tcp through the adapter, which checks the value again
-TCPA=${MU300_TCP_ADAPTER:-$DASH/tcp}
-m_tcp_get() { reply_obj "$("$TCPA" get 2>/dev/null)" 'The TCP adapter gave no valid reply'; }
-m_tcp_set() {
-    local value
-    inp '@.value'; value=$V
-    allowed "$value" '(default|cubic|bbr)' || { refuse 'Invalid congestion control'; return; }
-    reply_obj "$("$TCPA" set "$value" 2>/dev/null)" 'The TCP adapter gave no valid reply'
-}
-# The dashboard's boot card: mu300-next-boot status, read only (the changes are act os ...)
-BOOTA=${MU300_BOOT_ADAPTER:-$DASH/boot}
-m_boot_get() { reply_obj "$("$BOOTA" get 2>/dev/null)" 'The boot adapter gave no valid reply'; }
-# --------------------------------------------------------------------- LEDs
-# The LED page: mu300-led through the adapter, which checks the key and the value again (and mu300-led after it)
-LEDA=${MU300_LED_ADAPTER:-$DASH/led}
-m_led_get() { reply_obj "$("$LEDA" get 2>/dev/null)" 'The LED adapter gave no valid reply'; }
-m_led_set() {
-    local key value
-    inp '@.key'; key=$V
-    inp '@.value'; value=$V
-    case $key in
-        timeout) allowed "$value" '(default|0|[1-9][0-9]{0,4})' && { [ "$value" = default ] || [ "$value" -le 86400 ]; } ;;
-        network|wifi|battery|boot) allowed "$value" '[01]' ;;
-        network_brightness|wifi_brightness|battery_brightness) allowed "$value" '([1-9][0-9]?|100)' ;;
-        thermal) allowed "$value" '(siren|blink|off)' ;;
-        *) refuse 'Unknown LED setting'; return ;;
-    esac || { refuse 'Invalid value for this setting'; return; }
-    reply_obj "$("$LEDA" set "$key" "$value" 2>/dev/null)" 'The LED adapter gave no valid reply'
-}
-
 # --------------------------------------------------------------- data usage
 # The Data usage page: mu300-traffic through the adapter, which checks every value again. Sizes are whole bytes.
 TRAFA=${MU300_TRAFFIC_ADAPTER:-$DASH/traffic}
@@ -933,17 +801,6 @@ m_traffic_set() {
     reply_obj "$("$TRAFA" set "$op" "$value" 2>/dev/null)" 'The data usage adapter gave no valid reply'
 }
 
-# ---------------------------------------------------------- SMS forwarding
-# The adapter checks every field itself (it writes a root-only file from them); the request reaches it on stdin only,
-# since it carries the secrets (a bot token, a password), and nothing of it is logged: the method log keeps replies,
-# and the adapter's replies never hold a secret.
-FWDA=${MU300_FWD_ADAPTER:-$DASH/forward}
-m_forward_get() { reply_obj "$("$FWDA" get 2>/dev/null)" 'The forwarding adapter gave no valid reply'; }
-m_forward_set() {
-    reply_obj "$(printf '%s' "$INPUT" | "$FWDA" set 2>/dev/null)" 'The forwarding adapter gave no valid reply'
-}
-m_forward_test() { reply_obj "$("$FWDA" test 2>/dev/null)" 'The forwarding adapter gave no valid reply'; }
-m_forward_log_clear() { reply_obj "$("$FWDA" logclear 2>/dev/null)" 'The forwarding adapter gave no valid reply'; }
 # The CPU page: mu300-cpu through the adapter, which checks the profile name again
 CPUA=${MU300_CPU_ADAPTER:-$DASH/cpu}
 m_cpu_get() { reply_obj "$("$CPUA" get 2>/dev/null)" 'The CPU adapter gave no valid reply'; }
@@ -953,67 +810,6 @@ m_cpu_set() {
     allowed "$profile" '(saving|balanced|performance)' || { refuse 'Invalid CPU profile'; return; }
     reply_obj "$("$CPUA" set "$profile" 2>/dev/null)" 'The CPU adapter gave no valid reply'
 }
-# cpu_tune: a core online or offline, or CPU0's low latency; the adapter and mu300-cpu check them again
-m_cpu_tune() {
-    local op cpu state
-    inp '@.op'; op=$V
-    inp '@.cpu'; cpu=$V
-    inp '@.state'; state=$V
-    allowed "$state" '(on|off)' || { refuse 'Invalid CPU core'; return; }
-    case $op in
-        core)
-            allowed "$cpu" '([1-9]|[1-5][0-9]|6[0-3])' || { refuse 'Invalid CPU core'; return; }
-            reply_obj "$("$CPUA" core "$cpu" "$state" 2>/dev/null)" 'The CPU adapter gave no valid reply' ;;
-        lowlatency)
-            [ -z "$cpu" ] || { refuse 'Invalid CPU core'; return; }
-            reply_obj "$("$CPUA" lowlatency "$state" 2>/dev/null)" 'The CPU adapter gave no valid reply' ;;
-        *) refuse 'Unknown CPU operation' ;;
-    esac
-}
-# The CPU voltage offset (EXPERIMENTAL: it can damage the device for good). Only the shape is checked here - three
-# signed numbers, the confirmation word, the minutes; the adapter checks them again and mu300-cpu and the kernel check
-# the limits. Nothing changes before the next boot, and the initramfs drops a value that does not prove itself.
-m_cpu_voltage_get() { reply_obj "$("$CPUA" voltage-get 2>/dev/null)" 'The CPU adapter gave no valid reply'; }
-m_cpu_voltage_set() {
-    local op offsets confirm minutes out
-    inp '@.op'; op=$V
-    inp '@.offsets'; offsets=$V
-    inp '@.confirm'; confirm=$V
-    inp '@.minutes'; minutes=$V
-    allowed "$op" '(set|off|stress)' || { refuse 'Unknown CPU voltage operation'; return; }
-    case $op in
-        set)
-            [ -z "$minutes" ] || { refuse 'Invalid CPU voltage request'; return; }
-            allowed "$offsets" '-?[0-9]{1,6},-?[0-9]{1,6},-?[0-9]{1,6}' || { refuse 'Invalid CPU voltage offset'; return; }
-            if [ "$offsets" = 0,0,0 ]; then
-                [ -z "$confirm" ] || { refuse 'Invalid CPU voltage request'; return; }
-                out=$("$CPUA" voltage-set off 2>/dev/null)
-            else
-                [ "$confirm" = EXPERIMENTAL ] || { refuse 'Type the confirmation word to apply a voltage offset'; return; }
-                out=$("$CPUA" voltage-set set "$offsets" EXPERIMENTAL 2>/dev/null)
-            fi ;;
-        off)
-            [ -z "$offsets$confirm$minutes" ] || { refuse 'Invalid CPU voltage request'; return; }
-            out=$("$CPUA" voltage-set off 2>/dev/null) ;;
-        stress)
-            [ -z "$offsets$confirm" ] || { refuse 'Invalid CPU voltage request'; return; }
-            allowed "$minutes" '([1-9]|[1-9][0-9]|1[01][0-9]|120)' || { refuse 'Invalid stress test length'; return; }
-            out=$("$CPUA" voltage-set stress "$minutes" 2>/dev/null) ;;
-    esac
-    reply_obj "$out" 'The CPU adapter gave no valid reply'
-}
-
-# The Settings page's card of the packages installed before an update: mu300-user-packages through the adapter,
-# which checks the operation again and starts retry and repair-dns in the background itself
-PKGA=${MU300_PKG_ADAPTER:-$DASH/packages}
-m_packages_get() { reply_obj "$("$PKGA" get 2>/dev/null)" 'The packages adapter gave no valid reply'; }
-m_packages_act() {
-    local op
-    inp '@.op'; op=$V
-    allowed "$op" '(retry|repair_dns|dismiss)' || { refuse 'Invalid packages operation'; return; }
-    reply_obj "$("$PKGA" act "$op" 2>/dev/null)" 'The packages adapter gave no valid reply'
-}
-
 # The Update page: mu300-update through the adapter, which checks every value again and runs the command as a task
 # of its own (an update takes minutes; the page asks update_job after it). Each parameter is a fixed word, a release
 # tag, a size or a SHA-256: nothing typed reaches the adapter.
@@ -1063,7 +859,6 @@ do_list() {
 	"at": { "cmd": "String", "confirm": "String" },
 	"at_job": { },
 	"at_history": { },
-	"ops_log": { },
 	"lock_get": { "fresh": "String" },
 	"lock_set": { "kind": "String", "val": "String" },
 	"lock_job": { "id": "String" },
@@ -1077,57 +872,21 @@ do_list() {
 	"usb_set": { "kind": "String", "value": "String", "scope": "String", "auto": "String" },
 	"usb_net_list": { },
 	"usb_net_add": { "iface": "String" },
-	"lang_get": { },
-	"lang_set": { "op": "String", "codes": "String", "source": "String" },
-	"power_get": { },
-	"power_set": { "op": "String", "key": "String", "value": "String" },
 	"sim_get": { },
 	"sim_set": { "op": "String", "value": "String" },
 	"simcard_get": { },
 	"simcard_set": { "kind": "String", "slot": "String", "state": "String" },
-	"ttl_get": { },
-	"ttl_set": { "value": "String" },
-	"tcp_get": { },
-	"tcp_set": { "value": "String" },
-	"boot_get": { },
-	"led_get": { },
-	"led_set": { "key": "String", "value": "String" },
 	"traffic_get": { },
 	"traffic_set": { "op": "String", "value": "String" },
-	"forward_get": { },
-	"forward_set": { "enabled": "String", "template": "String", "allow": "String", "deny": "String",
-		"keywords": "String", "clear": "String", "webhook": "String", "webhook_url": "String",
-		"webhook_format": "String", "webhook_headers": "String", "telegram": "String", "telegram_token": "String",
-		"telegram_chat": "String", "email": "String", "email_host": "String", "email_port": "String",
-		"email_tls": "String", "email_user": "String", "email_password": "String", "email_from": "String",
-		"email_to": "String", "sms": "String", "sms_number": "String", "webhook_body": "String",
-		"webhook_expect": "String", "webhook_secret": "String", "timeout": "String", "power": "String" },
-	"forward_test": { },
-	"forward_log_clear": { },
 	"cpu_get": { },
 	"cpu_set": { "profile": "String" },
-	"cpu_tune": { "op": "String", "cpu": "String", "state": "String" },
-	"cpu_voltage_get": { },
-	"cpu_voltage_set": { "op": "String", "offsets": "String", "confirm": "String", "minutes": "String" },
-	"packages_get": { },
-	"packages_act": { "op": "String" },
 	"update_get": { "sizes": "String" },
 	"update_job": { },
-	"backup_export": { "passphrase": "String", "with_password": "Boolean" },
-	"backup_import": { "file": "String", "passphrase": "String", "dry_run": "Boolean", "force": "Boolean", "skip": "String" },
-	"backup_job": { },
 	"update_act": { "op": "String", "tag": "String", "systems": "String", "kernel": "String", "sha256": "String",
 		"size": "String", "flags": "String", "confirm": "String", "url": "String" }
 }
 EOF
 }
-
-# System > Backup of settings: the request goes on to mu300-api as it came, which checks every field (and refuses any
-# other); the reply carries the backup (export) or what a restore would change (import), so run_m does not keep it
-APIB=${MU300_DASH_API:-/opt/mu300/bin/mu300-api}
-m_backup_export() { reply_obj "$(printf '%s' "$INPUT" | "$APIB" backup.export 2>/dev/null)" 'The backup tool gave no valid reply'; }
-m_backup_import() { reply_obj "$(printf '%s' "$INPUT" | "$APIB" backup.import 2>/dev/null)" 'The backup tool gave no valid reply'; }
-m_backup_job() { reply_obj "$(printf '{"from":0}' | "$APIB" job.status 2>/dev/null)" 'The backup tool gave no valid reply'; }
 
 # Cellular > SIM settings: per card, the radio on or off (mu300-sim-radio, FINDINGS 185) and VoLTE and VoNR
 # (mobile-data voice, FINDINGS 184). get asks the card in use what
@@ -1199,143 +958,9 @@ m_sim_set() {
     fi
 }
 
-# Forensics for the rpcd crash (2026-09-28): rpcd segfaulted while parsing a
-# script reply during a lock apply, wiping every session (LuCI bounced to the
-# login page). Every method's raw stdout is appended here, so the last entry
-# at the moment of a crash is the input that killed the parser.
-LASTLOG=$DIR/last-outputs.log
-
-# ------------------------------------------------------------- operations log
-# "Recent modem operations": one line per call - when, the method (for "at" the command's name only, for act and
-# lock_set the op or kind), how long it took and how it ended (ok, error, busy, confirm, or killed: rpcd ended the
-# call at its 30 s limit, found afterwards by its marker) - and nothing else: no parameter values, no replies, no
-# SMS text, no IMSI or numbers. In RAM for this boot (OPS, the last OPS_MAX lines); copied to flash at most every
-# OPS_FLUSH seconds and when the service stops, and the previous boot's copy is kept beside it, so that a report
-# after a reboot still has the calls that led up to it. The panel shows both (ops_log).
-OPS=$DIR/ops.log
-OPS_DIR=${MU300_DASH_OPS_DIR:-/etc/unisoc-modem}
-OPS_MAX=200
-OPS_FLUSH=300
-
-# ticks: hundredths of a second since boot (whole seconds where /proc/uptime is missing)
-ticks() {
-    local u
-    { read -r u _ < /proc/uptime; } 2>/dev/null || { echo $(( $(date +%s) * 100 )); return; }
-    u=${u%%.*}${u#*.}; u=${u#"${u%%[!0]*}"}
-    echo "${u:-0}"
-}
-
-# at_verb CMD: an AT command's name for the log: up to its first "=" or "?" ("AT+COPS=?", "AT+CPIN=", "AT+CSQ"),
-# a dial without its number, at most 24 characters of [A-Z0-9+&^$%#*_.:=?-]
-at_verb() {
-    printf '%s\n' "$1" | tr -d ' "' | tr 'a-z' 'A-Z' | awk '{
-        s = $0
-        if (s ~ /^ATD/) { print "ATD"; exit }
-        i = match(s, /[=?]/)
-        v = i ? substr(s, 1, i) : s
-        if (i && substr(s, i, 2) == "=?") v = v "?"
-        gsub(/[^A-Z0-9+&^$%#*_.:=?-]/, "", v)
-        print substr(v, 1, 24)
-    }'
-}
-
-# ops_detail LABEL: the one thing about this call worth logging besides its name (never a value someone typed)
-ops_detail() {
-    case $1 in
-        at)       inp '@.cmd'; is_ascii_line "$V" && at_verb "$V" ;;
-        act)      inp '@.op'; allowed "$V" '[a-z-]{1,16}' && printf '%s\n' "$V" ;;
-        lock_set) inp '@.kind'; allowed "$V" '[a-z_]{1,16}' && printf '%s\n' "$V" ;;
-        lock_get) inp '@.fresh'; [ "$V" = 1 ] && echo fresh ;;
-        update_act) inp '@.op'; allowed "$V" '[a-z_]{1,16}' && printf '%s\n' "$V" ;;
-        cpu_voltage_set) inp '@.op'; allowed "$V" '[a-z]{1,8}' && printf '%s\n' "$V" ;;
-        cpu_tune) inp '@.op'; allowed "$V" '[a-z]{1,10}' && printf '%s\n' "$V" ;;
-        led_set) inp '@.key'; allowed "$V" '[a-z_]{1,20}' && printf '%s\n' "$V" ;;
-    esac
-}
-
-# ops_reap: the markers of calls that never finished (rpcd killed them) become "killed" lines
-ops_reap() {
-    local f pid line
-    for f in "$DIR"/ops.run.*; do
-        [ -f "$f" ] || continue
-        pid=${f##*.}
-        case $pid in ''|*[!0-9]*) rm -f "$f"; continue ;; esac
-        [ "$pid" != $$ ] && ! kill -0 "$pid" 2>/dev/null || continue
-        line=$(cat "$f" 2>/dev/null)
-        rm -f "$f"
-        [ -n "$line" ] && printf '%s - killed\n' "$line" >> "$OPS"
-    done
-}
-
-# ops_flush [now]: the RAM log to flash, when the copy there is older than OPS_FLUSH seconds (or "now"). The first
-# flush of a boot keeps the previous boot's copy as panel-ops.prev.log (a rename).
-ops_flush() {
-    local f=$OPS_DIR/panel-ops.log
-    [ -s "$OPS" ] || return 0
-    if [ "${1:-}" != now ] && [ -f "$DIR/ops.boot" ] && [ -f "$f" ] &&
-       [ $(( $(now) - $(date -r "$f" +%s 2>/dev/null || echo 0) )) -lt "$OPS_FLUSH" ]; then
-        return 0
-    fi
-    (umask 077; mkdir -p "$OPS_DIR") 2>/dev/null
-    if [ ! -f "$DIR/ops.boot" ]; then
-        [ -f "$f" ] && mv -f "$f" "$OPS_DIR/panel-ops.prev.log" 2>/dev/null
-        : > "$DIR/ops.boot"
-    fi
-    (umask 077; tail -n "$OPS_MAX" "$OPS" > "$f.part") 2>/dev/null && mv -f "$f.part" "$f"
-}
-
-# ops_add LINE: one finished call
-ops_add() {
-    ops_reap
-    printf '%s\n' "$1" >> "$OPS"
-    # trimmed now and then, not on every call: the file is in RAM, a little over the limit costs nothing
-    [ "$(wc -l < "$OPS" 2>/dev/null || echo 0)" -gt $((OPS_MAX + 50)) ] &&
-        tail -n "$OPS_MAX" "$OPS" > "$OPS.t" 2>/dev/null && mv "$OPS.t" "$OPS"
-    ops_flush
-}
-
-m_ops_log() {
-    ops_reap
-    printf '{"ok":1,"now":%s,"prev":%s}\n' "$(json_str "$(tail -n "$OPS_MAX" "$OPS" 2>/dev/null)")" \
-        "$(json_str "$(cat "$OPS_DIR/panel-ops.prev.log" 2>/dev/null)")"
-}
-
-run_m() {  # run_m LABEL FUNCTION: the method's reply, logged
-    local out t0 dt how stamp detail head kept
-    t0=$(ticks)
-    stamp="$(date '+%m-%d %H:%M:%S') $1"
-    detail=$(ops_detail "$1")
-    [ -n "$detail" ] && stamp="$stamp $detail"
-    # the marker a killed call leaves behind (ops_reap)
-    printf '%s\n' "$stamp" > "$DIR/ops.run.$$" 2>/dev/null
-    out=$("$2" 2>/dev/null)
-    # (a backup's reply is the file with its passwords, or what a restore changes: its length only)
-    case $1 in backup_*) kept='(a backup: not kept)' ;; *) kept=$out ;; esac
-    printf '=== %s %s len=%s\n%s\n' "$(date '+%m-%d %H:%M:%S')" "$1" "${#out}" "$kept" >> "$LASTLOG" 2>/dev/null
-    tail -n 400 "$LASTLOG" > "$LASTLOG.t" 2>/dev/null && mv "$LASTLOG.t" "$LASTLOG"
-    printf '%s\n' "$out"
-    dt=$(( $(ticks) - t0 ))
-    # the reply's own top-level verdict (a status snapshot carries the modem's errors inside, which are not the call's);
-    # its start without blanks: what jsonfilter re-serialises reads '{ "ok": 0, ...'
-    head=$(printf '%s' "$out" | head -c 80 | tr -d ' \t')
-    case $head in
-        '{"ok":0'*'"confirm":1'*) how=confirm ;;
-        '{"ok":0'*'"busy":1'*|'{"busy":1'*) how=busy ;;
-        # (a collector's "no answer" snapshot is {"ts":N,"error...)
-        '{"ok":0'*|'{"error'*|'{"ts":'[0-9]*',"err'*|'') how=error ;;
-        *) how=ok ;;
-    esac
-    rm -f "$DIR/ops.run.$$"
-    # The pages poll the reads every few seconds: a quick, successful read is not worth a line (two hundred of them
-    # would push out everything else within minutes). Every change, every AT command, and every read that was slow
-    # or failed is.
-    case $1 in
-        # (the send's job logs its own result once it is in; the polls that ask after it are not worth a line each)
-        ops_log|sms_job|update_job|backup_job) return ;;
-        sysinfo|status|signal|at_job|lock_job|at_history|sms_list|sms_show|*_get|usb_net_list)
-            [ "$how" != ok ] || [ "$dt" -ge 200 ] || [ -n "$detail" ] || return ;;
-    esac
-    ops_add "$(printf '%s %d.%02ds %s' "$stamp" $((dt / 100)) $((dt % 100)) "$how")"
+run_m() {  # run_m LABEL FUNCTION: the method's reply. Nothing of a call is logged: replies carry SMS text, IMSI,
+    # ICCID and AT answers.
+    "$2" 2>/dev/null
 }
 
 case "${1:-}" in
@@ -1343,8 +968,6 @@ list)
     do_list
     ;;
 call)
-    # a backup to restore is larger than any other request (6 MiB: a 4 MiB file, escaped)
-    [ "${2:-}" != backup_import ] || INPUT_MAX=6291456
     INPUT=$(cat 2>/dev/null)
     if input_too_large; then
         refuse 'Request too large'
@@ -1362,7 +985,6 @@ call)
         at)           run_m at           m_at ;;
         at_job)       run_m at_job       m_at_job ;;
         at_history)   run_m at_history   m_at_history ;;
-        ops_log)      run_m ops_log      m_ops_log ;;
         lock_get)     run_m lock_get     m_lock_get ;;
         lock_set)     run_m lock_set     m_lock_set ;;
         lock_job)     run_m lock_job     m_lock_job ;;
@@ -1376,53 +998,26 @@ call)
         usb_set)      run_m usb_set      m_usb_set ;;
         usb_net_list) run_m usb_net_list m_usb_net_list ;;
         usb_net_add)  run_m usb_net_add  m_usb_net_add ;;
-        lang_get)     run_m lang_get     m_lang_get ;;
-        lang_set)     run_m lang_set     m_lang_set ;;
-        power_get)    run_m power_get    m_power_get ;;
-        power_set)    run_m power_set    m_power_set ;;
         sim_get)      run_m sim_get m_sim_get ;;
         sim_set)      run_m sim_set m_sim_set ;;
         simcard_get)  run_m simcard_get  m_simcard_get ;;
         simcard_set)  run_m simcard_set  m_simcard_set ;;
-        ttl_get)      run_m ttl_get      m_ttl_get ;;
-        ttl_set)      run_m ttl_set      m_ttl_set ;;
-        tcp_get)      run_m tcp_get      m_tcp_get ;;
-        tcp_set)      run_m tcp_set      m_tcp_set ;;
-        boot_get)     run_m boot_get     m_boot_get ;;
-        led_get)      run_m led_get      m_led_get ;;
-        led_set)      run_m led_set      m_led_set ;;
         traffic_get)  run_m traffic_get  m_traffic_get ;;
         traffic_set)  run_m traffic_set  m_traffic_set ;;
-        forward_get)  run_m forward_get  m_forward_get ;;
-        forward_set)  run_m forward_set  m_forward_set ;;
-        forward_test) run_m forward_test m_forward_test ;;
-        forward_log_clear) run_m forward_log_clear m_forward_log_clear ;;
         cpu_get)      run_m cpu_get      m_cpu_get ;;
         cpu_set)      run_m cpu_set      m_cpu_set ;;
-        cpu_tune)     run_m cpu_tune     m_cpu_tune ;;
-        cpu_voltage_get) run_m cpu_voltage_get m_cpu_voltage_get ;;
-        cpu_voltage_set) run_m cpu_voltage_set m_cpu_voltage_set ;;
-        packages_get) run_m packages_get m_packages_get ;;
-        packages_act) run_m packages_act m_packages_act ;;
         update_get)   run_m update_get   m_update_get ;;
         update_job)   run_m update_job   m_update_job ;;
         update_act)   run_m update_act   m_update_act ;;
-        backup_export) run_m backup_export m_backup_export ;;
-        backup_import) run_m backup_import m_backup_import ;;
-        backup_job)   run_m backup_job   m_backup_job ;;
         *)           refuse 'No such method' ;;
     esac
     ;;
-# not methods (rpcd runs only list and call): the detached scan m_at starts, the detached send m_sms_send starts,
-# and the service's stop
+# not methods (rpcd runs only list and call): the detached scan m_at starts and the detached send m_sms_send starts
 at-job)
     [ "$DIR_OK" = 1 ] && run_at_job
     ;;
 sms-job)
     [ "$DIR_OK" = 1 ] && run_sms_job
-    ;;
-flush-ops)
-    [ "$DIR_OK" = 1 ] && { ops_reap; ops_flush now; }
     ;;
 *)
     echo "usage: $0 {list|call <method>}" >&2

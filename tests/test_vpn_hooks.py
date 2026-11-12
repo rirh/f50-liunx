@@ -288,12 +288,5 @@ class Static(unittest.TestCase):
     def test_wifi_client_asks_only_a_present_mu300_vpn(self):
         self.assertIn('if [ -x "$VPN_CMD" ] && ! "$VPN_CMD" guard', (BIN / 'wifi-client').read_text())
 
-    def test_luci_vpn_capability_is_the_module(self):
-        info = (ADAPTERS / 'dashboard-info').read_text()
-        self.assertIn('CAP_VPN=0; [ -x /opt/mu300/bin/mu300-vpn ] && [ -x /etc/init.d/mu300-vpn ] && CAP_VPN=1', info)
-        act = (ADAPTERS / 'action').read_text()
-        self.assertIn('if [ -x /opt/mu300/bin/mu300-vpn ] && [ -x /etc/init.d/mu300-vpn ]; then', act)
-
-
 if __name__ == '__main__':
     unittest.main()

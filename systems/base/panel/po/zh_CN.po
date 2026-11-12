@@ -1340,9 +1340,6 @@ msgstr "日志"
 msgid "Show the log"
 msgstr "显示日志"
 
-msgid "Update the device to see its power settings here."
-msgstr "更新设备后可在此查看电源设置。"
-
 msgid "Power"
 msgstr "电源"
 

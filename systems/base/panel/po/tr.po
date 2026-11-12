@@ -1340,9 +1340,6 @@ msgstr "Günlük"
 msgid "Show the log"
 msgstr "Günlüğü göster"
 
-msgid "Update the device to see its power settings here."
-msgstr "Güç ayarlarını burada görmek için cihazı güncelleyin."
-
 msgid "Power"
 msgstr "Güç"
 

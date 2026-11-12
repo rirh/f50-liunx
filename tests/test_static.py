@@ -153,18 +153,18 @@ class Rules(unittest.TestCase):
                                         f'{name}:{m + 1}: an apostrophe inside the script of line {n + 1}')
                         break
 
-    def test_ubuntu_has_the_panels_lock_and_forwarding_programs(self):
-        # Ubuntu runs openwrt-luci's lock and forwarding adapters as they are (FINDINGS 189): the same bytes, executable
+    def test_ubuntu_has_the_panels_lock_programs(self):
+        # Ubuntu runs openwrt-luci's lock adapter as it is (FINDINGS 189): the same bytes, executable
         for f in ('usr/libexec/unisoc-modem/lock', 'usr/libexec/unisoc-modem/at', 'usr/libexec/unisoc-modem/boot-replay',
-                  'usr/libexec/unisoc-modem/forward', 'usr/share/unisoc-modem/lib.sh'):
+                  'usr/share/unisoc-modem/lib.sh'):
             with self.subTest(file=f):
                 ours, luci = TOP / 'systems/base/overlay' / f, TOP / 'systems/openwrt/luci-app-mu300/root' / f
                 self.assertEqual(ours.read_bytes(), luci.read_bytes(), f'{f}: copy systems/openwrt/luci-app-mu300/root/{f} over it')
                 if f.startswith('usr/libexec'):
                     self.assertTrue(os.access(ours, os.X_OK), f)
         units = (TOP / 'systems/base/assemble.sh').read_text()
-        for u in ('mu300-lock-replay.service:multi-user.target', 'mu300-sms-forward.service:multi-user.target'):
-            self.assertIn(u, units)
+        self.assertIn('mu300-lock-replay.service:multi-user.target', units)
+        self.assertNotIn('mu300-sms-forward', units)
 
     def test_every_tool_that_mounts_the_filesystem_knows_the_card(self):
         for f in ('uninstall.sh', 'scripts/device/reset-password.sh'):
@@ -797,34 +797,6 @@ class Rules(unittest.TestCase):
         # the fast-path note belongs to the nft backend only
         view = (app / 'htdocs/luci-static/resources/view/mu300/ttl.js').read_text()
         self.assertRegex(view, r"if \(st\.backend === 'nft'\)\s*card\.appendChild\([^;]*firewall fast-path is off")
-
-    def test_tcp_and_boot_cards_are_wired(self):
-        # kanoqwq's b9f71e72 (the TCP card on the Device page) and f6b0668d (the boot state on the dashboard): rpc
-        # declarations, tcp_get/boot_get readable, tcp_set only with write access, the adapters executable; the boot
-        # card only reads (its changes stay the act os buttons)
-        import json
-        app = TOP / 'systems' / 'openwrt' / 'luci-app-mu300'
-        common = (app / 'htdocs/luci-static/resources/mu300/common.js').read_text()
-        self.assertIn("method: 'tcp_get'", common)
-        self.assertIn("method: 'tcp_set', params: [ 'value' ]", common)
-        self.assertIn("method: 'boot_get', expect", common)
-        self.assertIn('callTcpGet: callTcpGet, callTcpSet: callTcpSet, callBootGet: callBootGet', common)
-        acl = json.loads((app / 'root/usr/share/rpcd/acl.d/luci-app-mu300.json').read_text())['luci-app-mu300']
-        self.assertIn('tcp_get', acl['read']['ubus']['mu300dash'])
-        self.assertIn('boot_get', acl['read']['ubus']['mu300dash'])
-        self.assertNotIn('tcp_set', acl['read']['ubus']['mu300dash'])
-        self.assertIn('tcp_set', acl['write']['ubus']['mu300dash'])
-        self.assertNotIn('boot_set', json.dumps(acl))
-        for name in ('tcp', 'boot'):
-            self.assertTrue((app / 'root/usr/libexec/unisoc-modem' / name).stat().st_mode & 0o111, name)
-        self.assertTrue((TOP / 'systems/base/overlay/opt/mu300/bin/mu300-tcp').stat().st_mode & 0o111)
-        device = (app / 'htdocs/luci-static/resources/view/mu300/device.js').read_text()
-        self.assertIn('M.callTcpGet()', device)
-        self.assertIn('M.callTcpSet(value)', device)
-        self.assertIn('s.net_current', device)
-        self.assertIn('d.eligible === 0', device)
-        home = (app / 'htdocs/luci-static/resources/view/mu300/home.js').read_text()
-        self.assertIn('M.callBootGet()', home)
 
     def test_mainline_rewrites_the_ttl_in_tc(self):
         # mu300-ttl's tc backend (clsact egress, matchall, pedit, csum): the flowtable transmits through egress, so

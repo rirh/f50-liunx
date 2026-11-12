@@ -130,8 +130,6 @@ class Pool(ShellTest):
         self.assertIn('procd_set_param env MU300_SMS_POOL="$pool"', src)
         self.assertIn("option sms_pool '/etc/mu300/sms-pool'",
                       (APP / 'root' / 'etc' / 'config' / 'unisoc_modem').read_text())
-        self.assertIn("o.placeholder = '/etc/mu300/sms-pool'",
-                      (APP / 'htdocs/luci-static/resources/view/mu300/settings.js').read_text())
 
     def test_programs_are_executable_and_english(self):
         for p in (SMS, SMSD, INITD):
@@ -724,12 +722,6 @@ class Pool(ShellTest):
             r = self.dash_send(shell, '10086', 'hi')
             self.assertEqual((r['ok'], r['error']), (0, 'Sending failed'))
             self.assertIn('+CMS ERROR: 500', r['detail'])
-            # how each send went is in the operations log, from the job itself (the call only started it)
-            ops = (self.tmp / 'dash' / 'ops.log').read_text()
-            self.assertRegex(ops, r'sms_send result \d+\.\d\ds ok\n')
-            self.assertRegex(ops, r'sms_send result \d+\.\d\ds error\n')
-            self.assertNotIn('-hi', ops)   # never the message, nor the number
-            self.assertNotIn('10086', ops)
             self.assertEqual(self.dash(shell, 'sms_delete', {'id': '1'}), {'ok': 1})
             r = self.dash(shell, 'sms_delete', {'id': '1'})
             self.assertEqual((r['error'], r['detail']), ('Delete failed', 'mu300-sms: no message 1'))
@@ -1012,18 +1004,6 @@ class Pool(ShellTest):
             [(h, body)] = self.msgs().values()
             self.assertEqual((h['incomplete'], h['status'], body), ('1/2', 'read', '[...]only the end\n'))
 
-    def test_new_messages_go_to_the_forwarding(self):
-        fwd = self.tmp / 'fwd'
-        fwd.write_text('#!/bin/sh\necho "$*" >> "$STUBLOG/fwd.log"\n')
-        fwd.chmod(0o755)
-        for shell in self.each_shell():
-            self.fresh()
-            (self.tmp / 'fwd.log').unlink(missing_ok=True)
-            self.run_sms(shell, 'sync', MU300_SMS_FORWARD=fwd)
-            self.run_sms(shell, 'sync', MU300_SMS_FORWARD=fwd)
-            self.assertEqual((self.tmp / 'fwd.log').read_text().splitlines(), ['enqueue 000001 000002', 'kick'])
-
-    # ------------------------------------------------------------------ delivered directly (import-pdu)
     def spooled(self, pdu, name='cmt-1.abcdef.ready'):
         """A PDU in the pool's spool, as mu300-cmt-spool writes it."""
         d = self.pool / 'incoming'
@@ -1062,7 +1042,6 @@ class Pool(ShellTest):
                     break
                 time.sleep(0.1)
             self.assertEqual(out.read_text(), '+31641600986|2002-08-26 19:37:41|How are you?\n')
-            self.assertEqual((self.tmp / 'fwd.log').read_text().splitlines(), ['enqueue 000001'])
             # the same PDU again (an acknowledgement that failed, and the file imported once more): nothing new
             r = self.run_sms(shell, 'import-pdu', f, MU300_SMS_HOOK=hook, MU300_SMS_FORWARD=fwd)
             self.assertEqual((r.returncode, r.stdout.strip()), (0, 'import: 0 new, 1 in the pool'), r.stderr)

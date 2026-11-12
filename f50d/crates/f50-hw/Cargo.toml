@@ -1,0 +1,22 @@
+[package]
+name = "f50-hw"
+description = "The F50's boot-time bring-up: kernel modules, device permissions, the modem's vendor daemons, firmware, boot success marks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+f50-core.workspace = true
+f50-platform.workspace = true
+libc.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

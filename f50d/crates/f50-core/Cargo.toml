@@ -1,0 +1,20 @@
+[package]
+name = "f50-core"
+description = "f50d's device-independent base: errors, the RPC method model and field validation, the process runner, jobs, files"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+libc.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

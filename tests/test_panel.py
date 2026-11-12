@@ -612,7 +612,7 @@ const flush = async (n = 4) => { for (let i = 0; i < n; i++) await new Promise((
 '''
 
     METHODS = ['hello', 'overview', 'data.get', 'sms.list', 'at.send', 'traffic.get', 'wifi.get', 'vpn.status', 'cpu.get',
-               'system.get', 'extra.list', 'backup.export']
+               'system.get', 'update.status', 'backup.export']
     OUT = {
         'hello': {'ok': 1, 'methods': METHODS, 'features': {'locks': False}, 'job': {'kind': '', 'state': 'none'}},
         'overview': {'ok': 1, 'device': 'f50', 'release': 'v1', 'data': {'state': 'up', 'iface': 'sipa_eth0'},

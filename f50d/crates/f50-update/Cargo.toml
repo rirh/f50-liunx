@@ -1,0 +1,24 @@
+[package]
+name = "f50-update"
+description = "Updates for the F50 on OpenWrt: release check, download, signature, apply, rollback"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+f50-core.workspace = true
+f50-platform.workspace = true
+libc.workspace = true
+minisign-verify.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

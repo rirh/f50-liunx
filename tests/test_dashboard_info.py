@@ -360,7 +360,7 @@ esac""")
                 self.assertIn(f.name, ('cell.json', 'own-number'), f)
             self.assertEqual(self.commands().count('5551234567'), 0)  # the stub logs the commands: none carries it
         dash = (TOP / 'systems' / 'openwrt' / 'luci-app-mu300' / 'root' / 'usr' / 'libexec' / 'rpcd' / 'mu300dash').read_text()
-        self.assertIn('no IMSI or numbers', dash)           # the operations log's rule, unchanged
+        self.assertNotIn('last-outputs', dash)              # no call's reply is kept in a log
 
     def test_parsing(self):
         cases = [
