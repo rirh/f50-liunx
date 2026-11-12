@@ -1,3 +1,4 @@
+import { type MouseEvent as ReactMouseEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -11,12 +12,11 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
 import { Monitor, Moon, Settings2, Sun } from "lucide-react";
-import { useTheme } from "@/hooks/use-theme";
-import { Separator } from "@/components/ui/separator";
-import { type MouseEvent as ReactMouseEvent, useState } from "react";
 
 const THEME_ITEMS = [
   { value: "light", label: "浅色模式", icon: Sun },

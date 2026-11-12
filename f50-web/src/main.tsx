@@ -1,24 +1,24 @@
-import { Provider } from "jotai";
 import React from "react";
-import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-import { QueryProvider } from "@/components/providers/query-provider";
-import { ThemeProvider } from "@/components/providers/theme-provider";
+import { HashRouter } from "react-router-dom";
 import { App } from "@/App";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { RouteProgress } from "@/components/providers/route-progress";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import "@/index.css";
+import { Provider } from "jotai";
+import ReactDOM from "react-dom/client";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <Provider>
       <ThemeProvider>
-        <BrowserRouter>
+        <HashRouter>
           <RouteProgress />
           <QueryProvider>
             <App />
           </QueryProvider>
-        </BrowserRouter>
+        </HashRouter>
       </ThemeProvider>
     </Provider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

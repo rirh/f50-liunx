@@ -7,13 +7,16 @@ export function RouteProgress() {
   const previousKey = useRef(key);
 
   useLayoutEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
     NProgress.configure({
       showSpinner: false,
       barSelector: '[role="progressbar"]',
       trickle: !reducedMotion,
       speed: reducedMotion ? 0 : 200,
-      template: '<div class="bar" role="progressbar" aria-label="页面切换"><div class="peg"></div></div>',
+      template:
+        '<div class="bar" role="progressbar" aria-label="页面切换"><div class="peg"></div></div>',
     });
     return () => {
       NProgress.done();

@@ -107,6 +107,15 @@ impl Update {
         Ok(Update { inner })
     }
 
+    /// Where an offline update is uploaded through uhttpd's cgi-upload (the one file path the ACL lets a login
+    /// write).
+    pub fn upload_path(&self) -> std::path::PathBuf {
+        self.inner.layout.upload.strip_prefix(self.inner.layout.paths.root()).map_or_else(
+            |_| self.inner.layout.upload.clone(),
+            |p| std::path::Path::new("/").join(p),
+        )
+    }
+
     /// `f50.update`.
     pub fn objects(&self) -> Vec<Object> {
         vec![object::object(self.inner.clone())]

@@ -1,13 +1,17 @@
+import { useEffect } from "react";
 import { format, formatDistanceToNow, isValid, parseISO } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { useEffect } from "react";
 import { name, version } from "../../package.json";
 
 const buildTime = import.meta.env.VITE_BUILD_TIME;
 const buildDate = parseISO(buildTime ?? "");
 const validBuildTime = isValid(buildDate);
-const formattedBuildTime = validBuildTime ? format(buildDate, "yyyy-MM-dd HH:mm:ss xxx") : "未知";
-const compactBuildTime = validBuildTime ? format(buildDate, "yyyy-MM-dd HH:mm") : "未知";
+const formattedBuildTime = validBuildTime
+  ? format(buildDate, "yyyy-MM-dd HH:mm:ss xxx")
+  : "未知";
+const compactBuildTime = validBuildTime
+  ? format(buildDate, "yyyy-MM-dd HH:mm")
+  : "未知";
 let printed = false;
 
 export function BuildInfo() {
@@ -38,16 +42,27 @@ export function BuildInfo() {
     console.groupEnd();
   }, []);
 
-  const relativeTime = validBuildTime ? formatDistanceToNow(buildDate, { addSuffix: true, locale: zhCN }) : "";
+  const relativeTime = validBuildTime
+    ? formatDistanceToNow(buildDate, { addSuffix: true, locale: zhCN })
+    : "";
   return (
-    <section className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label="构建信息">
+    <section
+      className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground"
+      aria-label="构建信息"
+    >
       <span className="inline-flex items-center gap-2">
         <span>{name}</span>
-        <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">v{version}</span>
+        <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">
+          v{version}
+        </span>
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span>构建于</span>
-        <time dateTime={validBuildTime ? buildTime : undefined} title={`${formattedBuildTime} ${relativeTime}`} className="tabular-nums">
+        <time
+          dateTime={validBuildTime ? buildTime : undefined}
+          title={`${formattedBuildTime} ${relativeTime}`}
+          className="tabular-nums"
+        >
           {compactBuildTime}
         </time>
       </span>

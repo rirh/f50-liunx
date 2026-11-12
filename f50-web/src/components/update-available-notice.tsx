@@ -1,10 +1,10 @@
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SweepShine } from "@/components/ui/sweep-shine";
-import { X } from "lucide-react";
-import * as React from "react";
-import { useAtom } from "jotai";
 import { updatePendingAtom } from "@/store/app-update";
+import { useAtom } from "jotai";
+import { X } from "lucide-react";
 
 export interface UpdateAvailableNoticeProps {
   open: boolean;

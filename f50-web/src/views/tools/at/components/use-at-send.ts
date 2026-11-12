@@ -1,0 +1,166 @@
+import { useState } from "react";
+import { errorMessage } from "@/lib/format";
+import { isJobStarted, type JobStatus } from "@/lib/jobs";
+import { ApiError } from "@/lib/ubus";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSetAtom } from "jotai";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import { atKeys, atSend } from "../api";
+import { classOf, translate } from "../messages";
+import { appendOutputAtom } from "../store/terminal";
+import type { AtClass, AtReply } from "../types";
+
+const AT_MAX = 512;
+
+const schema = z.object({
+  command: z
+    .string()
+    .trim()
+    .min(1, "请输入 AT 命令")
+    .max(AT_MAX, `最多 ${AT_MAX} 个字符`)
+    .regex(/^[\x20-\x7e]*$/, "只能是可打印的 ASCII 字符")
+    .regex(/^at/i, "命令须以 AT 开头")
+    .refine((v) => !v.includes(";"), "不允许用“;”串联多条命令"),
+  timeout: z
+    .string()
+    .trim()
+    .refine(
+      (v) => v === "" || (/^\d+$/.test(v) && +v >= 1 && +v <= 60),
+      "1–60 秒，留空为默认 8 秒",
+    ),
+});
+export type AtValues = z.infer<typeof schema>;
+
+export interface PendingConfirm {
+  values: AtValues;
+  cls: AtClass | null;
+  message: string;
+}
+
+/**
+ * Sends one command: the reply goes to the output; `missing` on `confirm` asks first and resends with
+ * `confirm: true`; a scan or a long timeout comes back as a job whose result's reply lines go to the output.
+ */
+export function useAtSend() {
+  const qc = useQueryClient();
+  const append = useSetAtom(appendOutputAtom);
+  const form = useForm<AtValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { command: "", timeout: "" },
+  });
+  const [confirm, setConfirm] = useState<PendingConfirm | null>(null);
+  const [job, setJob] = useState<{ id: string; command: string } | null>(null);
+  const [jobRunning, setJobRunning] = useState(false);
+
+  const send = useMutation({
+    mutationFn: ({
+      values,
+      confirmed,
+    }: {
+      values: AtValues;
+      confirmed: boolean;
+    }) =>
+      atSend({
+        command: values.command.trim(),
+        ...(confirmed ? { confirm: true } : {}),
+        ...(values.timeout ? { timeout: Number(values.timeout) } : {}),
+      }),
+    onMutate: ({ values, confirmed }) => {
+      if (!confirmed)
+        append({ kind: "command", lines: [values.command.trim()] });
+      else append({ kind: "info", lines: ["已确认，重新发送"] });
+    },
+    onSuccess: (r, { values }) => {
+      form.reset({ command: "", timeout: values.timeout });
+      if (isJobStarted(r)) {
+        setJob({ id: r.job, command: values.command.trim() });
+        setJobRunning(true);
+        append({
+          kind: "info",
+          lines: [`长时间命令，已转为后台任务 ${r.job}`],
+        });
+      } else {
+        const reply = r;
+        append({
+          kind: "reply",
+          lines: reply.reply_lines,
+          status: reply.status,
+        });
+      }
+    },
+    onError: (e, { values }) => {
+      if (
+        e instanceof ApiError &&
+        e.code === "missing" &&
+        e.field === "confirm"
+      ) {
+        const cls = classOf(e.message);
+        append({
+          kind: "info",
+          lines: [`需要确认后才能发送（${cls ?? e.message}）`],
+        });
+        setConfirm({ values, cls, message: e.message });
+        return;
+      }
+      const msg =
+        e instanceof ApiError ? translate(e.message) : errorMessage(e);
+      append({
+        kind: "error",
+        lines: [
+          e instanceof ApiError && e.code === "forbidden"
+            ? `已拒绝：${msg}`
+            : msg,
+        ],
+      });
+      if (
+        e instanceof ApiError &&
+        (e.field === "command" || e.field === "timeout")
+      ) {
+        form.setError(e.field, { message: msg });
+      } else toast.error(msg);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: atKeys.history }),
+  });
+
+  const onJobDone = (j: JobStatus) => {
+    setJobRunning(false);
+    if (j.state === "done") {
+      const r = j.result as AtReply | undefined;
+      append({ kind: "reply", lines: r?.reply_lines ?? [], status: r?.status });
+    } else {
+      append({
+        kind: "error",
+        lines: [
+          j.error
+            ? translate(j.error.message)
+            : `后台任务${j.state === "cancelled" ? "已取消" : "未完成"}`,
+        ],
+      });
+    }
+  };
+
+  return {
+    form,
+    submit: form.handleSubmit((values) =>
+      send.mutate({ values, confirmed: false }),
+    ),
+    sending: send.isPending,
+    busy: send.isPending || jobRunning,
+    confirm,
+    acceptConfirm: () => {
+      if (confirm) send.mutate({ values: confirm.values, confirmed: true });
+      setConfirm(null);
+    },
+    rejectConfirm: () => {
+      append({ kind: "info", lines: ["已取消发送"] });
+      setConfirm(null);
+    },
+    job,
+    jobRunning,
+    onJobDone,
+    dismissJob: () => setJob(null),
+  };
+}

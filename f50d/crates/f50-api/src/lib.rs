@@ -43,6 +43,7 @@ pub struct Api {
     public: Arc<Vec<Object>>,
     internal: Arc<Vec<Object>>,
     all: Arc<Vec<Object>>,
+    uploads: Arc<Vec<String>>,
 }
 
 impl Api {
@@ -63,7 +64,8 @@ impl Api {
         let snapshot = Arc::new(public.clone());
         public.push(status::object(snapshot));
         let all = public.iter().chain(internal.iter()).cloned().collect();
-        Api { public: Arc::new(public), internal: Arc::new(internal), all: Arc::new(all) }
+        let uploads = vec![s.update.upload_path().to_string_lossy().into_owned()];
+        Api { public: Arc::new(public), internal: Arc::new(internal), all: Arc::new(all), uploads: Arc::new(uploads) }
     }
 
     pub fn public(&self) -> &[Object] {
@@ -86,6 +88,6 @@ impl Api {
 
     /// The rpcd ACL for the public objects.
     pub fn acl(&self) -> Value {
-        acl::generate(&self.public)
+        acl::generate(&self.public, &self.uploads)
     }
 }

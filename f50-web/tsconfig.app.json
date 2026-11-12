@@ -1,5 +1,7 @@
 {
-  "compilerOptions": { "resolveJsonModule": true, "paths": { "@/*": ["./src/*"] },
+  "compilerOptions": {
+    "resolveJsonModule": true,
+    "paths": { "@/*": ["./src/*"] },
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "es2023",
     "lib": ["ES2023", "DOM"],

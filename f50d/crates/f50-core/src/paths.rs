@@ -34,9 +34,10 @@ impl Paths {
         self.sys("/etc/f50d")
     }
 
-    /// The Linux data partition shared with the update machinery (`/mnt/f50-disk`).
+    /// The Linux data partition the systems live on, mounted by the initramfs (`/mnt/mu300-disk`: the initramfs and
+    /// the installer name it so, and the device already has it under that name).
     pub fn disk(&self) -> PathBuf {
-        self.sys("/mnt/f50-disk")
+        self.sys("/mnt/mu300-disk")
     }
 
     pub fn root(&self) -> &Path {

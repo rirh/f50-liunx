@@ -2,7 +2,7 @@
 //!
 //! Flash wear decides the layout: the live ledger is in RAM (`/var/run/f50d/traffic/ledger`, rewritten every
 //! round, so a restarted daemon loses nothing), the copy on flash is written rarely ([`super::sampler`]). The flash
-//! copy is on the Linux data partition (`/mnt/f50-disk/.f50d/traffic`) when it is there, so it survives a system
+//! copy is on the Linux data partition (`/mnt/mu300-disk/.f50d/traffic`) when it is there, so it survives a system
 //! update, else in `/etc/f50d/traffic`. The shell's count (`/mnt/mu300-disk/.mu300/traffic` or
 //! `/etc/mu300/traffic`, the same format) is taken over once when there is none of ours yet.
 //!

@@ -12,8 +12,6 @@ const queryClient = new QueryClient({
 
 export function QueryProvider({ children }: PropsWithChildren) {
   return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 }

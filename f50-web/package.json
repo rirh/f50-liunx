@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "format": "prettier --write .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "build:stage": "tsc -b && vite build --mode stage"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -64,7 +65,7 @@
     "typescript": "~7.0.2",
     "vite": "^8.3.6"
   },
-  "description": "React + Vite starter with shadcn/ui, TanStack Query, and SPA-ready defaults",
+  "description": "ZTE F50 web console on f50d (ubus JSON-RPC through the device uhttpd)",
   "keywords": [
     "react",
     "vite",

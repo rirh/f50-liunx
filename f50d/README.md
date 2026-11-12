@@ -115,6 +115,9 @@ device itself and are in no ACL.
 
 ## OpenWrt integration
 
+The web console (`../f50-web`, React) is installed by the same script when its build is given as the fourth
+argument: `install.sh ROOT BINARY SRC f50-web/dist` puts it in `/www/f50` and points the device's front page there.
+
 `openwrt/` holds what the image installs beside the binary: the procd init scripts, the hotplug hooks, the netifd
 protocol handler (`f50cell`), `/etc/config/f50d`, and a first-boot default that moves `network.wan` from `mu300cell`
 to `f50cell` (same option names). `openwrt/install.sh ROOT BINARY` installs them and takes the mu300 shell layer out

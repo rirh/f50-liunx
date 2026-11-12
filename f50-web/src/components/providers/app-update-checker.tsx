@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { useAtom } from "jotai";
-import { updateAvailableAtom } from "@/store/app-update";
 import { UpdateAvailableNotice } from "@/components/update-available-notice";
+import { updateAvailableAtom } from "@/store/app-update";
+import { useAtom } from "jotai";
 
 type WorkerMessage = {
   type: "baseline" | "unchanged" | "changed" | "unavailable" | "error";

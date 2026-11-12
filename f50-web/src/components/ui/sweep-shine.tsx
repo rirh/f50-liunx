@@ -1,6 +1,6 @@
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { Slot } from "radix-ui";
-import type { ComponentProps } from "react";
 
 type SweepShineProps = ComponentProps<"span"> & {
   active?: boolean;

@@ -1,6 +1,6 @@
-import { useAtom } from "jotai";
 import { useSyncExternalStore } from "react";
 import { themeAtom, type Theme } from "@/store/theme";
+import { useAtom } from "jotai";
 
 const query = "(prefers-color-scheme: dark)";
 function subscribe(callback: () => void) {

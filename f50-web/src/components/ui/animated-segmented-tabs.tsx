@@ -1,8 +1,7 @@
+import * as React from "react";
 import { cn } from "@/lib/utils";
 import { gsap } from "gsap";
 import { Tabs as TabsPrimitive } from "radix-ui";
-import * as React from "react";
-
 import {
   Tooltip,
   TooltipContent,

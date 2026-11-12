@@ -1,3 +1,33 @@
+# ZTE F50 控制台
+
+基于 f50d 的设备管理前端：React + Vite + shadcn/ui（radix-nova）+ TanStack Query/Table + Jotai + React Hook Form/Zod。
+所有数据都来自设备上的 f50d：浏览器通过 uhttpd 的 `/ubus` JSON-RPC 调用 `f50.*` 对象，用 rpcd 会话登录（OpenWrt 的系统账户）。
+接口清单见 [`../f50d/docs/API.md`](../f50d/docs/API.md)，运行时也可调用 `f50.meta describe` 取得。
+
+```sh
+make dev            # 127.0.0.1:5173，/ubus 和 /cgi-bin 代理到设备（F50_DEVICE=http://192.168.77.1）
+make build          # 生产构建到 dist/（base 为 /f50/）
+make deploy         # 构建并经 SSH 复制到设备的 /www/f50（DEVICE=root@192.168.77.1）
+make deploy-stage   # stage 构建，复制到 STAGE_DEVICE
+```
+
+镜像构建时由 `f50d/openwrt/install.sh ROOT BINARY SRC dist` 安装到 `/www/f50`，设备首页跳转到这里；LuCI 仍在 `/cgi-bin/luci`。
+
+### 与脚手架默认的不同
+
+- **使用 HashRouter**：uhttpd 没有把深层路径回退到 `index.html` 的功能，用 hash 路由刷新任何页面都不会 404。
+- **布局**：用 shadcn Sidebar 的管理后台布局取代了首页/关于的分段标签；去掉了 Cookie 提示（路由器管理页没有用）。
+- **请求**：`src/lib/request.ts` 是唯一的 fetch 封装；`src/lib/ubus.ts` 提供 `f50(object, method, args)`，解开 f50d 的 `{ok,data}` / `{ok:false,code,error,field}`，失败时抛出 `ApiError`。会话过期会回到登录页。
+- **后台任务**：返回 `{job}` 的方法用 `useJob` / `JobProgress` 跟踪（`src/hooks/use-job.ts`，`src/components/f50/job-progress.tsx`）。
+
+### 页面
+
+仪表盘；蜂窝网络（信号与小区、SIM、网络锁定、移动数据、流量统计、短信）；网络（Wi-Fi 热点、Wi-Fi 上网、局域网、USB 与 adb）；
+系统（信息、设置与重启、CPU、指示灯、更新与离线升级、启动、日志）；工具（AT 终端、后台任务）。每个页面在 `src/views/<路由>/`，
+包含 `index.tsx`、`api.ts`、`types.ts` 和自己的 `components/`。三个以上页面共用的组件在 `src/components/f50/`，工具函数在 `src/lib/`。
+
+---
+
 # React + Vite Starter
 
 默认集成 TypeScript、React Router、shadcn/ui（Radix）、TanStack Query/Table、Zod、React Hook Form、Jotai 和 GSAP。
