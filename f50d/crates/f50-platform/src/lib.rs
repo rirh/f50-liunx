@@ -9,10 +9,14 @@
 //! - [`system`]: hostname, timezone, a user's password, reboot, sysctl;
 //! - [`sysfs`]: small attribute files under the root (`/sys`, `/proc`);
 //! - [`modules`]: kernel modules;
-//! - [`fetch`]: HTTP(S) downloads through the image's `uclient-fetch`.
+//! - [`fetch`]: HTTP(S) downloads through the image's `uclient-fetch`;
+//! - calls to any other ubus object ([`Platform::call`], `hostapd.wlan0 get_status`), with ubus failures mapped to
+//!   f50d's codes.
 //!
 //! CONTRACT: the public items below are used by other crates. Extend them freely; do not change a signature.
 
+mod bus;
+mod check;
 pub mod fetch;
 pub mod modules;
 pub mod netifd;
@@ -25,6 +29,8 @@ use std::sync::Arc;
 
 use f50_core::paths::Paths;
 use f50_ubus::Client;
+
+pub use bus::CALL_TIMEOUT;
 
 /// The platform handle every capability gets. Cheap to clone.
 #[derive(Debug, Clone)]

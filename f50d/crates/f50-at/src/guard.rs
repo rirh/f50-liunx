@@ -62,18 +62,28 @@ impl Refusal {
     }
 }
 
-fn rx(p: &str) -> Regex {
-    Regex::new(p).expect("static AT guard pattern")
+/// A guard pattern. A pattern that does not compile is a bug the tests catch; at run time it is `None`, and every
+/// check that uses it fails closed (see [`hit`]).
+fn rx(p: &str) -> Option<Regex> {
+    Regex::new(p).ok()
 }
 
-static MOVES_SIM: LazyLock<[Regex; 3]> =
+/// `re` matches `s`; `fallback` when the pattern did not compile: `true` for the patterns that refuse or ask for a
+/// confirmation, `false` for the ones that make an exception, so a broken pattern never lets a command through.
+fn hit(re: &Option<Regex>, s: &str, fallback: bool) -> bool {
+    re.as_ref().map_or(fallback, |r| r.is_match(s))
+}
+
+type Rx = LazyLock<Option<Regex>>;
+
+static MOVES_SIM: LazyLock<[Option<Regex>; 3]> =
     LazyLock::new(|| [rx(r"\+(SPACTCARD|SMMSWAP)=([^?]|$)"), rx(r"\+SPSWDATA($|[^?=])"), rx(r"\+SPSWDATA=([^?]|$)")]);
-static SCAN: LazyLock<Regex> = LazyLock::new(|| rx(r"\+COPS=\?|SCAN"));
-static NV: LazyLock<[Regex; 2]> =
+static SCAN: Rx = LazyLock::new(|| rx(r"\+COPS=\?|SCAN"));
+static NV: LazyLock<[Option<Regex>; 2]> =
     LazyLock::new(|| [rx(r"\+(SPTESTMODEM?|SP5GRAN|SPENDC)=([^?]|$)"), rx(r"\+SPLBAND=0*[12]([^0-9]|$)")]);
-static FORCEFRQ: LazyLock<(Regex, Regex)> =
-    LazyLock::new(|| (rx(r"\+SPFORCEFRQ=[0-9]*,"), rx(r"\+SPFORCEFRQ=[0-9]*,0*3([^0-9]|$)")));
-static RADIO: LazyLock<[Regex; 4]> = LazyLock::new(|| {
+static FORCEFRQ: Rx = LazyLock::new(|| rx(r"\+SPFORCEFRQ=[0-9]*,"));
+static FORCEFRQ_READ: Rx = LazyLock::new(|| rx(r"\+SPFORCEFRQ=[0-9]*,0*3([^0-9]|$)"));
+static RADIO: LazyLock<[Option<Regex>; 4]> = LazyLock::new(|| {
     [
         rx(r"\+(CFUN|SFUN|CGATT|CGACT|SPATASSERT)=([^?]|$)"),
         rx(r"\+CGDATA"),
@@ -81,11 +91,12 @@ static RADIO: LazyLock<[Regex; 4]> = LazyLock::new(|| {
         rx(r"^ATD"),
     ]
 });
-static APN: LazyLock<Regex> = LazyLock::new(|| rx(r"\+(CGDCONT|CGAUTH)=([^?]|$)"));
-static SIM: LazyLock<(Regex, Regex, Regex)> =
-    LazyLock::new(|| (rx(r"\+CLCK=([^?]|$)"), rx(r"\+CLCK=[A-Z0-9]*,0*2([^0-9]|$)"), rx(r"\+(CPWD|CPIN)=([^?]|$)")));
-static SECRET_ARGS: LazyLock<Regex> =
-    LazyLock::new(|| rx(r#"(?i)(\+\s*"?\s*(CPIN|CPWD|CLCK|CGAUTH)|\$\s*QCPDPP)\s*"?\s*="#));
+static APN: Rx = LazyLock::new(|| rx(r"\+(CGDCONT|CGAUTH)=([^?]|$)"));
+static CLCK: Rx = LazyLock::new(|| rx(r"\+CLCK=([^?]|$)"));
+static CLCK_QUERY: Rx = LazyLock::new(|| rx(r"\+CLCK=[A-Z0-9]*,0*2([^0-9]|$)"));
+static PIN: Rx = LazyLock::new(|| rx(r"\+(CPWD|CPIN)=([^?]|$)"));
+/// Matched against the command in upper case (ASCII only, so the offsets are the original's).
+static SECRET_ARGS: Rx = LazyLock::new(|| rx(r#"(\+\s*"?\s*(CPIN|CPWD|CLCK|CGAUTH)|\$\s*QCPDPP)\s*"?\s*="#));
 
 /// The command as the checks see it: spaces and double quotes dropped, upper case.
 pub fn normalize(cmd: &str) -> String {
@@ -114,21 +125,21 @@ pub fn wedges(cmd: &str) -> bool {
 /// One of the commands that say which card the modem's channels and its packet data belong to.
 pub fn moves_sim(cmd: &str) -> bool {
     let n = normalize(cmd);
-    MOVES_SIM.iter().any(|r| r.is_match(&n))
+    MOVES_SIM.iter().any(|r| hit(r, &n, true))
 }
 
 /// What the command would do beyond answering, or None for one that only reads.
 pub fn class(cmd: &str) -> Option<Class> {
     let s = normalize(cmd);
-    if SCAN.is_match(&s) {
+    if hit(&SCAN, &s, true) {
         Some(Class::Scan)
-    } else if NV.iter().any(|r| r.is_match(&s)) || (FORCEFRQ.0.is_match(&s) && !FORCEFRQ.1.is_match(&s)) {
+    } else if NV.iter().any(|r| hit(r, &s, true)) || (hit(&FORCEFRQ, &s, true) && !hit(&FORCEFRQ_READ, &s, false)) {
         Some(Class::Nv)
-    } else if RADIO.iter().any(|r| r.is_match(&s)) {
+    } else if RADIO.iter().any(|r| hit(r, &s, true)) {
         Some(Class::Radio)
-    } else if APN.is_match(&s) {
+    } else if hit(&APN, &s, true) {
         Some(Class::Apn)
-    } else if (SIM.0.is_match(&s) && !SIM.1.is_match(&s)) || SIM.2.is_match(&s) {
+    } else if (hit(&CLCK, &s, true) && !hit(&CLCK_QUERY, &s, false)) || hit(&PIN, &s, true) {
         Some(Class::Sim)
     } else {
         None
@@ -157,8 +168,12 @@ pub fn check(cmd: &str) -> Result<(String, Option<Class>), Refusal> {
 /// The command as the history keeps it: one that carries a PIN or a password (CPIN, CPWD, CLCK, CGAUTH, $QCPDPP)
 /// without its arguments.
 pub fn redact(cmd: &str) -> String {
-    match SECRET_ARGS.find(cmd) {
-        Some(m) => format!("{}...", &cmd[..m.end()]),
+    let Some(re) = SECRET_ARGS.as_ref() else {
+        // no pattern: keep nothing but the start, which names no argument
+        return format!("{}...", cmd.get(..2).unwrap_or(""));
+    };
+    match re.find(&cmd.to_ascii_uppercase()) {
+        Some(m) => format!("{}...", cmd.get(..m.end()).unwrap_or("")),
         None => cmd.to_owned(),
     }
 }
@@ -166,6 +181,13 @@ pub fn redact(cmd: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_pattern_compiles() {
+        let singles: [&Rx; 8] = [&SCAN, &FORCEFRQ, &FORCEFRQ_READ, &APN, &CLCK, &CLCK_QUERY, &PIN, &SECRET_ARGS];
+        assert!(singles.iter().all(|r| r.is_some()));
+        assert!(MOVES_SIM.iter().chain(NV.iter()).chain(RADIO.iter()).all(Option::is_some));
+    }
 
     #[test]
     fn wedge_in_any_spelling() {

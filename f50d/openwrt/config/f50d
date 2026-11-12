@@ -1,0 +1,5 @@
+config f50d 'main'
+	# error | warn | info | debug
+	option log 'info'
+	# 1: holding the reset key 10 s wipes the settings (firstboot) and reboots
+	option factory_reset '0'

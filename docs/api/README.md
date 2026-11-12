@@ -3,7 +3,7 @@
 提取日期：2026-11-12。依据当前本地源码，不代表设备已部署版本。提取时仅生成文档，未运行测试、构建、OpenAPI 校验、浏览器检查或设备接口请求。之后在同一天对一台运行中的设备做过一次只读核对，结果见[设备核对记录](#设备核对记录2026-11-12)。
 
 
-> **2026-11-12 精简**：VPN（`mu300vpn`）、网页终端（`mu300term`/ttyd）、设置备份、短信转发、语言包、软件包恢复、LED、电源、TTL、TCP、USSD、VoLTE、zram、Docker、内核与双系统切换、CPU 核心/低延迟/电压等接口已从代码中删除，本文与 `openapi.json` 已同步移除，现为 32 个 RPC 方法、49 个 CLI 方法。下文“设备核对记录”保留的是删减前的核对结果。统一接口的后续实现见 [`device-tools/mu300d`](../../device-tools/mu300d/README.md)。
+> **2026-11-12 精简**：VPN（`mu300vpn`）、网页终端（`mu300term`/ttyd）、设置备份、短信转发、语言包、软件包恢复、LED、电源、TTL、TCP、USSD、VoLTE、zram、Docker、内核与双系统切换、CPU 核心/低延迟/电压等接口已从代码中删除，本文与 `openapi.json` 已同步移除，现为 32 个 RPC 方法、49 个 CLI 方法。下文“设备核对记录”保留的是删减前的核对结果。之后 OpenWrt 上的接口已由 Rust 守护进程 `f50d` 取代：ubus 对象 `f50.*`，经 uhttpd 的 `/ubus` 用 rpcd 会话调用，方法表可用 `f50.meta describe` 取得，见 [f50d/README.md](../../f50d/README.md)。本文描述的是旧的 shell 接口。
 
 ## 文件与范围
 

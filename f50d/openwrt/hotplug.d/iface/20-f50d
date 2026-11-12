@@ -1,0 +1,4 @@
+#!/bin/sh
+# netifd's interface events to f50d (the LAN handoff of the USB link, the uplink's firewall rules)
+[ -x /usr/sbin/f50d ] || exit 0
+ACTION="$ACTION" INTERFACE="$INTERFACE" /usr/sbin/f50d hotplug iface </dev/null >/dev/null 2>&1 &

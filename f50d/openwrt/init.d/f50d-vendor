@@ -1,0 +1,35 @@
+#!/bin/sh /etc/rc.common
+# f50d boot stage "vendor": Android's vendor daemons in the chroot (/opt/mu300/android) - cp_diskserver (the modem's
+# NV), modem_control (PM watchdog + modem boot, FINDINGS 5), refnotify. Replaces mu300-vendor.
+#
+# START=09, before /etc/init.d/boot (10): its one job on the boot path is to release the CP, which then needs about
+# fifteen seconds before its AT channel answers. Everything it touches is there once preinit is done (/dev, /proc,
+# /sys, /opt, /run), and it waits for /dev/modem or /dev/pmsys for up to 90 s by itself. Keep the leading zero:
+# rc.common embeds START verbatim in the rc.d link, and S9 sorts after S19 (it delayed the CP by ~31 s).
+START=09
+USE_PROCD=1
+F50D=/usr/sbin/f50d
+
+start_service() {
+	# The modem stack may not be loaded yet (mainline: the hardware stage loads it); the instances wait themselves.
+	[ -f "/lib/modules/$(uname -r)/sipc-core.ko" ] || [ -e /dev/modem ] || [ -e /dev/pmsys ] || {
+		logger -t f50d-vendor "no modem stack in $(uname -r)"; return 0; }
+	# the NV server first: a modem that does not get its data while it boots stalls ("wait modem alive timeout")
+	procd_open_instance cp_diskserver
+	procd_set_param command "$F50D" boot vendor-exec cp_diskserver
+	procd_set_param respawn 3600 10 0
+	procd_close_instance
+
+	# prepares the chroot (stage "vendor"), then becomes modem_control (its comm must be exactly that)
+	procd_open_instance modem_control
+	procd_set_param command "$F50D" boot vendor
+	procd_set_param respawn 3600 10 0
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_close_instance
+
+	procd_open_instance refnotify
+	procd_set_param command /bin/sh -c "sleep 12; exec $F50D boot vendor-exec refnotify"
+	procd_set_param respawn 3600 10 0
+	procd_close_instance
+}

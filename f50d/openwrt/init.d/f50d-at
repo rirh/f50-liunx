@@ -1,0 +1,15 @@
+#!/bin/sh /etc/rc.common
+# The AT descriptor keeper (f50d at-keeper): opens each of the modem's SIPC AT channels once and holds them, so the
+# daemon's crashes, restarts and updates never close one (a closed channel can be lost until reboot, FINDINGS 13b),
+# and keeps the modem's log channel drained (a full one stops the modem ~90 s into a boot). Never restarted with
+# f50d; started before it. Replaces the channel ownership of mu300-atd and modem-log-drain.
+START=13
+USE_PROCD=1
+
+start_service() {
+	procd_open_instance keeper
+	procd_set_param command /usr/sbin/f50d at-keeper
+	procd_set_param respawn 3600 5 0
+	procd_set_param stderr 1
+	procd_close_instance
+}

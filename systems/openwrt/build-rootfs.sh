@@ -155,6 +155,15 @@ ls "$IN/out/modules"/*.ko >/dev/null 2>&1 || {
 for o in firmware android-subset android-gpu-subset device-tools/logdw/logdw device-tools/bt-init/mu300-bt-init device-tools/keys/mu300-keys device-tools/adbd/adbd device-tools/carry/mu300-carry device-tools/gpu/cltest busybox kernel/mainline/out/modules; do
     [ -e "$IN/$o" ] && echo "  + $o" || echo "  - $o   (missing: the image is built without it)"
 done
+# f50d, the Rust device daemon (f50d/): built here for the device and installed in the image by
+# f50d/openwrt/install.sh, which takes the mu300 shell layer it replaces out. F50D=0 builds the image as before.
+F50D=${F50D:-1}
+if [ "$F50D" = 1 ]; then
+    command -v cargo >/dev/null || { echo "f50d needs Rust (cargo); F50D=0 builds without it" >&2; exit 1; }
+    (cd "$TOP/f50d" && cargo build --release --locked --target aarch64-unknown-linux-musl -p f50d) || exit 1
+    set -- "$@" -v "$TOP/f50d/target/aarch64-unknown-linux-musl/release/f50d":/in/f50d:ro \
+        -v "$TOP/f50d/openwrt":/in/f50d-openwrt:ro
+fi
 # shellcheck disable=SC2046
 docker run --rm --platform linux/arm64 \
   -v "$TOP/systems/base/overlay/opt/mu300":/in/opt-mu300:ro -v "$TOP/systems/openwrt/overlay":/in/overlay:ro \
@@ -432,6 +441,8 @@ if ls /in/mainline-modules/*.ko >/dev/null 2>&1; then
     krel=$(for f in /in/mainline-modules/*.ko; do tr "\0" "\n" < $f | sed -n "s/^vermagic=\([^ ]*\) .*/\1/p"; break; done)
     [ -n "$krel" ] && mkdir -p $R/lib/modules/$krel && cp /in/mainline-modules/*.ko $R/lib/modules/$krel/
 fi
+# f50d in place of the mu300 shell layer (before the manifest: it changes the image)
+[ -x /in/f50d ] && sh /in/f50d-openwrt/install.sh $R /in/f50d /in/f50d-openwrt
 # The manifest of the image: every file it holds, with type, mode, owner, size and sha256 (scripts/release/image-manifest.py has
 # the format and makes the same lines from the tarball; make-release.sh holds the two against each other). The next
 # update reads it to tell the files of the image from those of the user. Last, when nothing in $R changes any more.

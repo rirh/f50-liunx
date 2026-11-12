@@ -91,7 +91,7 @@ flowchart TB
 - 所有 AT 命令经 `mu300-at` 交给常驻的 `mu300-atd`。SIPC 串口关闭后会卡死，所以通道只由守护进程持有。
 - 数据面不经过上述链路：蜂窝数据是 `sipa_eth0`，由 netifd 的 `mu300cell` 协议作为 `wan` 管理；`br-lan` 桥接 Wi-Fi 热点（`wlan0`）和 USB 网卡（`usb0`）。
 
-> 2026-11-12 精简后：rpcd 只剩 `mu300dash`（31 个方法）和 `mu300rates`，`mu300-api` 剩 49 个方法；统一接口 `mu300d`（Rust）见 [device-tools/mu300d](../../device-tools/mu300d/README.md)。下面的核对记录是精简前的设备状态。
+> 2026-11-12 精简后：rpcd 只剩 `mu300dash`（31 个方法）和 `mu300rates`，`mu300-api` 剩 49 个方法；之后整个 OpenWrt 设备层已用 Rust 重写为 `f50d`（只支持 F50 + OpenWrt），见 [f50d/README.md](../../f50d/README.md)；OpenWrt 镜像默认装 `f50d` 并移除 mu300 shell 层（`F50D=0` 构建旧版）。下面的核对记录是精简前的设备状态。
 
 ## 3. 设备核对记录（2026-11-12）
 

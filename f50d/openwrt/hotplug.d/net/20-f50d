@@ -1,0 +1,4 @@
+#!/bin/sh
+# the kernel's net device events to f50d (USB network adapters in host mode)
+[ -x /usr/sbin/f50d ] || exit 0
+ACTION="$ACTION" INTERFACE="$INTERFACE" /usr/sbin/f50d hotplug net </dev/null >/dev/null 2>&1 &

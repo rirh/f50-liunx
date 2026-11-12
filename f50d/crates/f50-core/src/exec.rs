@@ -33,6 +33,7 @@ pub struct Cmd {
     stdin: Option<Vec<u8>>,
     timeout: Duration,
     max_out: usize,
+    leaves_daemon: bool,
 }
 
 /// What a program did.
@@ -80,7 +81,17 @@ impl Cmd {
             stdin: None,
             timeout: Duration::from_secs(15),
             max_out: OUTPUT_MAX,
+            leaves_daemon: false,
         }
+    }
+
+    /// The program starts a daemon that must outlive it (`wpa_supplicant -B`, `udhcpc` after its lease): the
+    /// daemon stays in the program's process group, so after a normal exit the group is left alone. On a timeout,
+    /// or when the caller goes away, the group is still killed: a half-started daemon is not kept.
+    #[must_use]
+    pub fn leaves_daemon(mut self) -> Self {
+        self.leaves_daemon = true;
+        self
     }
 
     #[must_use]
@@ -160,8 +171,12 @@ impl Cmd {
                 (child.wait().await.ok(), true)
             }
         };
-        // what is left of the group (a helper it put in the background) goes too: it would hold the pipes open
-        group.kill();
+        // what is left of the group (a helper it put in the background) goes too: it would hold the pipes open; a
+        // daemon the program was asked to leave behind stays (it was started with its stdio on our pipes closed
+        // or redirected, which the reads below do not wait for longer than the grace)
+        if !self.leaves_daemon || timed_out {
+            group.kill();
+        }
         group.0 = None;
         let grace = Duration::from_secs(2);
         let stdout = tokio::time::timeout(grace, out).await.ok().and_then(std::result::Result::ok).unwrap_or_default();

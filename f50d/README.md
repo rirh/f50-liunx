@@ -71,7 +71,8 @@ binary's business: capability crates publish [`f50_core::rpc::Object`]s and neve
 
 All versions live in the workspace `Cargo.toml`; crates write `name.workspace = true`. The set is deliberately
 small: `tokio`, `tokio-util`, `serde`, `serde_json`, `thiserror`, `tracing`, `tracing-subscriber`, `regex`,
-`libc`, `sha2`, `minisign-verify`. A new dependency is a workspace decision, recorded here with its reason.
+`libc`, `sha2`, `minisign-verify`, and `md-5` (f50-sms only: the migrated SMS pool names messages by MD5, an
+identity, never a security property). A new dependency is a workspace decision, recorded here with its reason.
 
 ## Build
 
@@ -81,8 +82,51 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo device                                     # static aarch64 binary: target/aarch64-unknown-linux-musl/release/f50d
 ```
 
+## Processes
+
+One binary, several roles (`f50d <role>`, see `crates/f50d/src/cli.rs`):
+
+| role | started by | what |
+|---|---|---|
+| `at-keeper` | `/etc/init.d/f50d-at` (S13) | opens each SIPC AT channel once and holds it; hands duplicates to the daemon over `/var/run/f50d/at-keeper.sock` (SCM_RIGHTS), so a crash, restart or update of the daemon never closes a channel (FINDINGS 13b); drains the modem's log channel |
+| `daemon` | `/etc/init.d/f50d` (S19) | everything else; registers the `f50.*` objects on ubus |
+| `boot vendor`, `boot vendor-exec <d>` | `/etc/init.d/f50d-vendor` (S09) | the vendor daemons in the chroot |
+| `boot hardware` | `/etc/init.d/f50d-hw` (S12) | modules, regdb, board, the module helper |
+| `boot post` | `/etc/init.d/f50d-post` (S99) | marks the boot good (the A/B fallback) |
+| `boot early` | preinit `05_f50_early_recorder` | the early boot recorder |
+| `boot trial` | f50-update | arms a trial boot of a new boot image |
+| `proto setup/teardown/renew` | netifd (`proto f50cell`) | forwards to `f50.proto` |
+| `hotplug iface/net/ntp/wcn` | hotplug.d | forwards to `f50.daemon` (wcn runs itself) |
+| `call <object> <method> [json]`, `methods`, `acl` | a shell | one call to the running daemon |
+| (as `modprobe-guard`) | the kernel | the module helper |
+
+## API
+
+Every object is `f50.<area>`; `f50.meta describe` returns the whole table (methods, access, field rules), and
+`f50.status get` the dashboard in one call. Over HTTP, uhttpd's `/ubus` JSON-RPC with an rpcd session:
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"call","params":["<session>","f50.status","get",{}]}
+```
+
+The daemon writes the rpcd ACL generated from the method table (`/usr/share/rpcd/acl.d/f50.json`: `f50-read`, every
+read method; `f50-admin`, everything) and reloads rpcd when it changed. `f50.proto` and `f50.daemon` are for the
+device itself and are in no ACL.
+
 ## OpenWrt integration
 
-`openwrt/` holds what the image installs beside the binary: the procd init script, the netifd protocol handler
-(`f50cell`), the rpcd ACL (`/usr/share/rpcd/acl.d/f50.json`, generated from the method table), and the UCI
-defaults. `systems/openwrt/build-rootfs.sh` builds `f50d` and installs them.
+`openwrt/` holds what the image installs beside the binary: the procd init scripts, the hotplug hooks, the netifd
+protocol handler (`f50cell`), `/etc/config/f50d`, and a first-boot default that moves `network.wan` from `mu300cell`
+to `f50cell` (same option names). `openwrt/install.sh ROOT BINARY` installs them and takes the mu300 shell layer out
+of the root; `systems/openwrt/build-rootfs.sh` builds `f50d` on the host and runs it in its build container
+(`F50D=0` builds the old image).
+
+Kept from /opt/mu300: the programs that are not shell (busybox, adbd, logdw, the carry helper...), the vendor chroot
+(`/opt/mu300/android`, where the installer puts it), the release key, and the helpers preinit's early USB DHCP still
+uses. Runtime paths the initramfs shares keep their names (`/run/mu300`, `/mnt/mu300-disk/.mu300`).
+
+## Status
+
+Written, compiled and linted (`cargo clippy -D warnings`, host and aarch64-unknown-linux-musl). **Not yet run**: no
+unit test has been executed and nothing has run on a device. Each crate's module docs list what is unverified
+without the hardware.

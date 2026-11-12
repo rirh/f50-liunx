@@ -1,0 +1,4 @@
+#!/bin/sh
+# the WCN (Wi-Fi/Bluetooth) firmware events: f50d reopens what the chip lost (replaces 10-mu300-wcn)
+[ -x /usr/sbin/f50d ] || exit 0
+ACTION="$ACTION" SOURCE="$SOURCE" EVENT="$EVENT" /usr/sbin/f50d hotplug wcn </dev/null >/dev/null 2>&1 &
