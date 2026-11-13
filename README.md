@@ -43,6 +43,9 @@ From a Mac or a Linux computer, on a ZTE F50 that still runs its stock firmware.
    root channel. Connect the computer to the F50's **Wi-Fi** for the TCP fallback: recovery uses actual adb-only
    USB functions, which removes USB networking and MTP. A fallback connection is accepted only after matching
    the boot ID captured over USB. Existing correct properties and root channels are reused without rebooting.
+   On macOS, preparation first checks that the Wi-Fi IPv4 subnet contains the F50 address. A phone hotspot or
+   unrelated Wi-Fi subnet stops preparation before any USB toggle or reboot; the check does not replace confirming
+   that the selected hotspot belongs to the F50.
    It reuses a direct root shell, working Magisk `su`, or the local root socket. On firmware such as B15 where
    ADB is an ordinary shell, it uses writable `/data/samba/etc/smb.conf` to install a Samba `root preexec` hook,
    enables guest access, and accesses a share to start a local root socket. The original Samba configuration is

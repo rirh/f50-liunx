@@ -148,6 +148,39 @@ def run(command, timeout=8, label=None):
     return process.returncode, output.strip()
 
 
+def require_f50_wifi():
+    # USB networking disappears in adb-only mode. A phone hotspot cannot carry the
+    # LAN fallback to the F50; check this before toggling USB or rebooting it.
+    if sys.platform != 'darwin':
+        say('请确认 Wi-Fi 已连接 F50；本机未自动核对无线网段。')
+        return
+    rc, ports = run(['/usr/sbin/networksetup', '-listallhardwareports'], timeout=3)
+    if rc:
+        raise RuntimeError('无法读取 Mac Wi-Fi 网卡信息，尚未操作设备：' + ports)
+    addresses = []
+    for block in ports.split('\n\n'):
+        if not re.search(r'Hardware Port:\s*(Wi-Fi|AirPort)\s*(?:\n|$)', block, re.I):
+            continue
+        device = re.search(r'^Device:\s*(\S+)', block, re.M)
+        if not device:
+            continue
+        interface = device.group(1)
+        rc, config = run(['/sbin/ifconfig', interface], timeout=3)
+        if rc:
+            continue
+        for address, mask in re.findall(r'\binet ([0-9.]+) netmask (0x[0-9a-fA-F]+|[0-9.]+)', config):
+            netmask = str(ipaddress.IPv4Address(int(mask, 16))) if mask.startswith('0x') else mask
+            network = ipaddress.IPv4Network(f'{address}/{netmask}', strict=False)
+            addresses.append(f'{interface}={address} ({network})')
+            if ipaddress.IPv4Address(args.ip) in network:
+                say(f'Wi-Fi 网段检查通过：{interface}={address}，目标 {args.ip} 同网段；请确认连接的是 F50 热点。')
+                run(['/sbin/route', '-n', 'get', args.ip], timeout=3, label='当前 F50 网络路径')
+                return
+    raise RuntimeError('Wi-Fi 不在 F50 的本地网段，不能作为 USB 掉线后的备用通道。'
+                       f'\n当前 Wi-Fi：{", ".join(addresses) or "没有 IPv4 地址"}；目标：{args.ip}。'
+                       '\n请连接 F50 自己的 Wi-Fi，保持 USB 线连接，再运行 make adb。尚未切换 USB 或重启设备。')
+
+
 # --- the F50 web console (goform), only when the admin password is given
 
 WEB_PORT = None
@@ -491,7 +524,7 @@ def tcp_target(deadline):
         if (rc, state) != TCP_LAST_STATE:
             say(f'TCP ADB 状态：{state or "无返回"}（退出码 {rc}）；仅 device 且身份匹配才可用。')
             TCP_LAST_STATE = (rc, state)
-        if state == 'unauthorized':
+        if 'unauthorized' in state.lower():
             return None
         if rc or state != 'device':
             if time.monotonic() - TCP_LAST_RECONNECT < 2:
@@ -500,7 +533,7 @@ def tcp_target(deadline):
             if remaining <= 0:
                 return None
             TCP_LAST_RECONNECT = time.monotonic()
-            if state == 'offline':
+            if state == 'offline' or 'device offline' in state.lower():
                 # Drop only this stale transport; never restart the user's whole ADB server.
                 run([ADB, 'disconnect', ENDPOINT], timeout=min(0.5, remaining), label='清理指定地址的 offline TCP 连接')
                 remaining = deadline - time.monotonic()
@@ -801,9 +834,12 @@ def main():
         if serial.startswith('F50LINUX'):
             say('设备当前运行 F50 Linux，ADB 已可用；安装器会先让它重启回 Android。')
             return
+        require_f50_wifi()
         say('USB ADB 已连接，复用连接准备 TCP/root；已有正确属性不会重复写入，不重启设备。')
         inject_configuration(target)
     else:
+        if not args.adb_only:
+            require_f50_wifi()
         say('没有检测到 USB ADB。前置步骤：')
         say('  1. 用数据线把 F50 连到这台电脑（部分充电线不带数据）。')
         say(f'  2. 浏览器打开 {CONSOLE}，用后台密码登录，开启 ADB 调试并保存。')
