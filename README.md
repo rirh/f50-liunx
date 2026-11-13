@@ -82,6 +82,11 @@ without root/Samba preparation or the stability claim. `make install` still uses
 adb-only mode in place rather than restoring MTP at exit. This is a per-boot preparation, not a guarantee that
 stock firmware will retain debugging forever.
 
+The Python entry point is `scripts/device/f50-enable-adb.py`; its implementation lives in
+`scripts/device/f50_adb/`. `config` handles arguments, `host` owns tools/logs/processes, `web` implements
+Goform, `adb` tracks transports and device identity, `smb` handles share access, `payloads` supplies Android
+commands, and `root`/`workflow` coordinate recovery. Imports do not start preparation or create logs.
+
 Implementation references: [UFI-TOOLS sharing controls](https://github.com/kanoqwq/UFI-TOOLS/blob/cf83b815efb114ed026f06dc90550845aafbfceb/app/frontEnd/public/script/main.js#L1517),
 [openSMB](https://github.com/kanoqwq/UFI-TOOLS/blob/cf83b815efb114ed026f06dc90550845aafbfceb/app/src/main/java/com/minikano/f50_sms/utils/ShellKano.kt#L760),
 and [the author's short-lived ADB discussion](https://github.com/kanoqwq/UFI-TOOLS/issues/64).
