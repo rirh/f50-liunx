@@ -29,9 +29,6 @@
 #   ADB=0|1 ADB_KEY    adb over USB to each system: 1 lets in only the adb public key ADB_KEY ("BASE64 name",
 #                      etc/f50/adb_keys; "keys" in etc/f50/adb_auth); 0 writes nothing, and a system that was
 #                      never told otherwise has adb on for every computer (f50-adbd)
-# An installation of the upstream project from before the rename (mu300) is recognised as an existing one: the
-# filesystem labels mu300root and mu300sd, the GPT partition mu300root, a system's etc/mu300 (f50 is always looked at
-# first). Everything written here has the f50 names.
 # Environment (not the env file): F50_LOCK_DIR, where the lock of a timed-out SD-card stage lives (default $T;
 # the Magisk installer: /data/adb), F50_STAGE_STALL / F50_STAGE_POLL / F50_BOOT_ID, the stage guard's knobs for
 # the tests (see the stage block).
@@ -229,7 +226,7 @@ sd_prepare() {  # sd_prepare DEV FORMAT: create f50sd, or check that it is there
     label=$(sd_label "$1")
     if [ "$2" = 1 ]; then
         # any other ext4, with or without a label, is someone's Linux data; FAT, exFAT or a blank card is not
-        if sd_ext4 "$1" && [ "$label" != f50sd ] && [ "$label" != mu300sd ]; then
+        if sd_ext4 "$1" && [ "$label" != f50sd ]; then
             say "refusing to format: foreign ext4 (${label:-no label}) on the SD card"; return 1
         fi
         # Android's own mke2fs, not a busybox one that su's PATH may find first. Its default of one inode per
@@ -243,7 +240,7 @@ sd_prepare() {  # sd_prepare DEV FORMAT: create f50sd, or check that it is there
         say "creating ext4 f50sd on $1 (one inode per $((i / 1024)) KiB)"
         # bounded (the stage block); mke2fs's own lines stay quiet inside the stage, the stage's are shown
         stage_run format 900 sh -c 'exec "$@" >/dev/null' sh $mk -t ext4 -F -b 4096 -m 0 -i "$i" -L f50sd "$1"
-    elif [ "$label" != f50sd ] && [ "$label" != mu300sd ]; then
+    elif [ "$label" != f50sd ]; then
         say "no f50sd filesystem on $1 (run with FORMAT=1)"; return 1
     fi
 }
@@ -261,9 +258,9 @@ sd_mark_internal() {
     sync; sh $T/android-mount-f50root.sh -u $I >/dev/null 2>&1 || true
 }
 # An installation into the internal filesystem: a root-on-sd left there by an earlier card installation no longer
-# says what should boot (init would wait for a card first), so it goes (the mu300 installer's too).
+# says what should boot (init would wait for a card first), so it goes.
 sd_unmark() {  # sd_unmark ROOT
-    [ "${SD_MODE:-0}" = 1 ] || rm -f "$1/.f50/root-on-sd" "$1/.mu300/root-on-sd"
+    [ "${SD_MODE:-0}" = 1 ] || rm -f "$1/.f50/root-on-sd"
 }
 # The EXIT trap of SD mode: flush and unmount - unless a stage timed out (STALLED): a sync and an unmount would
 # both wait on the request that is stuck, and the installer would hang where it was meant to stop.
@@ -286,17 +283,14 @@ else
 # --- region-guard begin
 # --- the region must not overlap any partition (checked again here, on the device itself), unless it lies wholly
 # inside the one GPT partition named f50root: another installer's place for this filesystem (installer/lib/storage.sh's
-# region_in_bounds, FINDINGS 179). Without any partition named f50root, the one named mu300root (the name before the
-# rename) is that place.
-end=0; pn=0; ps=0; pz=0; mn=0; ms=0; mz=0
+# region_in_bounds, FINDINGS 179).
+end=0; pn=0; ps=0; pz=0
 for p in /sys/block/$IDISK/$IPART*; do
     e=$(( $(cat $p/start) + $(cat $p/size) ))
     [ $e -gt $end ] && end=$e
     grep -qx PARTNAME=f50root $p/uevent 2>/dev/null && { pn=$((pn + 1)); ps=$(cat $p/start); pz=$(cat $p/size); }
-    grep -qx PARTNAME=mu300root $p/uevent 2>/dev/null && { mn=$((mn + 1)); ms=$(cat $p/start); mz=$(cat $p/size); }
 done
 pname=f50root
-if [ $pn = 0 ]; then pn=$mn; ps=$ms; pz=$mz; pname=mu300root; fi
 disk=$(cat /sys/block/$IDISK/size)
 if [ "$OFF_S" -ge $end ] && [ $((OFF_S + SIZE_S)) -le $((disk - GPT_TAIL - 1)) ]; then :
 elif [ $pn = 1 ] && [ "$OFF_S" -ge $ps ] && [ $((OFF_S + SIZE_S)) -le $((ps + pz)) ]; then
@@ -321,12 +315,12 @@ sb() { dd if=/dev/block/$IDISK bs=512 skip=$OFF_S count=4 2>/dev/null | dd bs=1 
 magic=$(sb 1080 2 | od -An -tx1 | tr -d ' \n')
 label=$(sb 1144 16 | tr -d '\000')
 if [ "$FORMAT" = 1 ]; then
-    if [ "$magic" = 53ef ] && [ "$label" != f50root ] && [ "$label" != mu300root ]; then say "refusing to format: foreign ext4 ($label) in the region"; exit 1; fi
+    if [ "$magic" = 53ef ] && [ "$label" != f50root ]; then say "refusing to format: foreign ext4 ($label) in the region"; exit 1; fi
     attach
     say "creating ext4 f50root on $L ($((SIZE_S / 2048)) MiB)"
     mke2fs -t ext4 -L f50root -F "$L" >/dev/null
     losetup -d "$L"
-elif [ "$magic" != 53ef ] || { [ "$label" != f50root ] && [ "$label" != mu300root ]; }; then
+elif [ "$magic" != 53ef ] || [ "$label" != f50root ]; then
     say "no f50root filesystem in the region (run with FORMAT=1)"; exit 1
 fi
 
@@ -338,8 +332,7 @@ fi
 # Never back to an older release by itself, as f50-update and the Magisk installer: the new image's updater does
 # the carrying over, and an older one may not carry everything of the user's (one from before the first release with
 # a four-field tag keeps only a list of places). Checked before anything is written. The release of the new image is
-# its etc/f50/image-version, read from the tarball (an installed system's: etc/f50, else etc/mu300 of an installation
-# from before the rename); a system or an image that does not say which release it is
+# its etc/f50/image-version, read from the tarball ; a system or an image that does not say which release it is
 # (a build of the checkout: "dev") is not held back (newer: the release-tag block). DOWNGRADE=1 in the env file
 # allows it: install.sh with F50_DOWNGRADE=yes, the Magisk installer after its own check (F50_DOWNGRADE=yes).
 image_release() {  # image_release TARBALL: the release the image says it is (nothing when it does not say)
@@ -350,8 +343,7 @@ downgrade_check() {
     [ "${UPDATE:-0}" = 1 ] || return 0
     for _dg in $OSES; do
         [ -d "$M/$_dg" ] || continue
-        _dh=$(head -n1 "$M/$_dg/etc/f50/image-version" 2>/dev/null) ||
-            _dh=$(head -n1 "$M/$_dg/etc/mu300/image-version" 2>/dev/null) || _dh=
+        _dh=$(head -n1 "$M/$_dg/etc/f50/image-version" 2>/dev/null) || _dh=
         _dn=$(image_release "$T/f50-$_dg.tar.gz")
         newer "$_dh" "$_dn" || continue
         if [ "${DOWNGRADE:-0}" = 1 ]; then
@@ -375,10 +367,9 @@ downgrade_check || exit 1
 # can enter; Android's tar unpacks, as before. An image without those parts is unpacked whole, as before.
 DELTA_PARTS="./opt/f50/bin/f50-carry ./opt/f50/bin/f50-update ./usr/bin/busybox ./opt/f50/bin/busybox ./etc/f50/image-manifest.gz ./etc/f50/image-version"
 # what an installation that was cut off left goes first, so that it is not counted against the room: a half-unpacked
-# <os>.new held 98 % of an F50's region until it was removed by hand (.mu300-delta-<os>: the same, of the installer
-# from before the rename)
+# <os>.new held 98 % of an F50's region until it was removed by hand
 for x in openwrt; do
-    for d in $M/$x.new $M/.f50-delta-$x $M/.mu300-delta-$x $M/$x.new.carry-log; do
+    for d in $M/$x.new $M/.f50-delta-$x $M/$x.new.carry-log; do
         if [ -e $d ]; then
             stage_run "clean $x" 900 rm -rf $d || exit 1
             say "$x: removed ${d##*/}, left by an installation that did not finish"
@@ -842,9 +833,7 @@ for os in $OSES; do
             keep="etc/config etc/f50 etc/unisoc-modem etc/dropbear etc/rc.local etc/crontabs root"
             kept=
             for k in $keep; do
-                # a system from before the rename keeps its etc/f50 as etc/mu300: that is what goes to etc/f50
                 ks=$k
-                if [ "$k" = etc/f50 ] && [ ! -e "$M/$os/etc/f50" ] && [ -d "$M/$os/etc/mu300" ]; then ks=etc/mu300; fi
                 [ -e "$M/$os/$ks" ] || continue
                 mkdir -p "$M/$os.new/$(dirname $k)"
                 rm -rf "$M/$os.new/$k.image"
@@ -905,11 +894,11 @@ for os in $OSES; do
     # The password, before the new system replaces the old one: the hash just chosen (PWHASH; with PW_SET=1 also an
     # empty one, OpenWrt's root without a password), else the accounts carried over, else the image's own (OpenWrt's
     # root without a password: the well-known one, issue #167). The accounts are this system's now, whichever they
-    # are: never the mark that has f50-update carry some <os>.old's over at boot (nor the mu300 installer's name of it).
+    # are: never the mark that has f50-update carry some <os>.old's over at boot.
     if [ $pwkeep = 0 ] && { [ -n "$PWHASH" ] || [ "${PW_SET:-0}" = 1 ]; }; then
         sed -i "s|^$pwu:[^:]*:|$pwu:$PWHASH:|" $M/$os.new/etc/shadow
     fi
-    rm -f $M/$os.new$ACCOUNTS_MARK $M/$os.new/etc/.mu300-accounts-from-image
+    rm -f $M/$os.new$ACCOUNTS_MARK
     # The old system goes aside under a name of its own and is removed when the new one is in place: files carried
     # by link are the same files in both, and a run that died between these steps must not leave a state in which
     # the next one would delete them (see the top of this loop). <os>.broken: the name f50-update removes too.

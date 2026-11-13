@@ -6,14 +6,14 @@
 //!
 //! | entry point | when | replaces |
 //! |---|---|---|
-//! | [`Net::boot_wifi_config`] | at boot, before the Wi-Fi comes up (`wifi up`) | `openwrt-wifi-wpa2-only migrate`, `94-mu300-ap-uapsd`, `openwrt-wifi-config` |
+//! | [`Net::boot_wifi_config`] | at boot, before the Wi-Fi comes up (`wifi up`) | `openwrt-wifi-wpa2-only migrate`, `94-f50-ap-uapsd`, `openwrt-wifi-config` |
 //! | [`Net::wifi_ready`] | after it, to decide the one Wi-Fi restart | `wifi-ready` |
 //! | [`Net::boot_wifi_client`] | at boot, once the radio is there | `wifi-client up` |
-//! | [`Net::boot_usb`] | at boot | `device-usb boot`, `mu300-usb boot` (the one-boot USB mode) |
-//! | [`Net::hotplug_iface`] | netifd `iface` hotplug (`ACTION`, `INTERFACE`) | `10-mu300-usb`, `90-unisoc-usb-host` (iface) |
+//! | [`Net::boot_usb`] | at boot | `device-usb boot`, `f50-usb boot` (the one-boot USB mode) |
+//! | [`Net::hotplug_iface`] | netifd `iface` hotplug (`ACTION`, `INTERFACE`) | `10-f50-usb`, `90-unisoc-usb-host` (iface) |
 //! | [`Net::hotplug_net`] | kernel `net` hotplug (`ACTION`, `INTERFACE`) | `90-unisoc-usb-host` (net) |
-//! | [`Net::usb_rebind_if_no_lease`] | at the end of the boot | `mu300-usb-reset --if-no-lease` |
-//! | [`Net::adbd_start`] / [`Net::adbd_stop`] | the adbd service (procd instance or the daemon's own task) | `mu300-adbd run`/`stop` |
+//! | [`Net::usb_rebind_if_no_lease`] | at the end of the boot | `f50-usb-reset --if-no-lease` |
+//! | [`Net::adbd_start`] / [`Net::adbd_stop`] | the adbd service (procd instance or the daemon's own task) | `f50-adbd run`/`stop` |
 //! | [`Net::hotspot_toggle`] | the Wi-Fi key | `hotspot-ap.sh` |
 //!
 //! Settings that are UCI's (`wireless`, `network`, `dhcp`, `firewall`) are changed only through
@@ -53,7 +53,7 @@ pub struct NetConfig {
     /// The LAN bridge and its netifd interface.
     pub lan_bridge: String,
     pub lan_interface: String,
-    /// The F50's LAN address when UCI has none (`mu300-lan-ip`).
+    /// The F50's LAN address when UCI has none (`f50-lan-ip`).
     pub default_lan_ip: std::net::Ipv4Addr,
     /// The regulatory country when the radio has none.
     pub default_country: String,

@@ -1,4 +1,4 @@
 #!/bin/sh
-# NTP set the clock: data usage may trust the date from now on (replaces 20-mu300-clock)
+# NTP set the clock: data usage may trust the date from now on (replaces 20-f50-clock)
 [ -x /usr/sbin/f50d ] || exit 0
 ACTION="$ACTION" /usr/sbin/f50d hotplug ntp </dev/null >/dev/null 2>&1 &

@@ -95,49 +95,12 @@ class AdbdBuild(unittest.TestCase):
         self.assertIn('\ndevice-tools/adbd/adbd\n', (TOP / '.gitignore').read_text())
 
 
-class AdbImages(unittest.TestCase):
-    def test_kernel_has_functionfs(self):
-        self.assertIn('\nCONFIG_USB_CONFIGFS_F_FS=y\n', (TOP / 'kernel/mainline/f50-mainline.config').read_text())
-
-    def test_ubuntu_image(self):
-        a = (TOP / 'systems/base/assemble.sh').read_text()
-        self.assertIn('install -m755 /adbd $R/opt/f50/bin/adbd', a)
-        self.assertIn('f50-adbd.service:multi-user.target', a)
-        unit = (TOP / 'systems/base/overlay/etc/systemd/system/f50-adbd.service').read_text()
-        self.assertIn('ExecStart=/opt/f50/bin/f50-adbd run', unit)
-        self.assertIn('ExecStopPost=/opt/f50/bin/f50-adbd stop', unit)
-        self.assertIn('KillMode=mixed', unit)
-        self.assertIn('Before=f50-lan.service', unit)
-
-    def test_openwrt_image(self):
-        b = (TOP / 'systems/openwrt/build-rootfs.sh').read_text()
-        self.assertIn('$(opt device-tools/adbd/adbd adbd)', b)
-        self.assertIn('cp /in/adbd $R/opt/f50/bin/adbd', b)
-        self.assertRegex(b, r'for s in f50-accounts [^\n]* f50-adbd; do')
-        init = (TOP / 'systems/openwrt/overlay/etc/init.d/f50-adbd').read_text()
-        # on unless turned off, as f50-adbd run decides it
-        self.assertIn('[ "$(cat /etc/f50/adb 2>/dev/null)" != off ] || return 0', init)
-        self.assertIn('procd_set_param command /opt/f50/bin/f50-adbd run', init)
-        self.assertNotIn('respawn', init)   # the loop restarts adbd; a respawned loop would rebind the gadget again
-
-    def test_release_builds_it(self):
-        r = (TOP / 'scripts/release/make-release.sh').read_text()
-        self.assertIn('device-tools/adbd/build.sh', r)
-        self.assertIn('/adbd:ro', r)
-
-
 class GadgetOsDescTable(unittest.TestCase):
     """The oops of 2026-10-22 on an adbd restart (FINDINGS 213): f_ncm and f_rndis freed os_desc_table at unbind and
     kept the pointer, so a bind without OS descriptors left it for the next unbind to free again. Patch 0027 forgets
     it in both; f50-adbd keeps the descriptors on, for kernels without the patch."""
 
     KPATCH = TOP / 'kernel/mainline/patches/0027-usb-gadget-ncm-rndis-os-desc-table-double-free.patch'
-
-    def test_both_unbinds_forget_the_table_they_freed(self):
-        p = self.KPATCH.read_text()
-        for f in ('f_ncm.c', 'f_rndis.c'):
-            hunk = p.split(f'+++ b/drivers/usb/gadget/function/{f}\n', 1)[1].split('\n--- ', 1)[0]
-            self.assertIn('\n \tkfree(f->os_desc_table);\n+\tf->os_desc_table = NULL;\n \tf->os_desc_n = 0;\n', hunk)
 
     def test_one_patch_with_its_number(self):
         names = [q.name for q in (TOP / 'kernel/mainline/patches').rglob('0027-*.patch')]

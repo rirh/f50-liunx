@@ -1,10 +1,10 @@
 //! The SIM cards: which slot this boot uses and which the next one will, each card's radio setting, and the card's
 //! own state ([`state`]).
 //!
-//! Ported from `mu300-sim` (F50 part), `sim-config.sh` and `mu300-sim-radio`. The F50 picks its card at boot:
+//! Ported from `f50-sim` (F50 part), `sim-config.sh` and `f50-sim-radio`. The F50 picks its card at boot:
 //! reopening the SIPC channels is not a hot switch, so a selection is saved for the next boot and the active slot
-//! stays pinned for this one (FINDINGS 74). The U30 Air's live switch and cold start (`mu300-sim2-*`), the V50's card
-//! switches (FINDINGS 204) and the charger-boot CP loader (`mu300-modem-coldboot`) are not carried over.
+//! stays pinned for this one (FINDINGS 74). The U30 Air's live switch and cold start (`f50-sim2-*`), the V50's card
+//! switches (FINDINGS 204) and the charger-boot CP loader (`f50-modem-coldboot`) are not carried over.
 
 pub mod state;
 

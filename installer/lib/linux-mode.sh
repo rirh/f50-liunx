@@ -2,18 +2,17 @@
 # right now. Offer to send it back to Android.
 # A device in Linux is on the USB network (SSH) and, since adb is on by default there (FINDINGS 70), in
 # "adb devices" too. Its USB serial number says which system answers: F50LINUX-... in Linux (boot/init), the bare
-# number in Android. A Linux installed by the upstream project's installer has its old names: MU300LINUX-...,
-# /opt/mu300/bin/mu300-next-boot; both are recognised (the f50 one first). A device in Linux is never one to install to, and nothing else would stop it: "su -c id -u"
+# number in Android. A device in Linux is never one to install to, and nothing else would stop it: "su -c id -u"
 # says 0 there as well, because the adb shell is root.
 # Uses: say(), die(), ask(), and t() from installer/lib/i18n.sh (loaded here when the caller has not)
 command -v t >/dev/null 2>&1 || . "$TOP/installer/lib/i18n.sh"
 
 # the USB network of the F50: 192.168.77.1 (F50_IP: another address)
 F50_IPS=${F50_IP:-192.168.77.1}
-# the serial numbers of a device in Linux, as an awk pattern: this project's and the upstream project's
-LINUX_SERIAL_RE='^(F50LINUX|MU300LINUX)'
-# on the device in Linux: boot Android next, whichever name its tool has (f50 first, then mu300)
-LINUX_NEXT_ANDROID='if [ -x /opt/f50/bin/f50-next-boot ]; then /opt/f50/bin/f50-next-boot android; else /opt/mu300/bin/mu300-next-boot android; fi'
+# the serial numbers of a device in Linux, as an awk pattern
+LINUX_SERIAL_RE='^F50LINUX'
+# on the device in Linux: boot Android next
+LINUX_NEXT_ANDROID='/opt/f50/bin/f50-next-boot android'
 
 
 # true when something answers on the Linux SSH port of the USB network; F50_IP is then that device, and only it
@@ -47,7 +46,7 @@ linux_adb_many() {
 # "adb get-state" for the Android to work on: nothing when the only adb devices are in Linux, "linux" when
 # ANDROID_SERIAL names one of those
 android_state() {
-    case ${ANDROID_SERIAL:-} in F50LINUX*|MU300LINUX*) echo linux; return 0 ;; esac
+    case ${ANDROID_SERIAL:-} in F50LINUX*) echo linux; return 0 ;; esac
     [ -n "${ANDROID_SERIAL:-}" ] || [ -n "$(android_lines)" ] || return 0
     adb get-state 2>/dev/null
 }
@@ -63,7 +62,7 @@ linux_mode_to_android() {
     # is told to reboot.
     _lm_gone=0 _lm_ssh=0
     if _lm_s=$(linux_adb) &&
-       [ "$(adb -s "$_lm_s" shell 'if test -x /opt/f50/bin/f50-next-boot || test -x /opt/mu300/bin/mu300-next-boot; then echo f50; fi' </dev/null 2>/dev/null | tr -d '\r')" = f50 ]; then
+       [ "$(adb -s "$_lm_s" shell 'if test -x /opt/f50/bin/f50-next-boot; then echo f50; fi' </dev/null 2>/dev/null | tr -d '\r')" = f50 ]; then
         echo "  $(t 'asking it over adb ({1})' "$_lm_s")"
         adb -s "$_lm_s" shell "{ $LINUX_NEXT_ANDROID; } && sync && reboot" </dev/null >/dev/null 2>&1 || true
         n=0
@@ -107,11 +106,10 @@ linux_mode_to_android() {
     [ $_lm_gone = 1 ] || [ $_lm_ssh = 1 ] || ! linux_adb_listed ||
         die "$(t 'boot Android yourself (on the device: sudo f50-next-boot android && sudo reboot)')"
     echo "  $(t 'waiting for Android')"
-    # Which device comes back: the serial number of our Linux is F50LINUX-<Android's serial>-<eMMC id> (boot/init;
-    # MU300LINUX-... from the upstream project's installer).
+    # Which device comes back: the serial number of our Linux is F50LINUX-<Android's serial>-<eMMC id> (boot/init).
     # Never "whatever single device adb lists": while the F50 rebooted, a Pixel next to it was the only one, and the
     # check went on with the Pixel (measured; nothing was written, su failed there).
-    _lm_back=${_lm_s:-$LINUX_WANTED}; _lm_back=${_lm_back#F50LINUX}; _lm_back=${_lm_back#MU300LINUX}; _lm_back=${_lm_back#-}; _lm_back=${_lm_back%%-*}
+    _lm_back=${_lm_s:-$LINUX_WANTED}; _lm_back=${_lm_back#F50LINUX}; _lm_back=${_lm_back#-}; _lm_back=${_lm_back%%-*}
     n=0
     while [ $n -lt 60 ]; do
         if [ -n "$_lm_back" ] && android_lines | awk -v s="$_lm_back" '$1 == s {f = 1} END {exit !f}'; then
@@ -127,7 +125,7 @@ linux_mode_to_android() {
 
 # With more than one adb device attached (a phone, an emulator, a device over the network) every plain adb command
 # fails with "more than one device/emulator", which read as "no adb device". Pick the F50 and point adb at it with
-# ANDROID_SERIAL: the only device, else the only one that says it is an F50 (or MU300, its board's name), else ask.
+# ANDROID_SERIAL: the only device, else the only one that says it is an F50 (its Android reports model F50, device MU300), else ask.
 select_device() {  # select_device [quiet]: quiet never asks, it only picks what is unambiguous
     [ -n "${ANDROID_SERIAL:-}" ] && return 0
     _sd_all=$(android_lines)
@@ -157,14 +155,14 @@ select_device() {  # select_device [quiet]: quiet never asks, it only picks what
 }
 
 # call before anything else that needs adb
-# is one of the adb devices an F50? (what "adb devices -l" says of it: F50, or MU300, the name of its board)
+# is one of the adb devices an F50? (what "adb devices -l" says of it: its Android reports model F50, product and device MU300)
 TARGET_RE='model:F50|product:F50|device:F50|model:MU300|product:MU300|device:MU300'
 target_attached() { android_lines | grep -q -E "$TARGET_RE"; }
 
 require_android() {
     # ANDROID_SERIAL naming the device in Linux: that is the one to send back to Android, not one to work on
     # (kept in LINUX_WANTED: with two boards in Linux it is the one that is rebooted, never the other)
-    case ${ANDROID_SERIAL:-} in F50LINUX*|MU300LINUX*) LINUX_WANTED=$ANDROID_SERIAL; unset ANDROID_SERIAL ;; esac
+    case ${ANDROID_SERIAL:-} in F50LINUX*) LINUX_WANTED=$ANDROID_SERIAL; unset ANDROID_SERIAL ;; esac
     # The device in Linux, and only a phone or tablet in Android: that is not the one to install to - offer to
     # send the device back to Android first
     if [ -z "${ANDROID_SERIAL:-}" ] && ! target_attached && { linux_adb_listed || linux_mode_running; }; then
@@ -173,7 +171,7 @@ require_android() {
     select_device
     if [ "$(android_state)" = device ]; then
         # whatever its serial number says: a root shell of our Linux must never be taken for a rooted Android
-        [ -z "$(adb shell 'ls -d /opt/f50/bin /opt/mu300/bin 2>/dev/null' </dev/null 2>/dev/null | tr -d '\r')" ] ||
+        [ -z "$(adb shell 'ls -d /opt/f50/bin 2>/dev/null' </dev/null 2>/dev/null | tr -d '\r')" ] ||
             die "$(t 'The device is running F50 Linux, not Android'): $(t 'boot Android yourself (on the device: sudo f50-next-boot android && sudo reboot)')"
         # an Android that is still starting answers adb before su and storage are ready: pulls then failed
         _ra=0

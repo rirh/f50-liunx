@@ -165,7 +165,7 @@ impl<'a> Kernel<'a> {
         (!z.is_empty()).then(|| z.to_owned())
     }
 
-    /// The vendor 5.4 kernel and fw4's flowtable (`19-mu300-fw4`, FINDINGS 38): fw4 replaces its ruleset in one
+    /// The vendor 5.4 kernel and fw4's flowtable (`19-f50-fw4`, FINDINGS 38): fw4 replaces its ruleset in one
     /// transaction, and 5.4 refuses a flowtable naming a device that the flowtable deleted in the same transaction
     /// still has (the pending deletion is not skipped before 5.13). The reload netifd's ifup hotplug runs then fails
     /// with "Resource busy" and the firewall stays the one rendered before the bearer existed: no masquerade, no LAN

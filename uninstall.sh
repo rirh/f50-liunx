@@ -14,8 +14,6 @@
 #   * erases the Linux filesystem on the SD card (ext4 labelled f50sd) when there is one and you say so: its
 #     first 64 MiB are overwritten, and a card with any other filesystem is never touched,
 #   * removes the installer leftovers in /data/local/tmp.
-# An installation made by the upstream project's installer, under its old names (filesystem label and GPT partition
-# mu300root, card mu300sd, the Magisk module mu300_linux_switch), is found and removed the same way.
 # Android's boot partition, the GPT, userdata and every other partition stay untouched. Needs adb and python3.
 #
 #   ./uninstall.sh --answers FILE   ask nothing: every question is answered by its variable, from FILE (NAME=value
@@ -65,7 +63,7 @@ require_android
 usb_adb_only        # adb alone on USB for this run, no MTP (installer/lib/usb-adb.sh); set back when it ends
 model="$(su_do 'getprop ro.product.model') / $(su_do 'getprop ro.product.device')"
 echo "device: $model"
-# (MU300: the name of the F50's board, as install.sh takes it)
+# (MU300: the device name the F50's own Android reports, as install.sh takes it)
 case "$model" in *F50*|*f50*|*MU300*|*mu300*) ;; *) die "this does not look like a ZTE F50" ;; esac
 # Linux is on the slot Android is not on (install.sh): b next to an Android on a, a next to an Android on b
 case $(su_do 'getprop ro.boot.slot_suffix') in
@@ -245,8 +243,7 @@ fi
 
 # never delete through a still mounted Linux filesystem
 # (files only: /data/local/tmp/f50-web is the web installer's directory, and "rm -f f50-*" said "Is a directory")
-# (mu300-*: what the upstream project's installer left there)
-su_do "grep -q \" $T/f50root \" /proc/mounts || rm -rf $T/f50root; for f in $T/f50-* $T/mu300-*; do [ -d \$f ] || rm -f \$f; done; rm -f $T/android-install.sh $T/android-mount-f50root.sh" >/dev/null
+su_do "grep -q \" $T/f50root \" /proc/mounts || rm -rf $T/f50root; for f in $T/f50-*; do [ -d \$f ] || rm -f \$f; done; rm -f $T/android-install.sh $T/android-mount-f50root.sh" >/dev/null
 
 # ---------------------------------------------------------------- giving the space back (EXPERIMENTAL)
 # Only for a device where the installer shrank userdata to make room (the 32 GB variant). Growing it back is

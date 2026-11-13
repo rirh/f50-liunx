@@ -40,9 +40,8 @@ die() { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
 
 command -v adb >/dev/null || die "adb not found"
 [ "$(adb get-state 2>/dev/null)" = device ] || die "no adb device (boot Android, enable USB debugging)"
-# a device running F50 Linux answers adb too (F50LINUX-..., MU300LINUX-... when the upstream project's installer put
-# it there), with a root shell and none of Android's partitions
-case $(adb get-serialno 2>/dev/null) in F50LINUX*|MU300LINUX*) die "this adb device runs F50 Linux, not Android: boot Android first (sudo f50-next-boot android && sudo reboot)" ;; esac
+# a device running F50 Linux answers adb too (F50LINUX-...), with a root shell and none of Android's partitions
+case $(adb get-serialno 2>/dev/null) in F50LINUX*) die "this adb device runs F50 Linux, not Android: boot Android first (sudo f50-next-boot android && sudo reboot)" ;; esac
 [ "$(su_do 'id -u')" = 0 ] || die "no root shell on the device: turn on USB debugging first (make adb, or http://192.168.0.1/index.html#usb_port), see README"
 
 mkdir -p "$OUT"

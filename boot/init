@@ -149,8 +149,7 @@ load_vendor_modules() {
 # Which slot this Linux runs from, and so which one is Android's (after an OTA Android often runs from b, and the
 # Magisk installer then puts Linux on a). LK names the slot it booted on the command line, else in the bootargs it
 # put in the device tree, as for the vendor daemons below. Then the slot the image was built for (etc/f50-linux-slot,
-# from the installer; etc/mu300-linux-slot in the device segment of an older installation), and b: every image
-# before this one was built for b.
+# from the installer), and b: every image before this one was built for b.
 # --- slot begin
 linux_slot_detect() {
     LINUX_SLOT=; _src=default
@@ -159,7 +158,7 @@ linux_slot_detect() {
         LINUX_SLOT=$(tr '\000' ' ' < "$_f" | sed -n 's/.*androidboot\.slot_suffix=_\([ab]\).*/\1/p')
         [ -n "$LINUX_SLOT" ] && { _src=$_f; break; }
     done
-    _img=$(cat "${F50_ETC:-/etc}/f50-linux-slot" 2>/dev/null || cat "${F50_ETC:-/etc}/mu300-linux-slot" 2>/dev/null)
+    _img=$(cat "${F50_ETC:-/etc}/f50-linux-slot" 2>/dev/null)
     case $_img in a|b) ;; *) _img= ;; esac
     if [ -z "$LINUX_SLOT" ]; then
         LINUX_SLOT=${_img:-b}
@@ -449,8 +448,7 @@ teardown_usb_gadget() {  # unbind and take the functions away; setup_usb_gadget 
 load_vendor_modules
 find_partitions
 setup_usb_gadget
-# The SD card as the home of the Linux filesystem: ext4 with the label f50sd (mu300sd: a card of an older
-# installation), on the card's first partition or on the whole card. Its own label, not f50root - a device can hold
+# The SD card as the home of the Linux filesystem: ext4 with the label f50sd, on the card's first partition or on the whole card. Its own label, not f50root - a device can hold
 # both, and they must never be confused.
 # --- sd-root begin
 ext4_label() {  # ext4_label DEV: the volume label, nothing (and status 1) when DEV is not ext4
@@ -462,10 +460,10 @@ sd_candidates() {  # the card's first partition, then the whole card, for every 
     for n in $(mmc_disks SD); do echo "${F50_DEV:-/dev}/${n}p1"; done
     for n in $(mmc_disks SD); do echo "${F50_DEV:-/dev}/$n"; done
 }
-find_sd_root() {  # the first card device that holds f50sd (or mu300sd); the eMMC is never looked at
+find_sd_root() {  # the first card device that holds f50sd; the eMMC is never looked at
     for d in $(sd_candidates); do
         [ -e "$d" ] || continue
-        case $(ext4_label "$d") in f50sd|mu300sd) echo "$d"; return 0 ;; esac
+        case $(ext4_label "$d") in f50sd) echo "$d"; return 0 ;; esac
     done
     return 1
 }
@@ -505,13 +503,11 @@ ROOT_OFFSET=27762098176   # linux-boot/rootfs-region.env; outside every GPT part
 # behind this one (f50-update) carries its own init, which replaces
 # this file - with the default above. Devices whose region is elsewhere then booted into standalone mode and went
 # back to Android. So find it the way the installer places it - the first 2 MiB boundary after the last partition
-# - and take the first candidate that really holds the f50root filesystem (ext4 magic and label; mu300root is the
-# label of an older installation's).
+# - and take the first candidate that really holds the f50root filesystem (ext4 magic and label).
 # --- region begin
 is_f50root() {  # is_f50root OFFSET: on the eMMC ($EMMC)
     [ "$(dd if="$EMMC" bs=1 skip=$(($1 + 1080)) count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 53ef ] || return 1
-    [ "$(dd if="$EMMC" bs=1 skip=$(($1 + 1144)) count=9 2>/dev/null)" = f50root ] && return 0
-    [ "$(dd if="$EMMC" bs=1 skip=$(($1 + 1144)) count=16 2>/dev/null | tr -d '\000')" = mu300root ]
+    [ "$(dd if="$EMMC" bs=1 skip=$(($1 + 1144)) count=16 2>/dev/null | tr -d '\000')" = f50root ]
 }
 find_root_offset() {
     b=${F50_SYS:-/sys}/block/${EMMC##*/}
@@ -532,29 +528,24 @@ find_root_offset() {
 # No region, but the eMMC's GPT partition named f50root holding that filesystem: where kanoqwq's desktop installer
 # puts the system ("independent internal partition"). His boot image's init finds it there; ours did not, and a device
 # updated from his system with f50-update found no system and went back to Android (issue #290, FINDINGS 178).
-# The whole label, not its first 9 bytes: "f50rootfs" is not this filesystem (from kanoqwq's 5161859d). An older
-# installation's partition and filesystem are both named mu300root: looked for after f50root.
+# The whole label, not its first 9 bytes: "f50rootfs" is not this filesystem (from kanoqwq's 5161859d).
 gpt_root() {
-    for _pn in f50root mu300root; do
-        _gp=$(emmc_part "$_pn") || continue
-        [ "$(dd if="$_gp" bs=1 skip=1080 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 53ef ] || continue
-        case $(dd if="$_gp" bs=1 skip=1144 count=16 2>/dev/null | tr -d '\000') in
-            f50root|mu300root) echo "$_gp"; return 0 ;;
-        esac
-    done
-    return 1
+    _gp=$(emmc_part f50root) || return 1
+    [ "$(dd if="$_gp" bs=1 skip=1080 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 53ef ] || return 1
+    [ "$(dd if="$_gp" bs=1 skip=1144 count=16 2>/dev/null | tr -d '\000')" = f50root ] || return 1
+    echo "$_gp"
 }
 # --- region end
 # --- usb-net begin
-# The USB network mode the panel's Device page chose (D12): a file of the system that boots, etc/f50/usb-net
-# (etc/mu300/usb-net in a system of an older installation), holding ncm, ecm, rndis or multi. It is read once the root
+# The USB network mode the panel's Device page chose (D12): a file of the system that boots, etc/f50/usb-net,
+# holding ncm, ecm, rndis or multi. It is read once the root
 # is known, not before the gadget is made: the gadget comes up as early as before (the card scan can take 8 s), and a
 # different choice costs one rebind. F50_USBNET on the kernel command line still wins. etc/f50/usb-net-name, beside
 # it, holds eth when the computer's side should have a MAC that Linux names eth0 rather than usb0 (ETH_MAC, usb_id);
 # it goes with every mode.
 usb_net_policy() {  # usb_net_policy ROOTDIR: the functions ROOTDIR asks for, or nothing
     [ -z "${F50_USBNET:-}" ] || return 0
-    case $(cat "$1/etc/f50/usb-net" 2>/dev/null || cat "$1/etc/mu300/usb-net" 2>/dev/null) in
+    case $(cat "$1/etc/f50/usb-net" 2>/dev/null) in
         ncm) echo 'ncm ecm' ;;
         ecm) echo 'ecm ncm' ;;
         # NCM, then ECM, only when this kernel cannot make RNDIS (setup_usb_gadget lets RNDIS win): a saved choice
@@ -565,7 +556,7 @@ usb_net_policy() {  # usb_net_policy ROOTDIR: the functions ROOTDIR asks for, or
     esac
 }
 usb_name_policy() {  # usb_name_policy ROOTDIR: eth or usb
-    case $(cat "$1/etc/f50/usb-net-name" 2>/dev/null || cat "$1/etc/mu300/usb-net-name" 2>/dev/null) in eth) echo eth ;; *) echo usb ;; esac
+    case $(cat "$1/etc/f50/usb-net-name" 2>/dev/null) in eth) echo eth ;; *) echo usb ;; esac
 }
 apply_usb_net() {  # apply_usb_net ROOTDIR: rebind once if ROOTDIR asks for other functions or names than were bound
     usbnet_want=$(usb_net_policy "$1")
@@ -587,15 +578,13 @@ apply_usb_net() {  # apply_usb_net ROOTDIR: rebind once if ROOTDIR asks for othe
 }
 # --- usb-net end
 # --- pick-root begin
-# The ext4 area holds one or more systems: /openwrt, /openwrt-luci (selected by .f50/boot-os; an older installation's
-# disk has .mu300 instead of .f50). Explicit names only: a kept copy (openwrt.old, openwrt.broken) must never be what
+# The ext4 area holds the system: /openwrt (another one named by .f50/boot-os). Explicit names only: a kept copy (openwrt.old, openwrt.broken) must never be what
 # boots, so a boot-os with a dot in it is ignored.
 has_init() { [ -x "$1/sbin/init" ]; }
 pick_root() {
-    _sd=/disk/.f50; [ -d "$_sd" ] || [ ! -d /disk/.mu300 ] || _sd=/disk/.mu300
-    want=$(cat "$_sd/boot-os" 2>/dev/null)
+    want=$(cat /disk/.f50/boot-os 2>/dev/null)
     case $want in *.*|*/*) want= ;; esac
-    for os in $want openwrt openwrt-luci; do
+    for os in $want openwrt; do
         [ -d "/disk/$os" ] && has_init "/disk/$os" && { echo "/disk/$os"; return; }
     done
 }
@@ -701,11 +690,11 @@ mount_sd() {  # mount_sd DEV: the card, a block device of its own - no loop
 }
 sd_wait() { wait_sd_root 8 30; }
 # kanoqwq's desktop installer writes the owner's storage choice into the device ramdisk segment, which updates keep:
-# /etc/f50-desktop-root-mode (/etc/mu300-desktop-root-mode in an older installation's). "part" is an explicit choice
+# /etc/f50-desktop-root-mode. "part" is an explicit choice
 # of the GPT partition, so it boots first, before a card or a region (from kanoqwq's 5161859d). A choice, not a gate:
 # a partition that is missing or does not mount leaves the usual order below, and is not tried a second time.
 root_mounted=0 diskdev= part_first=
-[ "$(cat /etc/f50-desktop-root-mode 2>/dev/null || cat /etc/mu300-desktop-root-mode 2>/dev/null)" != part ] ||
+[ "$(cat /etc/f50-desktop-root-mode 2>/dev/null)" != part ] ||
     part_first=$(gpt_root)
 if [ -n "$part_first" ] && mount_part "$part_first"; then
     root_mounted=1
@@ -716,8 +705,8 @@ elif mount_internal; then
     root_mounted=1
     # A card installation on a device that also has an internal one leaves this marker in the internal one: the
     # card is what should boot, and the polled SD host may simply not have found it yet. Only then is it worth
-    # waiting; a device without a card installation never waits. (.mu300: an older installation's disk without .f50)
-    if [ -e /disk/.f50/root-on-sd ] || { [ ! -d /disk/.f50 ] && [ -e /disk/.mu300/root-on-sd ]; }; then
+    # waiting; a device without a card installation never waits.
+    if [ -e /disk/.f50/root-on-sd ]; then
         if sd=$(sd_wait); then
             umount /disk && losetup -d "$rootloop" 2>/dev/null
             mount_sd "$sd" || { log "stage=sd-root-failed dev=$sd"; mount_internal || root_mounted=0; }
@@ -733,7 +722,7 @@ fi
 # --- root-select end
 # --- boot-tries begin
 # A way back to Android with no computer and no keyboard: cut the power during boot N times in a row (N is
-# .f50/boot-attempts, 5 without it; .mu300/ on the disk of an older installation that has no .f50/ yet). Every boot
+# .f50/boot-attempts, 5 without it). Every boot
 # counts up here and f50-next-boot --rearm clears the count once the system is really up, so only boots that never got
 # that far add up. LK does the same with the tries it was armed with (N+1) and normally gets there first; this is the
 # backstop, and it goes to Android on the boot after the Nth failed one, exactly when LK would. lk_tries: the tries LK
@@ -762,9 +751,8 @@ lk_locked() {
 # boot_tries_exceeded ROOTDIR DISK: count this boot; true when the backstop sends it to Android
 boot_tries_exceeded() {
     # only in default-Linux mode: with the one-shot trial every power cut already lands in Android
-    [ "$(cat "$1/etc/f50/default-boot" 2>/dev/null || cat "$1/etc/mu300/default-boot" 2>/dev/null)" = linux ] || return 1
-    # the disk's state directory: .f50, or an older installation's .mu300 as long as there is no .f50
-    _bd=$2/.f50; [ -d "$_bd" ] || [ ! -d "$2/.mu300" ] || _bd=$2/.mu300
+    [ "$(cat "$1/etc/f50/default-boot" 2>/dev/null)" = linux ] || return 1
+    _bd=$2/.f50
     # locked (the bit in misc and the wish on the disk, so a slot marked successful by anything else keeps the
     # backstop): no count, no backstop
     if lk_locked && [ -f "$_bd/boot-lock" ]; then log "stage=boot-locked (no backstop)"; return 1; fi
@@ -800,9 +788,6 @@ modules_settle() {
     _mv=$(uname -v)
     if [ "$(uname -r)" = "$_mk" ] && [ -n "$_mv" ] && [ "${_mb%" $_mv"}" != "$_mb" ]; then
         _mw=new _ms=$1/.f50-update/boot/modules
-        # an older installation's update stages it in .mu300-update
-        ls "$_ms"/*.ko >/dev/null 2>&1 || ! ls "$1/.mu300-update/boot/modules"/*.ko >/dev/null 2>&1 ||
-            _ms=$1/.mu300-update/boot/modules
         ls "$_ms"/*.ko >/dev/null 2>&1 || { log "stage=modules-settle-missing (the unpacked set is gone)"; rm -f "$_mp"; sync; return 0; }
     else
         _mw=kept _ms=
@@ -810,7 +795,7 @@ modules_settle() {
             [ "$(cat "$_mc/kernel.release" 2>/dev/null)" = "$_mk" ] && { _ms=$_mc; break; }
         done
     fi
-    for _mo in openwrt openwrt-luci; do
+    for _mo in openwrt; do
         [ -d "$1/$_mo" ] || continue
         _md=$1/$_mo/lib/modules/$_mk
         _mf=$_ms
@@ -857,7 +842,7 @@ if [ "$root_mounted" = 1 ] && rootdir=$(pick_root) && [ -n "$rootdir" ]; then
     # slot (tries N+1) once the system is up; N boots in a row that never get there and LK falls back to Android on
     # the next one.
     trial=1
-    if [ "$(cat /newroot/etc/f50/default-boot 2>/dev/null || cat /newroot/etc/mu300/default-boot 2>/dev/null)" = linux ]; then
+    if [ "$(cat /newroot/etc/f50/default-boot 2>/dev/null)" = linux ]; then
         log "stage=default-boot-linux (Android's slot restore skipped)"
         trial=
     else

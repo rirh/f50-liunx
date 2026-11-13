@@ -7,7 +7,7 @@
 //! A profile never touches voltage or the kernel's trips. The cap it sets is the *ceiling* the thermal guard never
 //! lifts a policy above on cool-down, so `saving` stays capped; the kernel's own cap is a frequency QoS request under
 //! scaling_max_freq, so the lower of the two wins (docs/research/FINDINGS.md 48). The saved profile lives in
-//! `/etc/f50d/cpu.conf` (`PROFILE=`); without a saved one nothing is applied at start (init.d/mu300-cpu).
+//! `/etc/f50d/cpu.conf` (`PROFILE=`); without a saved one nothing is applied at start (init.d/f50-cpu).
 //! Core hotplug, CPU0's low latency, the services' cpuset and the voltage offset were removed with the shell layer.
 
 use std::collections::BTreeMap;

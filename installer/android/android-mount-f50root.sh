@@ -2,8 +2,6 @@
 # Attach the f50root ext4 (free eMMC region) on Android via a bounded loop device and mount it.
 # usage: android-mount-f50root.sh <mountpoint>   |   android-mount-f50root.sh -u <mountpoint>
 #        F50_SD_DEV=/dev/block/mmcblk1p1 android-mount-f50root.sh <mountpoint>   (the f50sd ext4 on the SD card)
-# An installation of the upstream project from before the rename has the labels mu300root and mu300sd: they are taken
-# as the same filesystems (nothing here writes a label).
 set -e
 # region of the free eMMC space after the last GPT partition (install.sh passes the values it computed)
 OFF=${F50_OFF:-27762098176}
@@ -50,7 +48,7 @@ if [ -n "${F50_SD_DEV:-}" ]; then
     magic=$(dd if="$F50_SD_DEV" bs=1 skip=1080 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')
     [ "$magic" = 53ef ] || { echo "NO-EXT4 magic=$magic"; exit 1; }
     label=$(dd if="$F50_SD_DEV" bs=1 skip=1144 count=16 2>/dev/null | tr -d '\000')
-    [ "$label" = f50sd ] || [ "$label" = mu300sd ] || { echo "NOT-F50SD label=$label"; exit 1; }
+    [ "$label" = f50sd ] || { echo "NOT-F50SD label=$label"; exit 1; }
     mkdir -p "$1"
     mount -t ext4 -o "$MOUNT_OPTS" "$F50_SD_DEV" "$1"
     echo "MOUNTED $F50_SD_DEV on $1"
@@ -92,7 +90,7 @@ fi
 magic=$(dd if="$L" bs=1 skip=1080 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')
 [ "$magic" = 53ef ] || { echo "NO-EXT4 magic=$magic"; losetup -d "$L"; exit 1; }
 label=$(dd if="$L" bs=1 skip=1144 count=16 2>/dev/null | tr -d '\000')
-[ "$label" = f50root ] || [ "$label" = mu300root ] || { echo "NOT-F50ROOT label=$label"; losetup -d "$L"; exit 1; }
+[ "$label" = f50root ] || { echo "NOT-F50ROOT label=$label"; losetup -d "$L"; exit 1; }
 mkdir -p "$MP"
 mount -t ext4 -o "$MOUNT_OPTS" "$L" "$MP"
 echo "MOUNTED $L on $MP"

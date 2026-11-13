@@ -7,7 +7,7 @@
 //! adb_auth that is root's alone, or no state at all in a directory that is root's alone. Everything else is keys -
 //! "keys", an adb_auth that is empty, unreadable, a link, writable by others or says anything else, no adb_auth on a
 //! device set up when adb took keys only (adb on, or a key authorised), a settings directory that is not root's
-//! alone. In keys mode with no key nobody gets in. Ported from `mu300-adbd` (`auth_read`, `trusted`) and `mu300-usb
+//! alone. In keys mode with no key nobody gets in. Ported from `f50-adbd` (`auth_read`, `trusted`) and `f50-usb
 //! adb`.
 
 use std::os::unix::fs::MetadataExt;

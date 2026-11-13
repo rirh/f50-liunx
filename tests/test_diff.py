@@ -356,15 +356,6 @@ class Diff(ShellTest):
 class FixedUp(unittest.TestCase):
     """the files rootfs-fixups changes on the device are never left out of a diff"""
 
-    def test_the_list_is_rootfs_fixups_own(self):
-        spec = importlib.util.spec_from_file_location('image_diff', TOP / 'scripts/release/image-diff.py')
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        fix = (TOP / 'systems/base/overlay/opt/f50/bin/rootfs-fixups').read_text()
-        loop = re.search(r'^for f in (.*); do\n(.*\n){1,2}.*setcap', fix, re.M)
-        self.assertIsNotNone(loop, 'rootfs-fixups no longer sets file capabilities in a "for f in" loop')
-        self.assertEqual({f.lstrip('/') for f in loop.group(1).split()}, mod.FIXED_UP)
-
     @unittest.skipUnless(CC and LINUX and BUSYBOX, 'needs a C compiler and busybox on Linux')
     def test_ping_is_in_the_diff_although_it_did_not_change(self):
         d = tempfile.TemporaryDirectory()

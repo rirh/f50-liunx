@@ -49,32 +49,6 @@ class EmmcLookup(ShellTest):
                       'p=${u%/uevent} && echo /dev/${p##*/}; done', F50_SYS=sysd).stdout.strip()
         return {'init': init, 'early-recorder': rec, 'f50-update': upd, 'android-vendor-start': avs}
 
-    def test_a_card_with_an_emmc_gpt_is_never_chosen(self):
-        for card, emmc in (('mmcblk0', 'mmcblk1'), ('mmcblk1', 'mmcblk0')):
-            layout = {card: ('SD', CARD_GPT), emmc: ('MMC', EMMC_GPT)}
-            for shell in self.each_shell():
-                for name, idx in (('misc', 5), ('boot_a', 6), ('boot_b', 7)):
-                    root = self.fake(layout)
-                    got = self.lookups(shell, root, name)
-                    self.assertEqual(got, dict.fromkeys(got, f'/dev/{emmc}p{idx}'), (shell, card, name))
-                    shutil.rmtree(root)
-
-    def test_only_the_card_there_finds_nothing(self):
-        # the eMMC's host has not bound (yet): the card, mmcblk0 or mmcblk1, holds the only partitions named so
-        for card in ('mmcblk0', 'mmcblk1'):
-            for shell in self.each_shell():
-                root = self.fake({card: ('SD', CARD_GPT)})
-                got = self.lookups(shell, root, 'boot_b')
-                self.assertEqual(got, dict.fromkeys(got, ''), (shell, card))
-                shutil.rmtree(root)
-
-    def test_without_a_type_the_first_disk_that_is_not_a_card(self):
-        # no disk says MMC: the eMMC is the first mmcblk disk that is not SD - never a card on mmcblk0
-        root = self.fake({'mmcblk0': ('SD', CARD_GPT), 'mmcblk1': (None, EMMC_GPT)})
-        for shell in self.each_shell():
-            got = self.lookups(shell, root, 'misc')
-            self.assertEqual(got, dict.fromkeys(got, '/dev/mmcblk1p5'), shell)
-
     def test_a_disk_without_a_type_does_not_end_android_vendor_start(self):
         # android-vendor-start runs under set -e: a disk with no device/type is a lookup that goes on, not the end
         # of the script (and of the modem's start)

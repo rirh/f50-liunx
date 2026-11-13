@@ -1,9 +1,9 @@
 //! Which device this is, and the facts that do not change while it runs: model, release, kernel.
 //!
-//! f50d runs on the ZTE F50 only. The rules are mu300-device's: the boot's label (`/run/f50/device`) when it says
+//! f50d runs on the ZTE F50 only. The rules are f50-device's: the boot's label (`/run/f50/device`) when it says
 //! `u30air`, else the device tree, where only the U30 Air has `charger_policy_service` and only the ZTE V50 has the
 //! AW9523B LED controller at 0x5b on I2C3 (docs/research/FINDINGS.md 95). Either of those is refused with a clear
-//! message; anything else (a tree without either node, or none at all) is an F50, as mu300-device answered.
+//! message; anything else (a tree without either node, or none at all) is an F50, as f50-device answered.
 
 use std::path::Path;
 

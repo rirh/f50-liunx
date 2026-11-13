@@ -1,7 +1,7 @@
 //! The kernel's input devices (`/dev/input/event*`) that have keys, read without blocking a thread.
 //!
 //! The only unsafe code of this crate: one `EVIOCGBIT` ioctl per device, to keep the devices that report keys
-//! (mu300-keys did the same), and the fd's registration with tokio's reactor. Reading is a plain `read(2)` of whole `struct input_event`s on a non-blocking fd
+//! (f50-keys did the same), and the fd's registration with tokio's reactor. Reading is a plain `read(2)` of whole `struct input_event`s on a non-blocking fd
 //! driven by tokio's reactor, so the reader stops with its task.
 #![allow(unsafe_code)]
 
@@ -44,7 +44,7 @@ pub(crate) struct KeyDevice {
     buf: Vec<u8>,
 }
 
-/// Every `event*` device under `dir` that has keys (at most 16, as mu300-keys).
+/// Every `event*` device under `dir` that has keys (at most 16, as f50-keys).
 pub(crate) fn open_key_devices(dir: &Path) -> Vec<KeyDevice> {
     let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };
     let mut paths: Vec<PathBuf> = rd

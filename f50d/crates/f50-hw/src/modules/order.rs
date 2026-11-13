@@ -45,7 +45,7 @@ const MODEM_STACK: &[&str] = &[
 
 /// Mainline's own modules, by path where depmod has no index: the stock virtual thermal zone (FINDINGS 48), the
 /// clusters' wake sources (FINDINGS 218), the SAR sensor where a kernel has it.
-const MAINLINE_EXTRAS: &[&str] = &["mu300_thermal", "ums9620_lpintc", "zte_sar_stk"];
+const MAINLINE_EXTRAS: &[&str] = &["f50_thermal", "ums9620_lpintc", "zte_sar_stk"];
 
 /// The PMIC's Type-C and BC1.2 detection, on by default as on 5.4 (FINDINGS 234).
 const TYPEC: &[&str] = &["sc27xx_typec", "sprd_bc1p2"];

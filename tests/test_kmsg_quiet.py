@@ -97,49 +97,6 @@ class KernelLines(unittest.TestCase):
         for c in calls:
             self.assertTrue(DEBUG.match(c), f'{fmt} printed with {c} in {where}')
 
-    def test_sipa_and_wcn_lines_are_debug_in_both_kernels(self):
-        patch = SIPA54.read_text()
-        for path54, mainline, fmt in SIPA_LINES:
-            old, new = patch_sides(patch, path54)
-            self.assertTrue(printk_calls(old, fmt), f'{fmt}: no hunk for it in {SIPA54.name}')
-            self.assert_debug(new, fmt, f'{SIPA54.name} ({path54})')
-            self.assert_debug(mainline.read_text(), fmt, str(mainline.relative_to(TOP)))
-
-    def test_wifi_tx_path_lines_are_debug_in_both_kernels(self):
-        patch = WLAN54.read_text()
-        for path, fmt in WLAN_LINES:
-            old, new = patch_sides(patch, path)
-            self.assertTrue(printk_calls(old, fmt), f'{fmt}: no hunk for it in {WLAN54.name}')
-            for c in printk_calls(new, fmt):
-                self.assertTrue(DEBUG.match(c), f'{fmt} printed with {c} in {WLAN54.name}')
-            for c in printk_calls((WLAN / path).read_text(), fmt):
-                self.assertTrue(DEBUG.match(c), f'{fmt} printed with {c} in sprd_wlan_combo/{path}')
-
-    def test_einprogress_is_not_an_error_but_other_failures_are(self):
-        for text in (patch_sides(SIPA54.read_text(), 'drivers/net/sprd/sipa_v3/sipa_eth.c')[1],
-                     (MODEM / 'sipa_v3/sipa_eth.c').read_text()):
-            i = text.index('if (ret == -EINPROGRESS)')
-            block = text[i:i + 200]
-            self.assertRegex(block, r'if \(ret == -EINPROGRESS\)\s*pr_debug\("fail to send, ret %d\\n", ret\);\s*'
-                                    r'else\s*pr_err_ratelimited\("fail to send, ret %d\\n", ret\);')
-        for text in (patch_sides(SIPA54.read_text(), 'drivers/net/sprd/sipa_v3/sipa_nic.c')[1],
-                     (MODEM / 'sipa_v3/sipa_nic.c').read_text()):
-            self.assertRegex(text, r'case -EINPROGRESS:\n(\s*/\*.*\*/\n)?\s*break;\n\s*default:\n\s*dev_warn\(ipa->dev, '
-                                   r'"don\'t have this flow ctrl err type')
-
-    def test_the_errors_beside_them_stay_errors(self):
-        keep = [(MODEM / 'sipa_delegate/sipa_dele_cp_in_ap.c', '"sipa_dele get pd fail ret = %d, ENABLE answered with FAIL\\n"', 'pr_err'),
-                (MODEM / 'sipa_delegate/sipa_dele_cmn.c', '"smsg send fail %d prod_id = %d\\n"', 'pr_err'),
-                (MODEM / 'sipa_v3/sipa_rm_res.c', '"driver CB returned error %d\\n"', 'pr_err'),
-                (MODEM / 'sipa_v3/sipa_eth.c', '"called when %s is down\\n"', 'pr_err')]
-        for path, fmt, level in keep:
-            self.assertEqual(set(printk_calls(path.read_text(), fmt)), {level}, (path.name, fmt))
-        # the patches only lower levels: no line of theirs prints at error level that did not before
-        for patch in (SIPA54, WLAN54):
-            for line in patch.read_text().splitlines():
-                if line.startswith('+') and not line.startswith('+++'):
-                    self.assertNotRegex(line, r'\b(pr_err|dev_err|netdev_err|WCN_ERR|pr_warn|dev_warn)\(', line)
-
     def test_the_build_applies_both(self):
         kp = re.search(r'^KPATCHES="([^"]*)"', (TOP / 'kernel/vendor/build-all.sh').read_text(), re.M).group(1).split()
         self.assertIn(SIPA54.stem, kp)

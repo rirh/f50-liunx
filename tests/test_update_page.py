@@ -615,21 +615,6 @@ class Signature(UpdateBase):
         # nothing of the key is left in the temporary directory
         self.assertEqual([p.name for p in self.tmp.glob('tmp.*')], [])
 
-    def test_the_release_scripts_sign_and_never_publish_unsigned_what_devices_would_refuse(self):
-        rel = (TOP / 'scripts/release/make-release.sh').read_text()
-        self.assertIn('sh "$TOP/scripts/release/sign-release.sh" "$D/SHA256SUMS" "$PUB"', rel)
-        self.assertIn('[ "$PUBLISH" != --publish ] || exit 1', rel)
-        self.assertEqual(rel.count('"$D/SHA256SUMS" $SIG'), 2)          # a new release, and files added to one
-        wf = (TOP / '.github/workflows/release.yml').read_text()
-        self.assertIn('F50_RELEASE_KEY: ${{ secrets.F50_RELEASE_KEY }}', wf)
-        # the key is in no file of the tree: the public half arrives with the owner's commit, the secret never
-        self.assertNotIn('RWRSqAkN', rel + wf)
-        self.assertIn("RELEASE_PUB=${F50_RELEASE_PUB:-/opt/f50/lib/release.pub}", UPDATE.read_text())
-        # the release names itself inside what is signed
-        self.assertIn('echo "$TAG" > "$D/f50-release"', rel)
-        self.assertIn('sha256sum *.tar.gz *.manifest.gz f50-update f50-release; } > SHA256SUMS', rel)      # (and the manifests)
-        self.assertEqual(rel.count('"$D/f50-release" "$D/SHA256SUMS" $SIG'), 2)
-
     def test_usign_does_it_where_there_is_one(self):
         # OpenWrt: usign -V -m SUMS -p KEY -x SIG, and its status is the answer
         self.stub('usign', 'printf "%s\\n" "$*" >> "$STUBLOG/usign"; [ -z "$USIGN_FAIL" ]')

@@ -1,5 +1,5 @@
 //! Key presses from raw key events: a press, a release with how long it was held, and each hold threshold reached
-//! while the key is still down (mu300-keys reported a long press while it was held, not on release).
+//! while the key is still down (f50-keys reported a long press while it was held, not on release).
 
 use std::collections::BTreeMap;
 use std::time::Duration;

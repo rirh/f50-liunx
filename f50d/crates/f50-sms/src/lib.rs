@@ -1,7 +1,7 @@
 //! SMS on the F50: the message pool, PDU encoding and decoding, receiving and sending (`f50.sms`).
 //!
-//! Replaces the shell layer's `mu300-sms` (the pool), `mu300-smsd` (receiving), `mu300-cmt-spool` (direct
-//! delivery to disk), `sms-pdu.awk` (the codec), `sms` and the SMS methods of `mu300dash`.
+//! Replaces the shell layer's `f50-sms` (the pool), `f50-smsd` (receiving), `f50-cmt-spool` (direct
+//! delivery to disk), `sms-pdu.awk` (the codec), `sms` and the SMS methods of `f50dash`.
 //!
 //! - [`pdu`]: the codec, pure functions;
 //! - `pool`: messages on flash, conversations, deduplication, the parts of long messages;
@@ -60,7 +60,7 @@ pub struct SmsConfig {
     /// A send job's whole budget (the shell's 200 s: four commands with the modem's answers, and some margin).
     pub send_timeout: Duration,
     /// The receiver's longest wait for the control channel: a client stuck on it must not hold a message's
-    /// acknowledgement (mu300-smsd's 8 s).
+    /// acknowledgement (f50-smsd's 8 s).
     pub rx_wait: Duration,
 }
 

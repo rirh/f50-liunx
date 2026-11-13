@@ -1,5 +1,5 @@
 //! The report of a carry (the shell's `carry_report`): what was carried, set aside or put back, for people, on top of
-//! the new system's `etc/f50/update-report` (`etc/mu300/...` before the rename) (what earlier updates wrote stays below it). Root's alone: it names the
+//! the new system's `etc/f50/update-report` (what earlier updates wrote stays below it). Root's alone: it names the
 //! user's files. `update-report.new` beside it says it has not been read yet.
 
 use std::fs;
@@ -34,8 +34,8 @@ const TITLES: &[(char, &str)] = &[
 ];
 
 /// The report's text.
-pub fn text(os: &str, from: &str, to: &str, when: &str, plan: &Plan, gone: u64, kept_dir: &str) -> String {
-    let kept = format!("{kept_dir}/{from}");
+pub fn text(os: &str, from: &str, to: &str, when: &str, plan: &Plan, gone: u64) -> String {
+    let kept = format!("/{}/{from}", assets::KEPT);
     let mut s = format!("==== {os}: {from} -> {to}, {when} ====\n");
     s += &format!(
         "Everything you added to the system was carried over: {} files, {} MB.\n",
@@ -72,15 +72,9 @@ pub fn text(os: &str, from: &str, to: &str, when: &str, plan: &Plan, gone: u64, 
     s
 }
 
-/// Where `new` keeps what updates set aside, as a path of that system (`/etc/f50/update-kept`).
-pub fn kept_dir(new: &Path) -> String {
-    let p = assets::within(new, assets::KEPT);
-    format!("/{}", p.strip_prefix(new).unwrap_or(&p).display())
-}
-
 /// The report on top of `new`'s, root's alone; the "not read yet" mark when it says more than the totals.
 pub fn write(new: &Path, text: &str, mark: bool) -> Result<()> {
-    let path = assets::within(new, assets::REPORT);
+    let path = new.join(assets::REPORT);
     let mut all = text.to_owned();
     if let Ok(m) = fs::symlink_metadata(&path)
         && m.file_type().is_file()

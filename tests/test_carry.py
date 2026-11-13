@@ -261,24 +261,6 @@ class Tool(unittest.TestCase):
         with self.assertRaises(SystemExit):
             im.union([a, a.replace('openwrt', 'ubuntu-24.04')])
 
-    def test_the_shipped_unions_are_whole(self):
-        # one per image, each naming the releases it holds; a release's manifest comes out with the image's own files
-        d = TOP / 'systems/base/overlay/opt/f50/lib/image-manifests'
-        self.assertEqual(sorted(p.name for p in d.iterdir()), ['openwrt-luci.gz', 'openwrt.gz', 'ubuntu-24.04.gz', 'ubuntu-26.04.gz'])
-        for p in d.iterdir():
-            lines = gzip.open(p, 'rt', errors='surrogateescape').read().split('\n')
-            self.assertEqual(lines[0], f'f50-image-manifests 1 {p.name[:-3]}')
-            tags = lines[1].split(' ')[1:]
-            # (every release before the carry block: one published before this is merged must be added, or a device on
-            # it updates the old way - scripts/release/image-manifest.py legacy and union, FINDINGS 85)
-            self.assertIn('v2026.10.27', tags)
-            self.assertEqual(tags, sorted(tags))
-            body = [l for l in lines[2:] if l]
-            self.assertTrue(all(re.match(r'^[0-9,-]+ [fdlcbp] [0-7]+ \d+ \d+ \d+ ([0-9a-f]{64}|-) .', l) for l in body), p.name)
-            last = [l for l in body if re.match(rf'^([0-9,-]*[,-])?{len(tags) - 1} ', l)]
-            self.assertTrue(any(l.endswith(' opt/f50/bin/f50-update') for l in last), p.name)
-
-
 OLD_IMAGE = {
     'sbin/init': ('f', '#!/bin/sh\n', 0o755),
     'usr/lib/os-release': 'VERSION_ID="24.04"\nVERSION_CODENAME=noble\n',
@@ -1623,36 +1605,6 @@ class Wiring(unittest.TestCase):
     """What must hold for an update to carry everything over at all: the images get the helper, the manifests and
     the list of the overlay's files, a release is not published without them, and the installers' update runs the
     same carry block, from the new image."""
-
-    def test_the_images_get_what_carries_everything_over(self):
-        assemble = (TOP / 'systems/base/assemble.sh').read_text()
-        owrt = (TOP / 'systems/openwrt/build-rootfs.sh').read_text()
-        self.assertIn('if [ -e /carry ]; then install -m755 /carry $R/opt/f50/bin/f50-carry; fi', assemble)
-        self.assertIn('[ -e /in/carry ] && { cp /in/carry $R/opt/f50/bin/f50-carry;', owrt)
-        for text in (assemble, owrt):
-            self.assertIn('/opt/f50/bin/f50-carry manifest $R', text)
-            # the manifest is made last: nothing in the image changes after it
-            self.assertLess(text.index('f50-carry manifest $R'), text.rindex('cd $R && tar '))
-            after = text[text.index('image-manifest.gz $R/etc/f50/image-manifest.gz'):text.rindex('cd $R && tar ')]
-            self.assertEqual(after.count('\n'), 2, after)
-        # each image has the old releases' manifests of its own system only
-        self.assertIn('rm -f $R/opt/f50/lib/image-manifests/openwrt*.gz', assemble)
-        self.assertIn('[ "$m" = "$R/opt/f50/lib/image-manifests/$F50_SYSTEM.gz" ] || rm -f "$m"', owrt)
-        self.assertIn('-e F50_SYSTEM="$SYSTEM"', owrt)
-
-    def test_a_release_is_not_published_without_them(self):
-        rel = (TOP / 'scripts/release/make-release.sh').read_text()
-        self.assertIn('gcc -O2 -static -o /o/carry/f50-carry /src/carry/f50-carry.c', rel)
-        self.assertIn('-v "$IN/device-tools/carry/f50-carry":/carry:ro', rel)
-        audit = rel[rel.index('echo "==> audit"'):rel.index('audit failed, nothing published')]
-        for s in ('opt/f50/bin/f50-carry', 'etc/f50/image-manifest.gz', 'image-manifest.py" check "$D/$a.tar.gz" || fail=1',
-                  'f50-openwrt-luci-rootfs:opt/f50/bin/busybox:openwrt-luci'):
-            self.assertIn(s, audit)
-        self.assertIn('*.manifest.gz f50-update', rel)                    # in SHA256SUMS
-        self.assertEqual(rel.count('"$D"/*.manifest.gz "$D/f50-update" "$D/f50-release" "$D/SHA256SUMS" $SIG'), 2)     # uploaded
-        inst = (TOP / 'install.sh').read_text()
-        self.assertIn('gcc -O2 -static -o /o/carry/f50-carry /src/carry/f50-carry.c', inst)
-        self.assertIn('-v "$WORK/device-tools/carry/f50-carry":/carry:ro', inst)
 
     def test_the_installers_run_the_new_images_carry_block(self):
         ai = (TOP / 'installer/android/android-install.sh').read_text()

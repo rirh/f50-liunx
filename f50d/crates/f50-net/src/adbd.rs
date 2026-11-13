@@ -6,7 +6,7 @@
 //! console never stay away. Not in the host role: the gadget is left alone. A look every second while something is
 //! under way, every 3 s while all is as it should be (FINDINGS 235). Early in a boot the FunctionFS module cannot
 //! be had yet (13 s after power-on on an F50; a minute later it works, FINDINGS 82): asked again for a minute.
-//! adbd itself has no listener but USB in either auth mode. Ported from `mu300-adbd run` and `init.d/mu300-adbd`.
+//! adbd itself has no listener but USB in either auth mode. Ported from `f50-adbd run` and `init.d/f50-adbd`.
 
 mod auth;
 mod gadget;
@@ -187,8 +187,6 @@ async fn supervise(net: &Net, stop: &tokio_util::sync::CancellationToken) {
     loop {
         let run = Cmd::new(&adbd)
             .env("F50_ADB_AUTH", mode)
-            // the adbd builds of before the rename read this one
-            .env("MU300_ADB_AUTH", mode)
             .timeout(Duration::from_secs(365 * 24 * 3600))
             .max_output(16 * 1024)
             .run();

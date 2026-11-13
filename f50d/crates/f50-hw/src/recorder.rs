@@ -1,10 +1,9 @@
-//! The early boot recorder (`early-recorder`, preinit's `05_f50_early_recorder`, before `05_mu300_early_recorder`).
+//! The early boot recorder (`early-recorder`, preinit's `05_f50_early_recorder`).
 //!
 //! For the first minutes of a boot, the kernel log and the services' state are copied into the persistent log area
 //! of the Linux slot's boot partition (48 MiB in, at most 8 MiB) every few seconds, so a boot that dies before the
 //! system log is anywhere still leaves evidence `scripts/device/collect-logs.sh` reads from Android (it stops at
-//! `F50-PERSIST-END`, or `MU300-PERSIST-END` for a reader of before the rename: both marks are written, so older bytes
-//! after them do no harm).
+//! `F50-PERSIST-END`, so older bytes after it do no harm).
 //!
 //! Hardware lessons kept: the partition is the internal disk's, never a card's of the same GPT name (FINDINGS 31l).
 //! Only what there is gets written, not the whole 8 MiB window (that was half a gigabyte of flash per boot, and I/O
@@ -93,8 +92,7 @@ async fn run(program: &str, args: &[&str], max: usize) -> String {
 
 impl Recorder {
     async fn snapshot(&self, uptime: &str) -> Vec<u8> {
-        let mut s =
-            format!("F50-PERSIST-BEGIN uptime={uptime} (f50d early recorder)\nMU300-PERSIST-BEGIN uptime={uptime}\n");
+        let mut s = format!("F50-PERSIST-BEGIN uptime={uptime} (f50d early recorder)\n");
         s += &run("ip", &["-br", "addr"], 64 * 1024).await;
         s += "--- ps\n";
         s += &run("ps", &["w"], 256 * 1024).await;
@@ -110,9 +108,7 @@ impl Recorder {
             .flatten()
             .filter_map(|e| Some(e.ok()?.path()))
             .filter(|p| {
-                p.file_name()
-                    .and_then(|n| n.to_str())
-                    .is_some_and(|n| (n.starts_with("f50-") || n.starts_with("mu300-")) && n.ends_with(".log"))
+                p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("f50-") && n.ends_with(".log"))
             })
             .collect();
         logs.sort();
@@ -125,7 +121,7 @@ impl Recorder {
         }
         s += "--- dmesg\n";
         s += &run("dmesg", &["-s", "1000000"], 1_000_000).await;
-        s += "\nF50-PERSIST-END\nMU300-PERSIST-END\n";
+        s += "\nF50-PERSIST-END\n";
         let mut b = s.into_bytes();
         b.extend_from_slice(&[0u8; 65536]);
         b

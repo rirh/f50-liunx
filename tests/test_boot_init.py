@@ -35,13 +35,6 @@ class SdRoot(ShellTest):
             self.assertIn('f50sd\nrc=0', self.run_fn(shell, f'ext4_label {self.tmp}/a', ''))
             self.assertEqual('rc=1', self.run_fn(shell, f'ext4_label {self.tmp}/b', '').strip())
 
-    def test_older_installations_card_label(self):
-        # a card of an older installation: mu300sd, after f50sd
-        fake_ext4(self.tmp / 'mmcblk1p1', 'mu300sd')
-        for shell in self.each_shell():
-            out = self.run_fn(shell, 'find_sd_root', f'{self.tmp}/mmcblk[1-9]p1')
-            self.assertIn(f'{self.tmp}/mmcblk1p1\nrc=0', out)
-
     def test_partition_before_whole_card(self):
         fake_ext4(self.tmp / 'mmcblk1', 'f50sd')
         fake_ext4(self.tmp / 'mmcblk1p1', 'f50sd')
@@ -226,14 +219,6 @@ class Region(ShellTest):
         for shell in self.each_shell():
             self.assertEqual(f'{2 << 20}\nrc=0', self.find(shell, emmc, 3 << 20).strip())
 
-    def test_region_of_an_older_installation(self):
-        # its filesystem is labelled mu300root; one that only starts with it is not it
-        for label, want in ((b'mu300root', f'{2 << 20}\nrc=0'), (b'mu300rootfs', 'rc=1'), (b'mu300', 'rc=1')):
-            shutil.rmtree(self.tmp / 'sys', ignore_errors=True)
-            emmc = self.setup_disk('mmcblk0', 100, 4 << 20, region_at=2 << 20, label=label)
-            for shell in self.each_shell():
-                self.assertEqual(want, self.find(shell, emmc, 3 << 20).strip(), label)
-
     def test_gpt_partition_named_f50root(self):
         # kanoqwq's desktop installer: the system in a GPT partition of that name, no region (#290). Found on the
         # eMMC only, and only with the f50root filesystem in it
@@ -257,27 +242,6 @@ class Region(ShellTest):
                 if label:
                     fake_ext4(dev / 'mmcblk0p60', label)
                 self.assertEqual(want, self.sh(shell, code).stdout.strip(), label)
-
-    def test_gpt_partition_of_an_older_installation(self):
-        # an older installation's partition: named mu300root, its filesystem labelled mu300root; f50root first
-        e = re.search(r'# --- emmc begin\n(.*?)# --- emmc end', INIT, re.S).group(1)
-        sysd, dev = self.tmp / 'sys', self.tmp / 'dev'
-        dev.mkdir()
-        (sysd / 'block' / 'mmcblk0' / 'device').mkdir(parents=True)
-        (sysd / 'block' / 'mmcblk0' / 'device' / 'type').write_text('MMC\n')
-        for suffix, name in (('p60', 'mu300root'), ('p61', 'f50root')):
-            (sysd / 'block' / 'mmcblk0' / ('mmcblk0' + suffix)).mkdir()
-            (sysd / 'block' / 'mmcblk0' / ('mmcblk0' + suffix) / 'uevent').write_text(f'DEVTYPE=partition\nPARTNAME={name}\n')
-        code = e + self.block() + f'\nF50_SYS={sysd}; F50_DEV={dev}; gpt_root; echo "rc=$?"'
-        for shell in self.each_shell():
-            for old, new, want in (('mu300root', None, f'{dev}/mmcblk0p60\nrc=0'), ('mu300rootfs', None, 'rc=1'),
-                                   ('mu300root', 'f50root', f'{dev}/mmcblk0p61\nrc=0'),
-                                   ('mu300root', 'photos', f'{dev}/mmcblk0p60\nrc=0')):
-                for n, label in (('mmcblk0p60', old), ('mmcblk0p61', new)):
-                    (dev / n).unlink(missing_ok=True)
-                    if label:
-                        fake_ext4(dev / n, label)
-                self.assertEqual(want, self.sh(shell, code).stdout.strip(), (old, new))
 
     def test_never_reads_past_the_end(self):
         # the default offset lies beyond this disk: skipped, not read up to (busybox dd would read the whole disk)
@@ -323,28 +287,23 @@ class RootSelect(ShellTest):
         code = m.group(1)
         # the device paths are only redirected here, never changed in init
         for path, repl in (('/run/f50-root-dev', '$T/root-dev'), ('/run/rootmount.err', '$T/err'),
-                           ('/disk/.f50/root-on-sd', '$T/f50/root-on-sd'), ('/disk/.mu300/root-on-sd', '$T/mu300/root-on-sd'),
-                           ('-d /disk/.f50 ]', '-d $T/f50 ]'),
-                           ('/etc/f50-desktop-root-mode', '$T/desktop-mode'),
-                           ('/etc/mu300-desktop-root-mode', '$T/mu300-desktop-mode')):
+                           ('/disk/.f50/root-on-sd', '$T/f50/root-on-sd'),
+                           ('/etc/f50-desktop-root-mode', '$T/desktop-mode')):
             self.assertIn(path, code)
             code = code.replace(path, repl)
         return code
 
-    def select(self, shell, marker=False, desktop_mode=None, old=False, **scenario):
-        """OLD: an older installation's names - its disk has .mu300 (no .f50), its device segment
-        etc/mu300-desktop-root-mode"""
-        for f in ('log', 'root-dev', 'desktop-mode', 'mu300-desktop-mode'):
+    def select(self, shell, marker=False, desktop_mode=None, **scenario):
+        for f in ('log', 'root-dev', 'desktop-mode'):
             (self.tmp / f).unlink(missing_ok=True)
-        for d in ('f50', 'mu300'):
-            shutil.rmtree(self.tmp / d, ignore_errors=True)
+        shutil.rmtree(self.tmp / 'f50', ignore_errors=True)
         (self.tmp / 'log').touch()
-        state = self.tmp / ('mu300' if old else 'f50')
+        state = self.tmp / 'f50'
         state.mkdir()
         if marker:
             (state / 'root-on-sd').touch()
         if desktop_mode is not None:
-            (self.tmp / ('mu300-desktop-mode' if old else 'desktop-mode')).write_text(desktop_mode + '\n')
+            (self.tmp / 'desktop-mode').write_text(desktop_mode + '\n')
         code = STUBS + self.region() + '\necho "mounted=$root_mounted on=$ON disk-dev=$diskdev"'
         r = self.sh(shell, code, T=self.tmp, **scenario)
         self.assertEqual('', r.stderr)
@@ -379,23 +338,6 @@ class RootSelect(ShellTest):
             self.assertEqual('mounted=1 on=card disk-dev=/dev/mmcblk1p1', out)
             self.assertEqual('/dev/mmcblk1p1', dev)
             self.assertIn('wait 8 30\ndetach /dev/loop0\nfsck /dev/mmcblk1p1\nstage=sd-root dev=/dev/mmcblk1p1', log)
-
-    def test_marker_of_an_older_installation(self):
-        for shell in self.each_shell():
-            out, dev, log = self.select(shell, marker=True, old=True, INTERNAL=1, CARD_LATE=1)
-            self.assertEqual('mounted=1 on=card disk-dev=/dev/mmcblk1p1', out)
-            self.assertIn('wait 8 30', log)
-            # once the disk has .f50, .mu300 is not looked at
-            (self.tmp / 'f50').mkdir()
-            code = STUBS + self.region() + '\necho "mounted=$root_mounted on=$ON"'
-            r = self.sh(shell, code, T=self.tmp, INTERNAL=1, CARD_LATE=1)
-            self.assertEqual('mounted=1 on=internal', r.stdout.strip())
-
-    def test_desktop_partition_choice_of_an_older_installation(self):
-        for shell in self.each_shell():
-            out, dev, log = self.select(shell, desktop_mode='part', old=True, CARD_NOW=1, INTERNAL=1, PART=1)
-            self.assertEqual('mounted=1 on=part disk-dev=/dev/mmcblk0p60', out)
-            self.assertIn('stage=root-part-chosen', log)
 
     def test_marker_and_no_card(self):
         for shell in self.each_shell():
@@ -526,7 +468,7 @@ class Slot(ShellTest):
         return m.group(1)
 
     def run_slot(self, shell, cmdline=None, bootargs=None, image=None, call='linux_slot_detect; publish_slot',
-                 blocks=('slot-a', 'slot-b-trial', 'slot-b', 'slot-a-trial'), old_image=None):
+                 blocks=('slot-a', 'slot-b-trial', 'slot-b', 'slot-a-trial')):
         etc, run = self.tmp / 'etc', self.tmp / 'run'
         shutil.rmtree(run, ignore_errors=True)
         shutil.rmtree(etc, ignore_errors=True)
@@ -535,8 +477,6 @@ class Slot(ShellTest):
             (etc / f'misc-bc-{n}.bin').write_text(n)
         if image:
             (etc / 'f50-linux-slot').write_text(image + '\n')
-        if old_image:
-            (etc / 'mu300-linux-slot').write_text(old_image + '\n')
         srcs = []
         for name, text in (('cmdline', cmdline), ('bootargs', bootargs)):
             if text is not None:
@@ -577,14 +517,6 @@ class Slot(ShellTest):
             out, log, _ = self.run_slot(shell)
             self.assertEqual(out, 'linux=b android=a')
             self.assertIn('source=default', log)
-
-    def test_device_segment_of_an_older_installation(self):
-        # its slot file is etc/mu300-linux-slot; etc/f50-linux-slot comes first
-        for shell in self.each_shell():
-            out, log, _ = self.run_slot(shell, old_image='a')
-            self.assertEqual(out, 'linux=a android=b')
-            self.assertIn('source=image', log)
-            self.assertEqual(self.run_slot(shell, image='b', old_image='a')[0], 'linux=b android=a')
 
     def test_mismatch_is_logged_and_the_booted_slot_wins(self):
         for shell in self.each_shell():
@@ -746,16 +678,6 @@ class PickRoot(ShellTest):
 
     def test_openwrt_first_without_a_choice(self):
         self.system('openwrt'); self.system('openwrt-luci')
-        for shell in self.each_shell():
-            self.assertEqual(self.pick(shell), f'{self.tmp}/disk/openwrt')
-
-    def test_boot_os_of_an_older_installation(self):
-        # its disk has .mu300/boot-os; once there is a .f50, that one counts
-        self.system('openwrt'); self.system('openwrt-luci')
-        (self.tmp / 'disk/.mu300').mkdir(); (self.tmp / 'disk/.mu300/boot-os').write_text('openwrt-luci\n')
-        for shell in self.each_shell():
-            self.assertEqual(self.pick(shell), f'{self.tmp}/disk/openwrt-luci')
-        (self.tmp / 'disk/.f50').mkdir()
         for shell in self.each_shell():
             self.assertEqual(self.pick(shell), f'{self.tmp}/disk/openwrt')
 
@@ -951,18 +873,6 @@ class UsbNetPolicy(ShellTest):
                     f.write_text(value)
                 r = self.sh(shell, GadgetHarness.block('usb-net') + f'\nusb_name_policy "{self.tmp}/root"')
                 self.assertEqual(name + '\n', r.stdout, value)
-
-    def test_system_of_an_older_installation(self):
-        # etc/mu300/usb-net and usb-net-name, after etc/f50's
-        old = self.tmp / 'root' / 'etc' / 'mu300'
-        old.mkdir(parents=True)
-        (old / 'usb-net').write_text('rndis\n')
-        (old / 'usb-net-name').write_text('eth\n')
-        for shell in self.each_shell():
-            self.assertEqual('rndis ncm ecm\nrc=0\n', self.policy(shell, None))
-            self.assertEqual('ecm ncm\nrc=0\n', self.policy(shell, 'ecm'))
-            r = self.sh(shell, GadgetHarness.block('usb-net') + f'\nusb_name_policy "{self.tmp}/root"')
-            self.assertEqual('eth\n', r.stdout)
 
     def test_command_line_wins(self):
         for shell in self.each_shell():
@@ -1334,43 +1244,6 @@ class BootTries(ShellTest):
             self.lk('b', 3)
             self.assertEqual(self.boot(shell)[0], 'android')
 
-    def test_an_older_installations_disk(self):
-        # .mu300 on a disk that has no .f50 yet: its count, attempts and lock, and the system's etc/mu300/default-boot
-        shutil.rmtree(self.disk / '.f50')
-        old = self.disk / '.mu300'
-        old.mkdir()
-        (self.disk / 'openwrt/etc/f50/default-boot').unlink()
-        (self.disk / 'openwrt/etc/mu300').mkdir()
-        (self.disk / 'openwrt/etc/mu300/default-boot').write_text('linux\n')
-        (old / 'boot-attempts').write_text('2\n')
-        for shell in self.each_shell():
-            (old / 'boot-tries').write_text('1\n')
-            self.lk('b', 6)
-            self.assertEqual(self.boot(shell)[0], 'linux')
-            self.assertEqual((old / 'boot-tries').read_text().strip(), '2')
-            self.assertEqual(self.boot(shell)[0], 'android')
-            self.assertEqual((old / 'boot-tries').read_text().strip(), '0')
-            self.assertFalse((self.disk / '.f50').exists())
-            (old / 'boot-lock').write_text('')
-            self.lk('b', 6, successful=True)
-            out, err = self.boot(shell)
-            self.assertEqual(out, 'linux')
-            self.assertIn('stage=boot-locked', err)
-            (old / 'boot-lock').unlink()
-
-    def test_f50_comes_before_mu300(self):
-        (self.disk / '.mu300').mkdir()
-        (self.disk / '.mu300/boot-tries').write_text('5\n')
-        (self.disk / '.mu300/boot-lock').write_text('')
-        for shell in self.each_shell():
-            (self.disk / '.f50/boot-tries').write_text('0\n')
-            self.lk('b', 6, successful=True)
-            out, err = self.boot(shell)
-            self.assertEqual(out, 'linux')
-            self.assertNotIn('boot-locked', err)
-            self.assertEqual(self.count(), '1')
-            self.assertEqual((self.disk / '.mu300/boot-tries').read_text().strip(), '5')
-
     def test_unknown_misc_keeps_the_backstop(self):
         for shell in self.each_shell():
             (self.disk / '.f50/boot-tries').write_text('5\n')
@@ -1614,20 +1487,6 @@ class ModulesSettle(ShellTest):
             self.assertIn('set=new', err)
             for d in self.dirs:
                 self.assertEqual(self.ko(d), {'a.ko': b'new a'})
-            shutil.rmtree(self.tmp / 'disk')
-
-    def test_an_older_installations_unpacked_set(self):
-        # its update staged the set in .mu300-update; .f50-update comes first
-        for shell in self.each_shell():
-            self.setUp()
-            shutil.rmtree(self.disk / '.f50-update')
-            old = self.disk / '.mu300-update/boot/modules'
-            old.mkdir(parents=True)
-            (old / 'a.ko').write_bytes(b'mu300 a')
-            err = self.settle(shell, self.KREL, '#6 SMP PREEMPT Mon Oct 27 10:00:00 UTC 2026')
-            self.assertIn('set=new', err)
-            for d in self.dirs:
-                self.assertEqual(self.ko(d), {'a.ko': b'mu300 a'})
             shutil.rmtree(self.tmp / 'disk')
 
     def test_another_kernel_running_puts_the_kept_set_back(self):

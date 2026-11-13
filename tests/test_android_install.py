@@ -106,16 +106,6 @@ class SdCard(ShellTest):
             out, calls = self.run_fn(shell, f'sd_prepare {self.dev} 1')
             self.assertIn('rc=0\n', out); self.assertIn('mke2fs', calls)
 
-    def test_card_of_the_mu300_installer_is_an_installation(self):
-        # the label before the rename: kept, or formatted over, never "foreign"
-        fake_ext4(self.dev, 'mu300sd')
-        for shell in self.each_shell():
-            out, calls = self.run_fn(shell, f'sd_prepare {self.dev} 0')
-            self.assertIn('rc=0\n', out); self.assertNotIn('mke2fs', calls)
-            out, calls = self.run_fn(shell, f'sd_prepare {self.dev} 1')
-            self.assertIn('rc=0\n', out); self.assertIn('mke2fs', calls)
-            self.assertNotIn('foreign', out)
-
     def test_keep_without_installation_fails(self):
         self.dev.write_bytes(bytes(4096))
         for shell in self.each_shell():
@@ -278,12 +268,6 @@ class SdCard(ShellTest):
             self.assertFalse((m / '.f50' / 'root-on-sd').exists())
             out, _ = self.run_fn(shell, f'sd_unmark {m}', pre='set -e; unset SD_MODE')   # older env files
             self.assertIn('rc=0\n', out)
-            # the marker of the installer from before the rename goes too
-            (m / '.mu300').mkdir(parents=True, exist_ok=True)
-            (m / '.mu300' / 'root-on-sd').touch()
-            out, _ = self.run_fn(shell, f'sd_unmark {m}', pre='set -e; SD_MODE=0')
-            self.assertIn('rc=0\n', out)
-            self.assertFalse((m / '.mu300' / 'root-on-sd').exists())
 
     def test_unmark_runs_on_the_installed_filesystem(self):
         self.assertIn('\nsd_unmark $M\n', SRC)
@@ -375,18 +359,6 @@ class Downgrade(ShellTest):
         for shell in self.each_shell():
             self.assertIn('rc=1\n', self.check(shell))
 
-    def test_a_system_of_the_mu300_installer(self):
-        # an installation from before the rename keeps its release in etc/mu300; etc/f50 is asked first
-        self.setup_systems('v2026.10.16.91', 'v2026.10.16.90', etc='mu300')
-        for shell in self.each_shell():
-            out = self.check(shell)
-            self.assertIn('rc=1\n', out)
-            self.assertIn('the installed openwrt is v2026.10.16.91', out)
-        (self.M / 'openwrt' / 'etc' / 'f50').mkdir()
-        (self.M / 'openwrt' / 'etc' / 'f50' / 'image-version').write_text('v2026.10.16.89\n')
-        for shell in self.each_shell():
-            self.assertIn('rc=0\n', self.check(shell))
-
     def test_wiring(self):
         # checked once the filesystem is mounted and before anything is written to it or to the boot chain; the
         # computer's installers pass F50_DOWNGRADE=yes on as DOWNGRADE=1, the Magisk installer its own decision
@@ -428,18 +400,10 @@ class RegionGuard(ShellTest):
             # one sector past the partition, a start inside userdata, another partition's name, two of the name
             for off, size, parts in ((part[1], part[2] + 1, [ud, part]), (2048 + 4096, 4096, [ud, part]),
                                      (part[1], part[2], [ud, ('f50data', part[1], part[2])]),
-                                     (part[1], part[2], [ud, part, ('f50root', part[1] + part[2], 4096)]),
-                                     (part[1], part[2], [ud, ('f50root', 2048 + (8 << 21) + 2048 + (2 << 21), 4096),
-                                                         ('mu300root', part[1], part[2])])):
+                                     (part[1], part[2], [ud, part, ('f50root', part[1] + part[2], 4096)])):
                 out = self.guard(shell, off, size, parts).stdout
                 self.assertIn('region overlaps partitions', out, (off, size, parts))
                 self.assertNotIn('PASSED', out)
-            # the partition of the installer from before the rename, when none is named f50root
-            out = self.guard(shell, part[1], part[2], [ud, ('mu300root', part[1], part[2])]).stdout
-            self.assertIn('PASSED', out)
-            self.assertIn('GPT partition named mu300root', out)
-            out = self.guard(shell, part[1], part[2] + 1, [ud, ('mu300root', part[1], part[2])]).stdout
-            self.assertNotIn('PASSED', out)
 
 
 class Systems(ShellTest):
@@ -500,30 +464,6 @@ class Systems(ShellTest):
             self.tarball('openwrt')
             self.run_install(shell, UPDATE='1', PWHASH='$6$salt$hash')
             self.assertEqual((self.M / 'openwrt' / 'etc' / 'config' / 'network').read_text(), 'mine\n')
-
-    def test_update_over_the_mu300_installers_system_keeps_its_settings(self):
-        # an image without f50-carry keeps a list of places: a system from before the rename has its etc/f50 as
-        # etc/mu300, and that is what the new system gets as etc/f50
-        for shell in self.each_shell():
-            shutil.rmtree(self.M / 'openwrt', ignore_errors=True)
-            old = self.M / 'openwrt' / 'etc'
-            (old / 'mu300').mkdir(parents=True)
-            (old / 'mu300' / 'hotspot.conf').write_text('SSID=mine\n')
-            (old / 'config').mkdir()
-            (old / 'config' / 'network').write_text('mine\n')
-            self.tarball('openwrt', {'etc/f50/image-version': 'v2\n'})
-            r = self.run_install(shell, UPDATE='1')
-            new = self.M / 'openwrt' / 'etc'
-            self.assertEqual((new / 'f50' / 'hotspot.conf').read_text(), 'SSID=mine\n')
-            self.assertEqual((new / 'f50' / 'image-version').read_text(), 'v2\n')
-            self.assertEqual((new / 'config' / 'network').read_text(), 'mine\n')
-            self.assertIn('etc/mu300', r.stdout)
-            # with an etc/f50 there, etc/f50 is what is kept
-            (self.M / 'openwrt' / 'etc' / 'mu300').mkdir()
-            (self.M / 'openwrt' / 'etc' / 'mu300' / 'hotspot.conf').write_text('SSID=stale\n')
-            self.tarball('openwrt')
-            self.run_install(shell, UPDATE='1')
-            self.assertEqual((new / 'f50' / 'hotspot.conf').read_text(), 'SSID=mine\n')
 
     def test_only_openwrt_and_the_vendor_kernel(self):
         # refused before anything is touched: right after the env file is read
@@ -659,7 +599,6 @@ class Systems(ShellTest):
                     shutil.rmtree(self.M / os_, ignore_errors=True)
                     image = dict(self.IMAGE)
                     image['etc/shadow'] = 'root::19000:0:99999:7:::\n'
-                    image['etc/.mu300-accounts-from-image'] = ''
                     self.tarball(os_, image)
                     if old is not None:
                         (self.M / os_ / 'etc').mkdir(parents=True)
@@ -670,7 +609,6 @@ class Systems(ShellTest):
                     self.assertFalse((self.M / f'{os_}.new').exists())
                     self.assertIn(keeps, (self.M / os_ / 'etc' / 'shadow').read_text())
                     self.assertFalse((self.M / os_ / 'etc' / '.f50-accounts-from-image').exists())
-                    self.assertFalse((self.M / os_ / 'etc' / '.mu300-accounts-from-image').exists())
                     self.assertFalse((self.M / os_ / 'etc' / 'precious').exists())
                     kept = [l for l in r.stdout.splitlines() if 'kept the' in l and 'accounts' in l]
                     pwu = 'root'

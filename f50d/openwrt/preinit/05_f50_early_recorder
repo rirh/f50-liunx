@@ -1,6 +1,6 @@
 # f50d boot stage "early": the kernel log and the services' state into the Linux slot's boot partition (48 MiB in,
 # at most 8 MiB) every few seconds for 420 s, so a boot that dies early leaves evidence scripts/device/collect-logs.sh
-# reads from Android. In the background: preinit goes on at once. Replaces 05_mu300_early_recorder.
+# reads from Android. In the background: preinit goes on at once. Replaces 05_f50_early_recorder.
 f50_early_recorder() {
 	[ -x /usr/sbin/f50d ] || return 0
 	/usr/sbin/f50d boot early </dev/null >/dev/null 2>&1 &

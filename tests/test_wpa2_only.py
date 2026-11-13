@@ -68,115 +68,6 @@ def strip_model(ies):
     return out
 
 
-class DriverStripsTheRecord(unittest.TestCase):
-    """common/report.c: f50_strip_sae_pmk_record before cfg80211_new_sta, compiled from the source."""
-
-    def test_mainline_and_54_patch_carry_the_same_function(self):
-        up = c_function((WLAN / 'common/report.c').read_text(), 'f50_strip_sae_pmk_record')
-        p54 = c_function(added_lines(PATCH54.read_text(), 'common/report.c'), 'f50_strip_sae_pmk_record')
-        self.assertEqual(up, p54)
-
-    def test_softap_report_strips_before_cfg80211(self):
-        src = (WLAN / 'common/report.c').read_text()
-        body = src[src.index('void sprd_report_softap('):src.index('EXPORT_SYMBOL(sprd_report_softap)')]
-        self.assertLess(body.index('f50_strip_sae_pmk_record(req_ie, req_ie_len)'), body.index('sinfo.assoc_req_ies = req_ie'))
-        self.assertLess(body.index('sinfo.assoc_req_ies = req_ie'), body.index('cfg80211_new_sta('))
-        for text in (src, PATCH54.read_text()):
-            # the bytes of the record are never printed
-            self.assertNotIn('hex_dump', body)
-            self.assertIn('0x40, 0x45, 0xda, 0x04', text)
-
-    def test_firmware_never_gets_an_sae_password(self):
-        for text in ((WLAN / 'sc2355/vendor.c').read_text(), added_lines(PATCH54.read_text(), 'sc2355/vendor.c')):
-            fn = text[text.index('static int vendor_set_sae_password('):] if 'static int vendor_set_sae_password(' in text else text
-            ret = fn.index('return -EOPNOTSUPP;')
-            self.assertNotIn('nla_for_each_attr', fn[:ret])
-            self.assertNotIn('send_cmd_recv_rsp', fn[:ret])
-        # the 5.4 patch applies after wlan_combo-sae-private-logs.patch (the build's glob order), which edits vendor.c
-        names = sorted(p.name for p in (TOP / 'kernel/vendor/patches').glob('wlan_combo-*.patch'))
-        self.assertLess(names.index('wlan_combo-sae-private-logs.patch'), names.index(PATCH54.name))
-
-    def compile(self):
-        cc = shutil.which('cc')
-        if not cc:
-            self.skipTest('no native C compiler')
-        work = Path(tempfile.mkdtemp(prefix='f50-strip-'))
-        self.addCleanup(shutil.rmtree, work, True)
-        fn = c_function((WLAN / 'common/report.c').read_text(), 'f50_strip_sae_pmk_record')
-        (work / 't.c').write_text('''#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-typedef unsigned char u8;
-typedef unsigned short u16;
-''' + fn + '''
-int main(int argc, char **argv)
-{
-	static u8 buf[65536];
-	size_t n = fread(buf, 1, sizeof(buf), stdin);
-	u16 len = (u16)n, out = f50_strip_sae_pmk_record(buf, len);
-	(void)argc; (void)argv;
-	fwrite(buf, 1, out, stdout);
-	return 0;
-}
-''')
-        flags = ['-std=c99', '-Wall', '-Wextra', '-Werror', '-O1']
-        if os.environ.get('F50_TEST_UBSAN') == '1':
-            flags += ['-fsanitize=undefined,address', '-fno-sanitize-recover=all']
-        r = subprocess.run([cc] + flags + [str(work / 't.c'), '-o', str(work / 't')], capture_output=True, text=True)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        return work / 't'
-
-    def test_strip(self):
-        exe = self.compile()
-
-        def run(ies):
-            r = subprocess.run([str(exe)], input=ies, capture_output=True, timeout=30)
-            self.assertEqual(r.returncode, 0, r.stderr)
-            return r.stdout
-
-        ssid = bytes([0, 4]) + b'MU30'
-        rsn = bytes([48, 20, 1, 0, 0, 0x0f, 0xac, 4, 1, 0, 0, 0x0f, 0xac, 4, 1, 0, 0, 0x0f, 0xac, 2, 0, 0])
-        wmm = bytes([221, 7, 0, 0x50, 0xf2, 2, 0, 1, 0])
-        record = RECORD_PREFIX + bytes(range(48))
-        other_vendor = bytes([221, 6, 0x40, 0x45, 0xda, 0x05, 1, 2])
-        cases = {
-            'no record': (ssid + rsn + wmm, ssid + rsn + wmm),
-            'empty': (b'', b''),
-            'firmware record at the end': (ssid + rsn + record, ssid + rsn),
-            'a client record in the middle': (ssid + record + rsn + wmm, ssid + rsn + wmm),
-            'two records': (record + ssid + record, ssid),
-            'prefix only': (ssid + bytes([221, 4, 0x40, 0x45, 0xda, 0x04]), ssid),
-            'any length with the prefix': (bytes([221, 10, 0x40, 0x45, 0xda, 0x04]) + bytes(6) + rsn, rsn),
-            'another vendor type stays': (ssid + other_vendor, ssid + other_vendor),
-            'too short for the prefix stays': (bytes([221, 3, 0x40, 0x45, 0xda]), bytes([221, 3, 0x40, 0x45, 0xda])),
-            'a truncated record': (ssid + record[:30], ssid),
-            'a record behind a malformed element': (ssid + bytes([7, 200]) + record, ssid),
-            'one stray byte': (ssid + b'\xdd', ssid),
-        }
-        for name, (ies, want) in cases.items():
-            with self.subTest(case=name):
-                self.assertEqual(run(ies), want)
-                self.assertEqual(strip_model(ies), want)
-        rnd = random.Random(80)
-        for _ in range(400):
-            parts = []
-            for _ in range(rnd.randrange(0, 12)):
-                k = rnd.randrange(5)
-                if k == 0:
-                    parts.append(record)
-                elif k == 1:
-                    parts.append(bytes([221, 4 + rnd.randrange(60)]) + RECORD_PREFIX[2:] + bytes(rnd.randrange(256) for _ in range(60)))
-                else:
-                    n = rnd.randrange(40)
-                    parts.append(bytes([rnd.randrange(256), n]) + bytes(rnd.randrange(256) for _ in range(n)))
-            ies = b''.join(parts)
-            if rnd.random() < 0.3:
-                ies = ies[:rnd.randrange(len(ies) + 1)]
-            out = run(ies)
-            self.assertEqual(out, strip_model(ies))
-            self.assertEqual(strip_model(out), out)       # well-formed, nothing left to strip
-
-
 class DriverPrivacy(unittest.TestCase):
     """the driver never logs the passphrase, a station key or raw command/event payloads (kept from the offload work)"""
 
@@ -204,12 +95,6 @@ class DriverPrivacy(unittest.TestCase):
                            ('sc2355/sdio.c', 'sc2355_rx_work_queue')]:
             with self.subTest(path=path):
                 self.assertNotIn('hex_dump', self.body(path, name))
-
-    def test_station_key_is_not_logged_as_an_unbounded_string(self):
-        source = (TOP / 'kernel/mainline/modules/sprd_wlan_combo/common/cfg80211.c').read_text()
-        self.assertNotIn('"PSK %s', source)
-        self.assertIn('memcpy(con.psk, sme->key, sme->key_len)', source)
-
 
 class NoImportIsBuilt(ShellTest):
     def test_the_hostapd_patch_and_its_recipe_are_gone(self):

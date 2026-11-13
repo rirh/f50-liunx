@@ -1,7 +1,7 @@
 //! HTTP(S) downloads through the image's `uclient-fetch`. URLs are checked here: `http://` or `https://`, no blank
 //! or control character, so the program gets one argument that never starts with "-".
 //!
-//! The retry and resume rules are `mu300-update`'s `fetch_stdout`/`fetch_file`:
+//! The retry and resume rules are `f50-update`'s `fetch_stdout`/`fetch_file`:
 //!
 //! - a small text is tried up to [`TEXT_TRIES`] times, [`TEXT_DELAY`] apart, but only while the failure is the
 //!   network's (`uclient-fetch` exit 4, or no answer in time); an HTTP error (exit 8) is the server's answer and

@@ -5,7 +5,7 @@
 //!   answered through `/sys/class/firmware`, then the database reloaded. A kernel without that fallback (mainline) has
 //!   no `/sys/class/firmware`: nothing is waited for (it cost 6 s of every boot).
 //! - The country goes in before the phy appears, so netifd's own start of hostapd already runs under it.
-//! - [`reopen`] (`hotplug.d/misc/10-mu300-wcn`, issue #94): after `sprd_wlan_combo`'s recovery the chip is off until
+//! - [`reopen`] (`hotplug.d/misc/10-f50-wcn`, issue #94): after `sprd_wlan_combo`'s recovery the chip is off until
 //!   Wi-Fi is opened again; one `wifi down; wifi up`. One reopen at a time: a reset can send FW_ERROR more than once,
 //!   and two overlapping reopens race each other through netifd. If Wi-Fi does not come back, the driver's watchdog
 //!   reboots the device about a minute later. Based on kanoqwq/mu300-linux@23361ce.

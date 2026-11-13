@@ -130,16 +130,6 @@ fn online_tag(inner: &Inner, asked: Option<&str>) -> Result<String> {
     }
 }
 
-/// The first of `names` (a file's F50 name, then its older one) the release has, downloaded and verified.
-async fn first_file(f: &mut Fetcher, tag: &str, names: &[String]) -> Result<Option<std::path::PathBuf>> {
-    for n in names {
-        if let Some(p) = f.file(tag, n).await? {
-            return Ok(Some(p));
-        }
-    }
-    Ok(None)
-}
-
 /// The whole update. Holds the update lock throughout.
 pub async fn apply(inner: Arc<Inner>, req: Request, say: Say) -> Result<Applied> {
     let _lock = lock::take(&inner.layout, &inner.cfg.legacy_locks)?;
@@ -154,16 +144,9 @@ pub async fn apply(inner: Arc<Inner>, req: Request, say: Say) -> Result<Applied>
             let (allowed, p2) = (assets::offline_names(&inner.cfg.systems), p.clone());
             let b = blocking(move || Bundle::open(&p2, &allowed)).await?;
             let b2 = b.clone();
-            let t = blocking(move || {
-                for n in assets::RELEASE_TAGS {
-                    if let Some(t) = b2.read(n, 64)? {
-                        return Ok(Some(t));
-                    }
-                }
-                Ok(None)
-            })
-            .await?
-            .ok_or_else(|| Error::failed("the bundle does not say which release it is"))?;
+            let t = blocking(move || b2.read(assets::RELEASE_TAG, 64))
+                .await?
+                .ok_or_else(|| Error::failed("the bundle does not say which release it is"))?;
             let t = String::from_utf8_lossy(&t).trim().to_owned();
             if !crate::tag::tag_ok(&t) {
                 return Err(Error::failed("the bundle does not say which release it is"));
@@ -176,9 +159,7 @@ pub async fn apply(inner: Arc<Inner>, req: Request, say: Say) -> Result<Applied>
         ),
     };
     let offline_systems: Option<Vec<String>> = match &provider {
-        Provider::Offline(b) => {
-            Some(installed.iter().filter(|s| assets::rootfs(s).iter().any(|n| b.has(n))).cloned().collect())
-        }
+        Provider::Offline(b) => Some(installed.iter().filter(|s| b.has(&assets::rootfs(s))).cloned().collect()),
         Provider::Online { .. } => None,
     };
     let targets = offline_systems.clone().unwrap_or_else(|| installed.clone());
@@ -211,14 +192,12 @@ pub async fn apply(inner: Arc<Inner>, req: Request, say: Say) -> Result<Applied>
     let mut f = Fetcher::new(provider, stage_dir.clone(), inner.trust(req.allow_unsigned), say.0.clone());
     let mut tarballs = Vec::new();
     for os in &todo {
-        let names = assets::rootfs(os);
-        let p = first_file(&mut f, &tag, &names)
-            .await?
-            .ok_or_else(|| Error::not_found(format!("{} in release {tag}", names[0])))?;
+        let name = assets::rootfs(os);
+        let p = f.file(&tag, &name).await?.ok_or_else(|| Error::not_found(format!("{name} in release {tag}")))?;
         rootfs::payload_is(&p, &tag).await?;
         tarballs.push((os.clone(), p));
     }
-    let bundle = first_file(&mut f, &tag, &assets::kernel(inner.layout.kernel_choice())).await?;
+    let bundle = f.file(&tag, &assets::kernel(inner.layout.kernel_choice())).await?;
     if let Some(b) = &bundle {
         let list = kernel::list(b).await?;
         if list.contains(assets::bundle::RAMDISK) {

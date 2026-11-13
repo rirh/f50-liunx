@@ -9,7 +9,7 @@
 //!   session's commands are served (polls that share the device wait too) until its sender is dropped or it sits idle
 //!   for [`SESSION_IDLE`].
 //! - **Late replies.** Before every command the channel is drained until quiet (0.1 s after a clean reply, 1 s
-//!   otherwise; for up to 25 s after a command that got no answer, 3 s otherwise), as mu300-atd did, so a late `OK`
+//!   otherwise; for up to 25 s after a command that got no answer, 3 s otherwise), as f50-atd did, so a late `OK`
 //!   is never read as the next command's reply (docs/research/FINDINGS.md 15, 13f).
 //! - **Health.** A channel is up once it answers `AT`, and down after two unanswered commands in a row or when its
 //!   reader ends; while down it is probed with `AT` every [`PROBE_EVERY`].
@@ -34,9 +34,9 @@ use crate::request::{Command, Job, Queued};
 use crate::wire::Wire;
 use crate::{Reply, Urc};
 
-/// The first open is retried this often while the modem starts its channels (mu300-atd's 0.2 s nap) ...
+/// The first open is retried this often while the modem starts its channels (f50-atd's 0.2 s nap) ...
 const OPEN_RETRY: Duration = Duration::from_millis(200);
-/// ... for this long (`MU300_AT_OPEN_WAIT`, docs/research/FINDINGS.md 138), and every [`OPEN_RETRY_SLOW`] after.
+/// ... for this long (`F50_AT_OPEN_WAIT`, docs/research/FINDINGS.md 138), and every [`OPEN_RETRY_SLOW`] after.
 const OPEN_WAIT: Duration = Duration::from_secs(240);
 const OPEN_RETRY_SLOW: Duration = Duration::from_secs(2);
 /// Unanswered commands in a row that make a channel down.
@@ -311,7 +311,7 @@ impl Channel {
             self.set_up(st, false);
         }
         if self.reopen_due(st) && self.reopen(st).await && body.is_none() {
-            // the modem was gone, so the command never ran: ask once more on the new descriptor (as mu300-atd did)
+            // the modem was gone, so the command never ran: ask once more on the new descriptor (as f50-atd did)
             let again = self.exchange(st, cmd, None, timeout).await;
             if again.is_ok() {
                 st.silent = 0;

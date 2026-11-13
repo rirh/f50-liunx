@@ -1,6 +1,6 @@
 //! The LAN: its address and DHCP range in UCI (`network.lan`, `dhcp.lan`), and the IPv4 arithmetic the Wi-Fi client
-//! and the USB port need (subnets, overlaps, the USB host's address). Ported from `mu300-api lan.*`, `mu300-lan-ip`
-//! and `lib/mu300/usb-host.sh`.
+//! and the USB port need (subnets, overlaps, the USB host's address). Ported from `f50-api lan.*`, `f50-lan-ip`
+//! and `lib/f50/usb-host.sh`.
 
 use std::net::Ipv4Addr;
 use std::time::Duration;
@@ -118,7 +118,7 @@ pub(crate) async fn get(net: &Net) -> Result<Value> {
 const MASKS: &str = "255\\.255\\.(0|128|192|224|240|248|252|254|255)\\.0|255\\.255\\.255\\.(0|128|192|224|240|248|252)";
 const LEASETIME: &str = "[1-9][0-9]{0,4}[mh]|infinite";
 
-/// `f50.lan set`: the address (a private /24's .1, as `mu300-api` took it), the netmask, the DHCP range. Saved in
+/// `f50.lan set`: the address (a private /24's .1, as `f50-api` took it), the netmask, the DHCP range. Saved in
 /// UCI; netifd and dnsmasq reload two seconds later, so the reply leaves before the LAN moves.
 pub(crate) async fn set(net: &Net, p: &Params) -> Result<Value> {
     let lan = net.cfg().lan_interface.clone();

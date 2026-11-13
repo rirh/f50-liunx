@@ -3,7 +3,7 @@
 //! Closing a SIPC AT channel can take it away until the next reboot (docs/research/FINDINGS.md 13b), and every exit
 //! of a process closes its descriptors: a crash of f50d, procd's respawn after it, `/etc/init.d/f50d restart`, an
 //! update that replaces the binary. The shell layer avoided that by keeping the channels in a separate daemon
-//! (`mu300-atd`) that almost never restarted.
+//! (`f50-atd`) that almost never restarted.
 //!
 //! f50d does the same with a much smaller holder: `f50d at-keeper` (its own procd service, started before f50d and
 //! never restarted with it) opens each allowed device once and keeps it. It never reads or writes: it only hands a

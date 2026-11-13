@@ -3,14 +3,13 @@
 #   region_probe     last_end / disk (sectors) and OFF / SIZE (bytes) of the free eMMC region; 1 when the device
 #                    gave no answer
 #   region_find_existing  existing=yes|no; an installed f50root defines OFF / SIZE (IN_PART=1: in the GPT
-#                    partition named f50root that another installer made; region_probe already aims there). An
-#                    installation of the upstream project (label and partition mu300root, card mu300sd) counts too
+#                    partition named f50root that another installer made; region_probe already aims there)
 
 #   region_in_bounds OFF SIZE  whether that place may hold the Linux filesystem (the free space or that partition)
 #   region_part_refusal / region_image_note  another installer's layout this one cannot use, in words
 #   region_dirty     DIRTY, how many of 16 samples across the region hold data
 #   sd_probe         SD_DEV / SD_BYTES of the card in the slot (empty without one), SD_SMALL=1 when it is too small
-#   sd_existing      yes when the card already holds a f50sd (or the upstream mu300sd) filesystem, foreign for any
+#   sd_existing      yes when the card already holds a f50sd filesystem, foreign for any
 #                    other ext4, else no
 #   choose_storage   SD_MODE=0|1; F50_STORAGE=internal|sd answers without asking (internal while the card
 #                    holds f50sd still needs the typed word: that card would boot instead)
@@ -54,9 +53,8 @@ sd_existing() {
     [ "$m" = 53ef ] || { echo no; return 0; }
     # LC_ALL=C: those bytes need not be text, and macOS's tr in a UTF-8 locale complains about them
     l=$(su_do "dd if=$SD_DEV bs=1 skip=1144 count=16 2>/dev/null" | LC_ALL=C tr -d '\000')
-    # any other ext4, labelled or not, is foreign: android-install.sh's sd_prepare refuses to format it. mu300sd: the
-    # same installation made by the upstream project's installer, under its old name
-    case $l in f50sd|mu300sd) echo yes ;; *) echo foreign ;; esac
+    # any other ext4, labelled or not, is foreign: android-install.sh's sd_prepare refuses to format it
+    case $l in f50sd) echo yes ;; *) echo foreign ;; esac
 }
 
 choose_storage() {
@@ -113,14 +111,14 @@ sd_erase_cmd() {  # sd_erase_cmd DEV  (/dev/block/mmcblk1p1, or /dev/block/mmcbl
     printf '%s' "case $1 in */mmcblk0|*/mmcblk0p*) echo REFUSED $1 is the eMMC; exit 1 ;; esac; " \
         "[ x\$(cat $_s/block/$_d/device/type 2>/dev/null) = xSD ] || { echo REFUSED $_d is not an SD card; exit 1; }; " \
         "set -- \$(dd if=$1 bs=1 skip=1080 count=2 2>/dev/null | od -An -tx1); [ x\$1\$2 = x53ef ] || { echo REFUSED no ext4 on $1; exit 1; }; " \
-        "l=\$(dd if=$1 bs=1 skip=1144 count=16 2>/dev/null | tr -d \\\\000); [ x\$l = xf50sd ] || [ x\$l = xmu300sd ] || { echo REFUSED no f50sd on $1; exit 1; }; " \
+        "l=\$(dd if=$1 bs=1 skip=1144 count=16 2>/dev/null | tr -d \\\\000); [ x\$l = xf50sd ] || { echo REFUSED no f50sd on $1; exit 1; }; " \
         "for v in \$(sm list-volumes 2>/dev/null | grep -o ^public:179,[0-9]*); do sm unmount \$v >/dev/null 2>&1; done; " \
         "while read d m r; do case \$d in /dev/block/$_d|/dev/block/${_d}p*) umount \$m 2>/dev/null ;; esac; done < $_m; " \
         "grep -q -e ^/dev/block/$_d -e public:179, $_m && { echo BUSY; exit 1; }; " \
         "dd if=/dev/zero of=$1 bs=1048576 count=64 conv=notrunc 2>/dev/null; sync; echo ERASED"
 }
 
-# Only SD_DEV as sd_probe found it, and only while it holds f50sd (or mu300sd, sd_existing): any other ext4 on a card
+# Only SD_DEV as sd_probe found it, and only while it holds f50sd (sd_existing): any other ext4 on a card
 # is someone's data.
 # uninstall.sh asks no translated questions, so these messages stay English.
 sd_erase() {
@@ -236,14 +234,13 @@ pw_check() {
 # GPT. Byte counts are computed here, never in the device's shell (Android's mksh has 32-bit arithmetic).
 # Also what another installer may have left (kanoqwq's desktop installer, FINDINGS 178/179): a GPT partition named
 # f50root (PART_OFF / PART_SIZE in bytes, empty without one) and an image file in Android's data (FOREIGN_IMAGE=1).
-# The upstream project's name for that partition, mu300root, counts as well (an installation made by its installer).
 # With such a partition the Linux filesystem goes there - it was made for it, and boot/init boots it (stage=root-part)
 # - so OFF / SIZE are the partition and IN_PART=1; the free region behind the partitions stays REG_OFF / REG_SIZE.
 region_probe() {
     # (the same command as install.ps1's: no double quotes, which Windows PowerShell 5.1 drops on the way to adb) the
     # last line is the end of the last partition and the eMMC's size
     internal_disk
-    set -- $(su_do 'e=0; for p in /sys/block/'"$IDISK/$IPART"'*; do x=$(( $(cat $p/start) + $(cat $p/size) )); [ $x -gt $e ] && e=$x; grep -qx -e PARTNAME=f50root -e PARTNAME=mu300root $p/uevent 2>/dev/null && echo part:$(cat $p/start):$(cat $p/size); done; [ -f /data/f50linux/openwrt.ext4 ] && echo image; echo $e $(cat /sys/block/'"$IDISK"'/size)')
+    set -- $(su_do 'e=0; for p in /sys/block/'"$IDISK/$IPART"'*; do x=$(( $(cat $p/start) + $(cat $p/size) )); [ $x -gt $e ] && e=$x; grep -qx PARTNAME=f50root $p/uevent 2>/dev/null && echo part:$(cat $p/start):$(cat $p/size); done; [ -f /data/f50linux/openwrt.ext4 ] && echo image; echo $e $(cat /sys/block/'"$IDISK"'/size)')
     PART_OFF=; PART_SIZE=; PART_COUNT=0; FOREIGN_IMAGE=0; IN_PART=0; last_end=; disk=
     for _w; do
         case $_w in
@@ -301,9 +298,8 @@ region_find_existing() {
         m=$(su_do "dd if=/dev/block/$IDISK bs=1 skip=$((cand + 1080)) count=2 2>/dev/null | od -An -tx1" | tr -d ' \n')
         case $m in [0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;; *) existing=; return 2 ;; esac
         l=$(su_do "dd if=/dev/block/$IDISK bs=1 skip=$((cand + 1144)) count=16 2>/dev/null" | LC_ALL=C tr -d '\000')
-        # mu300root: the label the upstream project's installer gave the same filesystem
-        if [ "$cand" = "${PART_OFF:-}" ] && [ "$m" = 53ef ]; then PART_FS=ext4; case $l in f50root|mu300root) PART_FS=f50root ;; esac; fi
-        if [ "$m" = 53ef ] && { [ "$l" = f50root ] || [ "$l" = mu300root ]; }; then
+        if [ "$cand" = "${PART_OFF:-}" ] && [ "$m" = 53ef ]; then PART_FS=ext4; [ "$l" != f50root ] || PART_FS=f50root; fi
+        if [ "$m" = 53ef ] && [ "$l" = f50root ]; then
             blocks=$(su_do "dd if=/dev/block/$IDISK bs=1 skip=$((cand + 1028)) count=4 2>/dev/null | od -An -tu4" | tr -d ' ')
             OFF=$cand; SIZE=$((blocks * 4096)); existing=yes; IN_PART=0
             if [ "$cand" = "${PART_OFF:-}" ]; then

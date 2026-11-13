@@ -1,6 +1,6 @@
 //! The buttons: every press shows the LEDs first, then what the key and the hold mean.
 //!
-//! - power, held `long` (3 s): shut down cleanly, as mu300-buttons did (the F50 has no battery and starts again
+//! - power, held `long` (3 s): shut down cleanly, as f50-buttons did (the F50 has no battery and starts again
 //!   while it has USB power); configurable to reboot or nothing;
 //! - the Wi-Fi key, held `long`: the hotspot off/on, forwarded to the binary as [`ButtonAction::WifiToggle`]
 //!   (the hotspot is f50-net's; this crate does not depend on it);
@@ -8,7 +8,7 @@
 //!   [`ButtonAction::FactoryReset`]. The ten-second hold is the confirmation; a shorter one never wipes anything.
 //!
 //! The F50's gpio-keys reports only power and the volume keys (docs/research/FINDINGS.md 19), so the Wi-Fi and reset
-//! keys use the usual codes (`KEY_WPS_BUTTON`, `KEY_RESTART`) unless the configuration maps others. mu300-buttons had
+//! keys use the usual codes (`KEY_WPS_BUTTON`, `KEY_RESTART`) unless the configuration maps others. f50-buttons had
 //! no reset key, no band toggle on the F50 and no factory reset; those are new here.
 
 mod input;

@@ -1,5 +1,5 @@
 //! What the card in use says of itself (ready, locked by a PIN or PUK, absent), kept for this boot so that a slot
-//! with no card is not dialled over and over (FINDINGS 186; `mu300-sim-state`).
+//! with no card is not dialled over and over (FINDINGS 186; `f50-sim-state`).
 //!
 //! Only the card in use is asked: another position may have its SIM power off and answer `+CME ERROR: 10` whatever
 //! is in it (FINDINGS 74). `+ECIND: 3,...` is only a hint (SIM errors and PIN changes send it too): it starts a

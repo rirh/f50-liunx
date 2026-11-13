@@ -6,10 +6,10 @@
 //!
 //! | stage | when | what must be up | replaces |
 //! |---|---|---|---|
-//! | [`Stage::Early`] | preinit, `preinit_essential` hook `05` (background, 420 s) | `/proc`, `/sys`, `/dev` (preinit's), `/run/f50` (initramfs) | `05_mu300_early_recorder`, `early-recorder` |
-//! | [`Stage::Vendor`] | `START=09`, procd instance `modem_control` | preinit's `/dev`, `/proc`, `/sys`, `/run`; *not* `/var/log` (S10) | `mu300-vendor`, `android-vendor-start` |
-//! | [`Stage::Hardware`] | `START=12`, `boot()`, in the background | S10 `boot` (`/var`, `/tmp`, UCI); before netifd (S20) | `mu300-hw`'s module helper, regdb, board check, `extra-modules` |
-//! | [`Stage::Post`] | `START=99`, procd one-shot instance | everything; counts the boot good after 30 s | `mu300-post`'s `bootok`, `mu300-next-boot --rearm` |
+//! | [`Stage::Early`] | preinit, `preinit_essential` hook `05` (background, 420 s) | `/proc`, `/sys`, `/dev` (preinit's), `/run/f50` (initramfs) | `05_f50_early_recorder`, `early-recorder` |
+//! | [`Stage::Vendor`] | `START=09`, procd instance `modem_control` | preinit's `/dev`, `/proc`, `/sys`, `/run`; *not* `/var/log` (S10) | `f50-vendor`, `android-vendor-start` |
+//! | [`Stage::Hardware`] | `START=12`, `boot()`, in the background | S10 `boot` (`/var`, `/tmp`, UCI); before netifd (S20) | `f50-hw`'s module helper, regdb, board check, `extra-modules` |
+//! | [`Stage::Post`] | `START=99`, procd one-shot instance | everything; counts the boot good after 30 s | `f50-post`'s `bootok`, `f50-next-boot --rearm` |
 //!
 //! Vendor runs before Hardware on purpose: its one job on the boot path is to release the CP, which then needs about
 //! fifteen seconds before its AT channel answers, and it waits for the modem stack itself (up to 90 s), so starting

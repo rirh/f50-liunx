@@ -1,7 +1,7 @@
 //! `f50.wifi set`: the hotspot's name, password, band, channel, width, hidden flag and country, written to UCI as one
 //! batch; the Wi-Fi reloads two seconds later (the reply leaves first: the caller may be on this very hotspot).
 //!
-//! The rules are `mu300-api wifi.set`'s and `mu300-wifi-band`'s: a 2.4 GHz channel is 1-13, a 5 GHz one must be the
+//! The rules are `f50-api wifi.set`'s and `f50-wifi-band`'s: a 2.4 GHz channel is 1-13, a 5 GHz one must be the
 //! country's without DFS (FINDINGS 42); a new band starts on its automatic channel (2.4: 6; 5: the country's default)
 //! and a channel asked for with it comes after; WPA3/SAE is never switched on, and an access point still set to it
 //! becomes WPA2-PSK (CCMP) with its password or the one given (FINDINGS 80).
@@ -34,7 +34,7 @@ fn parse_auto(field: &'static str, v: &str) -> Result<Option<u32>> {
     if v == "auto" { Ok(None) } else { v.parse().map(Some).map_err(|_| Error::bad_value(field)) }
 }
 
-/// The request's fields; at least one, each as `mu300-api` took it.
+/// The request's fields; at least one, each as `f50-api` took it.
 pub(crate) fn request(p: &Params, band_now: &str, country_now: &str) -> Result<Request> {
     let mut r = Request::default();
     if let Some(s) = p.str("ssid") {
@@ -81,7 +81,7 @@ pub(crate) fn request(p: &Params, band_now: &str, country_now: &str) -> Result<R
     Ok(r)
 }
 
-/// The radio's changes for `band` (`mu300-wifi-band`): its automatic channel, its width, its channel list.
+/// The radio's changes for `band` (`f50-wifi-band`): its automatic channel, its width, its channel list.
 pub(crate) fn band_changes(radio: &Section, band: &str, cc: &str, out: &mut Vec<Change>) -> Result<()> {
     if band == "2.4" {
         out.extend([set(radio, "band", "2g"), set(radio, "channel", "6"), set(radio, "htmode", "HT20")]);

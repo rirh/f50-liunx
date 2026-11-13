@@ -1,7 +1,7 @@
 //! An update keeps everything the user made (docs/research/FINDINGS.md 85; the shell's carry block and
-//! `device-tools/carry/mu300-carry.c`, in Rust). Between the unpacking of the new system and the switch, everything
+//! `device-tools/carry/f50-carry.c`, in Rust). Between the unpacking of the new system and the switch, everything
 //! of the user's in the old system goes into the new one, by [`plan`]'s rules; what cannot go where it was is set
-//! aside under `etc/f50/update-kept/<old release>/` (`etc/mu300/...` in a system of before the rename) (`user/`, `image/`) and named in the report. The old system is
+//! aside under `etc/f50/update-kept/<old release>/` (`user/`, `image/`) and named in the report. The old system is
 //! never written to: it stays whole beside the new one, for a rollback.
 //!
 //! Left out of the shell's: Ubuntu's rules (dpkg, apt sources, systemd units, pam), the reinstall of packages added on
@@ -142,7 +142,7 @@ pub fn need_kb(p: &Plan) -> u64 {
 
 fn execute(old: &Path, new: &Path, from: &str, plan: &Plan, cancel: &AtomicBool) -> Result<(u64, Vec<String>)> {
     let io = |what: &str, p: &str, e: std::io::Error| Error::io(format!("{what} {p}"), &e);
-    let kept_root = assets::within(new, assets::KEPT);
+    let kept_root = new.join(assets::KEPT);
     let kept = kept_root.join(from);
     if plan.acts.iter().any(|a| matches!(a, Act::Save(_) | Act::Hold(_))) {
         if fs::symlink_metadata(&kept_root).is_ok_and(|m| m.file_type().is_symlink()) {
@@ -208,7 +208,7 @@ pub async fn carry(old: PathBuf, new: PathBuf, os: String, disk: PathBuf, cancel
         let (new_scan, _) = scan::scan(&new, &cancel)?;
         let new_map: HashMap<String, scan::Entry> = new_scan.into_iter().map(|e| (e.path.clone(), e)).collect();
         let (old_pkg, new_pkg) = (pkgdb(&old), pkgdb(&new));
-        let cmds: HashSet<String> = fs::read_to_string(assets::within(&new, assets::PATH_COMMANDS))
+        let cmds: HashSet<String> = fs::read_to_string(new.join(assets::PATH_COMMANDS))
             .unwrap_or_default()
             .split_whitespace()
             .map(str::to_owned)
@@ -244,7 +244,7 @@ pub async fn carry(old: PathBuf, new: PathBuf, os: String, disk: PathBuf, cancel
         if skipped > 0 {
             plan.notes.push(('n', format!("{skipped} names that are not UTF-8 (not carried)")));
         }
-        let text = report::text(&os, &from, &to, &format!("{when} (Unix time)"), &plan, gone, &report::kept_dir(&new));
+        let text = report::text(&os, &from, &to, &format!("{when} (Unix time)"), &plan, gone);
         report::write(&new, &text, !plan.notes.is_empty() || plan.fallback)?;
         fsx::write_atomic(&new.join(DONE_MARK), b"", 0o600)?;
         Ok(text)

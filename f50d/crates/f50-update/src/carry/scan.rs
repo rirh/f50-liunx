@@ -1,4 +1,4 @@
-//! What a system holds, file by file (the `scan` and `sum` of `device-tools/carry/mu300-carry.c`): one entry for
+//! What a system holds, file by file (the `scan` and `sum` of `device-tools/carry/f50-carry.c`): one entry for
 //! everything below a root, parents before what is in them, never leaving the root's filesystem (a directory another
 //! filesystem is mounted on is listed as `m` and not entered), never following a link.
 

@@ -39,7 +39,7 @@ export type AdbState = "off" | "unavailable" | "open" | "keys";
 export interface AdbSummary {
   state: AdbState;
   on: boolean;
-  /** `/etc/f50/adb` (`/etc/mu300/adb` before the rename) says neither on nor off (adb stays off). */
+  /** `/etc/f50/adb` says neither on nor off (adb stays off). */
   damaged: boolean;
   auth: "open" | "keys";
   /** Why the auth mode is `keys` despite the setting (an untrusted directory, ...), in English. */

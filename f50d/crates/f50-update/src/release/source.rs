@@ -1,6 +1,5 @@
 //! Where a run takes the releases from: GitHub, or a mirror named in the source file (root's own file, lines
-//! `F50_API_URL=`, `F50_DOWNLOAD_URL=`, `F50_MIRROR_FALLBACK=0|1`; the `MU300_` names the shell read from
-//! `/etc/mu300/update-source` count as well).
+//! `F50_API_URL=`, `F50_DOWNLOAD_URL=`, `F50_MIRROR_FALLBACK=0|1`).
 //!
 //! A mirror that cannot be reached is said once and the rest of that run comes from GitHub - but by itself only for
 //! an https mirror on a public name. A plain-http mirror or one on a private address is almost always a copy on the
@@ -67,15 +66,15 @@ impl Source {
         for line in text.lines().take(32) {
             let Some((k, v)) = line.trim().split_once('=') else { continue };
             match k {
-                "F50_API_URL" | "MU300_API_URL" if matches(URL_RE, v) => {
+                "F50_API_URL" if matches(URL_RE, v) => {
                     s.api = v.trim_end_matches('/').to_owned();
                     s.mirror = true;
                 }
-                "F50_DOWNLOAD_URL" | "MU300_DOWNLOAD_URL" if matches(URL_RE, v) => {
+                "F50_DOWNLOAD_URL" if matches(URL_RE, v) => {
                     s.download = v.trim_end_matches('/').to_owned();
                     s.mirror = true;
                 }
-                "F50_MIRROR_FALLBACK" | "MU300_MIRROR_FALLBACK" => {
+                "F50_MIRROR_FALLBACK" => {
                     s.fallback = match v {
                         "0" => Fallback::Never,
                         "1" => Fallback::Always,

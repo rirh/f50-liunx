@@ -7,7 +7,7 @@
 //!   a card, which can carry the same GPT names), and only when /dev has a block device for it (FINDINGS 86: a /dev
 //!   rebuilt under a writer once made it a plain file in RAM).
 //! - Where the root is (`/run/f50-root-dev`): the region after the eMMC's last partition, the SD card, a GPT
-//!   partition `f50root` (`mu300root` before the rename), or an image file (another installer's, which no init of ours mounts: issue #290).
+//!   partition `f50root`, or an image file (another installer's, which no init of ours mounts: issue #290).
 
 use std::fs;
 use std::os::unix::fs::FileTypeExt;
@@ -50,7 +50,7 @@ pub enum RootLayout {
 
 pub fn root_layout(l: &Layout) -> RootLayout {
     match read_line(&l.sys("/run/f50-root-dev")) {
-        Some(s) if s.ends_with("@f50root") || s.ends_with("@mu300root") => RootLayout::Part,
+        Some(s) if s.ends_with("@f50root") => RootLayout::Part,
         Some(s) if s.contains('@') => RootLayout::Region,
         Some(s) if !s.is_empty() => RootLayout::Sd,
         _ => {

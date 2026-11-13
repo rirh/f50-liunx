@@ -1,4 +1,4 @@
-//! The kernel's module helper (`mu300-modprobe-guard`, FINDINGS 163).
+//! The kernel's module helper (`f50-modprobe-guard`, FINDINGS 163).
 //!
 //! When code asks the kernel for something a module provides - a socket of a protocol family, a filesystem, a
 //! netlink family, a link kind - the kernel runs its helper (`kernel.modprobe`) as root: `HELPER -q -- REQUEST`. Any

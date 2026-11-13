@@ -72,10 +72,10 @@ impl Default for AtConfig {
 impl AtConfig {
     /// The channels of a SIM slot. Slot 0: commands on nr1, URCs on nr0, and polls on nr6, one of the two channels
     /// the vendor RIL never uses that the LuCI panel's collector took for itself so its polls never queue behind the
-    /// control channel (init.d/mu300-atd-dash, docs/research/FINDINGS.md 40, 74). Slot 1 (the F50's internal card):
+    /// control channel (init.d/f50-atd-dash, docs/research/FINDINGS.md 40, 74). Slot 1 (the F50's internal card):
     /// commands on nr4, URCs on nr3, polls on the control channel (nr6/nr7 belong to slot 0's pool; FINDINGS 74).
     /// nr2/nr5 (the data channels the shell gave mobile-data) are left closed: every channel held open is one more
-    /// reader that can wedge (init.d/mu300-atd), and a channel opened is never given back (FINDINGS 13b).
+    /// reader that can wedge (init.d/f50-atd), and a channel opened is never given back (FINDINGS 13b).
     pub fn for_slot(slot: u8) -> Self {
         let dev = |n: u8| PathBuf::from(format!("/dev/stty_nr{n}"));
         if slot == 1 {

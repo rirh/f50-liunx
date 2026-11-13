@@ -5,7 +5,7 @@
 //! without following a link. The kernel drops a flock however its holder ends, so a lock left by an update that is
 //! gone is no lock at all: the next run takes it, overwrites the pid and says so. A run that cannot take it fails
 //! closed, naming the holder (its pid, digits only and at most 8 of them, and its command when /proc still has it).
-//! While both updaters may be installed, the shell `mu300-update`'s lock is taken too, where its directory exists.
+//! While both updaters may be installed, another updater's lock (`legacy_locks`) is taken too, where its directory exists.
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -102,7 +102,7 @@ pub fn take(layout: &Layout, legacy: &[PathBuf]) -> Result<UpdateLock> {
         }
         let lf = open(&path)?;
         if !sys::try_lock(&lf).map_err(|e| Error::io("flock", &e))? {
-            return Err(Error::busy("the shell updater (mu300-update) is running"));
+            return Err(Error::busy("another updater is running"));
         }
         files.push(lf);
     }

@@ -164,7 +164,7 @@ static int worker_command(int argc, char **argv)
     uint64_t expected, target, tail, disk_bytes;
     if (parse_count(argv[4], &expected) || parse_count(argv[5], &target) ||
         parse_count(argv[7], &tail) || parse_count(argv[8], &disk_bytes) ||
-        strlen(argv[9]) != 32 || strncmp(argv[10], "/dev/f50-online-", 18)) {
+        strlen(argv[9]) != 32 || strncmp(argv[10], "/dev/f50-online-", sizeof "/dev/f50-online-" - 1)) {
         errno = EINVAL; return failure("worker-values");
     }
     int lock = open("/dev/f50-f2fs-online.lock", O_CREAT | O_RDWR | O_NOFOLLOW, 0600);

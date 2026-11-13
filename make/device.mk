@@ -5,7 +5,7 @@ ssh:
 	$(SSH) -t
 
 status:
-	@$(SSH) 'uname -r; cat /etc/f50/image-version 2>/dev/null || cat /etc/mu300/image-version 2>/dev/null; uptime; free -m; \
+	@$(SSH) 'uname -r; cat /etc/f50/image-version 2>/dev/null; uptime; free -m; \
 	for s in f50d f50d-at; do printf "%s: " $$s; /etc/init.d/$$s running && echo running || echo stopped; done'
 
 logs:

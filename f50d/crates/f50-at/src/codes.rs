@@ -1,6 +1,6 @@
 //! What a line from the modem is: a final result code, the echo of a command, or an unsolicited result code.
 //!
-//! The final codes are exactly the ones mu300-atd's `collect` ended a reply on (`OK`, `ERROR`, `+CME ERROR`,
+//! The final codes are exactly the ones f50-atd's `collect` ended a reply on (`OK`, `ERROR`, `+CME ERROR`,
 //! `+CMS ERROR`, `CONNECT...`, `NO CARRIER`). Anything else that is not unsolicited is an information line of the
 //! command in flight. Commands like AT+CGACT and AT+CGDATA answer `^ORIG: <cid>,<n>` first and their final code ten
 //! to twenty seconds later (docs/research/FINDINGS.md 13f): `^ORIG` is part of the reply, never a final code.

@@ -25,23 +25,17 @@ const UNPACK_TIMEOUT: Duration = Duration::from_secs(40 * 60);
 /// The image a root filesystem tarball holds says it is release `tag` (every gate before judged a name; what is
 /// installed is the files: FINDINGS 86, "payload_is").
 pub async fn payload_is(tarball: &Path, tag: &str) -> Result<()> {
-    let mut v = String::new();
-    for rel in [assets::IMAGE_VERSION.to_owned(), assets::legacy(assets::IMAGE_VERSION)] {
-        let o = Cmd::new("tar")
-            .arg("-xzOf")
-            .arg(tarball)
-            .arg(format!("./{rel}"))
-            .timeout(Duration::from_secs(600))
-            .max_output(4096)
-            .output()
-            .await?;
-        if o.success() {
-            v = o.stdout.lines().next().unwrap_or("").trim().to_owned();
-            if v == tag {
-                return Ok(());
-            }
-            break;
-        }
+    let o = Cmd::new("tar")
+        .arg("-xzOf")
+        .arg(tarball)
+        .arg(format!("./{}", assets::IMAGE_VERSION))
+        .timeout(Duration::from_secs(600))
+        .max_output(4096)
+        .output()
+        .await?;
+    let v = o.stdout.lines().next().unwrap_or("").trim().to_owned();
+    if o.success() && v == tag {
+        return Ok(());
     }
     let name = tarball.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     Err(Error::failed(format!(

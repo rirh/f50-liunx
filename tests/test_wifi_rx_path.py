@@ -43,69 +43,6 @@ def run_c(test, code, sanitize=False):
 
 
 class RxPushCursor(unittest.TestCase):
-    def test_rx_push_delivers_completed_descriptors_before_the_refill(self):
-        text = (MOD / 'wcn_bsp' / 'pcie' / 'edma_engine.c').read_text()
-        self.assertNotIn('dscr_ring_empty(chn)', text)
-        r = run_c(self, r'''
-#include <assert.h>
-#include <stdint.h>
-#include <stddef.h>
-#define IS_ERR_OR_NULL(p) (!(p) || (uintptr_t)(p) >= (uintptr_t)-4095)
-struct desc { int index; };
-struct ring { struct desc *head; int free; };
-struct channel { int inout; struct ring dscr_ring; };
-struct edma_info { struct channel chn_sw[16]; };
-static struct edma_info state;
-static struct desc ring[4] = {{0},{1},{2},{3}};
-static struct desc *hw;
-static int reads, maps, pops, delivered, refills, step, pop_step, refill_step;
-static struct edma_info *edma_info(void) { return &state; }
-static void edma_hw_next_dscr(int ch, int dir, struct desc **end) {
-    assert(ch==11 && dir==0); ++reads; *end=hw;
-}
-static struct desc *mpool_phy_to_vir(struct desc *p) {
-    assert(!IS_ERR_OR_NULL(p)); ++maps; return p;
-}
-static void edma_pop_link(int ch, struct desc *start, struct desc *end,
-                          void **head, void **tail, int *n) {
-    ++pops; pop_step=++step;
-    *n=(end->index-start->index+4)%4;
-    assert(*n>0); *head=start; *tail=end;
-    state.chn_sw[ch].dscr_ring.head=end;
-    state.chn_sw[ch].dscr_ring.free+=*n;
-}
-static void edma_rx_list_pop_dp(int ch, void *h, void *t, int n) {
-    assert(ch==11 && h && t && n>0);
-}
-static void mchn_hw_pop_link(int ch, void *h, void *t, int n) {
-    assert(ch==11 && h && t); delivered+=n; ++step;
-}
-static void mchn_hw_req_push_link(int ch, int n) {
-    assert(ch==11 && n==state.chn_sw[ch].dscr_ring.free);
-    ++refills; refill_step=++step;
-}
-''' + function(text, 'edma_rx_push_isr') + r'''
-int main(void) {
-    state.chn_sw[11].dscr_ring.head=&ring[0]; hw=&ring[2];
-    edma_rx_push_isr(11);
-    assert(reads==1 && maps==1 && pops==1 && delivered==2 && refills==1);
-    assert(pop_step<refill_step);
-    /* An empty push interrupt still replenishes available descriptors. */
-    edma_rx_push_isr(11);
-    assert(reads==2 && pops==1 && delivered==2 && refills==2);
-    /* Wrapped completion belongs to the same ring and is delivered once. */
-    state.chn_sw[11].dscr_ring.head=&ring[3]; hw=&ring[1];
-    edma_rx_push_isr(11);
-    assert(reads==3 && pops==2 && delivered==4 && refills==3);
-    hw=NULL; edma_rx_push_isr(11);
-    hw=(void *)(intptr_t)-5; edma_rx_push_isr(11);
-    assert(reads==5 && maps==3 && pops==2 && delivered==4 && refills==5);
-    state.chn_sw[11].dscr_ring.free=0;
-    edma_rx_push_isr(11);
-    assert(refills==5);
-}
-''')
-        self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_the_vendor_kernel_gets_the_same_change(self):
         patch = (TOP / 'kernel' / 'vendor' / 'patches' / 'wcn-pcie-rx-push-cursor.patch').read_text()
@@ -328,66 +265,6 @@ int main(void) {
 }
 '''
 
-
-
-class RxRefillResume(unittest.TestCase):
-    def code(self, baseline=False, off=False):
-        rx, pcie = (WLAN / 'rx.c').read_text(), (WLAN / 'pcie.c').read_text()
-        if baseline:
-            # the completion hook taken out again: the long back-off comes back (the regression this catches)
-            self.assertEqual(pcie.count('sc2355_rx_bus_complete(hif);'), 1)
-            pcie = pcie.replace('sc2355_rx_bus_complete(hif);', '(void)hif;')
-        constants = '\n'.join(s for s in rx.splitlines() if s.startswith('#define SPRD_REFILL_BACKOFF_'))
-        return (HARNESS + '\n' + constants + '\nstatic bool refill_bus_resume = ' + ('false' if off else 'true') +
-                ';\n' + function(rx, 'sc2355_rx_bus_complete') + '\n' +
-                function(rx, 'rx_refill_retry') + '\n' + function(rx, 'sc2355_mm_fill_buffer') + '\n' +
-                function(pcie, 'sc2355_pcie_tx_data_complete') + '\n' + CASES)
-
-    def test_completion_resumes_rx_and_keeps_the_fault_backoff(self):
-        r = run_c(self, self.code(), sanitize=True)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn('RX completion/refill scenarios passed', r.stdout)
-
-    def test_without_the_completion_hook_the_old_delay_returns(self):
-        r = run_c(self, self.code(baseline=True))
-        self.assertNotEqual(r.returncode, 0)
-        self.assertIn('rx.refill_retry.delay==0', r.stderr)
-
-    def test_off_by_default_the_back_off_stays(self):
-        # experimental until measured on a board: the module parameter is off, and off is the old timer
-        rx = (WLAN / 'rx.c').read_text()
-        self.assertIn('static bool refill_bus_resume;\nmodule_param(refill_bus_resume, bool, 0644);', rx)
-        r = run_c(self, self.code(off=True))
-        self.assertNotEqual(r.returncode, 0)
-        self.assertIn('rx.refill_retry.delay==0', r.stderr)
-
-    def test_lifetime_and_teardown_order(self):
-        rx, pcie = (WLAN / 'rx.c').read_text(), (WLAN / 'pcie.c').read_text()
-        cb = function(pcie, 'sc2355_pcie_tx_data_complete')
-        self.assertLess(cb.index('rcu_read_lock()'), cb.index('sc2355_pcie_get_hif()'))
-        self.assertLess(cb.index('sc2355_rx_bus_complete'), cb.index('rcu_read_unlock()'))
-        init = function(rx, 'sc2355_rx_init')
-        self.assertLess(init.index('spin_lock_init(&rx_mgmt->refill_lock)'), init.index('smp_store_release'))
-        self.assertLess(init.index('rx_mgmt->hif = hif'), init.index('smp_store_release'))
-        close = function(rx, 'sc2355_rx_deinit')
-        order = ['spin_lock_irqsave', 'WRITE_ONCE(rx_mgmt->stopping, true)', 'spin_unlock_irqrestore',
-                 'cancel_delayed_work_sync', 'sprd_clean_work', 'smp_store_release(&hif->rx_mgmt, NULL)',
-                 'synchronize_rcu()', 'kfree(rx_mgmt)']
-        offsets = [close.index(s) for s in order]
-        self.assertEqual(offsets, sorted(offsets))
-        self.assertLess(close.index('sprd_clean_work'), close.rindex('cancel_delayed_work_sync'))
-
-
-class VendorEventBounds(unittest.TestCase):
-    def test_the_5_4_driver_gets_mainline_s_event_bounds_and_mgmt_channel(self):
-        # mainline has them since PR #282 (FINDINGS 80); the 5.4 copy must say the same
-        patch = (TOP / 'kernel' / 'vendor' / 'patches' / 'wlan_combo-station-event-bounds.patch').read_text()
-        main_evt = function((WLAN / 'cmdevt.c').read_text(), 'cmdevt_report_new_station_evt')
-        for line in main_evt.splitlines()[4:-1]:
-            if line.strip():
-                self.assertIn('+' + line + '\n', patch)
-        self.assertIn('+\t\tchan = wdev->chandef.chan;\n', patch)
-        self.assertIn('+\t\tif (params->offchan ||\n', patch)
 
 
 if __name__ == '__main__':

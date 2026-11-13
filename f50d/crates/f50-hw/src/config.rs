@@ -3,8 +3,8 @@
 //! Every path here is an absolute *device* path; [`Hw`](crate::Hw) resolves it under the platform's root
 //! ([`f50_core::paths::Paths::sys`]) so tests can move it. Several of them are not f50d's to choose: the initramfs
 //! (`boot/init`, not ported) publishes the slot and the boot control blocks under `/run/f50`, counts boots in
-//! `.f50/` on the Linux disk and reads `/etc/f50/default-boot`. An initramfs built before the rename uses `/run/mu300`,
-//! `.mu300/` and `/etc/mu300` instead: [`Paths::sys`](f50_core::paths::Paths::sys) takes those where the F50 names
+//! `.f50/` on the Linux disk and reads `/etc/f50/default-boot`. An initramfs built before the rename uses `/run/f50`,
+//! `.f50/` and `/etc/f50` instead: [`Paths::sys`](f50_core::paths::Paths::sys) takes those where the F50 names
 //! are not there, so both meet f50d at the same files.
 
 use std::path::PathBuf;

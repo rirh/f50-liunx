@@ -1,4 +1,4 @@
-//! netifd's and the kernel's hotplug events for the USB port. Ported from `hotplug.d/iface/10-mu300-usb` and
+//! netifd's and the kernel's hotplug events for the USB port. Ported from `hotplug.d/iface/10-f50-usb` and
 //! `90-unisoc-usb-host` (iface and net).
 //!
 //! On the LAN's ifup (K9, from the kanoqwq fork, cd4fb28 and 4e70d02): dnsmasq serves the LAN now, so the early DHCP

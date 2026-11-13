@@ -1,4 +1,4 @@
-//! The shell pool (`/etc/f50/sms-pool`, mu300-sms) copied into a new pool on its first start, and left in place.
+//! The shell pool (`/etc/f50/sms-pool`, f50-sms) copied into a new pool on its first start, and left in place.
 //!
 //! Its format: `msg/<6-digit id>`, "field: value" headers, a blank line, the body (with a newline after it); `next_id`;
 //! `deleted` (tombstones, one md5 per line); `parts/p*` (PDUs of direct deliveries waiting for siblings) and

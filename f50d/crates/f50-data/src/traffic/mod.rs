@@ -1,5 +1,5 @@
 //! Data usage: how much the bearer carried per local day and per billing cycle, with an optional monthly cap
-//! (mu300-traffic). Counted are the bytes of the cellular device (netifd's l3 device of the WAN: `sipa_eth0` with the
+//! (f50-traffic). Counted are the bytes of the cellular device (netifd's l3 device of the WAN: `sipa_eth0` with the
 //! tray card, `sipa_eth8` with the internal one), both ways - what the operator sees. The modem is never asked.
 //!
 //! - [`ledger`]: the count and its every-byte-once rules; [`cycle`]: days and cycles; [`tz`]: the local offset;

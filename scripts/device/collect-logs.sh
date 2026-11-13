@@ -23,6 +23,5 @@ su_do "dd if=/dev/block/by-name/boot_$LS bs=4096 skip=12288 count=2048 2>/dev/nu
 adb pull /data/local/tmp/f50-pull.bin "$OUT/linux-persist.raw" >/dev/null 2>&1
 su_do "rm -f /data/local/tmp/f50-pull.bin" </dev/null >/dev/null
 tr -d '\000' < "$OUT/linux-persist.raw" > "$OUT/linux-persist.txt" && rm -f "$OUT/linux-persist.raw"
-# (MU300-PERSIST-BEGIN: the marker of an init installed by the upstream project's installer)
-sed -E -n '/(F50|MU300)-PERSIST-BEGIN/,/--- lsmod/p' "$OUT/linux-persist.txt" || true
+sed -E -n '/F50-PERSIST-BEGIN/,/--- lsmod/p' "$OUT/linux-persist.txt" || true
 echo "saved: $OUT"

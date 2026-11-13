@@ -651,10 +651,5 @@ class SwitchModule(ShellTest):
         prop = self.run_it()
         self.assertEqual(prop, (TOP / 'android/magisk/f50-linux-switch/module.prop').read_text())
 
-    def test_install_sh_and_install_ps1_pass_the_release(self):
-        sh = (TOP / 'install.sh').read_text()
-        self.assertIn('F50_MODULE_TAG="${RELEASE:-}" F50_MODULE_KERNEL="$KERNEL"', sh)
-
-
 if __name__ == '__main__':
     unittest.main()

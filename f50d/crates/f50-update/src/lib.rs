@@ -1,5 +1,5 @@
 //! Updates for the ZTE F50 on OpenWrt (`f50.update`): the release check, the download, the signature, applying a
-//! release and going back. It replaces `mu300-update` (for the F50's OpenWrt systems only) and the LuCI page's
+//! release and going back. It replaces `f50-update` (for the F50's OpenWrt systems only) and the LuCI page's
 //! adapter `unisoc-modem/update`.
 //!
 //! Module map:

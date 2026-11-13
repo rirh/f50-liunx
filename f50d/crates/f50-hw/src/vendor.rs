@@ -1,12 +1,12 @@
 //! The modem's Android vendor daemons, in a chroot at [`HwConfig::vendor_root`](crate::HwConfig::vendor_root)
-//! (`init.d/mu300-vendor`, `android-vendor-start`, `android-run`).
+//! (`init.d/f50-vendor`, `android-vendor-start`, `android-run`).
 //!
 //! [`stage`] is everything `android-vendor-start` did before its `exec`: the imported files' modes ([`modes`]), the
 //! wait for the modem stack, the liblog sink, the property area, the partition links, the device nodes' owners
 //! ([`crate::perms`]) for the one decision of [`crate::accounts`], and the chroot ([`chroot`]). [`exec`] is
 //! `android-run`: one daemon, exec'd in the chroot as the account the nodes were given to ([`daemons`], [`caps`]).
 //!
-//! Not ported: `mu300-modem-coldboot` (a U30 Air charger boot; the F50 has none of it: FINDINGS 196), the V50's SIM
+//! Not ported: `f50-modem-coldboot` (a U30 Air charger boot; the F50 has none of it: FINDINGS 196), the V50's SIM
 //! switches, and making the account with `useradd` (see [`crate::accounts`]).
 
 pub(crate) mod caps;
@@ -41,7 +41,7 @@ impl Hw {
     }
 
     pub(crate) fn vendor_ids(&self) -> VendorIds {
-        VendorIds::resolve_or_legacy(&self.dev("/etc"), &self.config().vendor_account)
+        VendorIds::resolve(&self.dev("/etc"), &self.config().vendor_account)
     }
 }
 

@@ -333,7 +333,7 @@ def main():
     target = usb_target()
     if target:
         rc, serial = run([ADB, *target, 'get-serialno'], timeout=4)
-        if serial.startswith(('F50LINUX', 'MU300LINUX')):
+        if serial.startswith('F50LINUX'):
             say('设备当前运行 F50 Linux，ADB 已可用；安装器会先让它重启回 Android。')
             return
         if configured(target):

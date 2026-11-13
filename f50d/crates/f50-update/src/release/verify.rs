@@ -2,7 +2,7 @@
 //!
 //! `SHA256SUMS` is fetched fresh in every run, never trusted from an earlier one (a release published again under
 //! the same tag left a stale copy). It is judged once and pinned by its own hash: every later look is at those very
-//! bytes or the run stops. It must list `f50-release` (or the older `mu300-release`) with the hash of the tag that was asked for, so a signed
+//! bytes or the run stops. It must list `f50-release` with the hash of the tag that was asked for, so a signed
 //! `SHA256SUMS` of one release cannot be handed out as another's; signed checksums that name no release are not
 //! taken as signed. The rules (FINDINGS 86):
 //!
@@ -52,11 +52,11 @@ impl Sums {
 
     /// The release these checksums say they are of matches `tag` (`Some(false)`: another one; `None`: they say none).
     pub fn names_tag(&self, tag: &str) -> Option<bool> {
-        assets::RELEASE_TAGS.iter().find_map(|n| self.want(n)).map(|h| h == tag_sha(tag))
+        self.want(assets::RELEASE_TAG).map(|h| h == tag_sha(tag))
     }
 }
 
-/// The hash of the `f50-release` (or `mu300-release`) file of `tag`: the tag and a newline.
+/// The hash of the `f50-release` file of `tag`: the tag and a newline.
 pub fn tag_sha(tag: &str) -> String {
     sha256_hex(format!("{tag}\n").as_bytes())
 }
@@ -116,10 +116,10 @@ mod tests {
 
     fn sums(tag: &str) -> Sums {
         let text = format!(
-            "{}  mu300-openwrt-rootfs.tar.gz\n{} *{}\n{}  ../evil\nnot a line\n",
+            "{}  f50-openwrt-rootfs.tar.gz\n{} *{}\n{}  ../evil\nnot a line\n",
             sha256_hex(b"a"),
             tag_sha(tag),
-            assets::RELEASE_TAGS[1],
+            assets::RELEASE_TAG,
             sha256_hex(b"b")
         );
         Sums::parse(text.as_bytes()).expect("sums")
@@ -128,7 +128,7 @@ mod tests {
     #[test]
     fn parse_and_bind_the_tag() {
         let s = sums("v2026.11.01.1");
-        assert_eq!(s.want("mu300-openwrt-rootfs.tar.gz"), Some(sha256_hex(b"a").as_str()));
+        assert_eq!(s.want("f50-openwrt-rootfs.tar.gz"), Some(sha256_hex(b"a").as_str()));
         assert!(s.want("../evil").is_none());
         assert_eq!(s.names_tag("v2026.11.01.1"), Some(true));
         assert_eq!(s.names_tag("v2026.12.01.1"), Some(false));

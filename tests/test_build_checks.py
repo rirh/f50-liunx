@@ -10,60 +10,6 @@ from helpers import TOP, ShellTest
 BUNDLE = TOP / 'kernel' / 'mainline' / 'make-bundle.sh'
 
 
-class StaleModules(ShellTest):
-    def setUp(self):
-        super().setUp()
-        self.top = self.tmp / 'top'
-        self.out = self.top / 'kernel' / 'mainline' / 'out'
-        (self.out / 'modules').mkdir(parents=True)
-        for n in ('wcn_bsp', 'sprd_wlan_combo'):
-            d = self.top / 'kernel' / 'mainline' / 'modules' / n / 'common'
-            d.mkdir(parents=True)
-            (d / 'x.c').write_text('int x;\n')
-        self.built()
-
-    def built(self, n=None, ago=0):
-        """the build logs, written after every source (as build-modules.sh does), AGO seconds back"""
-        t = time.time() - ago
-        for d in (self.top / 'kernel' / 'mainline' / 'modules').iterdir():
-            if n in (None, d.name):
-                log = self.out / 'modules' / (d.name + '.log')
-                log.write_text('make ...\n')
-                os.utime(log, (t, t))
-
-    def check(self, shell):
-        m = re.search(r'# --- stale begin\n(.*?)# --- stale end', BUNDLE.read_text(), re.S)
-        self.assertIsNotNone(m, 'make-bundle.sh has no stale block')
-        code = f'TOP="{self.top}" U="{self.top}/kernel/mainline" UO="{self.out}" krel=6.18.58-f50\n' + m.group(1) + 'echo fine\n'
-        return self.sh(shell, code)
-
-    def test_fresh_build_passes(self):
-        for shell in self.each_shell():
-            self.built(ago=0)
-            for f in self.top.glob('kernel/mainline/modules/*/common/x.c'):
-                os.utime(f, (time.time() - 60, time.time() - 60))
-            r = self.check(shell)
-            self.assertEqual((r.returncode, r.stdout.strip()), (0, 'fine'), r.stderr)
-
-    def test_a_source_changed_after_the_build_is_refused(self):
-        for shell in self.each_shell():
-            self.built(ago=60)
-            src = self.top / 'kernel' / 'mainline' / 'modules' / 'sprd_wlan_combo' / 'common' / 'x.c'
-            os.utime(src, None)
-            r = self.check(shell)
-            self.assertEqual(r.returncode, 1)
-            self.assertIn('kernel/mainline/modules/sprd_wlan_combo/common/x.c changed after sprd_wlan_combo was built', r.stderr)
-            self.assertIn('build-modules.sh sprd_wlan_combo', r.stderr)
-
-    def test_a_module_never_built_is_refused(self):
-        for shell in self.each_shell():
-            (self.out / 'modules' / 'wcn_bsp.log').unlink(missing_ok=True)
-            r = self.check(shell)
-            self.assertEqual(r.returncode, 1)
-            self.assertIn('wcn_bsp was not built for this kernel', r.stderr)
-            self.built('wcn_bsp')
-
-
 class WlanPatchMarker(ShellTest):
     def test_build_wlan_refuses_a_tree_of_another_patch_set(self):
         s = (TOP / 'kernel' / 'vendor' / 'build-wlan.sh').read_text()

@@ -37,7 +37,7 @@ pub use sim::{SimState, boot_slot};
 
 use shared::Inner;
 
-/// A SIM slot, numbered as the panel and `mu300-sim default` number them: 1 is SIM1, the external card (the
+/// A SIM slot, numbered as the panel and `f50-sim default` number them: 1 is SIM1, the external card (the
 /// nano-SIM tray, the shell's slot 0), 2 is SIM2, the internal card (the shell's slot 1; FINDINGS 154, 204).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum Slot {

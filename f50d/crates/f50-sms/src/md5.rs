@@ -1,6 +1,6 @@
 //! MD5, only for identities the shell pool already wrote.
 //!
-//! The pool this crate replaces (`mu300-sms`) named messages by `md5sum` of "sender|time|text", their parts by the
+//! The pool this crate replaces (`f50-sms`) named messages by `md5sum` of "sender|time|text", their parts by the
 //! md5 of each PDU, and kept deleted ones as a list of those sums. Computing the same sums keeps a migrated pool's
 //! fingerprints, `part_ids` and tombstones valid. It is an identity, never a security property.
 

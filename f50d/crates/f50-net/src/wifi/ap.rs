@@ -4,7 +4,7 @@
 //! radio stays as it is. The radio is turned on with the access point only when it was off and nothing else on it
 //! would come up with it (a radio switched off by the Wi-Fi key comes back, FINDINGS 222). netifd then reloads, which
 //! it does asynchronously: `pending` is all that can be said at that point. Ported from `hotspot-ap.sh` (after
-//! kanoqwq's db4e5d2) and `mu300-api wifi.get/power`.
+//! kanoqwq's db4e5d2) and `f50-api wifi.get/power`.
 
 use serde_json::{Value, json};
 

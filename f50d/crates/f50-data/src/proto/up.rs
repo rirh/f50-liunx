@@ -1,5 +1,5 @@
 //! A dialled bearer handed to netifd: the kernel state installed by us, then the address-external update, then
-//! IPv6 by the mode in use (mu300cell.sh's setup).
+//! IPv6 by the mode in use (f50cell.sh's setup).
 //!
 //! - **relay** (`option ipv6 'relay'`, a dual-stack context): the device takes the carrier's RA before the update;
 //!   the relay monitor reports the RA's addresses afterwards ([`crate::relay::monitor`]).
@@ -7,7 +7,7 @@
 //!   not turn it on again for a device that never went away: after a WAN restart the bearer stayed IPv4-only, #87),
 //!   the link-local address from the assigned identifier, and a DHCPv6 alias (`wan6`, `extendprefix`) that learns the
 //!   /64 from the RA and hands it to the LAN (RFC 7278, as uqmi does for QMI modems). The image has no static `wan6`
-//!   (90-mu300), so the name is free.
+//!   (90-f50), so the name is free.
 //! - an IPv4-only bearer: IPv6 off on the device, after the update (netifd turns it back on while it configures the
 //!   interface). Otherwise it sends router solicitations and multicast into a bearer that carries none (FINDINGS 13f).
 

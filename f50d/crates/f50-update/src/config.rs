@@ -40,7 +40,7 @@ pub struct UpdateConfig {
     /// The command that arms the Linux slot for a trial boot after a new boot image: program (absolute device path)
     /// and arguments. Exit 0 armed, 3 the default boot is Android (no trial). f50d's own `boot trial` by default.
     pub trial_command: Vec<String>,
-    /// Locks of other updaters that may still be installed (the shell `mu300-update`): taken too, when present.
+    /// Locks of other updaters that may be installed (none by default): taken too, when present.
     pub legacy_locks: Vec<PathBuf>,
 }
 
@@ -60,7 +60,7 @@ impl Default for UpdateConfig {
             upload_max: 2047 << 20,
             upload_tmp: "/tmp".into(),
             trial_command: vec!["/usr/sbin/f50d".into(), "boot".into(), "trial".into()],
-            legacy_locks: vec!["/run/mu300-update/lock".into()],
+            legacy_locks: Vec::new(),
         }
     }
 }

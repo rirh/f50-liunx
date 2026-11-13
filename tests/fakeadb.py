@@ -483,15 +483,12 @@ def main(argv):
             log('read', argv, line)
             out.write(prop(st, m.group(1)) + '\n')
             return 0
-        if line == 'ls -d /opt/f50/bin /opt/mu300/bin 2>/dev/null' or \
-                line.startswith('if test -x /opt/f50/bin/f50-next-boot || test -x /opt/mu300/bin/mu300-next-boot; then echo f50'):
-            # how the installers tell our Linux from Android: F50LINUX-... with /opt/f50, or MU300LINUX-... with
-            # /opt/mu300 (installed by the upstream project's installer, under its old names)
+        if line == 'ls -d /opt/f50/bin 2>/dev/null' or \
+                line.startswith('if test -x /opt/f50/bin/f50-next-boot; then echo f50'):
+            # how the installers tell our Linux from Android: F50LINUX-... with /opt/f50
             log('read', argv, line)
-            serial = st['serial'].upper()
-            if serial.startswith('F50LINUX') or serial.startswith('MU300LINUX'):
-                out.write(('/opt/f50/bin\n' if serial.startswith('F50') else '/opt/mu300/bin\n') if line.startswith('ls')
-                          else 'f50\n')
+            if st['serial'].upper().startswith('F50LINUX'):
+                out.write('/opt/f50/bin\n' if line.startswith('ls') else 'f50\n')
             return 0
         if line == 'cat /proc/sys/kernel/random/boot_id':
             log('read', argv, line)
@@ -501,8 +498,8 @@ def main(argv):
             log('read', argv, line)
             out.write(''.join('[%s]: [%s]\n' % kv for kv in sorted(props(st).items())))
             return 0
-        if (line.startswith('/opt/f50/bin/') or line.startswith('{ if [ -x /opt/f50/bin/f50-next-boot ]')) and \
-                st['serial'].upper().startswith(('F50LINUX', 'MU300LINUX')):
+        if (line.startswith('/opt/f50/bin/') or line.startswith('{ /opt/f50/bin/f50-next-boot')) and \
+                st['serial'].upper().startswith('F50LINUX'):
             # a device in our Linux: its adb shell is root, and these are the project's own commands
             log('read' if ('f50-device' in line or line.endswith('f50-update check')) else 'write', argv, line)
             if 'f50-device --json' in line:

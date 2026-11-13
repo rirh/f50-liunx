@@ -76,7 +76,7 @@ pub async fn fits(l: &Layout, cfg: &UpdateConfig, bundle: &Path, list: &HashSet<
             "this system runs from an image file inside Android's userdata, which the init of this kernel cannot find (issue #290); nothing was changed",
         )),
         RootLayout::Part if !has("gpt-root") => Err(Error::failed(
-            "this system runs from the GPT partition f50root (mu300root), which the init of this kernel bundle cannot find (issue #290); nothing was changed",
+            "this system runs from the GPT partition f50root, which the init of this kernel bundle cannot find (issue #290); nothing was changed",
         )),
         _ => Ok(()),
     }

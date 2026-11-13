@@ -2,7 +2,7 @@
 # The AT descriptor keeper (f50d at-keeper): opens each of the modem's SIPC AT channels once and holds them, so the
 # daemon's crashes, restarts and updates never close one (a closed channel can be lost until reboot, FINDINGS 13b),
 # and keeps the modem's log channel drained (a full one stops the modem ~90 s into a boot). Never restarted with
-# f50d; started before it. Replaces the channel ownership of mu300-atd and modem-log-drain.
+# f50d; started before it. Replaces the channel ownership of f50-atd and modem-log-drain.
 START=13
 USE_PROCD=1
 

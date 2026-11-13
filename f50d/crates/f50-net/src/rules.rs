@@ -1,4 +1,4 @@
-//! The request rules of the Wi-Fi, LAN and USB methods, kept exactly as `mu300-api` and `wifi-client` had them.
+//! The request rules of the Wi-Fi, LAN and USB methods, kept exactly as `f50-api` and `wifi-client` had them.
 //!
 //! The field rules (`Rule`) do the type and pattern; what depends on bytes, ends or another field is checked here.
 
@@ -42,7 +42,7 @@ pub fn ifname_ok(s: &str) -> bool {
     s.len() <= 15 && matches("[a-zA-Z0-9][a-zA-Z0-9_.:-]*", s)
 }
 
-/// The LAN address: a private /24's .1 (`mu300-api lan.set`).
+/// The LAN address: a private /24's .1 (`f50-api lan.set`).
 pub const LAN_ADDRESS: &str = concat!(
     r"(10\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])",
     r"|172\.(1[6-9]|2[0-9]|3[01])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])",

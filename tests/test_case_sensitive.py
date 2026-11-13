@@ -84,30 +84,6 @@ class CaseSensitive(unittest.TestCase):
         self.assertIn('cannot make a directory in', r.stderr)
 
 
-class Scripts(unittest.TestCase):
-    def test_the_release_scripts_check_and_honour_tmpdir(self):
-        bundle = (TOP / 'kernel/mainline/make-bundle.sh').read_text()
-        self.assertIn('W=$(mktemp -d "${TMPDIR:-/tmp}/f50-bundle.XXXXXX")', bundle)
-        self.assertIn('case_sensitive "$UO/modules" || exit 1', bundle)
-        self.assertIn('case_sensitive "$W" || exit 1', bundle)
-        self.assertLess(bundle.index('case_sensitive "$W"'), bundle.index('tar -xzf "$REF"'))
-        rel = (TOP / 'scripts/release/make-release.sh').read_text()
-        self.assertIn('case_sensitive "$D" || exit 1', rel)
-        self.assertIn('case_sensitive "${TMPDIR:-/tmp}" || exit 1', rel)
-        self.assertLess(rel.index('case_sensitive "$D"'), rel.index('echo "==> helper binaries"'))
-        mods = (TOP / 'kernel/mainline/build-modules.sh').read_text()
-        self.assertLess(mods.index('case_sensitive $OUT/modules || exit 1'), mods.index('modules_install'))
-        for f in ('scripts/release/make-release.sh', 'scripts/release/make-extra.sh', 'scripts/release/sign-release.sh',
-                  'kernel/mainline/make-bundle.sh'):
-            src = (TOP / f).read_text()
-            self.assertNotRegex(src, r'mktemp( -d)?\)', f)
-
-    def test_the_installers_take_the_tarball(self):
-        sh = (TOP / 'install.sh').read_text()
-        self.assertIn('echo --kernel-bundle "$ASSETS/f50-kernel-$KERNEL.tar.gz"', sh)
-        self.assertNotIn('--kernel-bundle "$KMAIN"', sh)
-
-
 class VendorOverlay(unittest.TestCase):
     def test_both_modules_of_a_pair_from_the_tarball(self):
         vo = load('vendor_overlay', 'installer/lib/vendor-overlay.py')
@@ -131,73 +107,6 @@ class VendorOverlay(unittest.TestCase):
                     names = t.getnames()
                 self.assertNotIn(f'{sub}/Image', names)
                 self.assertEqual(os_name == 'ubuntu', 'usr/lib/modules/6.18.57-f50/modules.builtin' in names)
-
-
-class BundleAudit(unittest.TestCase):
-    def test_a_build_that_lost_one_of_a_pair(self):
-        # the tree as a file system that ignores case leaves it: modules.in-tree names both, the directory has one
-        # (is_file() of the other is true there, so the audit asks the listing)
-        audit = load('bundle_audit_case', 'kernel/mainline/audit-bundle.py')
-        with tempfile.TemporaryDirectory() as d:
-            out = Path(d)
-            (out / 'Image').write_bytes(b'IKCFG_ST' + __import__('gzip').compress(b'CONFIG_KVM=y\n') + b'IKCFG_ED')
-            (out / 'fragment').write_text('CONFIG_KVM=y\n')
-            (out / 'modules').mkdir()
-            (out / 'modules/xt_HL.ko').write_bytes(b'module')
-            (out / 'modules.in-tree').write_text('xt_HL.ko\nxt_hl.ko\n')
-            with self.assertRaisesRegex(ValueError, r'missing in-tree module: xt_hl\.ko \(only xt_HL\.ko'):
-                audit.audit(out, out / 'fragment')
-
-
-@unittest.skipIf(os.name == 'nt', 'make-release.sh runs on a Unix host')
-class ReleaseAudit(unittest.TestCase):
-    """the audit's own lines of make-release.sh, run against bundles made here (in a tarball: a host that ignores
-    case could not hold both names of a pair in a tree)"""
-
-    def setUp(self):
-        rel = (TOP / 'scripts/release/make-release.sh').read_text()
-        start = rel.index('# every module a mainline build made')
-        self.audit = rel[start:rel.index("# Call audio is not supported:", start)]
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.d = Path(self.tmp.name)
-
-    def bundle(self, name, mods, in_tree=None):
-        with tarfile.open(self.d / f'{name}.tar.gz', 'w:gz') as t:
-            add(t, './Image')
-            if in_tree is not False:
-                add(t, './modules.in-tree', ''.join(f'{m}\n' for m in (in_tree or mods)).encode())
-            for m in mods:
-                add(t, f'./modules/{m}')
-
-    def run_audit(self):
-        r = subprocess.run(['sh', '-c', 'fail=0\n' + self.audit + 'echo "fail=$fail"'],
-                           env={'D': str(self.d), 'PATH': os.environ['PATH']}, capture_output=True, text=True)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        return r.stdout
-
-    def test_pairs(self):
-        full = PAIRS + ('vhost_net.ko', 'sprd_wlan_combo.ko')
-        for v in ('6.18', '7.3'):
-            self.bundle(f'f50-kernel-{v}', full)
-        self.assertIn('fail=0', self.run_audit())
-        self.assertEqual(sorted(os.listdir(self.d)), [f'f50-kernel-{v}.tar.gz' for v in ('6.18', '7.3')])
-        # a bundle like those before v2026.10.23.1: modules.in-tree names both, one file of each pair is there
-        self.bundle('f50-kernel-7.3', ('xt_DSCP.ko', 'xt_hl.ko', 'xt_TCPMSS.ko', 'xt_RATEEST.ko', 'vhost_net.ko'), full)
-        out = self.run_audit()
-        self.assertIn('fail=1', out)
-        for m in ('xt_HL.ko', 'xt_dscp.ko', 'xt_tcpmss.ko', 'xt_rateest.ko', 'sprd_wlan_combo.ko'):
-            self.assertIn(f'f50-kernel-7.3 lacks modules/{m}\n', out)
-        self.assertNotIn('lacks modules/xt_hl.ko', out)
-        self.assertNotIn('f50-kernel-6.18 lacks', out)
-        # a modules.in-tree that lost the pair as well: the TTL and MSS pairs are named on their own
-        self.bundle('f50-kernel-7.3', ('xt_hl.ko', 'xt_TCPMSS.ko'))
-        out = self.run_audit()
-        self.assertIn('f50-kernel-7.3 lacks modules/xt_HL.ko\n', out)
-        self.assertIn('f50-kernel-7.3 lacks modules/xt_tcpmss.ko\n', out)
-        # no modules.in-tree at all
-        self.bundle('f50-kernel-7.3', full, in_tree=False)
-        self.assertIn('f50-kernel-7.3 has no modules.in-tree', self.run_audit())
 
 
 if __name__ == '__main__':

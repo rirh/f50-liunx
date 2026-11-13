@@ -1,5 +1,0 @@
-#!/bin/sh
-# f50d's first-boot settings, after the image's own defaults (90-mu300, 91-mu300-luci): the cellular WAN's protocol
-# is f50d's handler. The options are the same names mu300cell used, so nothing else changes.
-[ "$(uci -q get network.wan.proto)" = mu300cell ] && uci set network.wan.proto='f50cell' && uci commit network
-exit 0

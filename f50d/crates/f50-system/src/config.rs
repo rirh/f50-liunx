@@ -50,7 +50,7 @@ impl Default for ThermalConfig {
 /// What a held power key does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PowerKeyAction {
-    /// Shut down cleanly, as mu300-buttons did (the battery-less F50 starts again while it has USB power).
+    /// Shut down cleanly, as f50-buttons did (the battery-less F50 starts again while it has USB power).
     Poweroff,
     Reboot,
     /// Only wake the LEDs.
@@ -65,7 +65,7 @@ pub struct KeyConfig {
     pub wifi: Option<u16>,
     /// The key that reboots when held past `long` and released, and asks for a factory reset when held `factory`.
     pub reset: Option<u16>,
-    /// A press at least this long is a hold (mu300-keys `-l 3000`).
+    /// A press at least this long is a hold (f50-keys `-l 3000`).
     pub long: Duration,
     /// A reset key held this long asks for a factory reset; the long hold itself is the confirmation.
     pub factory: Duration,
@@ -98,7 +98,7 @@ pub struct SystemConfig {
     pub input_dir: PathBuf,
     pub thermal: ThermalConfig,
     pub keys: KeyConfig,
-    /// Apply the saved CPU profile at start (init.d/mu300-cpu).
+    /// Apply the saved CPU profile at start (init.d/f50-cpu).
     pub cpu_profile_at_start: bool,
     /// Set up zram swap at start (zram-start).
     pub zram: bool,

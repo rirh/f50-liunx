@@ -385,7 +385,7 @@ class Check(Device):
             self.assert_nothing_written()
 
     def test_the_board_name_and_the_other_slot(self):
-        # an F50 that calls itself by its board's name, MU300, is an F50
+        # an F50 whose Android reports MU300 (its device name) as the model too is an F50
         for shell in self.each_shell():
             self.device(model='MU300', device='MU300', slot='b', locked='1', verified='green')
             r, ev, facts = self.check(shell)

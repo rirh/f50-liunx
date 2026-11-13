@@ -141,24 +141,21 @@ for a in f50-kernel f50-openwrt-rootfs; do
     [ -z "$mid" ] || { echo "$a has a machine-id"; fail=1; }
 done
 # An update carries everything of the user's over with what the NEW image brings (f50-update's carry block): each
-# image must have f50-carry, a static busybox, the manifests of the releases before the first release with a four-field tag,
-# and the manifest of its own files - which must be the one this tool makes from the tarball (two implementations,
+# image must have f50-carry, a static busybox and the manifest of its own files - which must be the one this tool makes from the tarball (two implementations,
 # held against each other at every release). Without them an update would quietly keep only the list of places.
 # The manifest is published beside the image, too (f50-<image>-rootfs.manifest.gz, in SHA256SUMS).
-for a in f50-openwrt-rootfs:opt/f50/bin/busybox:openwrt; do
-    old=${a##*:}; a=${a%:*}; bb=${a#*:}; a=${a%%:*}
+for a in f50-openwrt-rootfs:opt/f50/bin/busybox; do
+    bb=${a#*:}; a=${a%%:*}
     l=$(list_of_image "$a")
-    for f in opt/f50/bin/f50-carry "$bb" etc/f50/image-manifest.gz $(echo "$old" | tr ',' '\n' | sed 's|.*|opt/f50/lib/image-manifests/&.gz|'); do
+    for f in opt/f50/bin/f50-carry "$bb" etc/f50/image-manifest.gz; do
         printf '%s\n' "$l" | grep -qx "$f" || { echo "$a lacks $f: an update to it would not carry everything over"; fail=1; }
     done
-    [ "$(printf '%s\n' "$l" | grep -c '^opt/f50/lib/image-manifests/.')" = "$(echo "$old" | tr ',' '\n' | wc -l | tr -d ' ')" ] ||
-        { echo "$a has manifests of another system in opt/f50/lib/image-manifests"; fail=1; }
     python3 "$TOP/scripts/release/image-manifest.py" check "$D/$a.tar.gz" || fail=1
     tar -xzOf "$D/$a.tar.gz" ./etc/f50/image-manifest.gz > "$D/$a.manifest.gz" 2>/dev/null || { echo "$a: no manifest to publish"; fail=1; }
 done
 # the image: f50d and the web console in it, the LuCI backend of the old shell layer not, and LuCI in its languages
 plain=$(tar -tzf "$D/f50-openwrt-rootfs.tar.gz" | sed 's|^\./||')
-for f in usr/libexec/rpcd/f50dash usr/libexec/rpcd/mu300dash; do
+for f in usr/libexec/rpcd/f50dash; do
     ! printf '%s\n' "$plain" | grep -qx "$f" || { echo "f50-openwrt-rootfs has $f, the backend f50d replaces"; fail=1; }
 done
 for f in usr/sbin/f50d www/f50/index.html etc/f50/packages.txt usr/lib/lua/luci/i18n/base.tr.lmo usr/lib/lua/luci/i18n/base.zh-cn.lmo; do

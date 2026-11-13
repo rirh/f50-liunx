@@ -1,7 +1,7 @@
 #!/bin/sh
 # Install the "switch to Linux" Magisk module on the connected device (rooted Android, adb + su + Magisk).
 #   installer/lib/install-magisk-module.sh            install (or update) the module
-#   installer/lib/install-magisk-module.sh --remove   remove it again (and the upstream project's mu300_linux_switch)
+#   installer/lib/install-magisk-module.sh --remove   remove it again
 #
 # The module is this checkout's android/magisk/f50-linux-switch, as it is: nothing is downloaded.
 #
@@ -16,7 +16,6 @@ TOP=$(cd "$(dirname "$0")/../.." && pwd)
 SRC=$TOP/android/magisk/f50-linux-switch
 MOD=/data/adb/modules/f50_linux_switch
 # the same module as the upstream project's installer put it on the device, under its old name
-OLD_MOD=/data/adb/modules/mu300_linux_switch
 TMP=/data/local/tmp/f50-magisk
 
 su_do() { adb shell "su -c '$1'" 2>/dev/null | tr -d '\r'; }
@@ -28,7 +27,6 @@ if [ "${1:-}" = --remove ]; then
     # Magisk removes a module on the next boot when it finds this marker; deleting the directory outright would
     # leave its mounted files behind until the reboot anyway
     su_do "[ -d $MOD ] && touch $MOD/remove" >/dev/null 2>&1 || true
-    su_do "[ -d $OLD_MOD ] && touch $OLD_MOD/remove" >/dev/null 2>&1 || true
     su_do "rm -rf $TMP" >/dev/null 2>&1 || true
     echo "Magisk module marked for removal (gone after the next reboot)"
     exit 0

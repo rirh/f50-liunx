@@ -1,4 +1,4 @@
-//! What `f50.boot get` reports (`mu300-next-boot status`): read only, no lock taken, nothing written.
+//! What `f50.boot get` reports (`f50-next-boot status`): read only, no lock taken, nothing written.
 
 use serde::Serialize;
 

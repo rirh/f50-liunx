@@ -9,8 +9,8 @@
 //! - the LED driver ([`led`]), fed by the binary through [`System::set_led_inputs`];
 //! - the key reader ([`buttons`]), whose requests for other crates arrive on [`System::button_actions`].
 //!
-//! Ported from dashboard-info (non-modem parts), mu300-device, mu300-cpu, thermal-guard, mu300-led, mu300-buttons
-//! with mu300-keys, mu300-zram/zram-start and mu300-api's system and CPU methods. Settings f50d keeps for itself are
+//! Ported from dashboard-info (non-modem parts), f50-device, f50-cpu, thermal-guard, f50-led, f50-buttons
+//! with f50-keys, f50-zram/zram-start and f50-api's system and CPU methods. Settings f50d keeps for itself are
 //! `cpu.conf`, `led.conf` and `zram.conf` under `/etc/f50d`, in the shell's `KEY=VALUE` format ([`settings`]).
 
 mod admin;

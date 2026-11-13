@@ -1,4 +1,4 @@
-//! Carrying out a plan (the `copy` and `link` of `device-tools/carry/mu300-carry.c`): make `DST/PATH` what
+//! Carrying out a plan (the `copy` and `link` of `device-tools/carry/f50-carry.c`): make `DST/PATH` what
 //! `SRC/PATH` is - content, owner, mode, times; names of one file stay one file; a directory is made, not filled.
 //!
 //! Nothing is ever written through a link of the destination: every directory on the way is checked to be a real

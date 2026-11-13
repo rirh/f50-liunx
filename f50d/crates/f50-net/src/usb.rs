@@ -8,7 +8,7 @@
 //! - [`hotplug`]: netifd's and the kernel's events.
 //!
 //! The F50 has no battery and no OTG boost to drive: host only works with something powering the port. Ported from
-//! `device-usb` (the F50's raw role switch), `mu300-usb net`/`net-name` and `mu300-usb-reset`; the U30 Air's charger
+//! `device-usb` (the F50's raw role switch), `f50-usb net`/`net-name` and `f50-usb-reset`; the U30 Air's charger
 //! boost and USB-C power delivery are not carried over.
 
 pub(crate) mod gadget;

@@ -4,7 +4,7 @@
 //! the radio `retry_setup_failed`, and no access point came up. `board_detect` writes it from the device tree; the
 //! wireless settings live in `/etc/config/wireless` and are not touched. A valid file is left as it is. A broken one
 //! is kept beside it as `board.json.corrupt.<pid>`, and the new one moved into place only once it is valid itself.
-//! (`board.d/05_mu300_network`, which makes usb0 the LAN port, stays a file of the image: board_detect runs it.)
+//! (`board.d/05_f50_network`, which makes usb0 the LAN port, stays a file of the image: board_detect runs it.)
 
 use std::path::Path;
 use std::time::Duration;

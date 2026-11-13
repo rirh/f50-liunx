@@ -22,7 +22,7 @@ use crate::{Final, Reply, Urc, codes, sys};
 
 /// Lines waiting between the reader thread and the channel task.
 const LINES_QUEUE: usize = 1024;
-/// The wait for the PDU line after a +CMT/+CDS header (mu300-atd's `cmt_frame`).
+/// The wait for the PDU line after a +CMT/+CDS header (f50-atd's `cmt_frame`).
 const BODY_WAIT: Duration = Duration::from_secs(2);
 /// The most a write may take.
 const WRITE_MAX: Duration = Duration::from_secs(5);
@@ -152,7 +152,7 @@ impl Wire {
 
     /// Throws away (publishing the URCs) what the modem sent while nobody was asking, so that a late line is never
     /// read as the next command's reply: until the channel has been quiet for `quiet`, at most `max`
-    /// (mu300-atd's `drain`; docs/research/FINDINGS.md 15). Quiet is counted from the last line read, and the channel
+    /// (f50-atd's `drain`; docs/research/FINDINGS.md 15). Quiet is counted from the last line read, and the channel
     /// is read all the time, so after an idle spell this costs nothing.
     pub(crate) async fn drain(&mut self, quiet: Duration, max: Duration, urcs: &broadcast::Sender<Urc>) {
         let end = Instant::now() + max;

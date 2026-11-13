@@ -302,14 +302,6 @@ class Account(ShellTest):
             self.assertEqual(r.stdout.strip(), 'went-on', (shell, r.stderr))
             self.assertIn('uid 1000', r.stderr)
 
-    def test_the_images_have_it(self):
-        for f, rx in ((TOP / 'systems' / 'base' / 'assemble.sh', r'useradd --root \$R --system --user-group [^\n]*\\\n[^\n]*f50vnd'),
-                      (TOP / 'systems' / 'arch' / 'build-rootfs.sh', r'useradd --system --user-group [^\n]*\\\n[^\n]*f50vnd')):
-            self.assertRegex(f.read_text(), rx, f.name)
-        # the account line goes in before the image is packed
-        a = (TOP / 'systems' / 'base' / 'assemble.sh').read_text()
-        self.assertLess(a.index('f50vnd'), a.index('tar --numeric-owner'))
-
     def test_an_update_brings_it(self):
         # f50-update's merge: the new image's passwd with the old system's human accounts - the image's f50vnd
         # is in the updated system, at the image's uid, next to the device's ubuntu

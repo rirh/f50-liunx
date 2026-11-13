@@ -1,7 +1,7 @@
 //! Receiving: one task keeps the pool in step with the modem.
 //!
 //! - At start, and whenever the modem answers again after a restart (`At::ready`), the setup the shell daemon did
-//!   (mu300-smsd): stored mode (`+CMTI`), a first sync of what the store holds, then direct delivery when the modem
+//!   (f50-smsd): stored mode (`+CMTI`), a first sync of what the store holds, then direct delivery when the modem
 //!   takes it (FINDINGS 51).
 //! - `+CMT` (direct delivery): the PDU parked on the disk, absorbed, and only then acknowledged (`AT+CNMA=1`); until
 //!   then the modem keeps it. A PDU that cannot be pooled is not acknowledged; three failures in a row give direct

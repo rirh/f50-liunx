@@ -3,12 +3,12 @@
 //! A module counts as loaded when `/sys/module/<name>` exists or `/proc/modules` lists it (names compare with `-`
 //! and `_` as one, as the kernel does). Loading tries OpenWrt's `modprobe` (ubox kmodloader) first and falls back to
 //! `insmod` of the file under `/lib/modules/<release>` (`<name>.ko`, the dashed spelling, `extra/<name>.ko`):
-//! modprobe only finds a module that is indexed, and the bundle's own modules (`mu300_thermal`, `snd-aloop`) are
+//! modprobe only finds a module that is indexed, and the bundle's own modules (`f50_thermal`, `snd-aloop`) are
 //! not always. With parameters the file is inserted directly when it is there, since ubox's `modprobe` reads
 //! parameters from `/etc/modules.d` rather than its command line. A module that appears loaded after a failed
 //! attempt (someone else loaded it meanwhile) is success.
 //!
-//! Requests the kernel makes on its own go through `mu300-modprobe-guard` (FINDINGS 163); f50d's explicit loads are
+//! Requests the kernel makes on its own go through `f50-modprobe-guard` (FINDINGS 163); f50d's explicit loads are
 //! root's deliberate ones and run `modprobe` directly.
 
 use std::path::PathBuf;
@@ -132,7 +132,7 @@ fn is_param(p: &str) -> bool {
         && v.bytes().all(|b| b.is_ascii_graphic() && !matches!(b, b'"' | b'\'' | b'\\'))
 }
 
-/// A kernel release (`6.6.80-mu300`): no `/`, no `..`.
+/// A kernel release (`6.6.80-f50`): no `/`, no `..`.
 fn is_release(r: &str) -> bool {
     !r.is_empty()
         && !r.contains("..")
@@ -155,7 +155,7 @@ mod tests {
         assert!(!is_param("x=a b"));
         assert!(!is_param("=1"));
         assert!(!is_param("-f"));
-        assert!(is_release("6.6.80-mu300"));
+        assert!(is_release("6.6.80-f50"));
         assert!(!is_release("../x"));
     }
 

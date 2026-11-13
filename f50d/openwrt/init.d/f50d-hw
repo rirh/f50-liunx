@@ -1,7 +1,7 @@
 #!/bin/sh /etc/rc.common
 # f50d boot stage "hardware": the kernel's module helper (FINDINGS 163), the regulatory database and country,
 # board.json, the Wi-Fi chip's drivers (wlan0), then the vendor drivers (and on mainline the modem stack). Replaces the
-# f50-hw part of mu300-hw; the Wi-Fi configuration, LEDs, USB and zram are the daemon's other parts.
+# f50-hw part of f50-hw; the Wi-Fi configuration, LEDs, USB and zram are the daemon's other parts.
 #
 # START=12: after /etc/init.d/boot (10: /var, /tmp, UCI), before netifd (20). In the background on purpose: busybox
 # init spawns the consoles only once sysinit is over, so anything slow here would cost the serial console and the

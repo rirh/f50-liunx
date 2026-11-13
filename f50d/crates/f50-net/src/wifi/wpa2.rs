@@ -11,7 +11,7 @@
 //!
 //! U-APSD (kanoqwq 2d3f7438, FINDINGS 203): `uapsd 0` on every access point; stations and every other option are
 //! left alone. (On his U30 Air the firmware's beacon still announced it: a configuration policy, not proof that the
-//! firmware stopped it.) Ported from `uci-defaults/94-mu300-ap-uapsd`.
+//! firmware stopped it.) Ported from `uci-defaults/94-f50-ap-uapsd`.
 
 use f50_core::{Result, fsx};
 use f50_platform::uci::{Change, Section};

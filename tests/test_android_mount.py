@@ -71,11 +71,3 @@ class Unmount(ShellTest):
             self.assertNotIn('UNMOUNTED', r.stdout)
 
 
-class Labels(ShellTest):
-    def test_the_labels_of_the_installer_from_before_the_rename_are_taken(self):
-        # an installation from before the rename (mu300root in the region or its GPT partition, mu300sd on a card)
-        # is the same filesystem; f50 is asked first, and no label is ever written here
-        text = HELPER.read_text()
-        self.assertIn('[ "$label" = f50root ] || [ "$label" = mu300root ] ||', text)
-        self.assertIn('[ "$label" = f50sd ] || [ "$label" = mu300sd ] ||', text)
-        self.assertNotIn('e2label', text); self.assertNotIn('tune2fs', text)

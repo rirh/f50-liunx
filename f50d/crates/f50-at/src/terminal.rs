@@ -1,4 +1,4 @@
-//! The `f50.at` object: the guarded AT terminal and its redacted history (mu300dash's `m_at`, `at_job`,
+//! The `f50.at` object: the guarded AT terminal and its redacted history (f50dash's `m_at`, `at_job`,
 //! `at_history`).
 //!
 //! - `send {command, confirm, timeout}`: refused before anything is sent when malformed, chained (";"), when it would
@@ -30,11 +30,11 @@ use crate::{At, Reply, SendOpts};
 
 /// Commands kept in the history.
 pub const HISTORY_MAX: usize = 40;
-/// The answer budget of a command sent within the request (mu300dash's `-t 8`).
+/// The answer budget of a command sent within the request (f50dash's `-t 8`).
 const DEFAULT_TIMEOUT: i64 = 8;
 /// Longer than this and the command runs as a job (a request must end well under rpcd's 30 s).
 const INLINE_MAX: i64 = 15;
-/// The terminal's wait for the channel within a request (mu300dash's `AT_LOCK_WAIT`) and within a job.
+/// The terminal's wait for the channel within a request (f50dash's `AT_LOCK_WAIT`) and within a job.
 const INLINE_QUEUE: Duration = Duration::from_secs(3);
 const JOB_QUEUE: Duration = Duration::from_secs(10);
 /// A scan's answer budget: "scans run as a background job of at most three minutes" (docs/research/FINDINGS.md 40).

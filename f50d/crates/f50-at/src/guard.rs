@@ -1,4 +1,4 @@
-//! The AT terminal's guards, ported from mu300dash (`at_wedges`, `at_moves_sim`, `at_class`, the ";" refusal) as
+//! The AT terminal's guards, ported from f50dash (`at_wedges`, `at_moves_sim`, `at_class`, the ";" refusal) as
 //! pure functions, and the redaction of the AT history.
 //!
 //! Every check looks at the command with spaces and double quotes dropped and in upper case, anywhere on the line,

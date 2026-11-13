@@ -1,4 +1,4 @@
-//! A good boot re-arms the Linux slot (`mu300-next-boot --rearm`), and a new boot image is armed as a trial
+//! A good boot re-arms the Linux slot (`f50-next-boot --rearm`), and a new boot image is armed as a trial
 //! (`--trial`); both under the misc lock, both byte for byte what the shell wrote.
 
 use std::fs::{File, OpenOptions, TryLockError};

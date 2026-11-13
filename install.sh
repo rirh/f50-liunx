@@ -1,5 +1,5 @@
 #!/bin/sh
-# F50 / ZTE F50 Linux installer. Run on a macOS/Linux host with the device booted in rooted Android (adb + su).
+# ZTE F50 Linux installer. Run on a macOS/Linux host with the device booted in rooted Android (adb + su).
 #
 #   ./install.sh --check         only inspect the device: is the free eMMC region there and empty? (writes nothing)
 #
@@ -194,7 +194,7 @@ usb_adb_only        # adb alone on USB for this run, no MTP (installer/lib/usb-a
 model="$(su_do 'getprop ro.product.model') / $(su_do 'getprop ro.product.device')"
 echo "$(t 'device: {1}' "$model")"
 [ $BL_STATE != locked ] || echo "$(t 'WARNING: {1}' "$BL_WARN")"
-# Only the ZTE F50. Android names it F50 (or MU300, the name of its board, as in the upstream project's names).
+# Only the ZTE F50. Its Android reports model F50 and device MU300.
 # --- model begin
 case "$model" in
     *F50*|*f50*|*MU300*|*mu300*) DEVICE=f50 ;;

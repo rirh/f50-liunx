@@ -7,7 +7,7 @@
 //! adb is in the gadget: Windows caches the MS OS descriptors per VID/PID/bcdDevice, and adbd asks for WinUSB as
 //! Android's does. The MS OS descriptors stay on once turned on: f_ncm/f_rndis keep a stale os_desc_table after an
 //! unbind, and a bind without them would free it twice at the next unbind (the oops of 2026-10-22, kernel patch 0027).
-//! Ported from `mu300-adbd` (`with_adb`, `without_adb`, `rebind`, `prepare`, `teardown`, `usable`).
+//! Ported from `f50-adbd` (`with_adb`, `without_adb`, `rebind`, `prepare`, `teardown`, `usable`).
 
 use std::path::PathBuf;
 use std::time::Duration;

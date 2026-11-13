@@ -1,5 +1,5 @@
 //! The write side of `f50.system`: hostname, timezone, password, reboot, power-off, logs. The validation is
-//! mu300-api's (`m_system_hostname`, `m_system_timezone`, `m_system_password`, `m_logs`).
+//! f50-api's (`m_system_hostname`, `m_system_timezone`, `m_system_password`, `m_logs`).
 
 use std::time::Duration;
 
@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 
 use crate::System;
 
-/// `name`: a single label, as mu300-api took it.
+/// `name`: a single label, as f50-api took it.
 pub(crate) const HOSTNAME_RE: &str = "[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?";
 pub(crate) const ZONE_RE: &str = "UTC|[A-Z][A-Za-z_+-]{1,30}(/[A-Za-z0-9_+-]{1,30}){1,2}";
 const TZ_RE: &str = "[A-Za-z0-9<>+,./:-]{1,64}";

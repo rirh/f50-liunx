@@ -113,7 +113,7 @@ class Library(ShellTest):
 
 
 class UfsLookups(ShellTest):
-    """init, early-recorder, android-vendor-start and f50-update on the UFS unit find the same partitions."""
+    """init, android-vendor-start and f50-update on the UFS unit find the same partitions."""
 
     def test_every_lookup_on_the_ufs(self):
         f = Fake(self.tmp / 'r'); f.ufs(); f.usb()
@@ -121,9 +121,6 @@ class UfsLookups(ShellTest):
             init = self.sh(shell, 'log() { :; }\n' + block(INIT, 'emmc') + '\nemmc_dev; emmc_part misc; emmc_part boot_b',
                            F50_SYS=f.sys, F50_DEV='/dev').stdout
             self.assertEqual(init, '/dev/sda\n/dev/sda3\n/dev/sda38\n', shell)
-            rec = self.sh(shell, 'PART=boot_a\n' + block((BIN / 'early-recorder').read_text(), 'part')
-                          + '\necho "$LOGDEV $LOGSYS"', F50_SYS=f.sys).stdout
-            self.assertEqual(rec, f'/dev/sda37 {f.sys}/block/sda/sda37\n', shell)
             upd = self.sh(shell, f'. "{BIN}/f50-update"; part_dev boot_b', F50_LIB=1, F50_BIN=BIN,
                           F50_SYSROOT=f.root).stdout
             self.assertEqual(upd, '/dev/sda38\n', shell)

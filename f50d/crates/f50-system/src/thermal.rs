@@ -1,7 +1,7 @@
 //! The kernel's thermal zones and cooling devices, read in one pass.
 //!
 //! Zones are matched by type, never by number (dashboard-info). A reading that is not a number is no reading: an
-//! unreadable sensor is never reported as cold (docs/research/FINDINGS.md 48: `mu300_thermal`'s `soc-thmzone` fails
+//! unreadable sensor is never reported as cold (docs/research/FINDINGS.md 48: `f50_thermal`'s `soc-thmzone` fails
 //! its read when none of its zones reads).
 
 use std::path::{Path, PathBuf};

@@ -1,4 +1,4 @@
-# F50 (ZTE F50) general-purpose Linux additions on top of the stock F50 config.
+# ZTE F50 general-purpose Linux additions on top of the stock F50 config.
 # Applied with scripts/kconfig/merge_config.sh; everything not listed stays as stock.
 
 # --- init, hotplug and container requirements (procd, mdev, namespaces, cgroups)

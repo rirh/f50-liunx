@@ -2,8 +2,7 @@
 # Set a new Linux password without booting Linux. Run on a macOS/Linux host with the device in rooted Android
 # (adb + su); it mounts the Linux filesystem from Android and rewrites the password hash in /etc/shadow. With an
 # installation on the SD card (ext4 labelled f50sd) that one is changed: it is the one that boots. The password is the
-# one of "root" in OpenWrt. An installation of the upstream project's installer (labels mu300root, mu300sd) is found
-# too; android-mount-f50root.sh decides whether it can be mounted.
+# one of "root" in OpenWrt.
 #
 #   scripts/device/reset-password.sh [openwrt|all]      (default: all, which is openwrt; both is an alias of all)
 #

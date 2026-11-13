@@ -13,7 +13,7 @@ import zlib
 from helpers import TOP, ShellTest
 
 F50 = '324950664950           device usb:1 product:F50 model:F50 device:F50 transport_id:1'
-# the F50 as its board's name, MU300 (as Android may call it)
+# the F50 as its Android may list it: MU300 is its device name
 MU300 = '323960377386           device usb:2 product:MU300 model:MU300 device:MU300 transport_id:2'
 TABLET = 'd16d93c5               device usb:3 product:nabu_global model:21051182G device:nabu transport_id:3'
 OFFLINE = '192.168.31.1:55555     offline product:MU5358 model:MU5358 device:MU5358 transport_id:4'
@@ -22,8 +22,6 @@ LINUX = 'F50LINUX-324950664950-203d8329 device usb:1-1 transport_id:5'
 LINUX_KEYS = 'F50LINUX-324950664950-203d8329 unauthorized usb:1-1 transport_id:5'
 LINUX_SERIAL = 'F50LINUX-324950664950-203d8329'
 # the same device in a Linux installed by the upstream project's installer, under its old names
-OLD_LINUX = 'MU300LINUX-324950664950-203d8329 device usb:1-1 transport_id:5'
-OLD_LINUX_SERIAL = 'MU300LINUX-324950664950-203d8329'
 
 
 class SelectDevice(ShellTest):
@@ -90,11 +88,9 @@ case "$1 $2" in
 esac
 [ "$1" = -s ] && { serial=$2; shift 2; } || serial=${ANDROID_SERIAL:-}
 case "$serial $*" in
-    F50LINUX*"shell if test -x /opt/f50/bin/f50-next-boot || test -x /opt/mu300/bin/mu300-next-boot; then echo f50; fi")
+    F50LINUX*"shell if test -x /opt/f50/bin/f50-next-boot; then echo f50; fi")
         [ -e "$STUBLOG/not-ours" ] || echo f50 ;;
-    MU300LINUX*"shell if test -x /opt/f50/bin/f50-next-boot || test -x /opt/mu300/bin/mu300-next-boot; then echo f50; fi")
-        [ -e "$STUBLOG/not-ours" ] || echo f50 ;;
-    F50LINUX*"mu300-next-boot android; fi; } && sync && reboot"|MU300LINUX*"mu300-next-boot android; fi; } && sync && reboot")
+    F50LINUX*"f50-next-boot android; } && sync && reboot")
         [ -e "$STUBLOG/reboot-fails" ] || cp "$STUBLOG/adb.after" "$STUBLOG/adb.out" ;;
     *"shell ls -d /opt/f50/bin"*) [ -e "$STUBLOG/linux-in-disguise" ] && echo /opt/f50/bin ;;
     *"shell getprop sys.boot_completed") echo 1 ;;
@@ -170,8 +166,7 @@ exit 0''')
             self.assertIn('SAY The device is running F50 Linux, not Android', out)
             self.assertIn('ASKED[yes]', out)
             self.assertIn(f'asking it over adb ({LINUX_SERIAL})', out)
-            self.assertIn(f"adb -s {LINUX_SERIAL} shell {{ if [ -x /opt/f50/bin/f50-next-boot ]; then /opt/f50/bin/f50-next-boot "
-                          "android; else /opt/mu300/bin/mu300-next-boot android; fi; } && sync && reboot", log)
+            self.assertIn(f"adb -s {LINUX_SERIAL} shell {{ /opt/f50/bin/f50-next-boot android; }} && sync && reboot", log)
             self.assertIn('Android is up', out)
             self.assertIn('rc=0 serial=324950664950', out)
             self.assertNotIn('ssh', log)
@@ -179,21 +174,6 @@ exit 0''')
             for line in log.splitlines():
                 if 'F50LINUX' in line:
                     self.assertRegex(line, r'shell (if test -x /opt/f50/bin/f50-next-boot|\{ if \[ -x /opt/f50/bin/f50-next-boot \])')
-
-    def test_a_linux_with_the_old_names_is_sent_back_too(self):
-        # installed by the upstream project's installer: MU300LINUX-..., /opt/mu300/bin/mu300-next-boot
-        for shell in self.each_shell():
-            self.devices('adb.out', [OLD_LINUX])
-            self.devices('adb.after', [F50])
-            out, _ = self.run_sh(shell, 'target_attached; echo "listed=$(linux_adb)"')
-            self.assertIn(f'listed={OLD_LINUX_SERIAL}', out)
-            out, _ = self.run_sh(shell, 'echo "state=[$(android_state)]"', serial=OLD_LINUX_SERIAL)
-            self.assertIn('state=[linux]', out)
-            out, log = self.run_sh(shell, 'require_android', serial=OLD_LINUX_SERIAL)
-            self.assertIn(f'asking it over adb ({OLD_LINUX_SERIAL})', out)
-            self.assertIn('/opt/mu300/bin/mu300-next-boot android; fi; } && sync && reboot', log)
-            self.assertIn('rc=0 serial=324950664950', out)
-            self.assertNotIn('su -c', log)
 
     def test_named_by_android_serial_is_sent_back_too(self):
         for shell in self.each_shell():
@@ -389,8 +369,7 @@ class Storage(ShellTest):
     def test_sd_existing(self):
         card = ('/dev/block/mmcblk1', 62 * 2 ** 21, True, 'SD')
         for shell in self.each_shell():
-            # mu300sd: the same installation, made by the upstream project's installer under its old name
-            for label, want in ((None, 'no'), ('f50sd', 'yes'), ('mu300sd', 'yes'), ('data', 'foreign'), ('', 'foreign')):
+            for label, want in ((None, 'no'), ('f50sd', 'yes'), ('data', 'foreign'), ('', 'foreign')):
                 (self.tmp / 'label').unlink(missing_ok=True)
                 out = self.run_choose(shell, card, label=label, tail='echo "existing=$(sd_existing)"; SD_MODE=; ')
                 self.assertIn('existing=%s\n' % want, out)
@@ -607,15 +586,6 @@ class SdErase(ShellTest):
             self.assertIn('dd if=/dev/zero of=/dev/block/mmcblk1p1 bs=1048576 count=64 conv=notrunc', log)
             self.assertEqual(log.count('dd '), 1)
 
-    def test_a_card_with_the_old_name_is_erased_too(self):
-        # mu300sd: the card installation of the upstream project's installer
-        for shell in self.each_shell():
-            (self.tmp / 'log').write_text('')
-            out, log = self.run_erase(shell, label='mu300sd', dev='/dev/block/mmcblk1p1')
-            self.assertIn('SURVIVED', out)
-            self.assertNotIn('DIE', out)
-            self.assertIn('dd if=/dev/zero of=/dev/block/mmcblk1p1 bs=1048576 count=64 conv=notrunc', log)
-
     def test_whole_card_without_a_partition_table(self):
         for shell in self.each_shell():
             out, log = self.run_erase(shell, dev='/dev/block/mmcblk1')
@@ -754,26 +724,6 @@ class Region(ShellTest):
 
     # a GPT partition behind p1 (which ends at 8 GiB + 1 MiB): 3 GiB, 1 MiB aligned
     PSTART, PSIZE = 2048 + (4 << 21) + 2048, 3 << 21
-
-    def test_an_installation_with_the_old_names_is_found(self):
-        """The upstream project's installer named the filesystem and its GPT partition mu300root: found as an
-        installation (update or wipe), never as someone else's ext4."""
-        emmc = self.fake()
-        free_off = (2048 + (4 << 21)) // 4096 * 4096 * 512 + 4096 * 512
-        self.ext4(emmc, free_off, label=b'mu300root')
-        for shell in self.each_shell():
-            out = self.run_region(shell, 'region_probe; region_find_existing').stdout
-            self.assertIn(f'OFF={free_off} SIZE={1000 * 4096} existing=yes', out)
-        emmc = self.fake()
-        ps, pz = self.PSTART, self.PSIZE
-        self.part(2, 'mu300root', ps, pz)
-        self.ext4(emmc, ps * 512, label=b'mu300root')
-        for shell in self.each_shell():
-            out = self.run_region(shell, 'region_probe; region_find_existing; echo "IN_PART=$IN_PART PART_FS=$PART_FS"; '
-                                  'region_part_refusal || echo no-refusal').stdout
-            self.assertIn(f'rc=0 OFF={ps * 512} SIZE={1000 * 4096} existing=yes', out)
-            self.assertIn('IN_PART=1 PART_FS=f50root', out)
-            self.assertIn('no-refusal', out)
 
     def test_a_gpt_partition_named_f50root_is_where_linux_goes(self):
         """kanoqwq's desktop installer puts the system in a GPT partition named f50root behind userdata (FINDINGS
@@ -934,7 +884,7 @@ def bc_block(suffix, a, b):
 
 
 class Model(ShellTest):
-    """install.sh's model block: the ZTE F50 only (also as MU300, its board's name); anything else is asked about,
+    """install.sh's model block: the ZTE F50 only (also as MU300, the device name its Android reports); anything else is asked about,
     the U30 Air and the V50 included."""
     SRC = (TOP / 'install.sh').read_text()
 

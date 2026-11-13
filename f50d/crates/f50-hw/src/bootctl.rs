@@ -1,4 +1,4 @@
-//! Boot control: what keeps the device booting Linux instead of falling back to Android (`mu300-next-boot`).
+//! Boot control: what keeps the device booting Linux instead of falling back to Android (`f50-next-boot`).
 //!
 //! In default-Linux mode (`/etc/f50/default-boot` says `linux`) the Linux slot is armed with `tries = N + 1`,
 //! `successful = 0`: LK counts down on every boot and rolls back to Android's slot when it finds `tries == 1`, so N
@@ -13,7 +13,7 @@
 //! armed block is the trial block with one byte and the CRC changed - only after rebuilding the trial block itself
 //! reproduces it byte for byte. Otherwise the initramfs' own one-shot block goes in (one boot, not N; FINDINGS 32) and
 //! the arm reports failure. A block that names another slot than the one it is for is never written (kanoqwq's
-//! b8d4f222). One change of misc at a time (the lock file the shell used, so an old `mu300-next-boot` and f50d exclude
+//! b8d4f222). One change of misc at a time (the lock file the shell used, so an old `f50-next-boot` and f50d exclude
 //! each other).
 //!
 //! Switching the OS (`linux`, `android`, `lock`, `unlock`, `attempts N`) was removed from the API and is not ported;

@@ -1,6 +1,6 @@
 //! The manifest of the image a system came from: which of its files the release brought (scripts/release/
 //! image-manifest.py has the format: `TYPE MODE UID GID SIZE HASH PATH` lines, a backslash written `\\` and a newline
-//! `\n`). The system's own (`etc/f50/image-manifest.gz`, first line `f50-image-manifest 1 IMAGE TAG`; `etc/mu300`, `mu300-` before the rename) counts
+//! `\n`). The system's own (`etc/f50/image-manifest.gz`, first line `f50-image-manifest 1 IMAGE TAG`) counts
 //! when it names this image and the release the system says it is; else the one the new image carries for that
 //! release (`opt/f50/lib/image-manifests/IMAGE.gz`: `f50-image-manifests 1 IMAGE`, a line of tags, then lines
 //! that start with the ranges of tag indexes they belong to). One bad line refuses the whole manifest, and the carry
@@ -72,8 +72,7 @@ pub fn parse_line(l: &str) -> Option<(String, ManEntry)> {
 /// A system's own manifest: the first line must name `image` and `tag`.
 pub fn parse_own(text: &str, image: &str, tag: &str) -> Option<Manifest> {
     let mut lines = text.lines();
-    let first = lines.next()?;
-    if !assets::MANIFEST_HEADS.iter().any(|h| first == format!("{h} 1 {image} {tag}")) {
+    if lines.next()? != format!("{} 1 {image} {tag}", assets::MANIFEST_HEAD) {
         return None;
     }
     let m: Option<Manifest> = lines.map(parse_line).collect();
@@ -84,7 +83,7 @@ pub fn parse_own(text: &str, image: &str, tag: &str) -> Option<Manifest> {
 pub fn parse_union(text: &str, image: &str, tag: &str) -> Option<Manifest> {
     let mut lines = text.lines();
     let head: Vec<&str> = lines.next()?.split(' ').collect();
-    if head.len() < 3 || !assets::UNION_HEADS.contains(&head[0]) || head[1] != "1" || head[2] != image {
+    if head.len() < 3 || head[0] != assets::UNION_HEAD || head[1] != "1" || head[2] != image {
         return None;
     }
     let tags: Vec<&str> = lines.next()?.split(' ').skip(1).collect();
@@ -122,12 +121,12 @@ async fn gunzip(path: &Path) -> Option<String> {
 /// The manifest of the image `old` (a system of image `image`, release `tag`) came from, from `old` itself or from
 /// `new`'s collection.
 pub async fn load(old: &Path, new: &Path, image: &str, tag: &str) -> Option<Manifest> {
-    if let Some(t) = gunzip(&assets::within(old, assets::IMAGE_MANIFEST)).await
+    if let Some(t) = gunzip(&old.join(assets::IMAGE_MANIFEST)).await
         && let Some(m) = parse_own(&t, image, tag)
     {
         return Some(m);
     }
-    let t = gunzip(&assets::within(new, assets::LEGACY_MANIFESTS).join(format!("{image}.gz"))).await?;
+    let t = gunzip(&new.join(assets::LEGACY_MANIFESTS).join(format!("{image}.gz"))).await?;
     parse_union(&t, image, tag)
 }
 
@@ -149,16 +148,13 @@ mod tests {
 
     #[test]
     fn own_and_union() {
-        let own = "mu300-image-manifest 1 openwrt v2026.11.01.1\nd 755 0 0 0 - etc\n";
+        let own = "f50-image-manifest 1 openwrt v2026.11.01.1\nd 755 0 0 0 - etc\n";
         assert!(parse_own(own, "openwrt", "v2026.11.01.1").is_some());
         assert!(parse_own(own, "openwrt", "v2026.11.02.1").is_none(), "another release's");
         assert!(parse_own(&format!("{own}garbage\n"), "openwrt", "v2026.11.01.1").is_none(), "one bad line refuses it");
-        let union = "mu300-image-manifests 1 openwrt\ntags v2026.10.25 v2026.10.26 v2026.10.27\n0-1 d 755 0 0 0 - etc\n2 d 755 0 0 0 - www\n0,2 d 700 0 0 0 - root\n";
+        let union = "f50-image-manifests 1 openwrt\ntags v2026.10.25 v2026.10.26 v2026.10.27\n0-1 d 755 0 0 0 - etc\n2 d 755 0 0 0 - www\n0,2 d 700 0 0 0 - root\n";
         let m = parse_union(union, "openwrt", "v2026.10.27").expect("union");
         assert!(m.contains_key("www") && m.contains_key("root") && !m.contains_key("etc"));
         assert!(parse_union(union, "openwrt", "v2026.10.20").is_none());
-        let own = own.replacen("mu300-", "f50-", 1);
-        assert!(parse_own(&own, "openwrt", "v2026.11.01.1").is_some(), "the F50 name");
-        assert!(parse_union(&union.replacen("mu300-", "f50-", 1), "openwrt", "v2026.10.27").is_some());
     }
 }

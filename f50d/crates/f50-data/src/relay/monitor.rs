@@ -1,4 +1,4 @@
-//! netifd's complete view of the bearer in relay mode, kept current without polling (mu300cell-v6.sh, K36).
+//! netifd's complete view of the bearer in relay mode, kept current without polling (f50cell-v6.sh, K36).
 //!
 //! IPv6 comes from the carrier's RA, so the kernel's address and route announcements are the authoritative source,
 //! lifetime refreshes included: each one is reported (with the lifetimes, so netifd never turns an expiring RA

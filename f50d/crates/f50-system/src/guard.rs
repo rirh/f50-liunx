@@ -1,7 +1,7 @@
 //! The thermal guard: every few seconds, the hottest zone decides caps, the heat alarm and the power-off.
 //!
 //! - Where an enabled zone with a passive trip has every cpufreq cooling device bound (the stock `soc-thmzone` on
-//!   5.4, or mainline's `mu300_thermal`), the kernel throttles and the guard only watches: it lifts the caps it set
+//!   5.4, or mainline's `f50_thermal`), the kernel throttles and the guard only watches: it lifts the caps it set
 //!   itself and leaves scaling_max_freq alone (docs/research/FINDINGS.md 48; asked of every kernel, FINDINGS 139).
 //! - Without one, the guard is the policy: from `hot` every policy goes one table step lower per round, at or below
 //!   `cool` one step back up, never above the CPU profile's ceiling.

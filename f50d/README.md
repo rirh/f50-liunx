@@ -4,7 +4,7 @@ The ZTE F50 device daemon for OpenWrt, in Rust. One process owns the modem's AT 
 SMS, Wi-Fi/LAN/USB, the system and updates, and publishes them as **ubus objects**. A web frontend reaches them
 through uhttpd's `/ubus` JSON-RPC endpoint, where rpcd's login sessions and ACLs decide who may call what.
 
-It replaces the shell layer this repository grew (`/opt/mu300/bin/*`, `mu300-api`, the LuCI backend `mu300dash` and
+It replaces the shell layer this repository grew (`/opt/f50/bin/*`, `f50-api`, the LuCI backend `f50dash` and
 the `unisoc-modem` adapters). Scope: **the F50, on OpenWrt**. No Ubuntu, Arch, U30 Air or V50 paths are carried over.
 
 ## Crates
@@ -21,18 +21,18 @@ f50d (bin) ─────────► f50-api ─┬─► f50-modem ─┬�
 
 | crate | owns | ports (shell it replaces) |
 |---|---|---|
-| `f50-core` | error codes, the RPC method model and field validation, the process runner, jobs, private/atomic files, paths | `json.awk`, `lib.sh`, the validation of `mu300-api`/`mu300dash` |
+| `f50-core` | error codes, the RPC method model and field validation, the process runner, jobs, private/atomic files, paths | `json.awk`, `lib.sh`, the validation of `f50-api`/`f50dash` |
 | `f50-ubus` | the ubus wire protocol (blob/blobmsg), client calls, serving objects | libubus (not linked) |
 | `f50-platform` | OpenWrt: UCI, netifd, procd services, sysfs, modules, system settings, downloads | the `uci`/`ifstatus`/`/etc/init.d` calls scattered through every script |
-| `f50-at` | the SIPC AT channels, lanes, sessions, URCs, the terminal's guards and history (`f50.at`) | `mu300-at`, `mu300-atd`, `init.d/mu300-atd*`, `unisoc-modem/at`, `modem-log-drain`, `mu300-cmt-spool` |
-| `f50-modem` | SIM slots and state, the radio, network/band/cell/EN-DC locks and their boot replay, the signal/cell collector, the radio lock (`f50.modem`, `f50.sim`, `f50.lock`) | `unisoc-modem/{cell,lock,boot-replay,imei-diag,action}`, `mu300-sim*`, `sim-config.sh`, `mu300-modem-coldboot` |
-| `f50-data` | the cellular data connection (dial, IPv4/IPv6, APN, roaming, watchdog), netifd's `f50cell` protocol, data usage, IPv6 relay (`f50.data`, `f50.traffic`) | `mobile-data`, `proto/mu300cell*.sh`, `mu300-traffic`, `ndp-learn`, `ra-deprecate`, `19-mu300-fw4` |
-| `f50-sms` | the SMS pool, PDU encode/decode, receiving (URC) and sending (`f50.sms`) | `mu300-sms`, `mu300-smsd`, `sms-pdu.awk`, `sms` |
-| `f50-net` | the Wi-Fi hotspot, the Wi-Fi client uplink, the LAN, the USB port's role and network function, adbd (`f50.wifi`, `f50.wificlient`, `f50.lan`, `f50.usb`) | `wifi-client`, `hotspot-*`, `openwrt-wifi-*`, `mu300-wifi-band`, `wifi-start`, `wifi-ready`, `mu300-lan-ip`, `mu300-usb*`, `device-usb`, `usb-host.sh`, `10-mu300-usb`, `mu300-adbd` |
-| `f50-system` | device facts and live figures, CPU profiles, the thermal guard, LEDs, buttons, zram, hostname/time/password, reboot (`f50.system`, `f50.cpu`) | `dashboard-info`, `mu300-device`, `mu300-cpu`, `thermal-guard`, `mu300-led`, `mu300-buttons`, `mu300-zram`, `zram-start` |
-| `f50-hw` | boot-time bring-up: kernel modules, device permissions, the vendor daemons the modem needs, Wi-Fi/Bluetooth firmware, boot success marks | `init.d/mu300-{hw,vendor,post,accounts}`, `android-vendor-start`, `android-run`, `sipa-dele-start`, `ueventd-perms.sh`, `extra-modules`, `mu300-modprobe-guard`, `wcn-reopen`, `regdb-load`, `10-mu300-wcn`, `bootmark`, `mu300-next-boot`, `early-recorder`, `kmsg-forward` |
-| `f50-update` | release check, download, signature, apply, rollback for F50 OpenWrt (`f50.update`) | `mu300-update`, `unisoc-modem/update` |
-| `f50-api` | assembles every object, the aggregate `f50.status`, the ACL file and API reference generated from the method table | `mu300-api`, `mu300dash` |
+| `f50-at` | the SIPC AT channels, lanes, sessions, URCs, the terminal's guards and history (`f50.at`) | `f50-at`, `f50-atd`, `init.d/f50-atd*`, `unisoc-modem/at`, `modem-log-drain`, `f50-cmt-spool` |
+| `f50-modem` | SIM slots and state, the radio, network/band/cell/EN-DC locks and their boot replay, the signal/cell collector, the radio lock (`f50.modem`, `f50.sim`, `f50.lock`) | `unisoc-modem/{cell,lock,boot-replay,imei-diag,action}`, `f50-sim*`, `sim-config.sh`, `f50-modem-coldboot` |
+| `f50-data` | the cellular data connection (dial, IPv4/IPv6, APN, roaming, watchdog), netifd's `f50cell` protocol, data usage, IPv6 relay (`f50.data`, `f50.traffic`) | `mobile-data`, `proto/f50cell*.sh`, `f50-traffic`, `ndp-learn`, `ra-deprecate`, `19-f50-fw4` |
+| `f50-sms` | the SMS pool, PDU encode/decode, receiving (URC) and sending (`f50.sms`) | `f50-sms`, `f50-smsd`, `sms-pdu.awk`, `sms` |
+| `f50-net` | the Wi-Fi hotspot, the Wi-Fi client uplink, the LAN, the USB port's role and network function, adbd (`f50.wifi`, `f50.wificlient`, `f50.lan`, `f50.usb`) | `wifi-client`, `hotspot-*`, `openwrt-wifi-*`, `f50-wifi-band`, `wifi-start`, `wifi-ready`, `f50-lan-ip`, `f50-usb*`, `device-usb`, `usb-host.sh`, `10-f50-usb`, `f50-adbd` |
+| `f50-system` | device facts and live figures, CPU profiles, the thermal guard, LEDs, buttons, zram, hostname/time/password, reboot (`f50.system`, `f50.cpu`) | `dashboard-info`, `f50-device`, `f50-cpu`, `thermal-guard`, `f50-led`, `f50-buttons`, `f50-zram`, `zram-start` |
+| `f50-hw` | boot-time bring-up: kernel modules, device permissions, the vendor daemons the modem needs, Wi-Fi/Bluetooth firmware, boot success marks | `init.d/f50-{hw,vendor,post,accounts}`, `android-vendor-start`, `android-run`, `sipa-dele-start`, `ueventd-perms.sh`, `extra-modules`, `f50-modprobe-guard`, `wcn-reopen`, `regdb-load`, `10-f50-wcn`, `bootmark`, `f50-next-boot`, `early-recorder`, `kmsg-forward` |
+| `f50-update` | release check, download, signature, apply, rollback for F50 OpenWrt (`f50.update`) | `f50-update`, `unisoc-modem/update` |
+| `f50-api` | assembles every object, the aggregate `f50.status`, the ACL file and API reference generated from the method table | `f50-api`, `f50dash` |
 | `f50d` | the binary: configuration, wiring, lifecycle and shutdown, the ubus server, the CLI, the boot stages procd runs | the init scripts' logic |
 
 **Dependency rules.** Arrows point one way. A capability crate never depends on `f50-api`, on `f50d`, or on a
@@ -126,22 +126,18 @@ The web console (`../f50-web`, React) is installed by the same script when its b
 argument: `install.sh ROOT BINARY SRC f50-web/dist` puts it in `/www/f50` and points the device's front page there.
 
 `openwrt/` holds what the image installs beside the binary: the procd init scripts, the hotplug hooks, the netifd
-protocol handler (`f50cell`), `/etc/config/f50d`, and a first-boot default that moves `network.wan` from `mu300cell`
-to `f50cell` (same option names). `openwrt/install.sh ROOT BINARY` installs them and takes the mu300 shell layer out
-of the root. Run it from the image build after everything else is installed (the image build itself is not in this
-repository).
+protocol handler (`f50cell`) and `/etc/config/f50d`. `openwrt/install.sh ROOT BINARY` installs them and takes the shell
+programs of the image's overlay that f50d replaces out of the root; `systems/openwrt/build-rootfs.sh` runs it after
+everything else is installed.
 
-Kept from /opt/mu300: the programs that are not shell (busybox, adbd, logdw, the carry helper...), the vendor chroot
-(`/opt/mu300/android`, where the installer puts it), the release key, and the helpers preinit's early USB DHCP still
+Kept from /opt/f50: the programs that are not shell (busybox, adbd, logdw, the carry helper...), the vendor chroot
+(`/opt/f50/android`, where the installer puts it), the release key, and the helpers preinit's early USB DHCP still
 uses.
 
-f50d's paths and names are the F50's: `/etc/f50`, `/run/f50`, `/run/f50-*`, `/opt/f50`, `/lib/f50`, `/mnt/f50-disk`,
-`.f50` on the Linux disk, the `f50root` partition, the `f50vnd` account, `f50_wifi_*` nft tables, and release files
-`f50-release`, `f50-<system>-rootfs.tar.gz`, `f50-kernel*.tar.gz` (with `etc/f50/image-version` and the
-`f50-image-manifest` inside an image). Every one has a fallback to its name of before the rename (`mu300`): a path
-whose F50 name is not there and whose mu300 name is resolves to the latter (`Paths::sys`), and a release, image,
-partition or account under the old name is taken as well. So f50d runs unchanged on a device, an initramfs and the
-upstream releases that still use the mu300 names, and on ones built with the F50 names.
+The names are the F50's throughout: `/etc/f50`, `/run/f50`, `/opt/f50`, `/mnt/f50-disk`, `.f50` on the Linux disk,
+the `f50root` partition, the `f50vnd` account, the `f50_wifi_*` nft tables, and the release files `f50-release`,
+`f50-<system>-rootfs.tar.gz` and `f50-kernel*.tar.gz` (with `etc/f50/image-version` and the `f50-image-manifest` inside
+an image). Devices installed with the upstream project's names are not supported: they are installed anew.
 
 ## Status
 

@@ -2,7 +2,7 @@
 //! through uhttpd's cgi-io to the one path the panel's ACL may write (`.f50-upload/update.tar` on the Linux partition,
 //! in a directory only root can enter: a zip of a release is 40 to 400 MB, more than RAM should hold).
 //!
-//! The archive holds the files flat, as a release publishes them (`SHA256SUMS`, its signature, `f50-release` or `mu300-release`, the
+//! The archive holds the files flat, as a release publishes them (`SHA256SUMS`, its signature, `f50-release`, the
 //! root filesystems, the kernel bundles). Nothing of it is unpacked to a path it names: a member is found by a name
 //! this code made (one of the release's file names) and copied out by its offset. The Magisk zip the shell took is not
 //! read here: the workspace has no zip or inflate, and the release's own tarballs are already compressed.
@@ -211,15 +211,15 @@ mod tests {
         fs::create_dir_all(&dir).expect("dir");
         let mut tar = member("./SHA256SUMS", b"sums\n");
         tar.extend(member("../../etc/passwd", b"evil"));
-        tar.extend(member("mu300-release", b"v2026.11.01.1\n"));
+        tar.extend(member("f50-release", b"v2026.11.01.1\n"));
         tar.extend([0u8; 1024]);
         let p = dir.join("b.tar");
         fs::write(&p, &tar).expect("write");
-        let allowed = vec!["SHA256SUMS".to_owned(), "mu300-release".to_owned()];
+        let allowed = vec!["SHA256SUMS".to_owned(), "f50-release".to_owned()];
         let b = Bundle::open(&p, &allowed).expect("bundle");
         assert_eq!(b.read("SHA256SUMS", 64).expect("read").as_deref(), Some(&b"sums\n"[..]));
         assert!(!b.has("../../etc/passwd"));
-        assert!(b.extract("mu300-release", &dir.join("rel")).expect("extract"));
+        assert!(b.extract("f50-release", &dir.join("rel")).expect("extract"));
         assert_eq!(fs::read(dir.join("rel")).expect("rel"), b"v2026.11.01.1\n");
         fs::write(&p, b"PK\x03\x04 not a tar").expect("zip");
         assert!(Bundle::open(&p, &allowed).is_err());

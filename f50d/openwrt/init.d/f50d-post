@@ -1,7 +1,7 @@
 #!/bin/sh /etc/rc.common
 # f50d boot stage "post": 30 s after everything else, the boot counts as good - the Linux slot is re-armed with its
-# attempts (or locked) and the initramfs' boot count cleared (mu300-next-boot --rearm). Without this, N boots in a
-# row and LK falls back to Android. Replaces mu300-post's bootok instance; its other instances are the daemon's.
+# attempts (or locked) and the initramfs' boot count cleared (f50-next-boot --rearm). Without this, N boots in a
+# row and LK falls back to Android. Replaces f50-post's bootok instance; its other instances are the daemon's.
 START=99
 USE_PROCD=1
 
