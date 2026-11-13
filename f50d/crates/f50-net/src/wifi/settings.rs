@@ -197,14 +197,14 @@ pub(crate) async fn apply(net: &Net, p: &Params) -> Result<Value> {
         w.hotspot(&net.cfg().wlan).ok_or_else(|| Error::not_found("access point in /etc/config/wireless"))?;
     let (band_now, cc_now) = (band_of(radio), country_of(net, radio));
     let r = request(p, band_now, &cc_now)?;
-    let sae = asks_sae(iface.get("encryption"));
+    let restart = asks_sae(iface.get("encryption")) || r.password.is_some() || r.ssid.is_some();
     let changes = changes(radio, iface, &r, band_now, &cc_now)?;
     net.platform().uci().apply("wireless", &changes).await?;
     // the radio is a client of another network: the hotspot takes the settings when it comes back
     if !client::is_active(net).await {
         net.later("wifi-reload", Duration::from_secs(2), move |net| async move {
-            // out of SAE: a full restart (the access point the wifi-scripts refused is not there to reload)
-            if sae { super::restart(&net).await } else { super::reload(&net).await }
+            // Recreate the AP for credential changes instead of retaining its previous authentication state.
+            if restart { super::restart(&net).await } else { super::reload(&net).await }
         });
     }
     Ok(json!({ "restart": true }))

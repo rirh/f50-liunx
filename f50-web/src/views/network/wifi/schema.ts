@@ -14,11 +14,13 @@ export const WIFI_FIELDS = [
   "country",
 ] as const;
 
-const base = () =>
+const base = (savedPassword: string) =>
   z.object({
     ssid: z.string().refine(ssidOk, ssidHint()),
-    /** Empty: unchanged. */
-    password: z.string().refine((v) => v === "" || pskOk(v), pskHint()),
+    /** Empty or the saved one: unchanged. */
+    password: z
+      .string()
+      .refine((v) => v === "" || v === savedPassword || pskOk(v), pskHint()),
     band: z.enum(["2.4", "5"]),
     channel: z.string(),
     width: z.enum(["auto", "20", "40", "80"]),
@@ -28,11 +30,11 @@ const base = () =>
 
 export type WifiForm = z.infer<ReturnType<typeof base>>;
 
-export function wifiDefaults(info: WifiInfo): WifiForm {
+export function wifiDefaults(info: WifiInfo, password = ""): WifiForm {
   const width = widthOf(info.htmode) as WifiForm["width"];
   return {
     ssid: info.ssid ?? "",
-    password: "",
+    password,
     band: info.band,
     channel: info.channel,
     width,
@@ -46,7 +48,7 @@ export function wifiDefaults(info: WifiInfo): WifiForm {
  * country change (an unchanged one is not sent), a country only when it changes.
  */
 export function wifiSchema(initial: WifiForm) {
-  return base().superRefine((v, ctx) => {
+  return base(initial.password).superRefine((v, ctx) => {
     const bandChanged = v.band !== initial.band;
     const countryChanged = v.country !== initial.country;
     const channelTouched =
@@ -89,7 +91,7 @@ export function wifiSchema(initial: WifiForm) {
 export function wifiArgs(v: WifiForm, initial: WifiForm): WifiSetArgs {
   const a: WifiSetArgs = {};
   if (v.ssid !== initial.ssid) a.ssid = v.ssid;
-  if (v.password) a.password = v.password;
+  if (v.password && v.password !== initial.password) a.password = v.password;
   if (v.band !== initial.band) a.band = v.band;
   if (v.channel !== initial.channel || v.band !== initial.band)
     a.channel = v.channel;

@@ -69,6 +69,13 @@ pub(crate) fn wifi(net: &Net) -> Object {
             with!(net, |n, p| wifi::ap::get(&n).await),
         )
         .method(
+            "credentials",
+            Access::Write,
+            NONE,
+            "The saved hotspot's name, password, security and hidden flag for sharing (administrator only).",
+            with!(net, |n, p| wifi::ap::credentials(&n).await),
+        )
+        .method(
             "set",
             Access::Write,
             WIFI_SET,

@@ -5,6 +5,8 @@ const m: Messages["network"] = {
     ssidHint:
       "1-32 bytes, no control characters, no space at either end, not starting with -",
     pskHint: "8-63 printable ASCII characters",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
     noChanges: "Nothing to save",
     saveApply: "Save and apply",
     submitting: "Submitting",
@@ -15,6 +17,17 @@ const m: Messages["network"] = {
   wifi: {
     title: "Wi-Fi hotspot",
     description: "Hotspot name, password, band and channel",
+    share: {
+      title: "Scan to connect",
+      description:
+        "Scan with your phone camera and confirm joining this Wi-Fi network.",
+      code: "Wi-Fi QR code for {ssid}",
+      unavailable:
+        "The current security mode or password cannot be shared by QR code. Set a WPA2 password first.",
+      inactive: "The hotspot is off. Turn it on before scanning to connect.",
+      reconnect:
+        "If your phone reports an incorrect password after a change, forget the saved network and scan again.",
+    },
     restartAlert: {
       title: "Applying settings restarts Wi-Fi",
       description:

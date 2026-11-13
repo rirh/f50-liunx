@@ -9,9 +9,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { t, type Key } from "@/i18n";
+import type { UseQueryResult } from "@tanstack/react-query";
+import { WifiConnectCode } from "./connect-code";
 import { WifiPowerControl } from "./power-control";
 import { WifiSettingsDialog } from "./settings-form";
-import type { WifiInfo, WifiSecurity } from "../types";
+import type { WifiCredentials, WifiInfo, WifiSecurity } from "../types";
 
 const SECURITY_LABEL = {
   wpa2: "network.wifi.security.wpa2",
@@ -22,7 +24,13 @@ const SECURITY_LABEL = {
 } satisfies Record<WifiSecurity, Key>;
 
 /** The hotspot as it is; power applies at once, the settings open in a dialog from the same header. */
-export function WifiStatusCard({ info }: { info: WifiInfo }) {
+export function WifiStatusCard({
+  info,
+  credentials,
+}: {
+  info: WifiInfo;
+  credentials: UseQueryResult<WifiCredentials>;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -43,11 +51,14 @@ export function WifiStatusCard({ info }: { info: WifiInfo }) {
           {t("network.wifi.status.description")}
         </CardDescription>
         <CardAction className="flex flex-wrap justify-end gap-2">
-          <WifiSettingsDialog info={info} />
+          <WifiSettingsDialog
+            info={info}
+            password={credentials.data?.password ?? ""}
+          />
           <WifiPowerControl info={info} />
         </CardAction>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-4">
         <KvList
           items={[
             { label: t("network.wifi.status.band"), value: `${info.band} GHz` },
@@ -87,6 +98,7 @@ export function WifiStatusCard({ info }: { info: WifiInfo }) {
             },
           ]}
         />
+        <WifiConnectCode info={info} query={credentials} />
       </CardContent>
     </Card>
   );

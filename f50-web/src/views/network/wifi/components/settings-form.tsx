@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EditButton, FormDialog } from "@/components/f50/form-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -26,6 +26,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { ConfirmDialog } from "../../shared/confirm-dialog";
+import { PasswordInput } from "../../shared/password-input";
 import { pskHint } from "../../shared/text-rules";
 import { setWifi, wifiKeys } from "../api";
 import { channelsFor, widthsFor } from "../channels";
@@ -62,10 +63,17 @@ function argText(k: keyof WifiSetArgs, v: unknown): string {
  * header in a dialog. The notice that saving restarts the radio sits above the fields, and applying still asks once
  * more with the list of what changes.
  */
-export function WifiSettingsDialog({ info }: { info: WifiInfo }) {
+export function WifiSettingsDialog({
+  info,
+  password,
+}: {
+  info: WifiInfo;
+  /** The saved password, shown in the form; empty when it could not be read. */
+  password: string;
+}) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const initial = useMemo(() => wifiDefaults(info), [info]);
+  const initial = useMemo(() => wifiDefaults(info, password), [info, password]);
   const schema = useMemo(() => wifiSchema(initial), [initial]);
   const form = useForm<WifiForm>({
     resolver: zodResolver(schema),
@@ -74,12 +82,19 @@ export function WifiSettingsDialog({ info }: { info: WifiInfo }) {
   });
   const [pending, setPending] = useState<WifiSetArgs | null>(null);
 
+  useEffect(() => {
+    if (open && !form.getFieldState("password").isDirty) {
+      form.resetField("password", { defaultValue: password });
+    }
+  }, [open, password, form]);
+
   const save = useMutation({
     mutationFn: setWifi,
     onSuccess: () => {
       toast.success(t("network.wifi.settings.saved"));
       setOpen(false);
       qc.invalidateQueries({ queryKey: wifiKeys.info });
+      qc.invalidateQueries({ queryKey: wifiKeys.credentials });
     },
     onError: (e) => reportFormError(e, form.setError, WIFI_FIELDS),
   });
@@ -119,7 +134,7 @@ export function WifiSettingsDialog({ info }: { info: WifiInfo }) {
     <>
       <EditButton
         onClick={() => {
-          form.reset(wifiDefaults(info));
+          form.reset(initial);
           setOpen(true);
         }}
       />
@@ -191,9 +206,9 @@ export function WifiSettingsDialog({ info }: { info: WifiInfo }) {
                   <FieldLabel htmlFor="wifi-password">
                     {t("network.wifi.settings.password")}
                   </FieldLabel>
-                  <Input
+                  <PasswordInput
                     id="wifi-password"
-                    type="password"
+                    defaultVisible
                     autoComplete="new-password"
                     placeholder={
                       info.password_set

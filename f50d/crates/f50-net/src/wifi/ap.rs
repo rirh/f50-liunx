@@ -94,6 +94,22 @@ pub(crate) async fn get(net: &Net) -> Result<Value> {
     }))
 }
 
+/// `f50.wifi credentials`: the committed hotspot credentials, available only to an administrator.
+pub(crate) async fn credentials(net: &Net) -> Result<Value> {
+    let w = Wireless::load(net).await?;
+    let (_, iface) =
+        w.hotspot(&net.cfg().wlan).ok_or_else(|| Error::not_found("access point in /etc/config/wireless"))?;
+    let ssid = iface.get("ssid").filter(|s| !s.is_empty()).ok_or_else(|| Error::not_found("hotspot SSID"))?;
+    let security = security(iface.get("encryption"));
+    let password = if security == "open" { None } else { iface.get("key").filter(|k| !k.is_empty()) };
+    Ok(json!({
+        "ssid": ssid,
+        "password": password,
+        "security": security,
+        "hidden": iface.get("hidden") == Some("1"),
+    }))
+}
+
 /// Uncommitted wireless changes: uci's own (`/tmp/.uci`) or a LuCI session's (rpcd keeps them apart). Applying
 /// over them would commit them too, or lose them.
 async fn staged(net: &Net) -> bool {

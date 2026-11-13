@@ -5,6 +5,14 @@ export type WifiBand = "2.4" | "5";
 /** The access point's `encryption` in one word (`ap.rs security()`). */
 export type WifiSecurity = "wpa2" | "wpa2-wpa3" | "wpa3" | "open" | "other";
 
+/** `f50.wifi credentials`: administrator-only, read on demand for sharing. */
+export interface WifiCredentials {
+  ssid: string;
+  password: string | null;
+  security: WifiSecurity;
+  hidden: boolean;
+}
+
 /** A station of the access point, with its DHCP lease's address and name where there is one. */
 export interface WifiStation {
   mac: string;

@@ -5324,7 +5324,7 @@
     },
     "/f50.sms/sync": {
       "post": {
-        "description": "Moves what the modem's store holds into the pool, in the background.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.sms` `sync`.",
+        "description": "Restores SMS notifications and moves stored messages into the pool as a job.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.sms` `sync`. Long work: answers `{job}`; poll `f50.job status`.",
         "operationId": "sms.sync",
         "responses": {
           "200": {
@@ -5336,7 +5336,13 @@
                       "additionalProperties": false,
                       "properties": {
                         "data": {
-                          "description": "Not sampled: see the method's description."
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/JobStarted"
+                            },
+                            {}
+                          ],
+                          "description": "The result, or `{job}` when the work runs as a job."
                         },
                         "ok": {
                           "const": true
@@ -5358,13 +5364,13 @@
             "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
           }
         },
-        "summary": "Moves what the modem's store holds into the pool, in the background",
+        "summary": "Restores SMS notifications and moves stored messages into the pool as a job",
         "tags": [
           "f50.sms"
         ],
         "x-ubus": {
           "access": "write",
-          "job": false,
+          "job": true,
           "method": "sync",
           "object": "f50.sms"
         }

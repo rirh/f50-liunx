@@ -102,12 +102,12 @@ pub(crate) async fn reload(net: &Net) -> Result<()> {
     net.platform().netifd().reload().await
 }
 
-/// A full Wi-Fi restart (`wifi down; wifi up` through netifd's `network.wireless`): an access point the wifi-scripts
-/// refused is not there to reload.
+/// A full Wi-Fi restart, re-reading committed UCI between down and up as `/sbin/wifi up` does.
 pub(crate) async fn restart(net: &Net) -> Result<()> {
     let none = serde_json::json!({});
     crate::tools::ubus(net, "network.wireless", "down", &none).await?;
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    reload(net).await?;
     crate::tools::ubus(net, "network.wireless", "up", &none).await.map(drop)
 }
 

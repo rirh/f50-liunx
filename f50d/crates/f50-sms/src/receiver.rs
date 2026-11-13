@@ -20,7 +20,7 @@ use std::time::Duration;
 
 use f50_at::Urc;
 use f50_core::time::unix_now;
-use f50_core::{Error, Result};
+use f50_core::{Code, Error, Result};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::MissedTickBehavior;
@@ -67,6 +67,7 @@ pub(crate) async fn run(
     }
     loop {
         tokio::select! {
+            biased; // park queued deliveries before retrying their unnumbered CNMA acknowledgement
             () = shutdown.cancelled() => break,
             r = ready.changed(), if ready_open => {
                 if r.is_err() {
@@ -100,11 +101,16 @@ pub(crate) async fn run(
                 }
                 Err(RecvError::Closed) => urcs_open = false,
             },
-            _ = tick.tick() => guarded(&shutdown, periodic(&svc, &mut rx, up)).await,
             _ = ack_tick.tick(), if rx.ack_pending => guarded(&shutdown, acknowledge_pending(&svc, &mut rx)).await,
-            Some(reply) = sync_requests.recv() => guarded(&shutdown, async {
-                if !reply.is_closed() {
-                    let _ = reply.send(manual_sync(&svc, &mut rx).await);
+            _ = tick.tick() => guarded(&shutdown, periodic(&svc, &mut rx, up)).await,
+            Some(mut reply) = sync_requests.recv() => guarded(&shutdown, async {
+                let result = tokio::select! {
+                    biased;
+                    () = reply.closed() => None,
+                    result = manual_sync(&svc, &mut rx) => Some(result),
+                };
+                if let Some(result) = result {
+                    let _ = reply.send(result);
                 }
             }).await,
         }
@@ -125,12 +131,12 @@ async fn setup(svc: &Inner, rx: &mut Rx) -> Result<()> {
     modem::notification_mode(&svc.at, false).await?;
     rx.direct = false;
     rx.ack_pending = false;
-    sync(svc).await?;
+    let synced = sync(svc).await;
     rx.direct = modem::notification_mode(&svc.at, svc.cfg.direct).await?;
     rx.configured = true;
     rx.failures = 0;
     tracing::info!(direct = rx.direct, "SMS receiving is set up");
-    Ok(())
+    synced
 }
 
 async fn periodic(svc: &Inner, rx: &mut Rx, up: bool) {
@@ -148,7 +154,7 @@ async fn manual_sync(svc: &Inner, rx: &mut Rx) -> Result<()> {
     if !rx.configured {
         return setup(svc, rx).await;
     }
-    sync(svc).await?;
+    let synced = sync(svc).await;
     if !modem::notifications_still_on(&svc.at, rx.direct).await? {
         rx.configured = false;
         rx.direct = modem::notification_mode(&svc.at, rx.direct).await?;
@@ -156,7 +162,7 @@ async fn manual_sync(svc: &Inner, rx: &mut Rx) -> Result<()> {
         rx.ack_pending = false;
         tracing::warn!(direct = rx.direct, "the modem had dropped SMS notifications; restored");
     }
-    Ok(())
+    synced
 }
 
 async fn on_urc(svc: &Inner, rx: &mut Rx, urc: Urc) {
@@ -167,6 +173,7 @@ async fn on_urc(svc: &Inner, rx: &mut Rx, urc: Urc) {
             sync_logged(svc).await;
         }
     } else if line.starts_with("+CMT:") {
+        rx.ack_pending = false;
         match on_cmt(svc, urc.body.as_deref()).await {
             Ok(()) => {
                 rx.ack_pending = true;
@@ -198,7 +205,13 @@ async fn acknowledge_pending(svc: &Inner, rx: &mut Rx) {
             rx.failures = 0;
         }
         Err(e) => {
-            tracing::warn!(error = %e, "SMS acknowledgement failed; retried shortly");
+            // Busy guarantees CNMA never reached the modem. With any other failure it may have acknowledged
+            // this message already: another positive CNMA could then acknowledge an unparked later message.
+            rx.ack_pending = e.code() == Code::Busy;
+            if !rx.ack_pending {
+                rx.failures = MAX_FAILURES - 1;
+            }
+            tracing::warn!(error = %e, retry = rx.ack_pending, "SMS acknowledgement failed");
             receive_failed(svc, rx).await;
         }
     }

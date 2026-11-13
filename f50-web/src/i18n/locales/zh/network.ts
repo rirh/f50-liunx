@@ -3,6 +3,8 @@ export default {
   shared: {
     ssidHint: "1-32 字节，不含控制字符，首尾不能是空格，不能以 - 开头",
     pskHint: "8-63 个可打印 ASCII 字符",
+    showPassword: "显示密码",
+    hidePassword: "隐藏密码",
     noChanges: "没有需要保存的修改",
     saveApply: "保存并应用",
     submitting: "提交中",
@@ -14,6 +16,15 @@ export default {
   wifi: {
     title: "Wi-Fi 热点",
     description: "热点名称、密码、频段与信道",
+    share: {
+      title: "扫码连接",
+      description: "用手机相机扫描二维码，确认加入此 Wi-Fi。",
+      code: "连接 {ssid} 的 Wi-Fi 二维码",
+      unavailable: "当前加密方式或密码无法生成连接二维码，请先设置 WPA2 密码。",
+      inactive: "热点当前未开启，请先开启热点再扫码连接。",
+      reconnect:
+        "修改密码后若手机仍提示密码错误，请先忽略已保存的网络，再扫码连接。",
+    },
     restartAlert: {
       title: "应用设置会重启 Wi-Fi",
       description:

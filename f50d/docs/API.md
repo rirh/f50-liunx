@@ -223,6 +223,8 @@ source: `crates/f50-net/src/objects.rs`
 source: `crates/f50-net/src/objects.rs`
 
 - **get** (read) — The hotspot: name, band, channel, country, security, clients (never the password).
+- **credentials** (write) — The saved hotspot's name, password, security and hidden flag for sharing (administrator only).
+  - response: `{ ssid, password, security, hidden }`; `password` is `null` for an open network or a missing key.
 - **set** (write) — Changes the hotspot's name, password, band, channel, width, hidden flag or country.
   - fields: `Field::opt("ssid", rules::SSID), Field::secret("password", rules::PASSWORD, false), Field::opt("band", rules::BAND), Field::opt("channel", rules::CHANNEL), Field::opt("width", rules::WIDTH), Field::opt("hidden", Rule::Bool), Field::opt("country", rules::COUNTRY),`
 - **power** (write) — Turns the hotspot on or off.
