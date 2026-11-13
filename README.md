@@ -53,6 +53,15 @@ From a Mac or a Linux computer, on a ZTE F50 that still runs its stock firmware.
    Without step 3 it offers to do it itself:
    enter the admin password and it switches USB debugging on and restarts the F50, as the Windows F50-ADB tool
    does. Nothing is flashed in this step.
+   When a Web password was supplied, it checks `samba_switch` and uses `SAMBA_SETTING` to enable sharing before
+   reboot. The ADB bootstrap separately reads `settings get global samba_enable` and enables it only when needed,
+   before checking or writing its root hook. A stock service that regenerates the configuration gets one bounded
+   repair attempt. An existing hook or socket file alone does not count as working root.
+   SMB logs identify protocol negotiation versus session setup without logging authentication data. If automatic
+   negotiation cannot establish a session, one SMB 2.1 compatibility attempt may use the remaining deadline;
+   SMB1 and global host security changes are not enabled. These are recovery attempts, not a confirmed cause of EOF.
+   TCP `offline` transports at this device address are disconnected and reconnected with backoff. Every new
+   connection must match the USB boot ID; subsequent writes are pinned to its physical serial and guarded by that ID.
 5. `make install`. It runs `make adb` first, so steps 3 and 4 are only needed by hand when that fails.
 
 USB debugging does **not** guarantee a root shell. The installer checks for UID 0 through the selected channel;
@@ -67,6 +76,10 @@ accepted for compatibility. `scripts/device/f50-enable-adb.sh --adb-only` only r
 without root/Samba preparation or the stability claim. `make install` still uses USB and leaves the prepared
 adb-only mode in place rather than restoring MTP at exit. This is a per-boot preparation, not a guarantee that
 stock firmware will retain debugging forever.
+
+Implementation references: [UFI-TOOLS sharing controls](https://github.com/kanoqwq/UFI-TOOLS/blob/cf83b815efb114ed026f06dc90550845aafbfceb/app/frontEnd/public/script/main.js#L1517),
+[openSMB](https://github.com/kanoqwq/UFI-TOOLS/blob/cf83b815efb114ed026f06dc90550845aafbfceb/app/src/main/java/com/minikano/f50_sms/utils/ShellKano.kt#L760),
+and [the author's short-lived ADB discussion](https://github.com/kanoqwq/UFI-TOOLS/issues/64).
 
 ## License
 

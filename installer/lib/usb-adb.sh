@@ -31,7 +31,9 @@ usb_adb_only() {
     usb_push || return 0
     _usb_mode=adb-only
     [ "${F50_KEEP_ADB:-0}" != 1 ] || _usb_mode=keep-adb
-    set -- $(usb_word "$(su_do "sh $USB_T/android-usb.sh $_usb_mode")")
+    _usb_result=$(su_do "sh $USB_T/android-usb.sh $_usb_mode") || die "USB mode preparation failed: $_usb_result"
+    set -- $(usb_word "$_usb_result")
+    [ "${1:-}" != error ] || die "USB mode preparation failed: $_usb_result"
     [ "${1:-}" = switch ] || { info usb.functions "${2:-}"; return 0; }
     USB_WAS=$2 USB_BOOT=${3:-}
     trap usb_exit EXIT

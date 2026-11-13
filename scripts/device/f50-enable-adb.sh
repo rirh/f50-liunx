@@ -86,6 +86,9 @@ CONSOLE = f'http://{args.ip}/index.html#usb_port'
 WAIT = 300   # seconds for adb to show up after USB debugging was turned on
 ROOT_WAIT = 10  # once ADB has appeared, fail promptly if the Samba/root stage cannot complete
 EXPECTED_BOOT = None
+DEVICE_SERIAL = args.serial
+TCP_LAST_RECONNECT = 0
+TCP_LAST_STATE = None
 SMB_SHARES = []
 SMB_TRIGGER = os.environ['F50_SMB_TRIGGER']
 # Use the local ADB server even if the parent terminal selected a remote server/device.
@@ -250,14 +253,35 @@ def web_ok(result):
     return str(result.get('result', '')).lower() in ('0', 'success')
 
 
+def ensure_web_samba(password):
+    # UFI-TOOLS main.js initSMBStatus/handleSambaPath: enable sharing before preparing its root hook.
+    try:
+        fields, cookie = prepare_post(password, {'goformId': 'SAMBA_SETTING', 'samba_switch': '1'})
+        state, _ = request({'cmd': 'samba_switch'}, cookie)
+        if str(state.get('samba_switch', '')) == '1':
+            say('后台文件共享已开启，不重复设置。')
+            return
+        say('通过原厂 SAMBA_SETTING 开启文件共享……')
+        result, _ = request(fields, cookie, post=True)
+        if not web_ok(result):
+            raise RuntimeError(f'SAMBA_SETTING 返回：{result}')
+        state, _ = request({'cmd': 'samba_switch'}, cookie)
+        value = str(state.get('samba_switch', ''))
+        say(f'后台文件共享读回：{value if value in ("0", "1") else "未知"}；后续仍检查实际 SMB 会话。')
+    except WEB_ERRORS as exc:
+        say(f'后台文件共享未确认：{exc}；捕获 ADB 后会检查本机 samba_enable。')
+
+
 # --- The first transient USB shell must prepare TCP before any root/SMB work.
 FIRST_CONNECTION = r'''
 case "$(getprop ro.product.model) / $(getprop ro.product.device)" in
     *F50*|*f50*|*MU300*|*mu300*) ;; *) echo F50_ERROR_NOT_F50; exit 1 ;;
 esac
 echo "F50_BOOT_ID=$(cat /proc/sys/kernel/random/boot_id)"
-echo "F50_DEVICE_SERIAL=$(getprop ro.serialno)"
-for prop in service.adb.tcp.port persist.adb.tcp.port; do
+serial=$(getprop ro.serialno)
+[ -n "$serial" ] || serial=$(getprop ro.boot.serialno)
+echo "F50_DEVICE_SERIAL=$serial"
+for prop in service.adb.tcp.port persist.adb.tcp.port persist.service.adb.tcp.port; do
     if [ "$(getprop "$prop")" != 5555 ]; then
         if setprop "$prop" 5555; then echo "F50_SETPROP=$prop:0"; else echo "F50_SETPROP=$prop:$?"; fi
     fi
@@ -273,6 +297,10 @@ echo F50_APPLYING
 for prop in service.adb.tcp.port persist.adb.tcp.port; do
     [ "$(getprop "$prop")" = 5555 ] || setprop "$prop" 5555
 done
+# UFI-TOOLS also uses this alias; log unsupported/denied properties without making it the success criterion.
+if [ "$(getprop persist.service.adb.tcp.port)" != 5555 ]; then
+    if setprop persist.service.adb.tcp.port 5555; then echo F50_TCP_ALIAS_RC=0; else echo "F50_TCP_ALIAS_RC=$?"; fi
+fi
 [ "$(getprop persist.sys.usb.config)" = adb,rndis ] || setprop persist.sys.usb.config adb,rndis
 cat > /data/local/tmp/f50-usb-keep.sh <<'F50_USB_KEEP'
 ''' + (TOP / 'installer/android/android-usb.sh').read_text() + r'''
@@ -295,6 +323,12 @@ IDENTITY = 'printf "F50_BOOT_ID="; cat /proc/sys/kernel/random/boot_id'
 ROOT_PROBE = r'''
 uid=$(id -u)
 echo "F50_SHELL_UID=$uid"
+echo "F50_SAMBA_ENABLE=$(settings get global samba_enable)"
+if grep -Eq '^[[:space:]]*root preexec[[:space:]]*= /system/bin/sh /data/local/tmp/(f50-start-root-shell.sh|f50-root/start.sh)[[:space:]]*$' /data/samba/etc/smb.conf; then
+    echo F50_ROOT_HOOK=present
+else
+    echo F50_ROOT_HOOK=absent
+fi
 if [ -S /data/local/tmp/f50-root/command.sock ]; then
     echo F50_SOCKET=present
     ls -l /data/local/tmp/f50-root/command.sock
@@ -315,10 +349,20 @@ case "$(getprop ro.product.model) / $(getprop ro.product.device)" in
 esac
 cfg=/data/samba/etc/smb.conf
 [ -r "$cfg" ] || { echo F50_ERROR_SAMBA_NOT_READABLE; exit 1; }
+# Preserve the pre-enable configuration: stock firmware may regenerate it when Samba starts.
+umask 077
+[ -e /data/local/tmp/f50-smb-before-root.conf ] || cp "$cfg" /data/local/tmp/f50-smb-before-root.conf
+samba_before=$(settings get global samba_enable)
+echo "F50_SAMBA_BEFORE=$samba_before"
+if [ "$samba_before" != 1 ]; then
+    if settings put global samba_enable 1; then echo F50_SAMBA_ENABLE_RC=0; else echo "F50_SAMBA_ENABLE_RC=$?"; fi
+fi
+echo "F50_SAMBA_AFTER=$(settings get global samba_enable)"
 # After reboot the hook may already be present; only its listener needs restarting.
 for starter in /data/local/tmp/f50-root/start.sh /data/local/tmp/f50-start-root-shell.sh; do
     if [ -r "$starter" ] && grep -Fq "root preexec = /system/bin/sh $starter" "$cfg"; then
         echo "F50_BOOTSTRAP=reuse:$starter"
+        echo F50_ROOT_HOOK=present
         echo F50_BOOTSTRAP_SAVED
         exit 0
     fi
@@ -331,8 +375,6 @@ if grep -E '^[[:space:]]*root preexec[[:space:]]*=' "$cfg" |
     echo F50_ERROR_OTHER_ROOT_PREEXEC; exit 1
 fi
 echo F50_APPLYING
-umask 077
-[ -e /data/local/tmp/f50-smb-before-root.conf ] || cp "$cfg" /data/local/tmp/f50-smb-before-root.conf
 cat > /data/local/tmp/f50-start-root-shell.sh <<'F50_ROOT_STARTER'
 ''' + (TOP / 'installer/android/android-start-root-shell.sh').read_text() + r'''
 F50_ROOT_STARTER
@@ -347,11 +389,17 @@ sed '/^[[:space:]]*root preexec[[:space:]]*=/d
         map to guest = Bad User
 s/guest ok = no/guest ok = yes/g
 s/restrict anonymous = 1/restrict anonymous = 0/g
-s/public = no/public = yes/g' "$cfg" > "$tmp"
+s/public = no/public = yes/g
+s/nt acl support = no/nt acl support = yes/g' "$cfg" > "$tmp"
 # The shell user may write smb.conf without permission to rename files in its directory.
 cat "$tmp" > "$cfg"
 rm -f "$tmp"
 echo F50_BOOTSTRAP=new
+if ! grep -Fq 'root preexec = /system/bin/sh /data/local/tmp/f50-start-root-shell.sh' "$cfg"; then
+    echo F50_ERROR_ROOT_HOOK_NOT_SAVED
+    exit 1
+fi
+echo F50_ROOT_HOOK=present
 echo F50_BOOTSTRAP_SAVED
 # USB reconfiguration can cut this session, so leave it until the root hook is saved.
 if setprop persist.sys.usb.config adb,rndis; then
@@ -367,19 +415,20 @@ def root_method(target, timeout=6):
     try:
         rc, output = run([ADB, *target, 'shell', '-T', ROOT_PROBE], timeout=timeout, label='root 探测')
     except subprocess.TimeoutExpired:
-        return None
+        return None, ''
     if rc == 0:
         for method in ('shell', 'socket', 'su'):
             if 'F50_ROOT=' + method in output.splitlines():
-                return method
-    return None
+                return method, output
+    return None, output
 
 
 def run_root(target, method, command, timeout=8, label='root 命令'):
+    command = boot_guard() + command
     if method == 'socket':
         selector = ['--serial', target[1]] if target[0] == '-s' else ['--usb']
         return run([sys.executable, str(TOP / 'installer/lib/adb-root.py'), '--adb', ADB,
-                    *selector, '--timeout', str(timeout), command], timeout=timeout + 2,
+                    *selector, '--timeout', str(max(0.1, timeout - 0.25)), command], timeout=timeout,
                    label=f'{label}（socket）')
     remote = ('su -c ' if method == 'su' else 'sh -c ') + shlex.quote(command)
     return run([ADB, *target, 'shell', '-T', remote], timeout=timeout, label=f'{label}（{method}）')
@@ -390,13 +439,28 @@ def boot_id(output):
                  if line.startswith('F50_BOOT_ID=')), '')
 
 
+def boot_guard():
+    if not EXPECTED_BOOT:
+        return ''
+    return ('[ "$(cat /proc/sys/kernel/random/boot_id)" = ' + shlex.quote(EXPECTED_BOOT) +
+            ' ] || { echo F50_ERROR_BOOT_CHANGED; exit 1; };\n')
+
+
 def remember_device(output):
-    global EXPECTED_BOOT, SMB_SHARES
+    global EXPECTED_BOOT, SMB_SHARES, DEVICE_SERIAL, USB
     found = boot_id(output)
     if not re.fullmatch(r'[0-9a-fA-F-]{36}', found):
         raise RuntimeError('没有取得本次 USB 设备的启动标识，拒绝切换到未确认身份的网络设备。')
     if EXPECTED_BOOT and EXPECTED_BOOT != found:
         raise RuntimeError('设备启动标识变化，请重新执行 make adb。')
+    serial = next((line.partition('=')[2].strip() for line in output.splitlines()
+                   if line.startswith('F50_DEVICE_SERIAL=')), '')
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+', serial):
+        raise RuntimeError('未取得明确的物理序列号，停止后续设备写入。')
+    if DEVICE_SERIAL and DEVICE_SERIAL != serial:
+        raise RuntimeError('设备序列号变化，停止后续设备写入。')
+    DEVICE_SERIAL = serial
+    USB = ['-s', serial]
     EXPECTED_BOOT = found
     SMB_SHARES = [line.partition('=')[2].strip() for line in output.splitlines()
                   if line.startswith('F50_SHARE=')]
@@ -417,16 +481,31 @@ def probe_transport(target, deadline):
 
 
 def tcp_target(deadline):
+    global TCP_LAST_RECONNECT, TCP_LAST_STATE
     remaining = deadline - time.monotonic()
     if not EXPECTED_BOOT or remaining <= 0:
         return None
     target = ['-s', ENDPOINT]
     try:
         rc, state = run([ADB, *target, 'get-state'], timeout=min(0.5, remaining))
+        if (rc, state) != TCP_LAST_STATE:
+            say(f'TCP ADB 状态：{state or "无返回"}（退出码 {rc}）；仅 device 且身份匹配才可用。')
+            TCP_LAST_STATE = (rc, state)
+        if state == 'unauthorized':
+            return None
         if rc or state != 'device':
+            if time.monotonic() - TCP_LAST_RECONNECT < 2:
+                return None
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 return None
+            TCP_LAST_RECONNECT = time.monotonic()
+            if state == 'offline':
+                # Drop only this stale transport; never restart the user's whole ADB server.
+                run([ADB, 'disconnect', ENDPOINT], timeout=min(0.5, remaining), label='清理指定地址的 offline TCP 连接')
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return None
             with socket.create_connection((args.ip, 5555), timeout=min(0.5, remaining)):
                 pass
             remaining = deadline - time.monotonic()
@@ -449,13 +528,20 @@ def live_target(deadline):
     return target
 
 
-def start_tcp(target):
-    if tcp_target(time.monotonic() + 2):
+def start_tcp(target, deadline=None):
+    deadline = min(deadline or float('inf'), time.monotonic() + 6)
+    if tcp_target(min(deadline, time.monotonic() + 2)):
         say('同一设备的 TCP 5555 已可用，无需重启 adbd。')
         return
     # Setting the properties alone may not reopen adbd's listener until it restarts.
+    if not probe_transport(target, min(deadline, time.monotonic() + 1)):
+        say('原 USB 会话已断开，跳过向未确认的目标发送 tcpip。')
+        return
     try:
-        rc, output = run([ADB, *target, 'tcpip', '5555'], timeout=3,
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        rc, output = run([ADB, *target, 'tcpip', '5555'], timeout=min(3, remaining),
                          label='启用 TCP 5555（adbd 会短暂重连）')
         if rc:
             say('TCP 启用请求未完成，将通过实际连接确认：' + output)
@@ -467,20 +553,42 @@ def wait_root(target, deadline=None):
     say(f'尝试通过用户态 SMB 触发 root（最多 {ROOT_WAIT}s）。')
     deadline = min(deadline or float('inf'), time.monotonic() + ROOT_WAIT)
     last = '尚未取得 root'
+    repaired = False
+    smb_attempts = 0
+    next_smb_try = 0
     while time.monotonic() < deadline:
         current = live_target(deadline)
         if current and time.monotonic() < deadline:
-            method = root_method(current, timeout=min(2, deadline - time.monotonic()))
+            method, status = root_method(current, timeout=min(2, deadline - time.monotonic()))
             if method:
                 say(f'root 通道已就绪：{method}，transport={current}，UID=0。')
                 return current, method
+            # Starting the stock sharing service may regenerate smb.conf. Re-read the hook
+            # and repair our own preparation once, rather than flooding writes on every retry.
+            if not repaired and ('F50_ROOT_HOOK=absent' in status or
+                                 ('F50_SAMBA_ENABLE=' in status and 'F50_SAMBA_ENABLE=1' not in status.splitlines())):
+                repaired = True
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                try:
+                    rc, detail = run([ADB, *current, 'shell', '-T',
+                                      'sh -c ' + shlex.quote(boot_guard() + ROOT_BOOTSTRAP)],
+                                     timeout=min(2, remaining), label='重新核对并准备文件共享/root hook')
+                    if 'F50_ERROR_' in detail:
+                        raise RuntimeError('文件共享准备失败：' + detail)
+                except subprocess.TimeoutExpired:
+                    say('文件共享准备时连接中断；只读回状态，不立即重复写入。')
         if time.monotonic() >= deadline:
             break
-        try:
-            last = trigger_samba(deadline)
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            last = str(exc)
-            say('SMB 触发失败：' + last)
+        if smb_attempts < 3 and time.monotonic() >= next_smb_try:
+            smb_attempts += 1
+            try:
+                last = trigger_samba(deadline)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                last = str(exc)
+                say('SMB 触发失败：' + last)
+            next_smb_try = time.monotonic() + 1
         time.sleep(min(0.2, max(0, deadline - time.monotonic())))
     raise RuntimeError(f'{ROOT_WAIT}s 内没有确认 UID=0，已停止。最后 SMB 结果：{last[-1200:]}\n日志：{LOG_PATH}')
 
@@ -492,22 +600,39 @@ def inject_configuration(target):
                 'if printf "%s\\n" "$probe" | grep -Eq "^F50_ROOT=(shell|socket|su)$"; then exit 0; fi\n'
                 + ROOT_BOOTSTRAP)
     while time.monotonic() < deadline:
-        rc, output = run([ADB, *target, 'wait-for-usb-device', 'shell', '-T',
-                          'sh -c ' + shlex.quote(dispatch)],
-                         timeout=max(1, deadline - time.monotonic()), label='捕获 USB 窗口并准备 TCP/Samba')
-        if 'F50_ERROR_NOT_F50' in output or 'more than one' in output:
+        if EXPECTED_BOOT:
+            current = live_target(deadline)
+            if not current:
+                time.sleep(0.2)
+                continue
+            prefix = []
+            timeout = min(8, max(0.05, deadline - time.monotonic()))
+        else:
+            current = target
+            prefix = ['wait-for-usb-device']
+            timeout = max(1, deadline - time.monotonic())
+        try:
+            rc, output = run([ADB, *current, *prefix, 'shell', '-T',
+                              'sh -c ' + shlex.quote(boot_guard() + dispatch)],
+                             timeout=timeout, label='捕获 ADB 窗口并准备 TCP/Samba')
+        except subprocess.TimeoutExpired:
+            if not EXPECTED_BOOT:
+                raise
+            say('准备会话超时；重新核对 USB/TCP 身份和状态。')
+            continue
+        if 'F50_ERROR_NOT_F50' in output or 'F50_ERROR_BOOT_CHANGED' in output or 'more than one' in output:
             raise RuntimeError('目标设备不明确，已停止：' + output)
         if not boot_id(output):
             time.sleep(0.2)
             continue
         remember_device(output)
-        start_tcp(target)
+        start_tcp(USB if current == target else current)
         if 'F50_ERROR_' in output:
             raise RuntimeError('已尝试保持 ADB，但 root 配置未完成：\n' + output)
         if 'F50_BOOTSTRAP_SAVED' in output or any('F50_ROOT=' + method in output.splitlines()
                                                  for method in ('shell', 'su', 'socket')):
-            return wait_root(target)
-        say('USB 在准备完成前断开，等待下一次 USB 窗口；未确认 root。')
+            return wait_root(USB)
+        say('准备完成前断开；将通过已核对身份的 USB 或 TCP 继续，尚未确认 root。')
         time.sleep(0.2)
     raise RuntimeError(f'{WAIT}s 内未完成 USB/TCP 准备，详见 {LOG_PATH}')
 
@@ -552,6 +677,8 @@ def ensure_stable():
     stable_since = None
     last_apply = 0
     last_report = 0
+    tcp_restarts = 0
+    next_tcp_restart = 0
     while time.monotonic() < deadline:
         current = live_target(deadline)
         if not current:
@@ -559,14 +686,22 @@ def ensure_stable():
             say('USB/TCP 暂时均不可用，等待已配置的连接恢复……')
             time.sleep(0.5)
             continue
-        method = root_method(current, timeout=min(2, max(0.05, deadline - time.monotonic())))
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        method, _ = root_method(current, timeout=min(2, remaining))
         if not method:
             current, method = wait_root(current, deadline)
         try:
-            rc, output = run_root(current, method, CHECK, timeout=3, label='读取实际 USB/端口/root 状态')
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            rc, output = run_root(current, method, CHECK, timeout=min(3, remaining), label='读取实际 USB/端口/root 状态')
         except subprocess.TimeoutExpired:
             stable_since = None
             continue
+        if 'F50_ERROR_BOOT_CHANGED' in output:
+            raise RuntimeError('设备已重启，停止使用旧身份继续配置；请重新执行 make adb。')
         if rc or boot_id(output) != EXPECTED_BOOT:
             stable_since = None
             time.sleep(0.5)
@@ -577,8 +712,14 @@ def ensure_stable():
             if time.monotonic() - last_apply >= 5:
                 # This changes only idempotent ADB settings, never installation writes.
                 say('实际 USB 或端口配置尚未保持，使用 root 恢复（USB 切换在独立会话中完成）。')
-                run_root(current, method, PAYLOAD, timeout=5, label='恢复实际 ADB 功能')
                 last_apply = time.monotonic()
+                remaining = deadline - last_apply
+                if remaining <= 0:
+                    break
+                try:
+                    run_root(current, method, PAYLOAD, timeout=min(5, remaining), label='恢复实际 ADB 功能')
+                except subprocess.TimeoutExpired:
+                    say('设置请求期间断线，结果未知；重新读回实际状态后再决定是否补写。')
             time.sleep(1)
             continue
         usb_ok = probe_transport(USB, deadline)
@@ -586,6 +727,11 @@ def ensure_stable():
         if not usb_ok or not tcp_ok:
             stable_since = None
             say(f'连接尚未全部就绪：USB={usb_ok}，TCP={tcp_ok}。')
+            if usb_ok and not tcp_ok and tcp_restarts < 2 and time.monotonic() >= next_tcp_restart:
+                tcp_restarts += 1
+                say(f'已确认 USB/root 恢复，补发 TCP 监听请求（{tcp_restarts}/2）。')
+                start_tcp(USB, deadline)
+                next_tcp_restart = time.monotonic() + 5
             time.sleep(1)
             continue
         now = time.monotonic()
@@ -629,6 +775,8 @@ def enable_via_web(password):
         say(f'后台开关读回：{state or "未知（会话可能已失效）"}；尚不能据此认定 USB ADB 已出现。')
         if value == '1' and state == '0':
             raise RuntimeError(f'开启请求后仍读到关闭状态，请在 {CONSOLE} 打开 USB 调试。')
+    if not args.adb_only:
+        ensure_web_samba(password)
     if usb_target():
         say('0 → 1 切换后已检测到实际 USB ADB，跳过重启。')
         return None
