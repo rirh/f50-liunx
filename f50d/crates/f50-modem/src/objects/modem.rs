@@ -89,8 +89,7 @@ fn restart(inner: &Arc<Inner>) -> Result<Value> {
 }
 
 pub(super) fn object(inner: &Arc<Inner>) -> Object {
-    let (a, b, c, d, e, f) =
-        (inner.clone(), inner.clone(), inner.clone(), inner.clone(), inner.clone(), inner.clone());
+    let (a, b, c, d, e, f) = (inner.clone(), inner.clone(), inner.clone(), inner.clone(), inner.clone(), inner.clone());
     Object::builder("f50.modem")
         .method(
             "status",

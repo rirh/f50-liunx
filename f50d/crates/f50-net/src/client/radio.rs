@@ -136,10 +136,65 @@ async fn stop_ap(net: &Net) {
     tokio::time::sleep(Duration::from_secs(1)).await;
 }
 
+/// The hotspot is off in the configuration (scan mode, a saved network kept the radio, or turned off by hand).
+pub(crate) async fn ap_disabled(net: &Net) -> bool {
+    let Ok(w) = Wireless::load(net).await else { return false };
+    w.hotspot(&net.cfg().wlan).is_some_and(|(_, ap)| ap.get("disabled") == Some("1"))
+}
+
+/// netifd is still setting a radio up (or down).
+async fn wireless_pending(net: &Net) -> bool {
+    let Ok(v) = tools::ubus(net, "network.wireless", "status", &serde_json::json!({})).await else { return false };
+    v.as_object().is_some_and(|radios| radios.values().any(|r| r["pending"].as_bool() == Some(true)))
+}
+
+/// The radio's phy (`phy0`): the first in `/sys/class/ieee80211`.
+fn phy(net: &Net) -> Option<String> {
+    let mut names: Vec<String> = std::fs::read_dir(net.path("/sys/class/ieee80211"))
+        .ok()?
+        .filter_map(|e| e.ok().map(|e| e.file_name().to_string_lossy().into_owned()))
+        .collect();
+    names.sort();
+    names.into_iter().next()
+}
+
+/// wlan0 as a station when it is missing. netifd's setup of a radio with no enabled interface deletes every
+/// interface on the phy (`iface 'wlan0' deleted`; the driver then powers the chip down), so with the hotspot off
+/// nothing is left to scan or join with. `iw phy … interface add` makes it again as a station (the driver powers
+/// the chip back up). Waits until netifd is done with the radio first, and makes it again if that setup still
+/// deleted it.
+pub(crate) async fn ensure_station(net: &Net) -> Result<()> {
+    let ifname = net.cfg().wlan.clone();
+    for attempt in 0..3 {
+        if tools::iface_type(&ifname).await.is_some() {
+            return Ok(());
+        }
+        for _ in 0..30 {
+            if !wireless_pending(net).await {
+                break;
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+        let Some(phy) = phy(net) else { return Err(Error::failed("no Wi-Fi radio (no phy in /sys/class/ieee80211)")) };
+        tracing::info!(%phy, %ifname, attempt, "the Wi-Fi interface is gone (hotspot off): making it again as a station");
+        tools::iw(&["phy", &phy, "interface", "add", &ifname, "type", "managed"], Duration::from_secs(10)).await?;
+        // netifd may still be about to set the radio up: give it the time it took to delete the last one
+        tokio::time::sleep(Duration::from_secs(if attempt == 0 { 3 } else { 6 })).await;
+    }
+    if tools::iface_type(&ifname).await.is_some() {
+        Ok(())
+    } else {
+        Err(Error::failed(format!("{ifname} could not be made again as a station")))
+    }
+}
+
 /// The radio ready for the client, or `Err` when it is an access point (this driver cannot go back without a
 /// reboot: stopping the hotspot would only leave the device with no Wi-Fi at all).
 pub(crate) async fn prepare_station(net: &Net) -> Result<()> {
     let ifname = net.cfg().wlan.as_str();
+    if !ap_active(net).await {
+        ensure_station(net).await?;
+    }
     if tools::iface_type(ifname).await.as_deref() != Some("managed") {
         return Err(Error::failed(
             "the radio is the hotspot now and cannot scan or join until a reboot (scan_reboot boots with the hotspot off)",

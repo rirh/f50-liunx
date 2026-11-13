@@ -34,7 +34,7 @@ use f50_core::rpc::Object;
 use f50_core::time::unix_now;
 use f50_core::{Error, Result};
 use serde_json::{Value, json};
-use tokio::sync::{Notify, mpsc};
+use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
@@ -89,7 +89,7 @@ pub(crate) struct Inner {
     pub pool: Pool,
     /// The store as the last sync left it.
     pub storage: Mutex<Option<Storage>>,
-    pub sync_now: Notify,
+    pub sync_now: mpsc::Sender<oneshot::Sender<Result<()>>>,
     pub hooks: mpsc::Sender<hook::HookEvent>,
     /// The concatenation reference of the next long message.
     pub reference: AtomicU8,
@@ -115,17 +115,18 @@ impl Sms {
         let dir = cfg.dir.clone().unwrap_or_else(|| paths.state().join("sms"));
         let pool = Pool::open(dir, &paths.sys(&cfg.legacy_pool), cfg.partial_wait.as_secs())?;
         let hooks = hook::start(paths.sys(&cfg.hook), cfg.hook_timeout, tracker, shutdown.clone());
+        let (sync_now, sync_requests) = mpsc::channel(1);
         let inner = Arc::new(Inner {
             cfg,
             at,
             jobs,
             pool,
             storage: Mutex::new(None),
-            sync_now: Notify::new(),
+            sync_now,
             hooks,
             reference: AtomicU8::new((unix_now() % 256) as u8),
         });
-        tracker.spawn(receiver::run(inner.clone(), shutdown));
+        tracker.spawn(receiver::run(inner.clone(), sync_requests, shutdown));
         Ok(Sms { inner })
     }
 
@@ -206,9 +207,16 @@ impl Sms {
         Ok(json!({ "deleted": gone.len(), "sim_deleted": sim_deleted }))
     }
 
-    /// Asks the receiver for a sync of the modem's store now.
-    fn sync(&self) {
-        self.inner.sync_now.notify_one();
+    /// A job that waits for the receiver to restore notifications and sync the modem's store.
+    fn sync(&self) -> Result<String> {
+        let spec = JobSpec::new("f50.sms sync", "sms", Duration::from_secs(180)).not_cancellable();
+        let inner = self.inner.clone();
+        self.inner.jobs.start(spec, move |_ctx| async move {
+            let (reply, done) = oneshot::channel();
+            inner.sync_now.try_send(reply).map_err(|_| Error::busy("the SMS receiver is busy or stopping"))?;
+            done.await.map_err(|_| Error::failed("the SMS receiver stopped before sync completed"))??;
+            Ok(json!({ "synced": true }))
+        })
     }
 }
 

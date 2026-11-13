@@ -56,6 +56,16 @@ make install    # 构建 f50d 和网页，开启 ADB，刷入 OpenWrt
 
 ## 在 Android 和 OpenWrt 之间切换
 
+在这台电脑的项目目录中，通过 USB 数据线执行：
+
+```sh
+make android    # 返回 Android，并设为默认启动
+make openwrt    # 自动准备 Android root，切回 OpenWrt，并恢复 OpenWrt 默认启动
+```
+
+Android 下运行 `make openwrt` 时，电脑还需连接 F50 的 Wi-Fi。命令复用本项目构建的 `work/busybox` 和切换脚本，
+无需安装 Magisk；切换不会重新刷入镜像或同步 TrustOS。多台 USB 设备连接时用 `F50_SERIAL=...` 指定目标。
+
 - **OpenWrt → Android**：侧边栏账户菜单里的「切换到 Android」，或在设备上执行
   `ubus call f50.boot android`（两秒后重启进入 Android）
 - **Android → OpenWrt**：Magisk → 模块 → F50 Linux switch → 操作；或在电脑上

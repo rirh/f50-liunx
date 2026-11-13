@@ -49,9 +49,21 @@ pub(crate) async fn keep_radio_for_client(net: &Net) -> Result<bool> {
     radio::keep_for_client(net).await
 }
 
+/// See [`Net::hotspot_disabled`].
+pub(crate) async fn hotspot_disabled(net: &Net) -> bool {
+    radio::ap_disabled(net).await
+}
+
 /// See [`Net::boot_wifi_client`].
 pub(crate) async fn boot(net: &Net) -> Result<()> {
+    // the hotspot off for this boot (scan mode, a saved network) leaves no interface once netifd set the radio up
+    if radio::ap_disabled(net).await
+        && let Err(e) = radio::ensure_station(net).await
+    {
+        tracing::warn!(error = %e, "Wi-Fi station interface");
+    }
     if radio::scan_until(net).is_some() {
+        tracing::info!("scan mode: the hotspot stays off for ten minutes unless a network is joined");
         tokio::spawn(scan_window(net.clone()));
     }
     let Some(s) = saved::load(net) else { return Ok(()) };

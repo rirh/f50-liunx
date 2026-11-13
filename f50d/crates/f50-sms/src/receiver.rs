@@ -16,11 +16,13 @@
 //! deleted or the network told; a power cut loses neither copy.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use f50_at::Urc;
 use f50_core::time::unix_now;
 use f50_core::{Error, Result};
 use tokio::sync::broadcast::error::RecvError;
+use tokio::sync::{mpsc, oneshot};
 use tokio::time::MissedTickBehavior;
 use tokio_util::sync::CancellationToken;
 
@@ -32,16 +34,22 @@ use crate::pool::Absorbed;
 
 /// Failed `+CMT` rounds in a row before direct delivery is given up.
 const MAX_FAILURES: u32 = 3;
+const ACK_RETRY: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Default)]
 struct Rx {
     configured: bool,
     direct: bool,
     failures: u32,
+    ack_pending: bool,
 }
 
 /// The receiver task: until `shutdown`.
-pub(crate) async fn run(svc: Arc<Inner>, shutdown: CancellationToken) {
+pub(crate) async fn run(
+    svc: Arc<Inner>,
+    mut sync_requests: mpsc::Receiver<oneshot::Sender<Result<()>>>,
+    shutdown: CancellationToken,
+) {
     let mut urcs = svc.at.urcs();
     let mut ready = svc.at.ready();
     let mut urcs_open = true;
@@ -49,10 +57,13 @@ pub(crate) async fn run(svc: Arc<Inner>, shutdown: CancellationToken) {
     let mut tick = tokio::time::interval(svc.cfg.sync_interval);
     tick.set_missed_tick_behavior(MissedTickBehavior::Delay);
     tick.reset(); // the first sync is the setup's
+    let mut ack_tick = tokio::time::interval(ACK_RETRY);
+    ack_tick.set_missed_tick_behavior(MissedTickBehavior::Delay);
+    ack_tick.reset();
     let mut rx = Rx::default();
     let mut up = *ready.borrow_and_update();
     if up {
-        guarded(&shutdown, setup(&svc, &mut rx)).await;
+        guarded(&shutdown, periodic(&svc, &mut rx, up)).await;
     }
     loop {
         tokio::select! {
@@ -65,15 +76,23 @@ pub(crate) async fn run(svc: Arc<Inner>, shutdown: CancellationToken) {
                 let now_up = *ready.borrow_and_update();
                 if now_up && !up {
                     // the modem restarted: its notification settings are its defaults again
-                    guarded(&shutdown, setup(&svc, &mut rx)).await;
+                    rx.configured = false;
+                    guarded(&shutdown, periodic(&svc, &mut rx, now_up)).await;
                 } else if !now_up {
                     rx.configured = false;
                     rx.direct = false;
+                    rx.ack_pending = false;
                 }
                 up = now_up;
             }
             u = urcs.recv(), if urcs_open => match u {
-                Ok(urc) => guarded(&shutdown, on_urc(&svc, &mut rx, urc)).await,
+                Ok(urc) => {
+                    let pending = rx.ack_pending;
+                    guarded(&shutdown, on_urc(&svc, &mut rx, urc)).await;
+                    if rx.ack_pending && !pending {
+                        ack_tick.reset();
+                    }
+                }
                 Err(RecvError::Lagged(n)) => {
                     // an announcement may be among the lost lines: the store is listed instead
                     tracing::warn!(lost = n, "unsolicited lines were lost; syncing the SMS store");
@@ -82,7 +101,12 @@ pub(crate) async fn run(svc: Arc<Inner>, shutdown: CancellationToken) {
                 Err(RecvError::Closed) => urcs_open = false,
             },
             _ = tick.tick() => guarded(&shutdown, periodic(&svc, &mut rx, up)).await,
-            () = svc.sync_now.notified() => guarded(&shutdown, sync_logged(&svc)).await,
+            _ = ack_tick.tick(), if rx.ack_pending => guarded(&shutdown, acknowledge_pending(&svc, &mut rx)).await,
+            Some(reply) = sync_requests.recv() => guarded(&shutdown, async {
+                if !reply.is_closed() {
+                    let _ = reply.send(manual_sync(&svc, &mut rx).await);
+                }
+            }).await,
         }
     }
 }
@@ -96,34 +120,43 @@ async fn guarded(shutdown: &CancellationToken, work: impl Future<Output = ()>) {
     }
 }
 
-async fn setup(svc: &Inner, rx: &mut Rx) {
-    if let Err(e) = modem::notification_mode(&svc.at, false).await {
-        tracing::warn!(error = %e, "SMS setup failed; retried at the next sync");
-        rx.configured = false;
-        return;
-    }
-    sync_logged(svc).await;
-    rx.direct = modem::notification_mode(&svc.at, svc.cfg.direct).await.unwrap_or(false);
+async fn setup(svc: &Inner, rx: &mut Rx) -> Result<()> {
+    rx.configured = false;
+    modem::notification_mode(&svc.at, false).await?;
+    rx.direct = false;
+    rx.ack_pending = false;
+    sync(svc).await?;
+    rx.direct = modem::notification_mode(&svc.at, svc.cfg.direct).await?;
     rx.configured = true;
     rx.failures = 0;
     tracing::info!(direct = rx.direct, "SMS receiving is set up");
+    Ok(())
 }
 
 async fn periodic(svc: &Inner, rx: &mut Rx, up: bool) {
-    if !rx.configured {
-        if up {
-            setup(svc, rx).await;
-        } else {
-            // the modem is away: the parts waiting past the partial wait are still pooled
-            absorb_logged(svc).await;
-        }
+    if !up {
+        // the modem is away: the parts waiting past the partial wait are still pooled
+        absorb_logged(svc).await;
         return;
     }
-    sync_logged(svc).await;
-    if rx.direct && modem::direct_still_on(&svc.at).await == Some(false) {
-        rx.direct = modem::notification_mode(&svc.at, true).await.unwrap_or(false);
-        tracing::warn!(direct = rx.direct, "the modem had dropped direct SMS delivery");
+    if let Err(e) = manual_sync(svc, rx).await {
+        tracing::warn!(error = %e, "SMS sync failed; retried later");
     }
+}
+
+async fn manual_sync(svc: &Inner, rx: &mut Rx) -> Result<()> {
+    if !rx.configured {
+        return setup(svc, rx).await;
+    }
+    sync(svc).await?;
+    if !modem::notifications_still_on(&svc.at, rx.direct).await? {
+        rx.configured = false;
+        rx.direct = modem::notification_mode(&svc.at, rx.direct).await?;
+        rx.configured = true;
+        rx.ack_pending = false;
+        tracing::warn!(direct = rx.direct, "the modem had dropped SMS notifications; restored");
+    }
+    Ok(())
 }
 
 async fn on_urc(svc: &Inner, rx: &mut Rx, urc: Urc) {
@@ -135,17 +168,13 @@ async fn on_urc(svc: &Inner, rx: &mut Rx, urc: Urc) {
         }
     } else if line.starts_with("+CMT:") {
         match on_cmt(svc, urc.body.as_deref()).await {
-            Ok(()) => rx.failures = 0,
+            Ok(()) => {
+                rx.ack_pending = true;
+                acknowledge_pending(svc, rx).await;
+            }
             Err(e) => {
-                rx.failures += 1;
-                tracing::warn!(error = %e, failures = rx.failures, "a directly delivered message was not pooled");
-                if rx.failures >= MAX_FAILURES && rx.direct {
-                    // never keep asking the network's acknowledgement of a modem that refuses it
-                    modem::stored_mode(&svc.at).await;
-                    rx.direct = false;
-                    rx.failures = 0;
-                    tracing::warn!("direct SMS delivery given up; new messages are stored and announced");
-                }
+                tracing::warn!(error = %e, "a directly delivered message was not pooled");
+                receive_failed(svc, rx).await;
             }
         }
     } else if line.starts_with("+CDS:") {
@@ -154,7 +183,41 @@ async fn on_urc(svc: &Inner, rx: &mut Rx, urc: Urc) {
             tracing::info!(reference = r.reference, status = r.status, "an SMS status report");
         }
         if rx.direct {
-            let _ = modem::acknowledge(&svc.at).await;
+            rx.ack_pending = true;
+            acknowledge_pending(svc, rx).await;
+        }
+    }
+}
+
+/// A busy send can hold the AT channel longer than the acknowledgement's queue wait. Retry without waiting for
+/// another URC: the modem may hold every later message until this acknowledgement arrives.
+async fn acknowledge_pending(svc: &Inner, rx: &mut Rx) {
+    match modem::acknowledge(&svc.at).await {
+        Ok(()) => {
+            rx.ack_pending = false;
+            rx.failures = 0;
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "SMS acknowledgement failed; retried shortly");
+            receive_failed(svc, rx).await;
+        }
+    }
+}
+
+async fn receive_failed(svc: &Inner, rx: &mut Rx) {
+    rx.failures += 1;
+    if rx.failures >= MAX_FAILURES && rx.direct {
+        match modem::stored_mode(&svc.at).await {
+            Ok(()) => {
+                rx.direct = false;
+                rx.ack_pending = false;
+                rx.failures = 0;
+                tracing::warn!("direct SMS delivery given up; new messages are stored and announced");
+            }
+            Err(e) => {
+                rx.configured = false;
+                tracing::warn!(error = %e, "stored SMS delivery could not be restored; retried at the next sync");
+            }
         }
     }
 }
@@ -174,7 +237,7 @@ async fn on_cmti(svc: &Inner, line: &str) -> Result<()> {
     Ok(())
 }
 
-/// `+CMT: ,<length>` and its PDU: parked, absorbed, acknowledged.
+/// `+CMT: ,<length>` and its PDU: parked and absorbed before the caller acknowledges it.
 async fn on_cmt(svc: &Inner, body: Option<&str>) -> Result<()> {
     let pdu = body.map(str::trim).filter(|p| crate::pdu::is_pdu_line(p)).ok_or_else(|| Error::failed("no PDU"))?;
     let (pdu, now) = (pdu.to_owned(), unix_now());
@@ -184,7 +247,7 @@ async fn on_cmt(svc: &Inner, body: Option<&str>) -> Result<()> {
     }
     // on the disk now: whatever the absorb does, the message is safe, so it is acknowledged either way
     absorb_logged(svc).await;
-    modem::acknowledge(&svc.at).await
+    Ok(())
 }
 
 /// Parks slots of `store`; the indexes the pool now holds (and that may leave the store).
@@ -200,7 +263,7 @@ async fn park(svc: &Inner, slots: Vec<Slot>, store: &str) -> Result<Vec<u32>> {
                     Err(e) => {
                         // a full or read-only disk: what is not parked stays on the SIM
                         tracing::warn!(error = %e, "an SMS could not be parked; it stays in the modem's store");
-                        break;
+                        return Err(e);
                     }
                 }
             }
@@ -226,8 +289,9 @@ pub(crate) async fn sync(svc: &Inner) -> Result<()> {
     }
     .await;
     // the waiting parts are looked at whatever the modem did
-    absorb_logged(svc).await;
+    let absorbed = absorb(svc).await;
     let storage = listed?;
+    absorbed?;
     *svc.storage.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(storage);
     Ok(())
 }
@@ -239,14 +303,17 @@ async fn sync_logged(svc: &Inner) {
 }
 
 async fn absorb_logged(svc: &Inner) {
-    let now = unix_now();
-    match svc.pool.with(move |st| st.absorb(now)).await {
-        Ok(Absorbed { new, waiting }) => {
-            if !new.is_empty() {
-                tracing::info!(new = new.len(), waiting, "SMS pooled");
-                hook::offer(&svc.hooks, &new);
-            }
-        }
-        Err(e) => tracing::warn!(error = %e, "the SMS pool could not take the parked messages"),
+    if let Err(e) = absorb(svc).await {
+        tracing::warn!(error = %e, "the SMS pool could not take the parked messages");
     }
+}
+
+async fn absorb(svc: &Inner) -> Result<()> {
+    let now = unix_now();
+    let Absorbed { new, waiting } = svc.pool.with(move |st| st.absorb(now)).await?;
+    if !new.is_empty() {
+        tracing::info!(new = new.len(), waiting, "SMS pooled");
+        hook::offer(&svc.hooks, &new);
+    }
+    Ok(())
 }

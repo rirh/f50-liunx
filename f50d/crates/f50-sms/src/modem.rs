@@ -103,11 +103,8 @@ async fn pick_store(s: &mut AtSession) -> Result<Storage> {
 /// Of the stores the modem accepted (in the order tried): the first that holds anything, else the first with room,
 /// else the first.
 fn choose_store(seen: Vec<Storage>) -> Option<Storage> {
-    let pick = seen
-        .iter()
-        .position(|st| st.used != 0)
-        .or_else(|| seen.iter().position(|st| st.total != 0))
-        .unwrap_or(0);
+    let pick =
+        seen.iter().position(|st| st.used != 0).or_else(|| seen.iter().position(|st| st.total != 0)).unwrap_or(0);
     seen.into_iter().nth(pick)
 }
 
@@ -138,17 +135,14 @@ pub(crate) async fn delete_slot(s: &mut AtSession, index: u32) -> bool {
 /// is on. A refusal of any of them leaves the stored mode as it was (FINDINGS 51).
 pub(crate) async fn notification_mode(at: &At, direct: bool) -> Result<bool> {
     let mut s = at.session("sms", Duration::from_secs(8)).await?;
-    let stored = s.send(STORED_CNMI, T_SHORT).await.map(|r| r.is_ok()).unwrap_or(false);
-    if !stored {
-        tracing::warn!("the modem refused {STORED_CNMI}");
-    }
+    need_ok(s.send(STORED_CNMI, T_SHORT).await?, "stored SMS notifications")?;
     if !direct {
         return Ok(false);
     }
     for cmd in ["AT+CMGF=0", "AT+CSMS=1", DIRECT_CNMI] {
         if !s.send(cmd, T_SHORT).await.map(|r| r.is_ok()).unwrap_or(false) {
             tracing::warn!(command = cmd, "the modem did not take direct SMS delivery; new messages are stored");
-            let _ = s.send(STORED_CNMI, T_SHORT).await;
+            need_ok(s.send(STORED_CNMI, T_SHORT).await?, "restoring stored SMS notifications")?;
             return Ok(false);
         }
     }
@@ -156,15 +150,19 @@ pub(crate) async fn notification_mode(at: &At, direct: bool) -> Result<bool> {
 }
 
 /// Back to stored mode (after acknowledgements that kept failing).
-pub(crate) async fn stored_mode(at: &At) {
-    let _ = at.send(STORED_CNMI, SendOpts::control(T_SHORT)).await;
+pub(crate) async fn stored_mode(at: &At) -> Result<()> {
+    need_ok(at.send(STORED_CNMI, SendOpts::control(T_SHORT)).await?, "stored SMS notifications").map(|_| ())
 }
 
 /// Whether the modem still routes messages to us: it drops mt to 0 by itself after an acknowledgement that never
 /// came. Only mt is looked at: the modem says OK and keeps a bm of its own ("3,2,1,0,1" for "3,2,2,0,1", FINDINGS 51).
-pub(crate) async fn direct_still_on(at: &At) -> Option<bool> {
-    let r = at.send("AT+CNMI?", SendOpts::control(T_SHORT)).await.ok()?;
-    r.value("+CNMI").and_then(cnmi_mt).map(|mt| mt == 2)
+pub(crate) async fn notifications_still_on(at: &At, direct: bool) -> Result<bool> {
+    let r = need_ok(at.send("AT+CNMI?", SendOpts::control(T_SHORT)).await?, "reading SMS notifications")?;
+    let mt = r
+        .value("+CNMI")
+        .and_then(cnmi_mt)
+        .ok_or_else(|| Error::failed("the modem's SMS notification mode was not understood"))?;
+    Ok(mt == if direct { 2 } else { 1 })
 }
 
 /// `AT+CNMA=1`: the message delivered directly is ours. Only once the pool holds it on the disk; until then the

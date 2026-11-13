@@ -11,7 +11,7 @@
 //! - `send {number, text}`: starts a send job, `{"job": id}`; the job's result is `{"id", "parts", "references"}`.
 //! - `delete {id | "all", sim}`: from the pool (remembered, so the SIM cannot bring it back); with `sim`, the matching
 //!   messages in the modem's store too.
-//! - `sync {}`: a sync of the modem's store, in the background.
+//! - `sync {}`: restores notifications and syncs the modem's store as a job, `{"job": id, "started": true}`.
 //! - `unread {}`: `{"total", "unread"}`.
 
 use f50_core::rpc::{Access, Field, Object, Params, Rule};
@@ -82,10 +82,10 @@ pub(crate) fn object(sms: Sms) -> Object {
             "sync",
             Access::Write,
             &[],
-            "Moves what the modem's store holds into the pool, in the background.",
+            "Restores SMS notifications and moves stored messages into the pool as a job.",
             move |_p: Params| {
-                e.sync();
-                async { Ok(json!({ "started": true })) }
+                let r = e.sync();
+                async { r.map(|job| json!({ "job": job, "started": true })) }
             },
         )
         .method(

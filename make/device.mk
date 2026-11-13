@@ -1,5 +1,5 @@
 # The running device, over SSH.
-.PHONY: ssh status logs restart reboot
+.PHONY: ssh status logs restart reboot android openwrt
 
 ssh:
 	$(SSH) -t
@@ -19,3 +19,7 @@ restart:
 reboot:
 	$(SSH) 'sync; reboot' || true
 	@echo "rebooting $(DEVICE_IP)"
+
+# USB system switches; Android root is prepared by the script when needed.
+android openwrt:
+	@F50_IP="$(F50_IP)" F50_SERIAL="$(F50_SERIAL)" PYTHON="$(PYTHON)" sh scripts/device/switch-os.sh $@

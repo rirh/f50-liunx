@@ -150,7 +150,7 @@ source: `crates/f50-sms/src/api.rs`
   - fields: `Field::req("number", Rule::Word { re: r"\+?[0-9]{1,20}", max: 21 }), Field::secret("text", Rule::Body { max_chars: 1530 }, true),`
 - **delete** (write) — Deletes a message or all; with sim, the matching ones in the modem's store too.
   - fields: `Field::req("id", Rule::WordNum { re: "all|[1-9][0-9]{0,8}", max: 9 }), Field::opt("sim", Rule::Bool)`
-- **sync** (write) — Moves what the modem's store holds into the pool, in the background.
+- **sync** (write, job) — Restores SMS notifications and moves stored messages into the pool. Returns `{"job":"<id>","started":true}`; poll `f50.job status` for completion or failure.
 - **unread** (read) — How many messages the pool holds, and how many are unread.
 
 ## `f50.status`

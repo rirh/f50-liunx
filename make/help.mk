@@ -38,6 +38,8 @@ help:
 	  '  make logs            跟踪系统日志（Ctrl+C 退出）' \
 	  '  make restart         重启 f50d 守护进程' \
 	  '  make reboot          整机重启' \
+	  '  make android         USB 切换并重启到 Android' \
+	  '  make openwrt         USB 切回 OpenWrt，并设为默认启动（Android 时需连接 F50 Wi-Fi）' \
 	  '' \
 	  '开发' \
 	  '  make dev             网页开发服务器（127.0.0.1:5173，/ubus 转发到设备）' \

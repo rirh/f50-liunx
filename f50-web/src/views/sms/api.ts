@@ -37,7 +37,7 @@ export const sendSms = (number: string, text: string) =>
 export const deleteSms = (id: number, sim: boolean) =>
   f50<DeleteResult>(OBJ, "delete", { id: String(id), sim });
 
-/** A sync of the modem's store, in the background. */
-export const syncSms = () => f50<{ started: boolean }>(OBJ, "sync");
+/** Starts a sync job; its result confirms that receiving setup and the store sync completed. */
+export const syncSms = () => f50<JobStarted>(OBJ, "sync");
 
 export const unreadCounts = () => f50<UnreadCounts>(OBJ, "unread");

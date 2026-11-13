@@ -126,9 +126,11 @@ async fn net_boot(s: Services, shutdown: CancellationToken) {
         if let Err(e) = net.boot_usb().await {
             tracing::warn!(error = %e, "USB boot mode");
         }
-        // the Wi-Fi client needs wlan0, which netifd makes
+        // the Wi-Fi client needs wlan0, which netifd makes; with the hotspot off netifd makes none, and the client
+        // makes it itself once the radio (phy) is there
         for _ in 0..60 {
-            if std::path::Path::new("/sys/class/net/wlan0").exists() {
+            let phy = std::fs::read_dir("/sys/class/ieee80211").is_ok_and(|mut d| d.next().is_some());
+            if std::path::Path::new("/sys/class/net/wlan0").exists() || (phy && net.hotspot_disabled().await) {
                 if let Err(e) = net.boot_wifi_client().await {
                     tracing::warn!(error = %e, "Wi-Fi client at boot");
                 }

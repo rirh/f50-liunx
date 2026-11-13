@@ -11,6 +11,10 @@ const m: Messages["sms"] = {
   },
   toast: {
     syncStarted: "Syncing messages from the SIM card",
+    synced: "SMS sync completed",
+    syncFailed: "SMS sync failed: {reason}",
+    syncUnavailable:
+      "The device cannot report sync results. Update the device and try again.",
     deleted: "Deleted {count} messages",
     deleted_one: "Deleted {count} message",
     deletedSim: "Deleted {count} messages ({sim} on the SIM card)",

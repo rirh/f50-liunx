@@ -8,6 +8,9 @@ export default {
   },
   toast: {
     syncStarted: "已开始同步 SIM 卡中的短信",
+    synced: "短信同步完成",
+    syncFailed: "短信同步失败：{reason}",
+    syncUnavailable: "设备不支持查询同步结果，请更新设备后重试",
     deleted: "已删除 {count} 条",
     deleted_one: "已删除 {count} 条",
     deletedSim: "已删除 {count} 条（SIM 卡中 {sim} 条）",

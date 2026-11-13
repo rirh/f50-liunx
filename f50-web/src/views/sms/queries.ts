@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { usePoll } from "@/hooks/use-live";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
+import { isJobStarted, JOB_STATE_LABEL, jobStatus } from "@/lib/jobs";
 import {
   useInfiniteQuery,
   useMutation,
@@ -95,15 +96,31 @@ function useInvalidateSms() {
 }
 
 export function useSyncSms() {
-  const invalidate = useInvalidateSms();
+  const qc = useQueryClient();
   return useMutation({
-    // the device syncs in the background: the mutation stays pending (the button shines) until the list is read again
+    // Keep the button pending until the device reports the sync's actual outcome.
     mutationFn: async () => {
-      await syncSms();
-      await new Promise((r) => window.setTimeout(r, 3000));
-      await invalidate();
+      const started = await syncSms();
+      if (!isJobStarted(started)) {
+        throw new Error(t("sms.toast.syncUnavailable"));
+      }
+      for (;;) {
+        const job = await jobStatus(started.job);
+        if (job.state === "done") return;
+        if (job.state !== "running") {
+          throw new Error(job.error?.message ?? JOB_STATE_LABEL[job.state]);
+        }
+        await new Promise((r) => window.setTimeout(r, 1000));
+      }
     },
-    onError: (e) => toast.error(errorMessage(e)),
+    onSuccess: () => toast.success(t("sms.toast.synced")),
+    onError: (e) =>
+      toast.error(t("sms.toast.syncFailed", { reason: errorMessage(e) })),
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: smsKeys.all }),
+        qc.invalidateQueries({ queryKey: ["jobs"] }),
+      ]),
   });
 }
 

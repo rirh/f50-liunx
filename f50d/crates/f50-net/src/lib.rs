@@ -185,6 +185,12 @@ impl Net {
         client::boot(self).await
     }
 
+    /// The hotspot is off in `/etc/config/wireless` (scan mode, a saved network kept the radio, or by hand): netifd
+    /// then makes no wlan0, and [`Net::boot_wifi_client`] makes it as a station.
+    pub async fn hotspot_disabled(&self) -> bool {
+        client::hotspot_disabled(self).await
+    }
+
     /// The hotspot is up (enabled, and hostapd runs it): what the Wi-Fi LED shows. Read-only, over ubus.
     pub async fn hotspot_up(&self) -> bool {
         wifi::ap::is_up(self).await

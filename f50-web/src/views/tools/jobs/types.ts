@@ -15,6 +15,7 @@ const JOB_KIND_LABEL: Record<string, Key> = {
 const JOB_METHOD_LABEL: Record<string, Key> = {
   "f50.at send": "tools.jobs.method.atSend",
   "f50.sms send": "tools.jobs.method.smsSend",
+  "f50.sms sync": "sms.actions.sync",
   "f50.update apply": "tools.jobs.method.updateApply",
   "f50.update apply_file": "tools.jobs.method.updateApplyFile",
   "f50.update check": "tools.jobs.method.updateCheck",
