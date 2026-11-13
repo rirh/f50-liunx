@@ -2,9 +2,9 @@
 //!
 //! Flash wear decides the layout: the live ledger is in RAM (`/var/run/f50d/traffic/ledger`, rewritten every
 //! round, so a restarted daemon loses nothing), the copy on flash is written rarely ([`super::sampler`]). The flash
-//! copy is on the Linux data partition (`/mnt/mu300-disk/.f50d/traffic`) when it is there, so it survives a system
-//! update, else in `/etc/f50d/traffic`. The shell's count (`/mnt/mu300-disk/.mu300/traffic` or
-//! `/etc/mu300/traffic`, the same format) is taken over once when there is none of ours yet.
+//! copy is on the Linux data partition (`/mnt/f50-disk/.f50d/traffic`) when it is there, so it survives a system
+//! update, else in `/etc/f50d/traffic`. The shell's count (`/mnt/f50-disk/.f50/traffic` or
+//! `/etc/f50/traffic`, the same format) is taken over once when there is none of ours yet.
 //!
 //! Settings: `conf` beside the ledger, `KEY=VALUE` lines read (never executed), each value checked against its
 //! rule and its default used otherwise.
@@ -95,7 +95,7 @@ impl Store {
     pub fn new(paths: &Paths) -> Store {
         let disk = paths.disk();
         let dir = if disk.is_dir() { disk.join(".f50d/traffic") } else { paths.state().join("traffic") };
-        let old = vec![paths.sys("/mnt/mu300-disk/.mu300/traffic"), paths.sys("/etc/mu300/traffic")];
+        let old = vec![paths.sys("/mnt/f50-disk/.f50/traffic"), paths.sys("/etc/f50/traffic")];
         Store { dir, run: paths.run().join("traffic"), old }
     }
 

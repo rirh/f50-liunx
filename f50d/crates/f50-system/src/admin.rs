@@ -91,7 +91,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn zones_as_mu300_api() {
+    fn zones_as_the_shell_api() {
         assert_eq!(tz_of("UTC", None).expect("utc"), "UTC0");
         assert_eq!(tz_of("Europe/Istanbul", Some("TZif...\n<+03>-3\n")).expect("ist"), "<+03>-3");
         assert_eq!(tz_of("Europe/Nowhere", None).map_err(|e| e.code()), Err(f50_core::Code::Unsupported));

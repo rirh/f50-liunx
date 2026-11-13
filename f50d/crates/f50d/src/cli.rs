@@ -11,6 +11,8 @@
 //! f50d call <object> <method> [json]       one API call to the running daemon (json, or stdin, or {})
 //! f50d methods                             the API's description (f50.meta describe)
 //! f50d acl                                 the rpcd ACL the daemon generated
+//! f50d openapi [--from <describe.json>]    the API as OpenAPI 3.1 (from the running daemon, sampling its read
+//!                                          methods for the response shapes; or offline from a describe reply)
 //! ```
 //!
 //! Started as `modprobe-guard` (a link), it is the kernel's module helper.
@@ -26,7 +28,8 @@ use serde_json::{Value, json};
 use crate::{boot, bus, daemon, log};
 
 const USAGE: &str = "usage: f50d daemon | at-keeper | boot <stage> | proto <op> <config> [iface] | \
-                     hotplug <iface|net|ntp|wcn> | call <object> <method> [json] | methods | acl";
+                     hotplug <iface|net|ntp|wcn> | call <object> <method> [json] | methods | acl | \
+                     openapi [--from <describe.json>]";
 
 pub fn run(argv: Vec<OsString>) -> ExitCode {
     let name = argv.first().and_then(|a| Path::new(a).file_name()).map(|n| n.to_string_lossy().into_owned());
@@ -43,6 +46,7 @@ pub fn run(argv: Vec<OsString>) -> ExitCode {
         Some("call") => short(call(&args[1..])),
         Some("methods") => short(print_call("f50.meta", "describe", json!({}))),
         Some("acl") => short(print_call("f50.daemon", "acl", json!({}))),
+        Some("openapi") => short(openapi(&args[1..])),
         _ => {
             log::init(None);
             tracing::error!("{USAGE}");
@@ -97,6 +101,66 @@ async fn print_call(object: &str, method: &str, args: Value) -> ExitCode {
     let _ = serde_json::to_writer_pretty(&mut out, &v);
     let _ = std::io::Write::write_all(&mut out, b"\n");
     ok_of(&v)
+}
+
+/// How many times each read method is sampled for its response shape (keys that are sometimes absent or null).
+const OPENAPI_ROUNDS: usize = 2;
+
+/// `f50d openapi`: the OpenAPI document. With `--from FILE` it converts a saved `f50.meta describe` reply and samples
+/// nothing (any machine); otherwise it asks the running daemon and calls every read method that takes no required
+/// argument, keeping only the shape of what came back.
+async fn openapi(args: &[String]) -> ExitCode {
+    let (describe, sample) = match args {
+        [flag, file] if flag == "--from" => {
+            match std::fs::read_to_string(file).map(|t| serde_json::from_str::<Value>(&t)) {
+                Ok(Ok(v)) => (v.get("data").cloned().unwrap_or(v), false),
+                _ => {
+                    tracing::error!("cannot read a describe reply from {file}");
+                    return ExitCode::from(2);
+                }
+            }
+        }
+        [] => {
+            let v = bus::call("f50.meta", "describe", &json!({}), Duration::from_secs(30)).await;
+            if v.get("ok") != Some(&json!(true)) {
+                println_json(&v);
+                return ExitCode::FAILURE;
+            }
+            (v["data"].clone(), true)
+        }
+        _ => return ExitCode::from(2),
+    };
+    let mut samples = std::collections::BTreeMap::new();
+    if sample {
+        for o in describe["objects"].as_array().into_iter().flatten() {
+            let object = o["name"].as_str().unwrap_or_default();
+            for m in o["methods"].as_array().into_iter().flatten() {
+                let method = m["name"].as_str().unwrap_or_default();
+                let plain_read = m["access"] == "read"
+                    && m["fields"].as_array().is_none_or(|f| f.iter().all(|x| x["required"] != json!(true)));
+                if !plain_read {
+                    continue;
+                }
+                let mut seen = Vec::new();
+                for round in 0..OPENAPI_ROUNDS {
+                    if round > 0 {
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                    }
+                    let v = bus::call(object, method, &json!({}), Duration::from_secs(30)).await;
+                    if v.get("ok") == Some(&json!(true)) {
+                        seen.push(v["data"].clone());
+                    }
+                }
+                if !seen.is_empty() {
+                    let refs: Vec<&Value> = seen.iter().collect();
+                    samples.insert(format!("{object}.{method}"), f50_api::openapi::infer(&refs));
+                }
+                tracing::debug!(object, method, samples = seen.len(), "sampled");
+            }
+        }
+    }
+    println_json(&f50_api::openapi::generate(&describe, &samples, env!("CARGO_PKG_VERSION")));
+    ExitCode::SUCCESS
 }
 
 async fn call(args: &[String]) -> ExitCode {

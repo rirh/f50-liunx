@@ -5,7 +5,7 @@
 //! - *other*: handled by another step (the accounts) or the package manager's state (its database, `/etc/apk/world`),
 //!   or the new image's own description of itself (its version, package lists and manifest);
 //! - *vendor*: the device's own files (firmware, Android's userspace, hand-built modules), never in a release;
-//! - *project*: the project's programs (`opt/mu300`, `usr/libexec/unisoc-modem`, the `mu300-*` init scripts, the
+//! - *project*: the project's programs (`opt/f50` or `opt/mu300`, `usr/libexec/unisoc-modem`, the `f50-*`/`mu300-*` init scripts, the
 //!   commands an image links into /usr/local/bin): the release's version is in use;
 //! - *script*: the scripts that start and wire services (`/etc/init.d`, `/etc/hotplug.d`, ...): programs, not settings;
 //! - *user area*: /etc /var /home /root /srv /mnt /media /usr/local /opt: where the user's version of a file wins.
@@ -46,7 +46,7 @@ pub fn never(p: &str) -> bool {
             "mnt/mu300-disk",
             "mnt/f50-disk",
         ],
-    ) || at_or_under(p, &[".mu300-image", ".mu300-carry", ".f50-carry", ".f50-carried"])
+    ) || at_or_under(p, &[".mu300-image", ".f50-image", ".mu300-carry", ".f50-carry", ".f50-carried"])
 }
 
 pub fn other(p: &str) -> bool {
@@ -58,23 +58,29 @@ pub fn other(p: &str) -> bool {
     }
     const IMAGE_OWN: &[&str] =
         &["image-version", "image-packages", "packages.txt", "image-manifest.gz", "update-report.new"];
-    if p.strip_prefix("etc/mu300/").is_some_and(|f| IMAGE_OWN.contains(&f)) {
+    if p.strip_prefix("etc/f50/").or_else(|| p.strip_prefix("etc/mu300/")).is_some_and(|f| IMAGE_OWN.contains(&f)) {
         return true;
     }
-    matches!(p, "etc/.pwd.lock" | "etc/ld.so.cache" | "etc/.mu300-accounts-from-image" | "etc/apk/world")
-        || at_or_under(p, &["etc/mu300/user-packages", "lib/apk", "usr/lib/opkg"])
+    matches!(
+        p,
+        "etc/.pwd.lock"
+            | "etc/ld.so.cache"
+            | "etc/.f50-accounts-from-image"
+            | "etc/.mu300-accounts-from-image"
+            | "etc/apk/world"
+    ) || at_or_under(p, &["etc/f50/user-packages", "etc/mu300/user-packages", "lib/apk", "usr/lib/opkg"])
 }
 
 pub fn vendor(p: &str) -> bool {
-    under(p, &["opt/mu300/android", "lib/firmware", "usr/lib/firmware", "lib/modules"])
+    under(p, &["opt/f50/android", "opt/mu300/android", "lib/firmware", "usr/lib/firmware", "lib/modules"])
 }
 
 pub fn project(p: &str, cmds: &HashSet<String>) -> bool {
-    if under(p, &["opt/mu300", "usr/libexec/unisoc-modem"]) {
+    if under(p, &["opt/f50", "opt/mu300", "usr/libexec/unisoc-modem"]) {
         return true;
     }
     if let Some(n) = p.strip_prefix("etc/init.d/")
-        && n.starts_with("mu300-")
+        && (n.starts_with("f50-") || n.starts_with("mu300-"))
         && !n.contains('/')
     {
         return true;
@@ -150,7 +156,7 @@ pub fn secure(p: &str) -> bool {
 
 /// The places an update always kept, before there were manifests (the fallback's list for OpenWrt).
 pub const KEEP_LIST: &[&str] =
-    &["etc/config", "etc/mu300", "etc/unisoc-modem", "etc/dropbear", "etc/rc.local", "etc/crontabs", "root"];
+    &["etc/config", "etc/f50", "etc/mu300", "etc/unisoc-modem", "etc/dropbear", "etc/rc.local", "etc/crontabs", "root"];
 
 pub fn kept_place(p: &str) -> bool {
     at_or_under(p, KEEP_LIST)
@@ -232,6 +238,8 @@ mod tests {
         let cmds: HashSet<String> = ["mu300-at".to_owned()].into();
         assert!(project("opt/mu300/bin/x", &cmds) && project("etc/init.d/mu300-atd", &cmds));
         assert!(project("usr/local/bin/mu300-at", &cmds) && !project("usr/local/bin/mine", &cmds));
+        assert!(other("etc/f50/image-version") && !other("etc/f50/hotspot.conf") && vendor("opt/f50/android/x"));
+        assert!(project("opt/f50/bin/x", &cmds) && project("etc/init.d/f50-x", &cmds) && kept_place("etc/f50/adb"));
         assert!(script("etc/init.d/cron") && user_area("etc/config/network") && !user_area("usr/bin/ls"));
         assert!(enable_link("etc/rc.d/S50cron") && !enable_link("etc/rc.d/README"));
         assert_eq!(service_of("etc/rc.d/S50cron"), "cron");

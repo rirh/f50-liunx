@@ -40,7 +40,7 @@ pub(crate) async fn handoff(net: &Net) {
         tools::ip_quiet(&["link", "set", "rndis0", "master", &br]).await;
         tools::ip_quiet(&["link", "set", "rndis0", "up"]).await;
     }
-    let pidfile = net.path("/run/mu300-early-udhcpd.pid");
+    let pidfile = net.path("/run/f50-early-udhcpd.pid");
     if let Some(pid) =
         f50_core::fsx::read_line(&pidfile).filter(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
     {
@@ -104,13 +104,13 @@ fn rebind_after_lan(net: &Net) {
         let guard = gadget::lock(&n).await;
         if due && crate::adbd::linked(&n) {
             drop(guard);
-            tools::logger("mu300", "usb gadget re-enumerated by adbd (adb joined it)").await;
+            tools::logger("f50", "usb gadget re-enumerated by adbd (adb joined it)").await;
             return;
         }
         gadget::unbind(&n);
         tokio::time::sleep(Duration::from_secs(1)).await;
         if gadget::bind(&n, &udc, 1).await {
-            tools::logger("mu300", &format!("usb gadget re-enumerated on {udc}")).await;
+            tools::logger("f50", &format!("usb gadget re-enumerated on {udc}")).await;
         }
         drop(guard);
         tokio::time::sleep(Duration::from_secs(1)).await;

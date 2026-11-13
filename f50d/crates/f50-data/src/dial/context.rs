@@ -39,10 +39,10 @@ impl Context<'_> {
         self.platform.paths().state().join(format!("apn-auth.{}", self.slot.number()))
     }
 
-    /// The shell's mark for the same card (`/etc/mu300/apn-auth-set.sim<0 tray|1 internal>`), honoured after an
+    /// The shell's mark for the same card (`/etc/f50/apn-auth-set.sim<0 tray|1 internal>`), honoured after an
     /// upgrade so credentials it gave the modem are taken back too.
     fn old_mark(&self) -> PathBuf {
-        self.platform.paths().sys(format!("/etc/mu300/apn-auth-set.sim{}", self.slot.index()))
+        self.platform.paths().sys(format!("/etc/f50/apn-auth-set.sim{}", self.slot.index()))
     }
 
     fn marked(&self) -> bool {

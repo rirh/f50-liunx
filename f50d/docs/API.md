@@ -1,5 +1,8 @@
 # f50d API reference (extracted from the Rust method tables)
 
+The machine-readable version is the OpenAPI 3.1 document [`api/openapi.json`](api/openapi.json) (`f50d openapi`; Swagger UI
+in the web console at `/f50/api-docs/`).
+
 Every reply is `{"ok":true,"data":...}` or `{"ok":false,"code":...,"error":...,"field":...}`. Methods marked *job* return `{"job":"<id>"}`; poll `f50.job status {id}`.
 
 ## `f50.at`

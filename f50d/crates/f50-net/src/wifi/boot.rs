@@ -1,6 +1,6 @@
 //! The wireless configuration at boot, before the Wi-Fi comes up.
 //!
-//! Made once (`openwrt-wifi-config`): from `/etc/mu300/hotspot.conf` (imported from Android by the installer) or with
+//! Made once (`openwrt-wifi-config`): from `/etc/f50/hotspot.conf` (imported from Android by the installer) or with
 //! a random passphrase; afterwards the Wi-Fi is managed with UCI and LuCI. 5 GHz is never a DFS channel (the driver
 //! has no radar detection, FINDINGS 42): a DFS channel in hotspot.conf, or one the country does not allow, becomes the
 //! country's default, and so does "auto"; the radio's channel list (used when LuCI sets "auto") is the country's
@@ -40,7 +40,7 @@ async fn dfs_fix(net: &Net) -> Result<bool> {
     }
     let cc = super::country_of(net, radio);
     if let Some(note) = channels::ap5_resolve(&cc, Some(ch)).note {
-        tools::logger("mu300-wifi", &note).await;
+        tools::logger("f50-wifi", &note).await;
     }
     let Some(d) = channels::ap5_default(&cc) else { return Ok(false) };
     let mut out = vec![set(radio, "channel", d.to_string())];
@@ -124,7 +124,7 @@ async fn first(net: &Net, marker: &std::path::Path) -> Result<bool> {
             let mac =
                 fsx::read_line(&net.path(format!("/sys/class/net/{}/address", net.cfg().wlan))).unwrap_or_default();
             let hex: String = mac.chars().filter(char::is_ascii_hexdigit).collect();
-            format!("MU300-{}", hex.get(hex.len().saturating_sub(4)..).unwrap_or("").to_ascii_uppercase())
+            format!("F50-{}", hex.get(hex.len().saturating_sub(4)..).unwrap_or("").to_ascii_uppercase())
         }
     };
     let psk = match conf_value(&conf, "PSK").filter(|p| crate::rules::psk_ok(p)) {
@@ -186,7 +186,7 @@ async fn first(net: &Net, marker: &std::path::Path) -> Result<bool> {
         let _ = std::fs::create_dir_all(d);
     }
     fsx::write_atomic(marker, b"", 0o644)?;
-    tools::logger("mu300-wifi", &format!("wireless configured: {band} channel {channel}")).await;
+    tools::logger("f50-wifi", &format!("wireless configured: {band} channel {channel}")).await;
     Ok(true)
 }
 

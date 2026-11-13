@@ -2,8 +2,10 @@
 //!
 //! Every path here is an absolute *device* path; [`Hw`](crate::Hw) resolves it under the platform's root
 //! ([`f50_core::paths::Paths::sys`]) so tests can move it. Several of them are not f50d's to choose: the initramfs
-//! (`boot/init`, not ported) publishes the slot and the boot control blocks under `/run/mu300`, counts boots in
-//! `.mu300/` on the Linux disk and reads `/etc/mu300/default-boot`, so those names stay byte for byte what it uses.
+//! (`boot/init`, not ported) publishes the slot and the boot control blocks under `/run/f50`, counts boots in
+//! `.f50/` on the Linux disk and reads `/etc/f50/default-boot`. An initramfs built before the rename uses `/run/mu300`,
+//! `.mu300/` and `/etc/mu300` instead: [`Paths::sys`](f50_core::paths::Paths::sys) takes those where the F50 names
+//! are not there, so both meet f50d at the same files.
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -11,7 +13,7 @@ use std::time::Duration;
 /// The bring-up's configuration. `Default` is the ZTE F50 on OpenWrt.
 #[derive(Debug, Clone)]
 pub struct HwConfig {
-    /// The imported Android vendor tree the modem's daemons run in (chroot). Defaults to `/opt/mu300/android`
+    /// The imported Android vendor tree the modem's daemons run in (chroot). Defaults to `/opt/f50/android`
     /// because that is where the installer (and `systems/openwrt/build-rootfs.sh`) unpacks it; f50d does not move it.
     pub vendor_root: PathBuf,
     /// The liblog sink the vendor daemons write to (`/dev/socket/logdw`; FINDINGS 5, requirement 5).
@@ -31,9 +33,9 @@ pub struct HwConfig {
     pub initramfs_run: PathBuf,
     /// The default boot (`linux` keeps Linux armed); the initramfs reads it too.
     pub default_boot: PathBuf,
-    /// Where the Linux disk's `.mu300/` (boot-attempts, boot-tries, boot-lock) is looked for, in order.
+    /// Where the Linux disk's `.f50/` (boot-attempts, boot-tries, boot-lock) is looked for, in order.
     pub disk_dirs: Vec<PathBuf>,
-    /// Failed boots in a row before Android when `.mu300/boot-attempts` says nothing usable.
+    /// Failed boots in a row before Android when `.f50/boot-attempts` says nothing usable.
     pub default_attempts: u8,
     /// How long a change of misc waits for another one (the lock) before giving up.
     pub boot_lock_wait: Duration,
@@ -67,23 +69,23 @@ pub struct HwConfig {
 impl Default for HwConfig {
     fn default() -> Self {
         HwConfig {
-            vendor_root: "/opt/mu300/android".into(),
-            logdw: "/opt/mu300/bin/logdw".into(),
+            vendor_root: "/opt/f50/android".into(),
+            logdw: "/opt/f50/bin/logdw".into(),
             vendor_log: "/var/log/android-logcat.txt".into(),
-            vendor_account: "mu300vnd".into(),
-            android_cmdline: "/run/mu300-cmdline.android".into(),
+            vendor_account: "f50vnd".into(),
+            android_cmdline: "/run/f50-cmdline.android".into(),
             modem_stack_wait: Duration::from_secs(90),
             chroot_wait: Duration::from_secs(60),
-            initramfs_run: "/run/mu300".into(),
-            default_boot: "/etc/mu300/default-boot".into(),
-            disk_dirs: vec!["/mnt/mu300-disk".into(), "/".into()],
+            initramfs_run: "/run/f50".into(),
+            default_boot: "/etc/f50/default-boot".into(),
+            disk_dirs: vec!["/mnt/f50-disk".into(), "/".into()],
             default_attempts: 5,
             boot_lock_wait: Duration::from_secs(60),
-            timeline: "/run/mu300/boot-timeline".into(),
+            timeline: "/run/f50/boot-timeline".into(),
             cmdline_sources: vec!["/proc/cmdline".into(), "/proc/device-tree/chosen/bootargs".into()],
             modprobe_helper: "/usr/libexec/f50d/modprobe-guard".into(),
             modprobe: "/sbin/modprobe".into(),
-            autoload_allow: vec!["/etc/f50d/autoload-allow-all".into(), "/etc/mu300/autoload-allow-all".into()],
+            autoload_allow: vec!["/etc/f50d/autoload-allow-all".into(), "/etc/f50/autoload-allow-all".into()],
             dele_wait: Duration::from_secs(180),
             post_delay: Duration::from_secs(30),
             recorder_window: Duration::from_secs(420),

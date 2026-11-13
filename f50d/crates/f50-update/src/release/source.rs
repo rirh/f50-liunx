@@ -1,10 +1,11 @@
 //! Where a run takes the releases from: GitHub, or a mirror named in the source file (root's own file, lines
-//! `MU300_API_URL=`, `MU300_DOWNLOAD_URL=`, `MU300_MIRROR_FALLBACK=0|1`, as the shell read `/etc/mu300/update-source`).
+//! `F50_API_URL=`, `F50_DOWNLOAD_URL=`, `F50_MIRROR_FALLBACK=0|1`; the `MU300_` names the shell read from
+//! `/etc/mu300/update-source` count as well).
 //!
 //! A mirror that cannot be reached is said once and the rest of that run comes from GitHub - but by itself only for
 //! an https mirror on a public name. A plain-http mirror or one on a private address is almost always a copy on the
 //! LAN, kept so the release does not come over a metered SIM: there the run stops and says why
-//! (`MU300_MIRROR_FALLBACK=1` allows it, `0` forbids it for every mirror; FINDINGS 86, "When the mirror is not there").
+//! (`F50_MIRROR_FALLBACK=1` allows it, `0` forbids it for every mirror; FINDINGS 86, "When the mirror is not there").
 //! With a release key a mirror cannot change a file; without one it is trusted as much as whoever runs it.
 
 use std::path::Path;
@@ -66,15 +67,15 @@ impl Source {
         for line in text.lines().take(32) {
             let Some((k, v)) = line.trim().split_once('=') else { continue };
             match k {
-                "MU300_API_URL" | "F50_API_URL" if matches(URL_RE, v) => {
+                "F50_API_URL" | "MU300_API_URL" if matches(URL_RE, v) => {
                     s.api = v.trim_end_matches('/').to_owned();
                     s.mirror = true;
                 }
-                "MU300_DOWNLOAD_URL" | "F50_DOWNLOAD_URL" if matches(URL_RE, v) => {
+                "F50_DOWNLOAD_URL" | "MU300_DOWNLOAD_URL" if matches(URL_RE, v) => {
                     s.download = v.trim_end_matches('/').to_owned();
                     s.mirror = true;
                 }
-                "MU300_MIRROR_FALLBACK" | "F50_MIRROR_FALLBACK" => {
+                "F50_MIRROR_FALLBACK" | "MU300_MIRROR_FALLBACK" => {
                     s.fallback = match v {
                         "0" => Fallback::Never,
                         "1" => Fallback::Always,

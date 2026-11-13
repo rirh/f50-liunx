@@ -16,7 +16,7 @@ pub struct BootInfo {
     pub default_boot: String,
     /// Failed boots in a row before Android (only while a new boot image is on trial when locked).
     pub attempts: u8,
-    /// Linux stays whatever happens (`.mu300/boot-lock`).
+    /// Linux stays whatever happens (`.f50/boot-lock`).
     pub locked: bool,
     /// Boots since the last good one, as the initramfs counted them.
     pub boots_since_good: Option<u32>,

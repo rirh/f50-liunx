@@ -95,9 +95,9 @@ impl BootCtl {
         Some(if dev.starts_with(self.paths.root()) { dev } else { self.paths.sys(dev) })
     }
 
-    /// `.mu300` on the Linux disk.
+    /// `.f50` on the Linux disk.
     pub(crate) fn disk_dir(&self) -> Option<PathBuf> {
-        self.disk_dirs.iter().map(|d| self.paths.sys(d).join(".mu300")).find(|d| d.is_dir())
+        self.disk_dirs.iter().map(|d| self.paths.sys(d.join(".f50"))).find(|d| d.is_dir())
     }
 
     pub(crate) fn attempts(&self) -> u8 {
@@ -120,7 +120,7 @@ impl BootCtl {
         self.default_boot().as_deref() == Some("linux")
     }
 
-    /// The initramfs counts every boot in `.mu300/boot-tries`; a good boot clears it.
+    /// The initramfs counts every boot in `.f50/boot-tries`; a good boot clears it.
     fn clear_boot_tries(&self) {
         if let Some(d) = self.disk_dir()
             && let Ok(mut f) = File::create(d.join("boot-tries"))
@@ -241,10 +241,10 @@ mod tests {
     fn fixture(name: &str, linux: Slot) -> Fx {
         let root = std::env::temp_dir().join(format!("f50-hw-bc-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
-        let run = root.join("run/mu300");
+        let run = root.join("run/f50");
         std::fs::create_dir_all(&run).expect("run");
-        std::fs::create_dir_all(root.join("etc/mu300")).expect("etc");
-        std::fs::create_dir_all(root.join("mnt/mu300-disk/.mu300")).expect("disk");
+        std::fs::create_dir_all(root.join("etc/f50")).expect("etc");
+        std::fs::create_dir_all(root.join("mnt/f50-disk/.f50")).expect("disk");
         let mut img = vec![0u8; 0x800];
         img.extend_from_slice(&hex(LIVE));
         img.extend_from_slice(&[0u8; 2016]);
@@ -257,12 +257,12 @@ mod tests {
         };
         std::fs::write(run.join("misc-bc-android.bin"), android).expect("a");
         std::fs::write(run.join("misc-bc-linux-trial.bin"), trial).expect("b");
-        std::fs::write(root.join("etc/mu300/default-boot"), "linux\n").expect("conf");
+        std::fs::write(root.join("etc/f50/default-boot"), "linux\n").expect("conf");
         let paths = Paths::new(&root);
         let bc = BootCtl {
             run,
-            conf: paths.sys("/etc/mu300/default-boot"),
-            disk_dirs: vec!["/mnt/mu300-disk".into(), "/".into()],
+            conf: paths.sys("/etc/f50/default-boot"),
+            disk_dirs: vec!["/mnt/f50-disk".into(), "/".into()],
             cmdline_sources: vec![root.join("cmdline")],
             default_attempts: 5,
             lock_wait: Duration::from_secs(1),
@@ -288,7 +288,7 @@ mod tests {
     #[tokio::test]
     async fn locked_and_trial_and_tries_cleared() {
         let f = fixture("lock", Slot::B);
-        let disk = f.root.join("mnt/mu300-disk/.mu300");
+        let disk = f.root.join("mnt/f50-disk/.f50");
         std::fs::write(disk.join("boot-lock"), "").expect("lock");
         std::fs::write(disk.join("boot-tries"), "3\n").expect("tries");
         f.bc.rearm().await.ok();
@@ -305,7 +305,7 @@ mod tests {
     #[tokio::test]
     async fn nothing_armed_unless_linux_is_the_default() {
         let f = fixture("android", Slot::B);
-        std::fs::write(f.root.join("etc/mu300/default-boot"), "android\n").expect("conf");
+        std::fs::write(f.root.join("etc/f50/default-boot"), "android\n").expect("conf");
         let before = bc_now(&f);
         assert_eq!(f.bc.rearm().await.ok(), Some(ArmOutcome::NotDefaultLinux));
         assert_eq!(f.bc.trial().await.ok(), Some(ArmOutcome::NotDefaultLinux));

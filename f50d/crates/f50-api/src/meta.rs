@@ -54,18 +54,21 @@ pub fn describe(objects: &[Object]) -> Value {
     json!({ "api": 1, "objects": objs })
 }
 
+const DESCRIBE_DOC: &str = "Every object and method, with access and field rules.";
+
+/// `f50.meta`, describing `described` and itself.
 pub(crate) fn object(described: Vec<Object>) -> Object {
-    let doc = describe(&described);
+    let mut doc = describe(&described);
+    if let Some(objs) = doc["objects"].as_array_mut() {
+        objs.push(json!({
+            "name": "f50.meta",
+            "methods": [{ "name": "describe", "access": "read", "doc": DESCRIBE_DOC, "fields": [] }],
+        }));
+    }
     Object::builder("f50.meta")
-        .method(
-            "describe",
-            Access::Read,
-            &[],
-            "Every object and method, with access and field rules.",
-            move |_p: Params| {
-                let d = doc.clone();
-                async move { Ok(d) }
-            },
-        )
+        .method("describe", Access::Read, &[], DESCRIBE_DOC, move |_p: Params| {
+            let d = doc.clone();
+            async move { Ok(d) }
+        })
         .build()
 }

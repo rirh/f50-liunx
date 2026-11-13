@@ -6,7 +6,7 @@
 //! before the Wi-Fi comes up, every access point that asks for SAE (encryption sae, sae-mixed, sae-compat, psk3,
 //! psk3-mixed, or the offload's hostapd option `u30_sae_offload`) becomes WPA2-PSK (CCMP) with the same password.
 //! Without a usable WPA2 password it is switched off instead - never left open. The settings as they were are kept
-//! once in `/etc/mu300/wireless.before-wpa2` (root only), and `/etc/mu300/wpa3-disabled` tells LuCI and the panel why.
+//! once in `/etc/f50/wireless.before-wpa2` (root only), and `/etc/f50/wpa3-disabled` tells LuCI and the panel why.
 //! Ported from `openwrt-wifi-wpa2-only migrate`.
 //!
 //! U-APSD (kanoqwq 2d3f7438, FINDINGS 203): `uapsd 0` on every access point; stations and every other option are
@@ -47,7 +47,7 @@ pub(crate) fn message(migrated: &[String], down: &[String]) -> (String, &'static
     if down.is_empty() {
         let m = format!(
             "WPA3 (SAE) on the hotspot is disabled for security (FINDINGS 80): {} is now WPA2-PSK (CCMP) with the same \
-             password. The settings it had are in /etc/mu300/wireless.before-wpa2.",
+             password. The settings it had are in /etc/f50/wireless.before-wpa2.",
             migrated.join(" ")
         );
         return (m, "migrated");
@@ -100,7 +100,7 @@ pub(crate) async fn migrate(net: &Net) -> Result<bool> {
         ok
     });
     let (msg, state) = message(&migrated, &down);
-    tools::logger("mu300-wifi", &msg).await;
+    tools::logger("f50-wifi", &msg).await;
     let notice = format!(
         "state={state}\ntime={}\nmigrated={}\ndown={}\n",
         f50_core::time::unix_now(),

@@ -98,9 +98,16 @@ One binary, several roles (`f50d <role>`, see `crates/f50d/src/cli.rs`):
 | `proto setup/teardown/renew` | netifd (`proto f50cell`) | forwards to `f50.proto` |
 | `hotplug iface/net/ntp/wcn` | hotplug.d | forwards to `f50.daemon` (wcn runs itself) |
 | `call <object> <method> [json]`, `methods`, `acl` | a shell | one call to the running daemon |
+| `openapi [--from <describe.json>]` | a shell, `docs/api/generate.sh` | the API as OpenAPI 3.1 (samples the read methods for response shapes) |
 | (as `modprobe-guard`) | the kernel | the module helper |
 
 ## API
+
+**OpenAPI / Swagger:** [`docs/api/openapi.json`](docs/api/openapi.json), generated from the method table by `f50d openapi`
+on a device (`docs/api/generate.sh` regenerates it over adb or `SSH=root@...`). Request schemas are the validation rules;
+response `data` schemas are inferred from sampled replies (shape only, never values). Methods appear as virtual paths
+`POST /{object}/{method}`; the web console ships Swagger UI at `/f50/api-docs/` whose "Try it out" sends the real
+`/ubus` JSON-RPC call with the console's login.
 
 Every object is `f50.<area>`; `f50.meta describe` returns the whole table (methods, access, field rules), and
 `f50.status get` the dashboard in one call. Over HTTP, uhttpd's `/ubus` JSON-RPC with an rpcd session:
@@ -126,7 +133,15 @@ repository).
 
 Kept from /opt/mu300: the programs that are not shell (busybox, adbd, logdw, the carry helper...), the vendor chroot
 (`/opt/mu300/android`, where the installer puts it), the release key, and the helpers preinit's early USB DHCP still
-uses. Runtime paths the initramfs shares keep their names (`/run/mu300`, `/mnt/mu300-disk/.mu300`).
+uses.
+
+f50d's paths and names are the F50's: `/etc/f50`, `/run/f50`, `/run/f50-*`, `/opt/f50`, `/lib/f50`, `/mnt/f50-disk`,
+`.f50` on the Linux disk, the `f50root` partition, the `f50vnd` account, `f50_wifi_*` nft tables, and release files
+`f50-release`, `f50-<system>-rootfs.tar.gz`, `f50-kernel*.tar.gz` (with `etc/f50/image-version` and the
+`f50-image-manifest` inside an image). Every one has a fallback to its name of before the rename (`mu300`): a path
+whose F50 name is not there and whose mu300 name is resolves to the latter (`Paths::sys`), and a release, image,
+partition or account under the old name is taken as well. So f50d runs unchanged on a device, an initramfs and the
+upstream releases that still use the mu300 names, and on ones built with the F50 names.
 
 ## Status
 

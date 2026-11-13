@@ -78,7 +78,7 @@ pub fn status(inner: &Inner) -> Value {
             "kernel": read_line(&l.boot_file("installed.kernel")),
             "slot": slot::linux_slot(l).to_string(),
             "previous": prev_boot,
-            "default": read_line(&l.sys("/etc/mu300/default-boot")).filter(|d| d == "linux").unwrap_or_else(|| "android".into()),
+            "default": read_line(&l.sys("/etc/f50/default-boot")).filter(|d| d == "linux").unwrap_or_else(|| "android".into()),
         },
         "disk": { "free_kb": free, "total_kb": total, "need_one_kb": 2_000_000u64, "need_all_kb": 1_000_000 + 1_000_000 * n },
         "lock": lock::holder(l),

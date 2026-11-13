@@ -2,7 +2,7 @@
 //! through uhttpd's cgi-io to the one path the panel's ACL may write (`.f50-upload/update.tar` on the Linux partition,
 //! in a directory only root can enter: a zip of a release is 40 to 400 MB, more than RAM should hold).
 //!
-//! The archive holds the files flat, as a release publishes them (`SHA256SUMS`, its signature, `mu300-release`, the
+//! The archive holds the files flat, as a release publishes them (`SHA256SUMS`, its signature, `f50-release` or `mu300-release`, the
 //! root filesystems, the kernel bundles). Nothing of it is unpacked to a path it names: a member is found by a name
 //! this code made (one of the release's file names) and copied out by its offset. The Magisk zip the shell took is not
 //! read here: the workspace has no zip or inflate, and the release's own tarballs are already compressed.

@@ -1,7 +1,7 @@
 //! Which A/B slot Linux runs from, and so which one is Android's.
 //!
 //! After an OTA Android often runs from b and the installer then puts Linux on a (FINDINGS 1, "Update 2026-10-07").
-//! The initramfs decides and publishes it (`/run/mu300/linux-slot`); without that file (an older boot image, or a
+//! The initramfs decides and publishes it (`/run/f50/linux-slot`); without that file (an older boot image, or a
 //! garbled one) the slot LK booted is on the kernel command line, or - the mainline kernel replaces that line - in
 //! the bootargs LK put in the device tree. b only when nothing says.
 

@@ -425,7 +425,7 @@ const m: Messages["network"] = {
       damaged: {
         title: "adb setting file is damaged",
         description:
-          "/etc/mu300/adb is neither on nor off, so adb stays off. Turning it off and on again fixes it.",
+          "/etc/f50/adb is neither on nor off, so adb stays off. Turning it off and on again fixes it.",
       },
       noKeys: {
         title: "No keys authorized yet",

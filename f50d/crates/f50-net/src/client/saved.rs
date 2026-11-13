@@ -1,4 +1,4 @@
-//! The saved network (`/etc/mu300/wifi-client.conf`, root's alone): `SSID=`, `PSK=`, `ENABLE=` (joined at boot) and
+//! The saved network (`/etc/f50/wifi-client.conf`, root's alone): `SSID=`, `PSK=`, `ENABLE=` (joined at boot) and
 //! `METRIC=`, the format the shell layer wrote, so an updated device keeps it. Values are only ever matched, never
 //! sourced; the file is replaced whole (no half-written PSK).
 

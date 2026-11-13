@@ -393,7 +393,7 @@ export default {
       damaged: {
         title: "adb 配置文件损坏",
         description:
-          "/etc/mu300/adb 既不是 on 也不是 off，adb 保持关闭。重新开关一次即可修复。",
+          "/etc/f50/adb 既不是 on 也不是 off，adb 保持关闭。重新开关一次即可修复。",
       },
       noKeys: {
         title: "尚未授权任何密钥",

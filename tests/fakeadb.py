@@ -35,6 +35,7 @@ DEFAULT = {
     'adb_state': 'device',       # device | unauthorized | offline | none (nothing attached)
     'extra_devices': [],         # more lines of `adb devices -l`
     'root': True,                # su works
+    'shell_root': False,         # adb's own shell is root (a stock F50 with USB debugging from its web console)
     'su_version': '27.0:MAGISKSU',
     'magisk': '27.0:MAGISK',
     'build': 'F50_ZYV1.0.0B09',
@@ -506,6 +507,11 @@ def main(argv):
             log('read' if ('f50-device' in line or line.endswith('f50-update check')) else 'write', argv, line)
             if 'f50-device --json' in line:
                 out.write(st.get('linux_json', '') + '\n')
+            return 0
+        if line == 'id -u':
+            # installer/lib/host-tools.sh's root_via: a root adb shell needs no su
+            log('read', argv, line)
+            out.write(('0' if st['shell_root'] else '2000') + '\n')
             return 0
         if line == 'su -v':
             log('read', argv, line)

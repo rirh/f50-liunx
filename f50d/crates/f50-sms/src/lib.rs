@@ -68,8 +68,8 @@ impl Default for SmsConfig {
     fn default() -> Self {
         SmsConfig {
             dir: None,
-            legacy_pool: "/etc/mu300/sms-pool".into(),
-            hook: "/etc/mu300/sms-hook".into(),
+            legacy_pool: "/etc/f50/sms-pool".into(),
+            hook: "/etc/f50/sms-hook".into(),
             hook_timeout: Duration::from_secs(60),
             direct: true,
             sync_interval: Duration::from_secs(60),

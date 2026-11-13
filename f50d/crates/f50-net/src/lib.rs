@@ -17,7 +17,7 @@
 //! | [`Net::hotspot_toggle`] | the Wi-Fi key | `hotspot-ap.sh` |
 //!
 //! Settings that are UCI's (`wireless`, `network`, `dhcp`, `firewall`) are changed only through
-//! `f50_platform::uci::Uci::apply`, then netifd or the service reloads. What the shell layer kept in `/etc/mu300`
+//! `f50_platform::uci::Uci::apply`, then netifd or the service reloads. What the shell layer kept in `/etc/f50`
 //! (the Wi-Fi client's saved network, adb's state, the USB network mode that boot/init reads) stays there, so an
 //! updated device keeps its choices and the initramfs keeps reading them.
 
@@ -91,14 +91,14 @@ impl Default for NetConfig {
             default_country: "TR".into(),
             client_metric: 50,
             join_wait: Duration::from_secs(25),
-            legacy_dir: "/etc/mu300".into(),
-            usb_net_applied: "/run/mu300/usb-net-applied".into(),
+            legacy_dir: "/etc/f50".into(),
+            usb_net_applied: "/run/f50/usb-net-applied".into(),
             usb_role: "/sys/class/usb_role/25100000.dwc3-role-switch/role".into(),
             gadget: "/sys/kernel/config/usb_gadget/linux".into(),
             gadgets: "/sys/kernel/config/usb_gadget".into(),
             udc_class: "/sys/class/udc".into(),
             ffs: "/dev/usb-ffs/adb".into(),
-            adbd: "/opt/mu300/bin/adbd".into(),
+            adbd: "/opt/f50/bin/adbd".into(),
             wpa_ctrl_dir: "/var/run/wpa_supplicant".into(),
             leases: "/tmp/dhcp.leases".into(),
         }

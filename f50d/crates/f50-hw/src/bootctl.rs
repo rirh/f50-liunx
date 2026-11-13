@@ -1,11 +1,11 @@
 //! Boot control: what keeps the device booting Linux instead of falling back to Android (`mu300-next-boot`).
 //!
-//! In default-Linux mode (`/etc/mu300/default-boot` says `linux`) the Linux slot is armed with `tries = N + 1`,
+//! In default-Linux mode (`/etc/f50/default-boot` says `linux`) the Linux slot is armed with `tries = N + 1`,
 //! `successful = 0`: LK counts down on every boot and rolls back to Android's slot when it finds `tries == 1`, so N
 //! boots in a row that never reach [`crate::Hw::mark_boot_good`] land in Android on the next one (FINDINGS 1, 32). A
-//! good boot arms N + 1 again. N is `.mu300/boot-attempts` on the Linux disk (1-6, else 5), shared with the
-//! initramfs, which counts boots in `.mu300/boot-tries` as its own backstop and is cleared here. "Locked"
-//! (`.mu300/boot-lock`) arms the slot `successful = 1`: LK never counts it down. A new boot image is armed as a trial
+//! good boot arms N + 1 again. N is `.f50/boot-attempts` on the Linux disk (1-6, else 5), shared with the
+//! initramfs, which counts boots in `.f50/boot-tries` as its own backstop and is cleared here. "Locked"
+//! (`.f50/boot-lock`) arms the slot `successful = 1`: LK never counts it down. A new boot image is armed as a trial
 //! (the attempts, not the lock) until its first good boot.
 //!
 //! The blocks are never made from scratch: the initramfs publishes this slot's pair (`misc-bc-android.bin`,

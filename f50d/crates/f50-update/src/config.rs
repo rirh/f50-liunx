@@ -53,7 +53,7 @@ impl Default for UpdateConfig {
             repo,
             systems: vec!["openwrt".into(), "openwrt-luci".into()],
             device: "f50".into(),
-            release_key: "/opt/mu300/lib/release.pub".into(),
+            release_key: "/opt/f50/lib/release.pub".into(),
             source_file: "/etc/f50d/update-source".into(),
             notice_interval: Duration::from_secs(6 * 3600),
             notice_delay: Duration::from_secs(300),

@@ -1,8 +1,8 @@
 //! The manifest of the image a system came from: which of its files the release brought (scripts/release/
 //! image-manifest.py has the format: `TYPE MODE UID GID SIZE HASH PATH` lines, a backslash written `\\` and a newline
-//! `\n`). The system's own (`etc/mu300/image-manifest.gz`, first line `mu300-image-manifest 1 IMAGE TAG`) counts
+//! `\n`). The system's own (`etc/f50/image-manifest.gz`, first line `f50-image-manifest 1 IMAGE TAG`; `etc/mu300`, `mu300-` before the rename) counts
 //! when it names this image and the release the system says it is; else the one the new image carries for that
-//! release (`opt/mu300/lib/image-manifests/IMAGE.gz`: `mu300-image-manifests 1 IMAGE`, a line of tags, then lines
+//! release (`opt/f50/lib/image-manifests/IMAGE.gz`: `f50-image-manifests 1 IMAGE`, a line of tags, then lines
 //! that start with the ranges of tag indexes they belong to). One bad line refuses the whole manifest, and the carry
 //! goes on as without one.
 
@@ -72,7 +72,8 @@ pub fn parse_line(l: &str) -> Option<(String, ManEntry)> {
 /// A system's own manifest: the first line must name `image` and `tag`.
 pub fn parse_own(text: &str, image: &str, tag: &str) -> Option<Manifest> {
     let mut lines = text.lines();
-    if lines.next()? != format!("mu300-image-manifest 1 {image} {tag}") {
+    let first = lines.next()?;
+    if !assets::MANIFEST_HEADS.iter().any(|h| first == format!("{h} 1 {image} {tag}")) {
         return None;
     }
     let m: Option<Manifest> = lines.map(parse_line).collect();
@@ -83,7 +84,7 @@ pub fn parse_own(text: &str, image: &str, tag: &str) -> Option<Manifest> {
 pub fn parse_union(text: &str, image: &str, tag: &str) -> Option<Manifest> {
     let mut lines = text.lines();
     let head: Vec<&str> = lines.next()?.split(' ').collect();
-    if head.len() < 3 || head[0] != "mu300-image-manifests" || head[1] != "1" || head[2] != image {
+    if head.len() < 3 || !assets::UNION_HEADS.contains(&head[0]) || head[1] != "1" || head[2] != image {
         return None;
     }
     let tags: Vec<&str> = lines.next()?.split(' ').skip(1).collect();
@@ -121,12 +122,12 @@ async fn gunzip(path: &Path) -> Option<String> {
 /// The manifest of the image `old` (a system of image `image`, release `tag`) came from, from `old` itself or from
 /// `new`'s collection.
 pub async fn load(old: &Path, new: &Path, image: &str, tag: &str) -> Option<Manifest> {
-    if let Some(t) = gunzip(&old.join(assets::IMAGE_MANIFEST)).await
+    if let Some(t) = gunzip(&assets::within(old, assets::IMAGE_MANIFEST)).await
         && let Some(m) = parse_own(&t, image, tag)
     {
         return Some(m);
     }
-    let t = gunzip(&new.join(assets::LEGACY_MANIFESTS).join(format!("{image}.gz"))).await?;
+    let t = gunzip(&assets::within(new, assets::LEGACY_MANIFESTS).join(format!("{image}.gz"))).await?;
     parse_union(&t, image, tag)
 }
 
@@ -156,5 +157,8 @@ mod tests {
         let m = parse_union(union, "openwrt", "v2026.10.27").expect("union");
         assert!(m.contains_key("www") && m.contains_key("root") && !m.contains_key("etc"));
         assert!(parse_union(union, "openwrt", "v2026.10.20").is_none());
+        let own = own.replacen("mu300-", "f50-", 1);
+        assert!(parse_own(&own, "openwrt", "v2026.11.01.1").is_some(), "the F50 name");
+        assert!(parse_union(&union.replacen("mu300-", "f50-", 1), "openwrt", "v2026.10.27").is_some());
     }
 }

@@ -1,5 +1,5 @@
 #!/bin/sh /etc/rc.common
-# f50d boot stage "vendor": Android's vendor daemons in the chroot (/opt/mu300/android) - cp_diskserver (the modem's
+# f50d boot stage "vendor": Android's vendor daemons in the chroot (/opt/f50/android, or /opt/mu300/android) - cp_diskserver (the modem's
 # NV), modem_control (PM watchdog + modem boot, FINDINGS 5), refnotify. Replaces mu300-vendor.
 #
 # START=09, before /etc/init.d/boot (10): its one job on the boot path is to release the CP, which then needs about

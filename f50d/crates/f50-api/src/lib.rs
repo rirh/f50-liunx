@@ -14,6 +14,7 @@
 pub mod acl;
 pub mod live;
 pub mod meta;
+pub mod openapi;
 pub mod status;
 
 use std::sync::Arc;
@@ -63,13 +64,14 @@ impl Api {
         public.extend(s.update.objects());
         public.push(s.jobs.object());
         public.push(f50_at::terminal::object(s.at.clone(), s.jobs.clone(), &s.paths));
-        let described = public.clone();
-        public.push(meta::object(described));
         let snapshot = Arc::new(public.clone());
         public.push(status::object(snapshot));
         // the live topics read through the same table, f50.status included
         let readable = Arc::new(public.clone());
         public.push(live::object(readable.clone()));
+        // last, so the description covers every public object (itself included)
+        let described = public.clone();
+        public.push(meta::object(described));
         let all = public.iter().chain(internal.iter()).cloned().collect();
         let uploads = vec![s.update.upload_path().to_string_lossy().into_owned()];
         Api {

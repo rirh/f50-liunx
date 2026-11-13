@@ -23,11 +23,17 @@ use f50_platform::uci::Change;
 use crate::Net;
 use crate::tools::{self, Listing};
 
-pub(crate) const NAT: &str = "mu300_wifi_nat";
-pub(crate) const FILTER: &str = "mu300_wifi_filter";
+pub(crate) const NAT: &str = "f50_wifi_nat";
+pub(crate) const FILTER: &str = "f50_wifi_filter";
+/// The tables' names before the rename: removed with every transaction, so a device has one set only.
+const LEGACY_NAT: &str = "mu300_wifi_nat";
+const LEGACY_FILTER: &str = "mu300_wifi_filter";
 /// The firewall rule that keeps LAN clients off the other network's private addresses (fw4 side).
-pub(crate) const PRIVATE_RULE: &str = "mu300-wifi-client-private";
-const PRIVATE_SECTION: &str = "mu300_wifi_private";
+pub(crate) const PRIVATE_RULE: &str = "f50-wifi-client-private";
+const PRIVATE_SECTION: &str = "f50_wifi_private";
+/// The rule's names before the rename: a device that has it under them keeps it (it is the same rule).
+const LEGACY_PRIVATE_RULE: &str = "mu300-wifi-client-private";
+const LEGACY_PRIVATE_SECTION: &str = "mu300_wifi_private";
 /// Every IPv4 destination that is not the internet (224.0.0.0/3 is 224.0.0.0 to 255.255.255.255).
 pub(crate) const PRIVATE4: &[&str] = &[
     "0.0.0.0/8",
@@ -55,6 +61,9 @@ pub(crate) enum FwState {
 /// icmpv6 type set), since [`state`] compares the two line for line.
 pub(crate) fn rules_text(st: FwState, ifname: &str, subnet: Option<(Ipv4Addr, u8)>) -> String {
     let mut t = format!("table ip {NAT}\ndelete table ip {NAT}\ntable inet {FILTER}\ndelete table inet {FILTER}\n");
+    t.push_str(&format!(
+        "table ip {LEGACY_NAT}\ndelete table ip {LEGACY_NAT}\ntable inet {LEGACY_FILTER}\ndelete table inet {LEGACY_FILTER}\n"
+    ));
     if matches!(st, FwState::None | FwState::Unknown) {
         return t;
     }
@@ -145,6 +154,8 @@ pub(crate) async fn remove(ifname: &str) {
     if tools::nft_apply(&rules_text(FwState::None, ifname, None)).await.is_err() {
         let _ = tools::nft_apply(&format!("delete table ip {NAT}\n")).await;
         let _ = tools::nft_apply(&format!("delete table inet {FILTER}\n")).await;
+        let _ = tools::nft_apply(&format!("delete table ip {LEGACY_NAT}\n")).await;
+        let _ = tools::nft_apply(&format!("delete table inet {LEGACY_FILTER}\n")).await;
     }
     if state(ifname, None).await != FwState::None && put(FwState::Closed, ifname, None).await.is_err() {
         tools::logger("wifi-client", &format!("the firewall tables for {ifname} could not be removed or closed (nft)"))
@@ -167,7 +178,10 @@ pub(crate) async fn wan_zone(net: &Net) -> Result<()> {
     if !zone.list("device").iter().any(|d| d == ifname) {
         out.push(Change::AddList { section: zone.name.clone(), option: "device".into(), value: ifname.clone() });
     }
-    let have_rule = fw.iter().any(|s| s.name == PRIVATE_SECTION || s.get("name") == Some(PRIVATE_RULE));
+    let have_rule = fw.iter().any(|s| {
+        [PRIVATE_SECTION, LEGACY_PRIVATE_SECTION].contains(&s.name.as_str())
+            || s.get("name").is_some_and(|n| [PRIVATE_RULE, LEGACY_PRIVATE_RULE].contains(&n))
+    });
     if !have_rule {
         let s = PRIVATE_SECTION.to_owned();
         out.push(Change::Section { section: s.clone(), stype: "rule".into() });
@@ -204,7 +218,8 @@ mod tests {
     fn closed_text() {
         let t = rules_text(FwState::Closed, "wlan0", None);
         assert!(t.starts_with(
-            "table ip mu300_wifi_nat\ndelete table ip mu300_wifi_nat\ntable inet mu300_wifi_filter\ndelete table inet mu300_wifi_filter\n"
+            "table ip f50_wifi_nat\ndelete table ip f50_wifi_nat\ntable inet f50_wifi_filter\ndelete table inet f50_wifi_filter\n\
+             table ip mu300_wifi_nat\ndelete table ip mu300_wifi_nat\ntable inet mu300_wifi_filter\ndelete table inet mu300_wifi_filter\n"
         ));
         assert!(
             t.contains("        iifname \"wlan0\" counter drop\n        oifname \"wlan0\" counter drop\n    }\n}\n")
@@ -221,12 +236,16 @@ mod tests {
         ));
         assert!(t.contains("oifname \"wlan0\" ip daddr 192.168.1.0/24 counter drop\n"));
         assert!(t.contains("oifname \"wlan0\" tcp flags syn tcp option maxseg size set rt mtu\n"));
-        assert_eq!(rules_text(FwState::None, "wlan0", None).lines().count(), 4);
+        assert_eq!(
+            rules_text(FwState::None, "wlan0", None).lines().count(),
+            8,
+            "ours and the tables of before the rename"
+        );
     }
 
     #[test]
     fn listing_compares_without_counters() {
-        let listed = "table inet mu300_wifi_filter {\n\tchain input {\n\t\ttype filter hook input priority filter; policy accept;\n\
+        let listed = "table inet f50_wifi_filter {\n\tchain input {\n\t\ttype filter hook input priority filter; policy accept;\n\
 \t\tiifname \"wlan0\" ct state established,related accept\n\t\tiifname \"wlan0\" udp sport 67 udp dport 68 accept\n\
 \t\tiifname \"wlan0\" icmp type echo-request limit rate 5/second burst 5 packets accept\n\
 \t\tiifname \"wlan0\" icmpv6 type { echo-request, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept\n\

@@ -1,6 +1,6 @@
 //! The USB-C port: its role (DWC3 role switch: device, the USB network and console to a computer; or host, USB
 //! NICs through a powered hub), the network function the gadget offers a computer (NCM, ECM, RNDIS or NCM + RNDIS,
-//! made by boot/init from `/etc/mu300/usb-net`), and the host-side NICs that join the LAN.
+//! made by boot/init from `/etc/f50/usb-net`), and the host-side NICs that join the LAN.
 //!
 //! - [`role`]: the role now, the boot policy, the switch (after the reply: the RPC may ride this very link);
 //! - [`gadget`]: what the gadget has bound, unbind/bind, the re-enumerations (FINDINGS 237, K10, K12, K67);

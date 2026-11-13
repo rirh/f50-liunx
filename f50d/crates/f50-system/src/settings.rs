@@ -1,6 +1,6 @@
 //! The small `KEY=VALUE` files this crate keeps under `/etc/f50d` (`cpu.conf`, `led.conf`, `zram.conf`).
 //!
-//! The format is the shell layer's (`/etc/mu300/*.conf`): the last line of a key counts, other lines (comments, keys
+//! The format is the shell layer's (`/etc/f50/*.conf`): the last line of a key counts, other lines (comments, keys
 //! of another version) are kept as they are, and a file is replaced whole, atomically.
 
 use std::path::{Path, PathBuf};

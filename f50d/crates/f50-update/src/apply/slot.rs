@@ -1,13 +1,13 @@
 //! Where the boot image goes and where the system lives, as the boot image's init must find it.
 //!
 //! - The slot Linux runs from (Android may be on either; an A/B device): what the initramfs published
-//!   (`/run/mu300/linux-slot`), else the slot LK booted (`androidboot.slot_suffix` on the command line or in the
+//!   (`/run/f50/linux-slot`), else the slot LK booted (`androidboot.slot_suffix` on the command line or in the
 //!   device tree's bootargs), and b when nothing says (an initramfs from before slot a).
 //! - The boot partition of that slot, on the internal disk only (the eMMC whatever its number, FINDINGS 31l; never
 //!   a card, which can carry the same GPT names), and only when /dev has a block device for it (FINDINGS 86: a /dev
 //!   rebuilt under a writer once made it a plain file in RAM).
-//! - Where the root is (`/run/mu300-root-dev`): the region after the eMMC's last partition, the SD card, a GPT
-//!   partition `mu300root`, or an image file (another installer's, which no init of ours mounts: issue #290).
+//! - Where the root is (`/run/f50-root-dev`): the region after the eMMC's last partition, the SD card, a GPT
+//!   partition `f50root` (`mu300root` before the rename), or an image file (another installer's, which no init of ours mounts: issue #290).
 
 use std::fs;
 use std::os::unix::fs::FileTypeExt;
@@ -19,7 +19,7 @@ use f50_core::{Error, Result};
 use crate::config::Layout;
 
 pub fn linux_slot(l: &Layout) -> char {
-    if let Some(s) = read_line(&l.sys("/run/mu300/linux-slot"))
+    if let Some(s) = read_line(&l.sys("/run/f50/linux-slot"))
         && (s == "a" || s == "b")
     {
         return if s == "a" { 'a' } else { 'b' };
@@ -49,12 +49,12 @@ pub enum RootLayout {
 }
 
 pub fn root_layout(l: &Layout) -> RootLayout {
-    match read_line(&l.sys("/run/mu300-root-dev")) {
-        Some(s) if s.ends_with("@mu300root") => RootLayout::Part,
+    match read_line(&l.sys("/run/f50-root-dev")) {
+        Some(s) if s.ends_with("@f50root") || s.ends_with("@mu300root") => RootLayout::Part,
         Some(s) if s.contains('@') => RootLayout::Region,
         Some(s) if !s.is_empty() => RootLayout::Sd,
         _ => {
-            let dd = read_line(&l.sys("/run/mu300/disk-dev")).unwrap_or_default();
+            let dd = read_line(&l.sys("/run/f50/disk-dev")).unwrap_or_default();
             let dd = dd.rsplit('/').next().unwrap_or("").to_owned();
             if dd.is_empty() {
                 RootLayout::Unknown
@@ -132,9 +132,9 @@ mod tests {
         fs::write(root.join("proc/cmdline"), "console=ttyS1 androidboot.slot_suffix=_a quiet").expect("cmdline");
         assert_eq!(linux_slot(&l), 'a');
         fs::create_dir_all(root.join("run")).expect("run");
-        fs::write(root.join("run/mu300-root-dev"), "mmcblk0@123456\n").expect("dev");
+        fs::write(root.join("run/f50-root-dev"), "mmcblk0@123456\n").expect("dev");
         assert_eq!(root_layout(&l), RootLayout::Region);
-        fs::write(root.join("run/mu300-root-dev"), "mmcblk1p1\n").expect("dev");
+        fs::write(root.join("run/f50-root-dev"), "mmcblk1p1\n").expect("dev");
         assert_eq!(root_layout(&l), RootLayout::Sd);
         assert!(partition(&l, "boot_b").is_err());
         let _ = fs::remove_dir_all(&root);

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>f50d API · Swagger</title>
+    <link rel="icon" href="../favicon.svg" />
+    <!-- Swagger UI from the jsDelivr CDN, pinned (the device serves only this page and openapi.json) -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui.css"
+    />
+    <style>
+      body {
+        margin: 0;
+      }
+      .f50-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        align-items: center;
+        padding: 0.6rem 1.25rem;
+        font:
+          14px/1.4 system-ui,
+          sans-serif;
+        background: #0f4c5c;
+        color: #fff;
+      }
+      .f50-bar a {
+        color: #bdf3ff;
+      }
+      .f50-bar code {
+        background: rgb(255 255 255 / 15%);
+        padding: 0 0.3em;
+        border-radius: 3px;
+      }
+      .f50-bar .state {
+        margin-left: auto;
+        opacity: 0.9;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="f50-bar">
+      <strong>f50d API</strong>
+      <span>
+        Every operation is a ubus call: “Try it out” sends it as JSON-RPC to
+        <code>/ubus</code> with your console login.
+      </span>
+      <span class="state" id="session-state"></span>
+    </div>
+    <div id="swagger"></div>
+    <script
+      src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"
+      crossorigin
+    ></script>
+    <script>
+      // The console's login (same origin): its rpcd session id. "Authorize" overrides it.
+      const SESSION_KEY = "f50-session";
+      const ANONYMOUS = "00000000000000000000000000000000";
+      function consoleSession() {
+        try {
+          const s = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+          return s && s.id ? s : null;
+        } catch {
+          return null;
+        }
+      }
+      const s = consoleSession();
+      document.getElementById("session-state").innerHTML = s
+        ? `Signed in as <code>${s.username}</code> (console session)`
+        : `Not signed in: <a href="../#/login">sign in to the console</a> or use “Authorize”`;
+
+      // POST /<object>/<method> (virtual) -> POST /ubus {"method":"call","params":[session, object, method, body]}
+      const VIRTUAL = /\/(f50\.[a-z0-9_.]+)\/([a-z0-9_]+)$/;
+
+      function toJsonRpc(req) {
+        const url = new URL(req.url, location.href);
+        const m = url.pathname.match(VIRTUAL);
+        if (!m || req.method.toUpperCase() !== "POST") {
+          // the real event-stream path takes the session as a bearer token
+          if (url.pathname.endsWith("/ubus/subscribe/f50.live")) {
+            const sid = sessionFrom(req);
+            if (sid) req.headers.Authorization = `Bearer ${sid}`;
+          }
+          return req;
+        }
+        let args = {};
+        if (req.body) {
+          try {
+            args =
+              typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+          } catch {
+            args = {};
+          }
+        }
+        req.url = `${location.origin}/ubus`;
+        req.body = JSON.stringify({
+          jsonrpc: "2.0",
+          id: Date.now(),
+          method: "call",
+          params: [sessionFrom(req), m[1], m[2], args],
+        });
+        req.headers["Content-Type"] = "application/json";
+        delete req.headers.Authorization;
+        return req;
+      }
+
+      function sessionFrom(req) {
+        const auth = req.headers.Authorization || req.headers.authorization;
+        if (auth)
+          return String(auth)
+            .replace(/^Bearer\s+/i, "")
+            .trim();
+        return consoleSession()?.id || ANONYMOUS;
+      }
+
+      // JSON-RPC result [status, envelope] -> the envelope the operation documents; ubus failures stay visible
+      function fromJsonRpc(res) {
+        if (!res.url.endsWith("/ubus")) return res;
+        let rpc;
+        try {
+          rpc = JSON.parse(res.text);
+        } catch {
+          return res;
+        }
+        let out;
+        if (rpc.error) {
+          out = {
+            jsonrpc_error: rpc.error,
+            hint:
+              rpc.error.code === -32002
+                ? "no session or no access: sign in"
+                : undefined,
+          };
+        } else if (Array.isArray(rpc.result) && rpc.result[0] === 0) {
+          out = rpc.result[1];
+        } else {
+          out = {
+            ubus_status: Array.isArray(rpc.result) ? rpc.result[0] : rpc.result,
+          };
+        }
+        res.body = out;
+        res.obj = out;
+        res.data = res.text = JSON.stringify(out, null, 2);
+        return res;
+      }
+
+      fetch("./openapi.json")
+        .then((r) => r.json())
+        .then((spec) => {
+          // calls go to this origin (the device, or the dev server's proxy), never cross-origin
+          spec.servers = [{ url: location.origin, description: "This device" }];
+          window.ui = SwaggerUIBundle({
+            spec,
+            dom_id: "#swagger",
+            deepLinking: true,
+            docExpansion: "none",
+            filter: true,
+            tryItOutEnabled: true,
+            displayOperationId: true,
+            defaultModelsExpandDepth: 0,
+            persistAuthorization: true,
+            requestInterceptor: toJsonRpc,
+            responseInterceptor: fromJsonRpc,
+          });
+        })
+        .catch((e) => {
+          document.getElementById("swagger").textContent =
+            `Could not load openapi.json: ${e}`;
+        });
+    </script>
+  </body>
+</html>

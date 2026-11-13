@@ -1,5 +1,5 @@
-//! adb's state: on or off (`/etc/mu300/adb`), whom it lets in (`/etc/mu300/adb_auth`: open or keys), the authorised
-//! keys (`/etc/mu300/adb_keys`, `/root/.android/adb_keys`).
+//! adb's state: on or off (`/etc/f50/adb`), whom it lets in (`/etc/f50/adb_auth`: open or keys), the authorised
+//! keys (`/etc/f50/adb_keys`, `/root/.android/adb_keys`).
 //!
 //! On unless turned off: no file is a device that was never asked, `off` is somebody's choice that stays, and a file
 //! that says neither is a damaged choice: adb stays off. Open (the owner's decision of 2026-10-13, FINDINGS 70: every
@@ -27,7 +27,7 @@ fn there(p: &Path) -> bool {
     std::fs::symlink_metadata(p).is_ok()
 }
 
-/// The word in `/etc/mu300/adb`, `None` without the file.
+/// The word in `/etc/f50/adb`, `None` without the file.
 fn conf(net: &Net) -> Option<String> {
     let p = net.legacy("adb");
     there(&p).then(|| std::fs::read_to_string(&p).unwrap_or_default().trim().to_owned())

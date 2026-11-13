@@ -1,10 +1,11 @@
 #!/bin/sh
-# Installs f50d into an OpenWrt root and takes the mu300 shell layer it replaces out of it.
+# Installs f50d into an OpenWrt root and takes the shell layer it replaces (f50-*, or mu300-* in upstream images) out.
 #   install.sh ROOT BINARY [SRC [WEB]]   SRC: this directory (default: where the script is)
 #                                        WEB: the web console's build (f50-web/dist), installed as /www/f50
 # The image build runs it after everything else is installed.
 #
-# What stays of /opt/mu300: the programs that are not shell (busybox, adbd, logdw, the keys and Bluetooth helpers,
+# f50d uses the F50 names (/etc/f50, /opt/f50, /run/f50, ...) and takes the mu300 ones where only they are there.
+# What stays of /opt/f50 (/opt/mu300): the programs that are not shell (busybox, adbd, logdw, the keys and Bluetooth helpers,
 # the carry helper), the vendor chroot (android/: the installer and the update both put it there), the release key,
 # and the three small helpers preinit's early USB DHCP and the first-boot defaults still use (mu300-lan-ip,
 # mu300-device, /lib/mu300/usb-host.sh). Everything else of the shell layer goes: its init scripts and their links,
@@ -54,39 +55,44 @@ for f in "$SRC"/init.d/*; do
     n=$(sed -n 's/^STOP=//p' "$f"); [ -n "$n" ] && ln -sf "../init.d/$name" "$R/etc/rc.d/K$n$name"
 done
 
-# ------------------------------------------------------------------ the mu300 runtime it replaces
-for s in "$R"/etc/init.d/mu300-* "$R/etc/init.d/unisoc-modem-ui"; do
+# ------------------------------------------------------------------ the shell runtime it replaces
+# Under both names it had: f50 in the images of this repository, mu300 in the upstream ones. f50d's own files are
+# named f50d* (init scripts, hooks) or are installed above under the same name (05_f50_early_recorder, f50cell.sh):
+# no pattern here matches them.
+for s in "$R"/etc/init.d/mu300-* "$R"/etc/init.d/f50-* "$R/etc/init.d/unisoc-modem-ui"; do
     [ -e "$s" ] || continue
     name=${s##*/}
     rm -f "$s" "$R"/etc/rc.d/[SK][0-9][0-9]"$name"
 done
-rm -f "$R"/etc/hotplug.d/*/[0-9][0-9]-mu300-* "$R"/etc/hotplug.d/*/90-unisoc-usb-host
+rm -f "$R"/etc/hotplug.d/*/[0-9][0-9]-mu300-* "$R"/etc/hotplug.d/*/[0-9][0-9]-f50-* "$R"/etc/hotplug.d/*/90-unisoc-usb-host
 # preinit: the early recorder and the early LEDs are f50d's now; the early USB DHCP (06) stays
-rm -f "$R/lib/preinit/04_mu300_early_leds" "$R/lib/preinit/05_mu300_early_recorder"
-rm -f "$R"/lib/netifd/proto/mu300cell*.sh
+rm -f "$R/lib/preinit/04_mu300_early_leds" "$R/lib/preinit/05_mu300_early_recorder" "$R/lib/preinit/04_f50_early_leds"
+rm -f "$R"/lib/netifd/proto/mu300cell*.sh "$R"/lib/netifd/proto/f50cell-*.sh
 # the LuCI backend and the pages on it (the frontend is to be rebuilt on f50d's ubus objects)
-rm -rf "$R/usr/libexec/rpcd/mu300dash" "$R/usr/libexec/unisoc-modem" "$R/usr/share/unisoc-modem" \
-    "$R/usr/share/rpcd/acl.d/luci-app-mu300.json" "$R/usr/share/rpcd/ucode/mu300rates.uc" \
-    "$R/usr/share/luci/menu.d/luci-app-mu300.json" "$R/usr/share/luci/menu.d/luci-mu300-status-overrides.json" \
-    "$R/www/luci-static/resources/view/mu300" "$R/www/luci-static/resources/mu300" \
-    "$R/usr/libexec/mu300-ui-theme"
-rm -f "$R"/usr/lib/lua/luci/i18n/mu300.*.lmo
-# /opt/mu300: the shell programs go; programs that are not shell, the chroot and the key stay
-keep="mu300-lan-ip mu300-device"
-for f in "$R"/opt/mu300/bin/* "$R"/opt/mu300/busybox-bin/*; do
-    [ -f "$f" ] && [ ! -L "$f" ] || continue
-    case " $keep " in *" ${f##*/} "*) continue ;; esac
-    [ "$(head -c 2 "$f")" = "#!" ] && rm -f "$f"
+for n in mu300 f50; do
+    rm -rf "$R/usr/libexec/rpcd/${n}dash" "$R/usr/share/rpcd/acl.d/luci-app-$n.json" "$R/usr/share/rpcd/ucode/${n}rates.uc" \
+        "$R/usr/share/luci/menu.d/luci-app-$n.json" "$R/usr/share/luci/menu.d/luci-$n-status-overrides.json" \
+        "$R/www/luci-static/resources/view/$n" "$R/www/luci-static/resources/$n" "$R/usr/libexec/$n-ui-theme"
+    rm -f "$R"/usr/lib/lua/luci/i18n/$n.*.lmo "$R/etc/profile.d/$n.sh" "$R/etc/profile.d/$n-update.sh"
 done
-for f in "$R"/opt/mu300/lib/*; do
-    [ "${f##*/}" = release.pub ] || [ "${f##*/}" = image-manifests ] || rm -rf "$f"
+rm -rf "$R/usr/libexec/unisoc-modem" "$R/usr/share/unisoc-modem"
+# /opt/f50 (/opt/mu300): the shell programs go; programs that are not shell, the chroot and the key stay
+for o in "$R/opt/mu300" "$R/opt/f50"; do
+    for f in "$o"/bin/* "$o"/busybox-bin/*; do
+        [ -f "$f" ] && [ ! -L "$f" ] || continue
+        case ${f##*/} in mu300-lan-ip|mu300-device|f50-lan-ip|f50-device) continue ;; esac
+        [ "$(head -c 2 "$f")" = "#!" ] && rm -f "$f"
+    done
+    for f in "$o"/lib/*; do
+        [ -e "$f" ] || continue
+        [ "${f##*/}" = release.pub ] || [ "${f##*/}" = image-manifests ] || rm -rf "$f"
+    done
 done
 # the links in /usr/bin to programs that are gone
 for l in "$R"/usr/bin/*; do
     [ -L "$l" ] || continue
-    case $(readlink "$l") in /opt/mu300/bin/*) [ -e "$R$(readlink "$l")" ] || rm -f "$l" ;; esac
+    case $(readlink "$l") in /opt/mu300/bin/*|/opt/f50/bin/*) [ -e "$R$(readlink "$l")" ] || rm -f "$l" ;; esac
 done
-rm -f "$R/etc/profile.d/mu300.sh" "$R/etc/profile.d/mu300-update.sh"
 
 # ------------------------------------------------------------------ checks
 [ -x "$R/usr/sbin/f50d" ] || { echo "f50d is not installed" >&2; exit 1; }
@@ -94,5 +100,9 @@ rm -f "$R/etc/profile.d/mu300.sh" "$R/etc/profile.d/mu300-update.sh"
 for n in S13f50d-at S19f50d S09f50d-vendor S12f50d-hw S99f50d-post; do
     [ -e "$R/etc/rc.d/$n" ] || { echo "f50d: $n is not enabled" >&2; exit 1; }
 done
-if ls "$R"/etc/rc.d/*mu300* >/dev/null 2>&1; then echo "f50d: mu300 services are still enabled" >&2; exit 1; fi
+for l in "$R"/etc/rc.d/*mu300* "$R"/etc/rc.d/*f50-*; do
+    [ -e "$l" ] || [ -L "$l" ] || continue
+    echo "f50d: a service of the shell layer is still enabled: ${l##*/}" >&2
+    exit 1
+done
 echo "f50d installed: $(wc -c < "$R/usr/sbin/f50d") bytes"

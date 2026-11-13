@@ -1,4 +1,4 @@
-//! The receive hook: an optional program (`/etc/mu300/sms-hook`, the shell pool's) run for every received message
+//! The receive hook: an optional program (`/etc/f50/sms-hook`, the shell pool's) run for every received message
 //! the pool takes, with `SMS_FROM`, `SMS_DATE`, `SMS_TEXT` and `SMS_ID` in its environment (forwarding to a phone,
 //! a webhook...). Its output and its exit status are ignored; it runs from the pool's copy, so it never depends on
 //! the SIM still holding the message.

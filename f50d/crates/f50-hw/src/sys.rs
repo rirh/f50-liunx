@@ -150,8 +150,8 @@ mod tests {
         assert_eq!(unescape(r"/mnt/a\040b"), "/mnt/a b");
         assert_eq!(unescape(r"/x\"), r"/x\");
         let f = std::env::temp_dir().join(format!("f50-hw-mi-{}", std::process::id()));
-        std::fs::write(&f, "22 1 0:21 / /opt/mu300/android/dev rw - devtmpfs dev rw\n").expect("write");
-        assert!(is_mount_point(&f, Path::new("/opt/mu300/android/dev")));
+        std::fs::write(&f, "22 1 0:21 / /opt/f50/android/dev rw - devtmpfs dev rw\n").expect("write");
+        assert!(is_mount_point(&f, Path::new("/opt/f50/android/dev")));
         assert!(!is_mount_point(&f, Path::new("/opt")));
         let _ = std::fs::remove_file(&f);
     }

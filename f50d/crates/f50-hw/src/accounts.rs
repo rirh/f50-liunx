@@ -2,8 +2,8 @@
 //!
 //! `modem_control` and `refnotify` switch to Android's system user on their own (`setgroups`, `setuid(1000)` - the
 //! number is in the binaries - then `capset`), and uid 1000 is the first human account on a distribution, so the
-//! shell gave them an account of their own, `mu300vnd` (FINDINGS 41). FINDINGS 41a (issue #314) is why this is one
-//! decision: when the nodes went to `mu300vnd` while the daemons still ran as 1000, the modem never started (EACCES on
+//! shell gave them an account of their own, `f50vnd` (`mu300vnd` before the rename; FINDINGS 41). FINDINGS 41a (issue #314) is why this is one
+//! decision: when the nodes went to that account while the daemons still ran as 1000, the modem never started (EACCES on
 //! `/dev/modem`, and five minutes later the PM watchdog cut the power, FINDINGS 5).
 //!
 //! The shell used the account only where it existed *and* `setpriv` could switch to it; f50d switches itself
@@ -25,6 +25,9 @@ pub enum VendorIds {
     Android,
 }
 
+/// The vendor account's name before the rename, looked for when the configured one is not there.
+pub const LEGACY_ACCOUNT: &str = "mu300vnd";
+
 /// Android's system user, which the daemons switch to themselves.
 pub const ANDROID_SYSTEM: u32 = 1000;
 
@@ -34,6 +37,14 @@ impl VendorIds {
         match (id_of(account, &etc.join("passwd")), id_of(account, &etc.join("group"))) {
             (Some(uid), Some(gid)) => VendorIds::Account { uid, gid },
             _ => VendorIds::Android,
+        }
+    }
+
+    /// [`resolve`](Self::resolve) for `account`, else for its name before the rename ([`LEGACY_ACCOUNT`]).
+    pub fn resolve_or_legacy(etc: &Path, account: &str) -> VendorIds {
+        match Self::resolve(etc, account) {
+            VendorIds::Android if account != LEGACY_ACCOUNT => Self::resolve(etc, LEGACY_ACCOUNT),
+            ids => ids,
         }
     }
 
@@ -89,6 +100,8 @@ mod tests {
         assert_eq!(gpu_gid(&etc), 44);
         std::fs::write(etc.join("group"), "root:x:0:\nmu300vnd:x:991:\n").expect("group");
         assert_eq!(VendorIds::resolve(&etc, "mu300vnd"), VendorIds::Account { uid: 999, gid: 991 });
+        assert_eq!(VendorIds::resolve(&etc, "f50vnd"), VendorIds::Android);
+        assert_eq!(VendorIds::resolve_or_legacy(&etc, "f50vnd"), VendorIds::Account { uid: 999, gid: 991 });
         assert_eq!(gpu_gid(&etc), 0);
         let _ = std::fs::remove_dir_all(&etc);
     }

@@ -1,4 +1,4 @@
-//! adb over USB to this Linux: adbd (`/opt/mu300/bin/adbd`) in the USB gadget, supervised by a task of the daemon.
+//! adb over USB to this Linux: adbd (`/opt/f50/bin/adbd`) in the USB gadget, supervised by a task of the daemon.
 //!
 //! FunctionFS unbinds the whole gadget whenever adbd closes its control endpoint, and adbd does that at the end of
 //! every adb connection (a computer that unplugs, sleeps or resets its USB): Android's init then binds the gadget
@@ -123,7 +123,7 @@ pub(crate) async fn key_add(net: &Net, p: &Params) -> Result<Value> {
 pub(crate) fn start(net: &Net) {
     if !auth::on(net) {
         if auth::damaged(net) {
-            tracing::warn!("/etc/mu300/adb says neither on nor off: adb stays off");
+            tracing::warn!("/etc/f50/adb says neither on nor off: adb stays off");
         }
         return;
     }
@@ -186,6 +186,8 @@ async fn supervise(net: &Net, stop: &tokio_util::sync::CancellationToken) {
     let mut exits: Vec<tokio::time::Instant> = Vec::new();
     loop {
         let run = Cmd::new(&adbd)
+            .env("F50_ADB_AUTH", mode)
+            // the adbd builds of before the rename read this one
             .env("MU300_ADB_AUTH", mode)
             .timeout(Duration::from_secs(365 * 24 * 3600))
             .max_output(16 * 1024)

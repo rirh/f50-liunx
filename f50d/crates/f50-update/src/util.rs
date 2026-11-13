@@ -67,9 +67,10 @@ pub fn is_running_root(root: &Path, dir: &Path) -> bool {
     }
 }
 
-/// The release an installed system's image says it is (`etc/mu300/image-version`), or `None`.
+/// The release an installed system's image says it is (`etc/f50/image-version`, or `etc/mu300/...`), or `None`.
 pub fn release_of(system_dir: &Path) -> Option<String> {
-    let v = f50_core::fsx::read_line(&system_dir.join(crate::release::assets::IMAGE_VERSION))?;
+    let v =
+        f50_core::fsx::read_line(&crate::release::assets::within(system_dir, crate::release::assets::IMAGE_VERSION))?;
     let ok = !v.is_empty() && v.len() <= 64 && v.bytes().all(|b| b.is_ascii_alphanumeric() || b".-_".contains(&b));
     ok.then_some(v)
 }

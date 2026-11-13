@@ -171,7 +171,7 @@ pub(crate) fn spawn_lease_check(net: &Net, delay: Duration) {
         for nic in NETDEVS {
             tools::ip_quiet(&["link", "set", nic, "up"]).await;
         }
-        tools::logger("mu300-usb", &format!("the USB host had no lease: gadget re-enumerated on {udc} ({ok})")).await;
+        tools::logger("f50-usb", &format!("the USB host had no lease: gadget re-enumerated on {udc} ({ok})")).await;
     });
 }
 

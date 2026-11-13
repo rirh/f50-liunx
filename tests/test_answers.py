@@ -417,7 +417,7 @@ class Check(Device):
             self.assertEqual(facts['root'], 'no')
             self.assertEqual(facts['device.model'], 'F50 / F50')       # what needs no root is there all the same
             self.assertEqual(facts['bootloader.locked'], '0')
-            self.assertEqual(ev[-1], {'event': 'error', 'message': 'su does not work on the device'})
+            self.assertEqual(ev[-1], {'event': 'error', 'message': 'no root shell on the device: turn on USB debugging first (make adb, or http://192.168.0.1/index.html#usb_port), see README'})
             self.assert_nothing_written()
 
     def test_nothing_attached(self):

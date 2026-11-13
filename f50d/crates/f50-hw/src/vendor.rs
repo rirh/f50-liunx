@@ -41,7 +41,7 @@ impl Hw {
     }
 
     pub(crate) fn vendor_ids(&self) -> VendorIds {
-        VendorIds::resolve(&self.dev("/etc"), &self.config().vendor_account)
+        VendorIds::resolve_or_legacy(&self.dev("/etc"), &self.config().vendor_account)
     }
 }
 

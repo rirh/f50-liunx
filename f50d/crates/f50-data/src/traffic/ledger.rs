@@ -1,7 +1,7 @@
 //! The count itself, and the rules that make every byte count once (mu300-traffic's ledger, same text format):
 //!
 //! ```text
-//! mu300-traffic 1                  the format
+//! f50-traffic 1                    the format (`mu300-traffic 1` before the rename: the line is not read)
 //! since WALL                       counting started (the first reading with a right clock)
 //! base BOOT IFINDEX DEV RX TX UP   the last reading of the counters, and its uptime
 //! p BOOT UP RX TX                  pending: bytes counted while the clock was not right, per 15 min of uptime
@@ -142,7 +142,7 @@ impl Ledger {
     }
 
     pub fn render(&self) -> String {
-        let mut s = String::from("mu300-traffic 1\n");
+        let mut s = String::from("f50-traffic 1\n");
         if let Some(t) = self.since {
             s += &format!("since {t}\n");
         }

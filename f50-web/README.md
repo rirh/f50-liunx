@@ -20,6 +20,10 @@ make deploy-stage   # stage 构建，复制到 STAGE_DEVICE
 - **请求**：`src/lib/request.ts` 是唯一的 fetch 封装；`src/lib/ubus.ts` 提供 `f50(object, method, args)`，解开 f50d 的 `{ok,data}` / `{ok:false,code,error,field}`，失败时抛出 `ApiError`。会话过期会回到登录页。
 - **后台任务**：返回 `{job}` 的方法用 `useJob` / `JobProgress` 跟踪（`src/hooks/use-job.ts`，`src/components/f50/job-progress.tsx`）。
 
+- **API 文档**：`public/api-docs/` 是 Swagger UI，读同目录的 `openapi.json`（由 `f50d/docs/api/generate.sh` 从设备生成）。设备上是
+  `/f50/api-docs/`，开发时打开 `/f50/api-docs/index.html`。“Try it out” 会把虚拟路径 `POST /{object}/{method}` 转成 `/ubus` 的
+  JSON-RPC 调用，并使用控制台当前的登录。
+
 ### 页面
 
 仪表盘；蜂窝网络（信号与小区、SIM、网络锁定、移动数据、流量统计、短信）；网络（Wi-Fi 热点、Wi-Fi 上网、局域网、USB 与 adb）；

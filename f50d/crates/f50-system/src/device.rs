@@ -1,6 +1,6 @@
 //! Which device this is, and the facts that do not change while it runs: model, release, kernel.
 //!
-//! f50d runs on the ZTE F50 only. The rules are mu300-device's: the boot's label (`/run/mu300/device`) when it says
+//! f50d runs on the ZTE F50 only. The rules are mu300-device's: the boot's label (`/run/f50/device`) when it says
 //! `u30air`, else the device tree, where only the U30 Air has `charger_policy_service` and only the ZTE V50 has the
 //! AW9523B LED controller at 0x5b on I2C3 (docs/research/FINDINGS.md 95). Either of those is refused with a clear
 //! message; anything else (a tree without either node, or none at all) is an F50, as mu300-device answered.
@@ -32,7 +32,7 @@ pub(crate) fn require_f50(platform: &Platform) -> Result<()> {
 /// The other board this is, or `None` for an F50.
 pub(crate) fn detect(root: &Path) -> Option<Other> {
     let dt = root.join("proc/device-tree");
-    let label = f50_core::fsx::read_line(&root.join("run/mu300/device")).unwrap_or_default();
+    let label = f50_core::fsx::read_line(&root.join("run/f50/device")).unwrap_or_default();
     if label == "u30air" || dt.join("charger_policy_service").is_dir() {
         return Some(Other::U30Air);
     }

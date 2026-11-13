@@ -88,7 +88,10 @@ async fn look(inner: &Arc<Inner>, sha256: String, size: u64) -> Inspected {
     let parts = blocking(move || {
         Ok((
             b2.read(assets::SUMS, 256 * 1024)?,
-            b2.read(assets::RELEASE_TAG, 64)?,
+            match b2.read(assets::RELEASE_TAGS[0], 64)? {
+                Some(t) => Some(t),
+                None => b2.read(assets::RELEASE_TAGS[1], 64)?,
+            },
             b2.read(assets::SUMS_MINISIG, 4096)?,
             b2.read(assets::SUMS_SIG, 4096)?,
         ))
@@ -125,9 +128,9 @@ async fn look(inner: &Arc<Inner>, sha256: String, size: u64) -> Inspected {
     .await
     .unwrap_or(false);
     let installed = inner.installed();
-    r.systems = installed.iter().filter(|s| b.has(&assets::rootfs(s))).cloned().collect();
+    r.systems = installed.iter().filter(|s| assets::rootfs(s).iter().any(|n| b.has(n))).cloned().collect();
     r.fits = !r.systems.is_empty();
-    r.kernel = b.has(&assets::kernel(inner.layout.kernel_choice()));
+    r.kernel = assets::kernel(inner.layout.kernel_choice()).iter().any(|n| b.has(n));
     r.downgrade = r.systems.iter().any(|s| release_of(&inner.layout.system(s)).is_some_and(|v| newer(&v, &tag)))
         || fsx::read_line(&inner.layout.boot_file("installed.tag")).is_some_and(|v| newer(&v, &tag));
     r

@@ -137,10 +137,11 @@ pub fn beta<'a>(latest: &Release, all: &'a [Release]) -> Option<&'a Release> {
 /// What this device would download of `r`: the root filesystem of every system in `outdated`, the kernel bundle of
 /// `kernel`, and the checksums with their signature.
 pub fn offer(r: &Release, outdated: &[String], kernel: &str) -> Offer {
-    let mut want: Vec<String> = vec![assets::SUMS.into(), assets::SUMS_MINISIG.into(), assets::SUMS_SIG.into()];
-    want.extend(outdated.iter().map(|s| assets::rootfs(s)));
-    want.push(assets::kernel(kernel));
-    let files: Vec<Asset> = want.iter().filter_map(|n| r.asset(n).cloned()).collect();
+    let want: Vec<String> = vec![assets::SUMS.into(), assets::SUMS_MINISIG.into(), assets::SUMS_SIG.into()];
+    let mut files: Vec<Asset> = want.iter().filter_map(|n| r.asset(n).cloned()).collect();
+    // each payload once: its F50 name when the release has it, else its older one
+    let payloads = outdated.iter().map(|s| assets::rootfs(s)).chain([assets::kernel(kernel)]);
+    files.extend(payloads.filter_map(|names| names.iter().find_map(|n| r.asset(n).cloned())));
     Offer {
         tag: r.tag.clone(),
         title: r.title.clone(),
@@ -173,7 +174,7 @@ mod tests {
     use super::*;
 
     const LIST: &str = r#"[
-      {"tag_name":"v2026.11.02.1","name":"MU300 Linux v2026.11.02.1","prerelease":true,"draft":false,
+      {"tag_name":"v2026.11.02.1","name":"F50 Linux v2026.11.02.1","prerelease":true,"draft":false,
        "published_at":"2026-11-02T10:00:00Z","body":"notes with \"tag_name\": \"v2099.01.01\"",
        "assets":[{"name":"SHA256SUMS","size":900},{"name":"SHA256SUMS.sig","size":140},
                  {"name":"mu300-openwrt-rootfs.tar.gz","size":40000000},{"name":"mu300-kernel-6.18.tar.gz","size":52000000},

@@ -6,7 +6,7 @@
 //!
 //! | stage | when | what must be up | replaces |
 //! |---|---|---|---|
-//! | [`Stage::Early`] | preinit, `preinit_essential` hook `05` (background, 420 s) | `/proc`, `/sys`, `/dev` (preinit's), `/run/mu300` (initramfs) | `05_mu300_early_recorder`, `early-recorder` |
+//! | [`Stage::Early`] | preinit, `preinit_essential` hook `05` (background, 420 s) | `/proc`, `/sys`, `/dev` (preinit's), `/run/f50` (initramfs) | `05_mu300_early_recorder`, `early-recorder` |
 //! | [`Stage::Vendor`] | `START=09`, procd instance `modem_control` | preinit's `/dev`, `/proc`, `/sys`, `/run`; *not* `/var/log` (S10) | `mu300-vendor`, `android-vendor-start` |
 //! | [`Stage::Hardware`] | `START=12`, `boot()`, in the background | S10 `boot` (`/var`, `/tmp`, UCI); before netifd (S20) | `mu300-hw`'s module helper, regdb, board check, `extra-modules` |
 //! | [`Stage::Post`] | `START=99`, procd one-shot instance | everything; counts the boot good after 30 s | `mu300-post`'s `bootok`, `mu300-next-boot --rearm` |
