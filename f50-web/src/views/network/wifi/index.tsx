@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { RefreshCwIcon } from "lucide-react";
 import { getWifi, getWifiCredentials, wifiKeys } from "./api";
 import { WifiClientsTable } from "./components/clients-table";
+import { WifiConnectCard } from "./components/connect-code";
 import { WifiStatusCard } from "./components/status-card";
 
 /**
@@ -46,7 +47,10 @@ export default function WifiPage() {
         {(info) => (
           <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
             <WifiStatusCard info={info} credentials={credentials} />
-            <WifiClientsTable clients={info.clients} />
+            <div className="flex min-w-0 flex-col gap-4">
+              <WifiConnectCard info={info} query={credentials} />
+              <WifiClientsTable clients={info.clients} />
+            </div>
           </div>
         )}
       </QueryState>

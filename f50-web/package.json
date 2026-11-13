@@ -1,7 +1,7 @@
 {
   "name": "f50-web",
   "private": true,
-  "version": "26.1113.1925",
+  "version": "26.1113.2003",
   "type": "module",
   "scripts": {
     "dev": "vite",

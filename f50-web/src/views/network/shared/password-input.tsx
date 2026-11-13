@@ -10,12 +10,9 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 export function PasswordInput({
   disabled,
-  defaultVisible = false,
   ...props
-}: Omit<ComponentProps<typeof InputGroupInput>, "type"> & {
-  defaultVisible?: boolean;
-}) {
-  const [visible, setVisible] = useState(defaultVisible);
+}: Omit<ComponentProps<typeof InputGroupInput>, "type">) {
+  const [visible, setVisible] = useState(false);
   const label = t(
     visible ? "network.shared.hidePassword" : "network.shared.showPassword",
   );

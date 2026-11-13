@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/card";
 import { t, type Key } from "@/i18n";
 import type { UseQueryResult } from "@tanstack/react-query";
-import { WifiConnectCode } from "./connect-code";
 import { WifiPowerControl } from "./power-control";
 import { WifiSettingsDialog } from "./settings-form";
 import type { WifiCredentials, WifiInfo, WifiSecurity } from "../types";
@@ -58,7 +57,7 @@ export function WifiStatusCard({
           <WifiPowerControl info={info} />
         </CardAction>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent>
         <KvList
           items={[
             { label: t("network.wifi.status.band"), value: `${info.band} GHz` },
@@ -98,7 +97,6 @@ export function WifiStatusCard({
             },
           ]}
         />
-        <WifiConnectCode info={info} query={credentials} />
       </CardContent>
     </Card>
   );

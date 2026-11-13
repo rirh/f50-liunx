@@ -208,7 +208,6 @@ export function WifiSettingsDialog({
                   </FieldLabel>
                   <PasswordInput
                     id="wifi-password"
-                    defaultVisible
                     autoComplete="new-password"
                     placeholder={
                       info.password_set
