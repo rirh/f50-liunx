@@ -157,6 +157,26 @@ pub(crate) async fn toggle(net: &Net) -> Result<&'static str> {
     ap_set(net, on).await
 }
 
+/// hostapd's `status` for a hotspot that is up or on its way (ACS, a DFS wait, a country update), as `mu300-led`
+/// lit the F50's Wi-Fi LED: off with no hostapd object, `DISABLED` or `UNINITIALIZED`.
+fn hostapd_up(status: Option<&str>) -> bool {
+    !matches!(status, None | Some("" | "DISABLED" | "UNINITIALIZED"))
+}
+
+/// The hotspot is up, as the Wi-Fi LED shows it: the access point is enabled in `/etc/config/wireless` and hostapd
+/// runs it. Not the interface's `operstate`: the F50's driver need not say `up` for a running access point, and
+/// wlan0 is `up` as the Wi-Fi client's station as well.
+pub(crate) async fn is_up(net: &Net) -> bool {
+    let Ok(w) = Wireless::load(net).await else { return false };
+    let Some((radio, iface)) = w.hotspot(&net.cfg().wlan) else { return false };
+    if radio.get("disabled") == Some("1") || iface.get("disabled") == Some("1") {
+        return false;
+    }
+    let ifname = ap_ifname(net, &iface.name).await;
+    let status = tools::ubus(net, &format!("hostapd.{ifname}"), "get_status", &json!({})).await.ok();
+    hostapd_up(status.as_ref().and_then(|s| s.get("status")).and_then(Value::as_str))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -169,5 +189,15 @@ mod tests {
         assert_eq!(security(Some("sae")), "wpa3");
         assert_eq!(security(None), "open");
         assert_eq!(security(Some("wep")), "other");
+    }
+
+    #[test]
+    fn hostapd_states_for_the_led() {
+        for s in ["ENABLED", "ACS", "HT_SCAN", "DFS", "COUNTRY_UPDATE"] {
+            assert!(hostapd_up(Some(s)), "{s}");
+        }
+        for s in [None, Some(""), Some("DISABLED"), Some("UNINITIALIZED")] {
+            assert!(!hostapd_up(s), "{s:?}");
+        }
     }
 }

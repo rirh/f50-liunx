@@ -29,6 +29,9 @@ const m: Messages["system"] = {
     },
     chart: { mem: "Memory", temp: "Hottest" },
     live: {
+      trend: "Load",
+      storage: "Storage",
+      sensors: "All sensors ({n})",
       title: "Live status",
       descLive:
         "Pushed live (about every 2 s); CPU use is the average between two samples",
@@ -58,6 +61,13 @@ const m: Messages["system"] = {
       uptime: "Uptime",
     },
     info: {
+      sections: {
+        device: "Device",
+        time: "Time",
+        storage: "Storage",
+        network: "Connections",
+      },
+      leases: "DHCP leases",
       title: "Device info",
       description: "Model, version, memory and storage",
       notMounted: "Not mounted",
@@ -65,6 +75,16 @@ const m: Messages["system"] = {
       numberSource: "(SIM{slot} · from {src})",
       notRead: "Not available",
       hideNumber: "Hide own number",
+      ownNumberSet: {
+        action: "Set",
+        title: "Set the own number",
+        description:
+          "This SIM does not carry its own number (common with China Mobile cards). The number is written to the SIM's own-number field, so other devices read it too; it is not stored on this device's flash.",
+        hint: "A national number as it is, e.g. 13800138000; international with a leading +.",
+        invalid: "Enter 3 to 15 digits, optionally starting with +",
+        job: "Writing the own number",
+        saved: "Own number written to the SIM",
+      },
       model: "Model",
       release: "System version",
       kernel: "Kernel",

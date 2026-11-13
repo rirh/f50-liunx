@@ -18,9 +18,11 @@ type TransitionDocument = Document & {
 export function ThemeToggleButton({
   className,
   label,
+  variant = "ghost",
 }: {
   className?: string;
   label?: string;
+  variant?: "ghost" | "outline";
 }) {
   const { resolvedTheme, setTheme } = useTheme();
   const busy = useRef(false);
@@ -107,7 +109,7 @@ export function ThemeToggleButton({
       className={cn("shrink-0 rounded-lg shadow-none", className)}
       onClick={(event) => void handleToggle(event)}
       size="icon-sm"
-      variant="ghost"
+      variant={variant}
     >
       <Moon aria-hidden="true" className="dark:hidden" />
       <Sun aria-hidden="true" className="hidden dark:block" />

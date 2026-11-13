@@ -6,6 +6,15 @@ const m: Messages["app"] = {
   language: "Language",
   notices: "Site notices",
   loading: "Loading",
+  shell: {
+    home: "Home",
+    scrollLeft: "Scroll left",
+    scrollRight: "Scroll right",
+    closeTab: "Close {name}",
+    account: "Account",
+    logoutTitle: "Sign out?",
+    logoutBody: "You will need the root password to sign in again.",
+  },
   notFound: { title: "404 · Page not found", back: "Back to the dashboard" },
   login: {
     description:

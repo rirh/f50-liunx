@@ -88,7 +88,7 @@ export function LampRow({
   const shown =
     set.isPending && set.variables != null ? set.variables === "1" : on;
   return (
-    <div className="flex flex-col gap-4 rounded-lg border p-4">
+    <div className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0 md:px-6 md:py-0 md:first:pl-0 md:last:pr-0">
       <Field orientation="horizontal">
         <FieldContent>
           <FieldLabel htmlFor={id}>{t(LAMP_TEXT[lamp].label)}</FieldLabel>

@@ -15,6 +15,7 @@
 //! | [`Net::usb_rebind_if_no_lease`] | at the end of the boot | `f50-usb-reset --if-no-lease` |
 //! | [`Net::adbd_start`] / [`Net::adbd_stop`] | the adbd service (procd instance or the daemon's own task) | `f50-adbd run`/`stop` |
 //! | [`Net::hotspot_toggle`] | the Wi-Fi key | `hotspot-ap.sh` |
+//! | [`Net::hotspot_up`] | the LED inputs, every few seconds | `mu300-led events` (`hostapd.wlan0 get_status`) |
 //!
 //! Settings that are UCI's (`wireless`, `network`, `dhcp`, `firewall`) are changed only through
 //! `f50_platform::uci::Uci::apply`, then netifd or the service reloads. What the shell layer kept in `/etc/f50`
@@ -182,6 +183,11 @@ impl Net {
     /// fails, the hotspot comes back. Nothing saved is not an error.
     pub async fn boot_wifi_client(&self) -> Result<()> {
         client::boot(self).await
+    }
+
+    /// The hotspot is up (enabled, and hostapd runs it): what the Wi-Fi LED shows. Read-only, over ubus.
+    pub async fn hotspot_up(&self) -> bool {
+        wifi::ap::is_up(self).await
     }
 
     /// The hotspot on or off in one press (the Wi-Fi key, FINDINGS 222). Returns the word `hotspot-ap.sh` printed:

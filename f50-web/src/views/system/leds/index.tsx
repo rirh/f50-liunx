@@ -22,7 +22,7 @@ function Lamps({ data }: { data: LedSettings }) {
         <CardTitle>{t("system.leds.lamps.title")}</CardTitle>
         <CardDescription>{t("system.leds.lamps.description")}</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-2">
+      <CardContent className="grid divide-y md:grid-cols-2 md:divide-x md:divide-y-0">
         {data.lamps.map((lamp) => (
           <LampRow
             key={lamp}

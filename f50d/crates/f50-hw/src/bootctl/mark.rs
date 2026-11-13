@@ -215,6 +215,42 @@ impl BootCtl {
         .map_err(|e| Error::failed(format!("rearm: {e}")))?
     }
 
+    /// The next boot is Android's: the initramfs' Android block (Android's slot first and marked good) goes into misc
+    /// as it is, after checking it is a valid block for the other slot. Linux's slot is left as Android leaves it, so
+    /// the device stays in Android until Linux is started from there (the Magisk module) - in default-Linux mode too,
+    /// as no Linux boot follows to re-arm it. Returns Android's slot.
+    pub(crate) async fn to_android(&self) -> Result<Slot> {
+        let _lock = self.take_lock().await?;
+        let p = self.checked_pair()?;
+        let this = self.clone();
+        tokio::task::spawn_blocking(move || {
+            let android = p.linux.other();
+            let Some(block) = misc::read_file(&p.android_file) else {
+                return Err(Error::failed(format!(
+                    "no boot control block {} (initramfs too old for this slot?); boot control unchanged",
+                    p.android_file.display()
+                )));
+            };
+            let info = misc::slot_info(&block, android);
+            if !misc::has_magic(&block)
+                || !misc::crc_ok(&block)
+                || suffix_of(&p.android_file) != Some(android)
+                || info.priority == 0
+                || !info.successful
+            {
+                return Err(Error::failed(format!(
+                    "the Android block {} is not a bootable block for slot {}; boot control unchanged",
+                    p.android_file.display(),
+                    android.letter()
+                )));
+            }
+            this.write(&block)?;
+            Ok(android)
+        })
+        .await
+        .map_err(|e| Error::failed(format!("android: {e}")))?
+    }
+
     /// `--trial`: before a new boot image is written, the next boots are the attempts, locked or not.
     pub(crate) async fn trial(&self) -> Result<ArmOutcome> {
         let _lock = self.take_lock().await?;
@@ -282,6 +318,30 @@ mod tests {
         let want = misc::with_slot(&with_slots(b"_a", 0x2f, 0x9e), Slot::A, 6, false);
         assert_eq!(Some(bc_now(&f)), want);
         assert_eq!(bc_now(&f)[12], 0x6f);
+        let _ = std::fs::remove_dir_all(&f.root);
+    }
+
+    #[tokio::test]
+    async fn to_android_writes_the_android_block_as_it_is() {
+        for linux in [Slot::A, Slot::B] {
+            let f = fixture(&format!("android-{}", linux.letter()), linux);
+            f.bc.rearm().await.ok();
+            assert_eq!(f.bc.to_android().await.ok(), Some(linux.other()));
+            let want = misc::read_file(&f.bc.run.join("misc-bc-android.bin"));
+            assert_eq!(Some(bc_now(&f)), want);
+            let _ = std::fs::remove_dir_all(&f.root);
+        }
+    }
+
+    #[tokio::test]
+    async fn to_android_refuses_a_block_for_the_wrong_slot() {
+        let f = fixture("android-wrong", Slot::B);
+        let before = bc_now(&f);
+        // Linux's own trial block where Android's should be
+        let trial = std::fs::read(f.bc.run.join("misc-bc-linux-trial.bin")).expect("trial");
+        std::fs::write(f.bc.run.join("misc-bc-android.bin"), trial).expect("swap");
+        assert!(f.bc.to_android().await.is_err());
+        assert_eq!(bc_now(&f), before);
         let _ = std::fs::remove_dir_all(&f.root);
     }
 

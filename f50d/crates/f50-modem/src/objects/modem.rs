@@ -1,5 +1,6 @@
 //! `f50.modem`: the readings (served from the latest snapshot with its age), the identity (Write: IMEI, IMSI,
-//! ICCID and the own number are private), the card's radio and the modem restart (jobs).
+//! ICCID and the own number are private), the own number written to the SIM, the card's radio and the modem
+//! restart (jobs).
 
 use std::sync::Arc;
 
@@ -14,6 +15,8 @@ use crate::sim::{self, Cards};
 use crate::{radio, sim::state};
 
 const RADIO: &[Field] = &[Field::req("state", Rule::Enum(&["on", "off"]))];
+/// An optional "+" and 3 to 15 digits: what `AT+CNUM` gives back, and safe inside the quoted AT argument.
+const OWN_NUMBER: &[Field] = &[Field::req("number", Rule::Word { re: r"\+?[0-9]{3,15}", max: 16 })];
 
 fn status(inner: &Inner) -> Value {
     let s = inner.snap_tx.borrow().clone();
@@ -66,6 +69,14 @@ pub(super) fn set_radio(inner: &Arc<Inner>, cards: Cards, on: bool) -> Result<Va
     Ok(json!({ "saved": true, "job": job["job"] }))
 }
 
+/// The SIM's own number, written to the card (a job: it waits for the radio lock and the AT control channel).
+fn own_number(inner: &Arc<Inner>, number: String) -> Result<Value> {
+    radio_job(inner, "f50.modem own_number", move |me, ctx| async move {
+        let _g = radio::acquire(&me, "own number", me.cfg.radio_lock_wait).await?;
+        crate::own::write(&me, &number, &|l: &str| ctx.log(l)).await
+    })
+}
+
 fn restart(inner: &Arc<Inner>) -> Result<Value> {
     if !sim::radio_allowed(inner, inner.slot) {
         return Err(Error::forbidden("the radio of this SIM is switched off in its settings"));
@@ -78,7 +89,8 @@ fn restart(inner: &Arc<Inner>) -> Result<Value> {
 }
 
 pub(super) fn object(inner: &Arc<Inner>) -> Object {
-    let (a, b, c, d, e) = (inner.clone(), inner.clone(), inner.clone(), inner.clone(), inner.clone());
+    let (a, b, c, d, e, f) =
+        (inner.clone(), inner.clone(), inner.clone(), inner.clone(), inner.clone(), inner.clone());
     Object::builder("f50.modem")
         .method(
             "status",
@@ -117,6 +129,16 @@ pub(super) fn object(inner: &Arc<Inner>) -> Object {
             "Switches the radio of the card in use on or off, kept across reboots (a job when it changes now).",
             move |p: Params| {
                 let r = set_radio(&d, Cards::One(d.slot), p.str("state") == Some("on"));
+                async move { r }
+            },
+        )
+        .method(
+            "own_number",
+            Access::Write,
+            OWN_NUMBER,
+            "Writes the SIM's own number to the card (its own-number phonebook, read by AT+CNUM; a job).",
+            move |p: Params| {
+                let r = own_number(&f, p.str("number").unwrap_or_default().to_owned());
                 async move { r }
             },
         )

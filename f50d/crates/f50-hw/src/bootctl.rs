@@ -16,8 +16,9 @@
 //! b8d4f222). One change of misc at a time (the lock file the shell used, so an old `f50-next-boot` and f50d exclude
 //! each other).
 //!
-//! Switching the OS (`linux`, `android`, `lock`, `unlock`, `attempts N`) was removed from the API and is not ported;
-//! what they leave on the disk is honoured.
+//! Of the shell's OS switches only `android` is in the API (`f50.boot android`, [`mark::BootCtl::to_android`]): the
+//! initramfs' Android block as it is. `linux`, `lock`, `unlock` and `attempts N` are not ported; what they leave on the
+//! disk is honoured.
 
 pub(crate) mod mark;
 pub(crate) mod misc;

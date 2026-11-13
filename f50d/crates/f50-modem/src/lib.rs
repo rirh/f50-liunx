@@ -14,6 +14,7 @@
 pub mod collector;
 pub mod lock;
 mod objects;
+mod own;
 pub mod radio;
 mod shared;
 pub mod sim;

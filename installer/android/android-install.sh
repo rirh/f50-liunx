@@ -389,7 +389,7 @@ for os in $OSES; do
     vt=; if [ -f $T/f50-vendor-$os.tar.gz ]; then vt=$T/f50-vendor-$os.tar.gz; fi
     echo none > $w/room
     # (F50_DELTA=0 in the environment: the whole image is unpacked; the room for that is counted all the same)
-    if [ -n "$bb" ]; then
+    if [ -n "$bb" ] && [ -f "$w/root/opt/f50/bin/f50-update" ]; then
         stage_run "compare $os" 3600 sh -c 'F50_LIB= "$1" sh "$2/root/opt/f50/bin/f50-update" delta-room "$3" "$2" "$4" "$5" > "$2/room.new" && mv "$2/room.new" "$2/room"; true' \
             sh $bb $w $M/$os $os "$vt" || exit 1
     fi

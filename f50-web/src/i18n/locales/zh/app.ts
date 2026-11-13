@@ -5,6 +5,15 @@ export default {
   language: "语言",
   notices: "站点通知",
   loading: "加载中",
+  shell: {
+    home: "首页",
+    scrollLeft: "向左滚动",
+    scrollRight: "向右滚动",
+    closeTab: "关闭{name}",
+    account: "账户",
+    logoutTitle: "退出登录？",
+    logoutBody: "退出后需要重新输入 root 密码登录。",
+  },
   notFound: { title: "404 · 页面不存在", back: "返回仪表盘" },
   login: {
     description: "使用设备的系统账户登录（OpenWrt 的 root 密码）",

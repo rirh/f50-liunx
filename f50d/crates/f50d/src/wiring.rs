@@ -50,7 +50,9 @@ async fn leds(s: Services, platform: Platform, shutdown: CancellationToken) {
     loop {
         let current: Arc<RadioSnapshot> = snap.borrow_and_update().clone();
         let data_up = platform.netifd().is_up("wan").await.unwrap_or(false);
-        let wifi_on = platform.sysfs().read("/sys/class/net/wlan0/operstate").as_deref() == Some("up");
+        // hostapd's word, not wlan0's operstate: the F50's driver need not report a running access point "up", and
+        // the Wi-Fi client's station is "up" too
+        let wifi_on = s.net.hotspot_up().await;
         s.system.set_led_inputs(LedInputs {
             network: network_led(&current, s.modem.sim_state()),
             bars: current.signal.as_ref().map(|x| x.bars),

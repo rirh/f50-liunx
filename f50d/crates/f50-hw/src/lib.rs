@@ -181,6 +181,15 @@ impl Hw {
         self.bootctl().trial().await
     }
 
+    /// `f50.boot android`: the next boot is Android's (written and read back before anything else), then a reboot
+    /// in `delay` so the reply can leave first.
+    pub async fn switch_to_android(&self, delay: std::time::Duration) -> Result<serde_json::Value> {
+        let android = self.bootctl().to_android().await?;
+        self.mark("switch-android");
+        self.platform().system().reboot_after(delay)?;
+        Ok(serde_json::json!({ "slot": android, "reboot_in_s": delay.as_secs() }))
+    }
+
     /// The boot control and the last stage reports (`f50.boot get`).
     pub async fn boot_info(&self) -> Result<BootInfo> {
         let (bc, dir) = (self.bootctl(), self.reports_dir());

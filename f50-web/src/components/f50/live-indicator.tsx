@@ -18,7 +18,7 @@ const TEXT: Record<Exclude<LiveState, "off">, { label: Key; hint: Key }> = {
   denied: { label: "app.live.polling", hint: "app.live.hint.denied" },
 };
 
-/** Whether the pages are pushed to or polling, in the header. */
+/** Whether the pages are pushed to or polling, beside the brand in the sidebar. */
 export function LiveIndicator() {
   const state = useLiveState();
   if (state === "off") return null;

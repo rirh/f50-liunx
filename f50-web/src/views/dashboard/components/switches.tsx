@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { KvList } from "@/components/f50/kv-list";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,19 +9,59 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { SweepShine } from "@/components/ui/sweep-shine";
 import { Switch } from "@/components/ui/switch";
 import { type Key, t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { WifiIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Figure, Tile } from "./tile";
-import { STATUS_KEY, setWifiPower } from "../api";
-import { SECURITY_LABEL, label } from "../labels";
-import type { OnOff, Part, WifiInfo } from "../types";
+import { STATUS_KEY, setDataPower, setWifiPower } from "../api";
+import type { DataInfo, OnOff, WifiInfo } from "../types";
+
+/** Mobile data on/off: the dial follows (connecting, held) on its own. */
+export function DataSwitch({ data }: { data: DataInfo }) {
+  const qc = useQueryClient();
+  const power = useMutation({
+    mutationFn: (state: OnOff) => setDataPower(state),
+    onSuccess: (r) =>
+      toast.success(
+        r.state === "on"
+          ? t("dashboard.data.turnedOn")
+          : t("dashboard.data.turnedOff"),
+      ),
+    onError: (e) => toast.error(errorMessage(e)),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: STATUS_KEY });
+      qc.invalidateQueries({ queryKey: ["f50.data"] });
+    },
+  });
+  const on = power.isPending ? power.variables === "on" : data.state !== "down";
+  return (
+    <div className="flex items-center gap-2">
+      <Label
+        htmlFor="dash-data-power"
+        className="text-[13px] text-muted-foreground"
+      >
+        {power.isPending ? (
+          <SweepShine>{t("common.action.switching")}</SweepShine>
+        ) : (
+          <span className="sr-only">
+            {on ? t("common.state.on") : t("common.state.off")}
+          </span>
+        )}
+      </Label>
+      <Switch
+        id="dash-data-power"
+        checked={on}
+        disabled={power.isPending}
+        aria-busy={power.isPending}
+        aria-label={t("dashboard.data.toggle")}
+        onCheckedChange={(v) => power.mutate(v ? "on" : "off")}
+      />
+    </div>
+  );
+}
 
 const RESULT_TEXT = {
   pending: "dashboard.wifi.result.pending",
@@ -30,7 +69,8 @@ const RESULT_TEXT = {
   saved: "dashboard.wifi.result.saved",
 } as const satisfies Record<string, Key>;
 
-function WifiSwitch({ wifi }: { wifi: WifiInfo }) {
+/** The hotspot on/off; turning it off asks first (it may be the way to this page). */
+export function WifiSwitch({ wifi }: { wifi: WifiInfo }) {
   const qc = useQueryClient();
   const [confirmOff, setConfirmOff] = useState(false);
   const power = useMutation({
@@ -52,14 +92,14 @@ function WifiSwitch({ wifi }: { wifi: WifiInfo }) {
     <div className="flex items-center gap-2">
       <Label
         htmlFor="dash-wifi-power"
-        className="text-xs text-muted-foreground"
+        className="text-[13px] text-muted-foreground"
       >
         {power.isPending ? (
           <SweepShine>{t("common.action.switching")}</SweepShine>
-        ) : on ? (
-          t("common.state.on")
         ) : (
-          t("common.state.off")
+          <span className="sr-only">
+            {on ? t("common.state.on") : t("common.state.off")}
+          </span>
         )}
       </Label>
       <Switch
@@ -92,53 +132,5 @@ function WifiSwitch({ wifi }: { wifi: WifiInfo }) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  );
-}
-
-export function WifiTile({ part }: { part: Part<WifiInfo> | undefined }) {
-  return (
-    <Tile
-      title={t("dashboard.wifi.title")}
-      icon={WifiIcon}
-      to="/network/wifi"
-      part={part}
-      action={(w) => <WifiSwitch wifi={w} />}
-    >
-      {(w) => (
-        <>
-          <div className="flex items-center justify-between gap-3">
-            <Figure
-              value={w.ssid ?? "—"}
-              caption={
-                w.enabled
-                  ? t("dashboard.wifi.clients", { count: w.clients.length })
-                  : t("dashboard.wifi.off")
-              }
-            />
-            <Badge variant="secondary">{w.band} GHz</Badge>
-          </div>
-          {w.client_mode && (
-            <p className="text-xs text-muted-foreground">
-              {t("dashboard.wifi.clientMode")}
-            </p>
-          )}
-          <KvList
-            dense
-            items={[
-              {
-                label: t("dashboard.wifi.channel"),
-                value:
-                  w.channel_live ??
-                  (w.channel === "auto" ? t("common.state.auto") : w.channel),
-              },
-              {
-                label: t("dashboard.wifi.security"),
-                value: label(SECURITY_LABEL, w.security),
-              },
-            ]}
-          />
-        </>
-      )}
-    </Tile>
   );
 }

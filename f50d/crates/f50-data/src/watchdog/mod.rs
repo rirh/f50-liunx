@@ -19,13 +19,13 @@
 
 mod downlink;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use f50_at::SendOpts;
 use tokio_util::sync::CancellationToken;
 
 use crate::Data;
-use crate::dial::address::v4_of_cgpaddr;
+use crate::dial::address::{Bearer, v4_of_cgpaddr};
 use crate::kernel::Kernel;
 use crate::netifd::IfStatus;
 use crate::radio;
@@ -87,7 +87,52 @@ struct Watch {
     downlink: downlink::Downlink,
 }
 
+/// f50d started again with the bearer still up (netifd kept the interface, the modem the context, the device its
+/// address): the state would say down, the panel "off", and nothing would watch the bearer. Taken back as connected
+/// when netifd has the interface up, the device an IPv4 address and the modem the context active.
+async fn adopt(data: &Data) {
+    if data.modem().restarting() {
+        return;
+    }
+    {
+        let st = data.state();
+        if st.phase != Phase::Down || st.hold.is_some() {
+            return;
+        }
+    }
+    let interface = data.config().interface.clone();
+    let Some(status) = IfStatus::read(data.platform(), &interface).await.ok().flatten() else { return };
+    if !status.up || status.pending {
+        return;
+    }
+    let slot = data.modem().active_slot();
+    let device = status.l3_device.clone().unwrap_or_else(|| data.config().device_for(slot).to_owned());
+    let Some(cidr) = Kernel::new(data.platform()).v4_addresses(&device).await.into_iter().next() else { return };
+    let Some((ipv4, prefix)) = cidr.split_once('/').and_then(|(a, p)| Some((a.to_owned(), p.parse::<u8>().ok()?)))
+    else {
+        return;
+    };
+    if context(data).await != Context::Active {
+        return;
+    }
+    let mut st = data.state();
+    // a dial netifd started meanwhile owns the state
+    if st.phase != Phase::Down || st.hold.is_some() {
+        return;
+    }
+    tracing::info!(%interface, %device, address = %cidr, "mobile data already up: taken over");
+    st.connected(Bearer { device, ipv4, prefix, dns: Vec::new(), iid: None }, slot, false);
+    st.config = Some(interface);
+    if let Some(up) = status.uptime {
+        st.since = Instant::now().checked_sub(Duration::from_secs(up)).or(st.since);
+    }
+}
+
 pub(crate) async fn run(data: Data, shutdown: CancellationToken) {
+    tokio::select! {
+        () = shutdown.cancelled() => return,
+        () = adopt(&data) => {}
+    }
     let mut w = Watch::default();
     let every = data.config().watch_interval;
     loop {
@@ -124,6 +169,9 @@ impl Watch {
             _ => {}
         }
         let (Phase::Connected, Some(bearer)) = (phase, bearer) else {
+            if phase == Phase::Down {
+                adopt(data).await;
+            }
             self.fails = 0;
             self.unknown = 0;
             self.downlink.reset();

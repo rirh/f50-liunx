@@ -27,6 +27,9 @@ export default {
     },
     chart: { mem: "内存", temp: "最高温度" },
     live: {
+      trend: "负载趋势",
+      storage: "存储",
+      sensors: "全部传感器（{n}）",
       title: "实时状态",
       descLive: "实时推送（约每 2 秒）；CPU 占用为两次采样之间的平均值",
       descPoll: "每 3 秒刷新；CPU 占用为两次采样之间的平均值",
@@ -53,6 +56,13 @@ export default {
       uptime: "运行时间",
     },
     info: {
+      sections: {
+        device: "设备",
+        time: "时间",
+        storage: "存储",
+        network: "连接",
+      },
+      leases: "DHCP 租约",
       title: "设备信息",
       description: "型号、版本、内存与存储",
       notMounted: "未挂载",
@@ -60,6 +70,16 @@ export default {
       numberSource: "（SIM{slot} · 来自{src}）",
       notRead: "未读到",
       hideNumber: "隐藏本机号码",
+      ownNumberSet: {
+        action: "设置",
+        title: "设置本机号码",
+        description:
+          "这张 SIM 卡没有存本机号码（很多中国移动的卡都这样）。号码会写进 SIM 卡的本机号码栏，换设备也能读到；不会存在本机闪存里。",
+        hint: "国内号码直接填，例如 13800138000；国际格式以 + 开头。",
+        invalid: "请输入 3 到 15 位数字，可以以 + 开头",
+        job: "写入本机号码",
+        saved: "本机号码已写入 SIM 卡",
+      },
       model: "型号",
       release: "系统版本",
       kernel: "内核",

@@ -151,6 +151,8 @@ pub struct IfStatus {
     pub l3_device: Option<String>,
     /// The addresses netifd has for it, `address/mask`.
     pub addresses: Vec<String>,
+    /// Seconds it has been up.
+    pub uptime: Option<u64>,
 }
 
 impl IfStatus {
@@ -171,6 +173,7 @@ impl IfStatus {
             autostart: b("autostart"),
             l3_device: v.get("l3_device").and_then(Value::as_str).map(str::to_owned),
             addresses,
+            uptime: v.get("uptime").and_then(Value::as_u64),
         }
     }
 
@@ -208,7 +211,8 @@ mod tests {
     #[test]
     fn status_fields() {
         let s = IfStatus::parse(&json!({"up":true,"autostart":false,"l3_device":"sipa_eth0",
-            "ipv4-address":[{"address":"10.1.2.3","mask":30}]}));
+            "uptime":2840,"ipv4-address":[{"address":"10.1.2.3","mask":30}]}));
+        assert_eq!(s.uptime, Some(2840));
         assert!(s.up && !s.autostart);
         assert_eq!(s.l3_device.as_deref(), Some("sipa_eth0"));
         assert_eq!(s.addresses, vec!["10.1.2.3/30"]);

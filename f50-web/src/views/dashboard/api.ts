@@ -14,3 +14,10 @@ export const setWifiPower = (state: OnOff) =>
   f50<{ result: "pending" | "unchanged" | "saved" }>("f50.wifi", "power", {
     state,
   });
+
+/** Reboots in two seconds (`f50.system reboot`). */
+export const reboot = () => f50<Record<string, never>>("f50.system", "reboot");
+
+/** The next boot is Android's, then a reboot in two seconds (`f50.boot android`). */
+export const switchToAndroid = () =>
+  f50<{ slot: "a" | "b"; reboot_in_s: number }>("f50.boot", "android");

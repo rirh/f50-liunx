@@ -1,13 +1,19 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: "Geist Variable", sans-serif;
+  /* Apple's system faces: SF Pro on Apple devices, PingFang SC for Chinese, then the closest elsewhere */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", "Segoe UI",
+    "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono:
+    "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -124,7 +130,8 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    text-rendering: optimizeLegibility;
   }
   html {
     @apply font-sans;
@@ -340,3 +347,340 @@ body {
     background: var(--muted);
   }
 }
+
+/* The route tags (layout/route-tags.tsx), as one-template draws them; the active tab takes the primary colour. */
+@layer components {
+  .tags-view-chrome {
+    --tags-bar-height: 34px;
+    --tags-tab-height: 32px;
+    --tags-nav-width: 28px;
+    --tags-chrome-wing-r: 14px;
+    --tags-chrome-wing-offset: -14px;
+    --tags-chrome-wing-half: 7px;
+    --tags-chrome-wing-half-negative: -7px;
+    --tags-ruoyi-primary: var(--primary);
+    --tags-chrome-track-bg: color-mix(in srgb, var(--muted) 76%, var(--border));
+    --tags-chrome-active-bg: color-mix(
+      in srgb,
+      var(--tags-ruoyi-primary) 15%,
+      var(--tags-chrome-track-bg)
+    );
+    --tags-chrome-active-text: var(--tags-ruoyi-primary);
+    --tags-chrome-tab-text: var(--muted-foreground);
+
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    height: var(--tags-bar-height);
+    min-width: 0;
+    overflow: visible;
+    background: var(--tags-chrome-track-bg);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tags-view-chrome__nav,
+  .tags-view-chrome__action {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    height: var(--tags-bar-height);
+    color: var(--muted-foreground);
+    background: var(--tags-chrome-track-bg);
+    border: 0;
+    border-radius: 0;
+    transition:
+      background 0.15s,
+      color 0.15s;
+    user-select: none;
+  }
+
+  .tags-view-chrome__nav:hover,
+  .tags-view-chrome__action:hover {
+    color: var(--foreground);
+    background: var(--tags-chrome-track-bg);
+  }
+
+  .tags-view-chrome__nav {
+    width: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      width 0.16s ease,
+      opacity 0.16s ease,
+      color 0.15s;
+  }
+
+  .tags-view-chrome[data-overflow="true"] .tags-view-chrome__nav {
+    width: var(--tags-nav-width);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .tags-view-chrome__action {
+    width: var(--tags-nav-width);
+    transition: color 0.15s;
+  }
+
+  .tags-view-chrome__nav svg,
+  .tags-view-chrome__action svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .tags-view-chrome__nav--left {
+    border-right: 0;
+  }
+
+  .tags-view-chrome__nav--right {
+    border-left: 0;
+  }
+
+  .tags-view-chrome[data-overflow="true"] .tags-view-chrome__nav--left {
+    border-right: 1px solid var(--border);
+  }
+
+  .tags-view-chrome[data-overflow="true"] .tags-view-chrome__nav--right,
+  .tags-view-chrome__action {
+    border-left: 1px solid var(--border);
+  }
+
+  .tags-view-chrome__refresh {
+    width: var(--tags-nav-width);
+  }
+
+  .tags-view-chrome__wrapper {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: var(--tags-chrome-track-bg);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .tags-view-chrome__wrapper::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  .tags-view-chrome__list {
+    display: flex;
+    align-items: flex-end;
+    min-width: max-content;
+    height: 100%;
+    background: var(--tags-chrome-track-bg);
+    padding-right: var(--tags-chrome-wing-r);
+    padding-left: 0;
+  }
+
+  .tags-view-chrome__list.is-first-active {
+    padding-left: var(--tags-chrome-wing-r);
+  }
+
+  .tags-view-chrome__item {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--tags-tab-height);
+    min-height: var(--tags-tab-height);
+    margin: 0 0 -1px;
+    padding: 0 12px;
+    color: var(--tags-chrome-tab-text);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.2;
+    white-space: nowrap;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    transition:
+      background 0.12s ease,
+      color 0.12s ease,
+      border-radius 0.12s ease;
+  }
+
+  .tags-view-chrome__item::before,
+  .tags-view-chrome__item::after {
+    position: absolute;
+    bottom: 0;
+    display: block;
+    width: var(--tags-chrome-wing-r);
+    height: var(--tags-chrome-wing-r);
+    pointer-events: none;
+    content: "";
+    background: transparent;
+    border-radius: 0;
+    transition: box-shadow 0.12s ease;
+  }
+
+  .tags-view-chrome__item::before {
+    left: var(--tags-chrome-wing-offset);
+    border-bottom-right-radius: var(--tags-chrome-wing-r);
+  }
+
+  .tags-view-chrome__item::after {
+    right: var(--tags-chrome-wing-offset);
+    border-bottom-left-radius: var(--tags-chrome-wing-r);
+  }
+
+  .tags-view-chrome__item:first-child {
+    margin-left: 0;
+  }
+
+  .tags-view-chrome__item:first-child.active {
+    margin-left: var(--tags-chrome-wing-offset);
+    padding-left: 12px;
+    border-top-left-radius: 0;
+  }
+
+  .tags-view-chrome__item:first-child.active::before {
+    display: none;
+  }
+
+  .tags-view-chrome__item:last-child {
+    margin-right: 0;
+  }
+
+  .tags-view-chrome__item.is-separated {
+    border-left: 1px solid var(--border);
+    padding-left: 11px;
+  }
+
+  .tags-view-chrome__item:hover:not(.active) {
+    color: var(--foreground);
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .tags-view-chrome__item.active {
+    z-index: 2;
+    height: var(--tags-tab-height);
+    min-height: var(--tags-tab-height);
+    margin-bottom: 0;
+    padding: 0 14px;
+    color: var(--tags-chrome-active-text);
+    font-weight: 500;
+    background: var(--tags-chrome-active-bg);
+    border-radius: var(--tags-chrome-wing-r) var(--tags-chrome-wing-r) 0 0;
+  }
+
+  .tags-view-chrome__item.active::before {
+    box-shadow: var(--tags-chrome-wing-half) var(--tags-chrome-wing-half) 0
+      var(--tags-chrome-wing-half) var(--tags-chrome-active-bg);
+  }
+
+  .tags-view-chrome__item.active::after {
+    box-shadow: var(--tags-chrome-wing-half-negative)
+      var(--tags-chrome-wing-half) 0 var(--tags-chrome-wing-half)
+      var(--tags-chrome-active-bg);
+  }
+
+  .tags-view-chrome__label {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+    padding: 0;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    outline: none;
+  }
+
+  .tags-view-chrome__icon {
+    display: inline-flex;
+    margin-right: 3px;
+  }
+
+  .tags-view-chrome__icon svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .tags-view-chrome__close {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 0;
+    height: 16px;
+    margin-left: 0;
+    overflow: hidden;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      width 0.16s ease,
+      margin-left 0.16s ease,
+      opacity 0.16s ease,
+      transform 0.16s ease;
+    transform: scale(0.72);
+    transform-origin: 100% 50%;
+  }
+
+  .tags-view-chrome__item:hover .tags-view-chrome__close {
+    width: 16px;
+    margin-left: 3px;
+    opacity: 0.68;
+    pointer-events: auto;
+    transform: scale(1);
+  }
+
+  .tags-view-chrome__item.active.is-closable .tags-view-chrome__close {
+    width: 16px;
+    margin-left: 3px;
+    opacity: 0.68;
+    pointer-events: auto;
+    transform: scale(1);
+  }
+
+  .tags-view-chrome__close:hover {
+    color: var(--background);
+    background: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
+    opacity: 1;
+  }
+
+  .tags-view-chrome__close svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  @media (max-width: 767px) {
+    .tags-view-chrome {
+      --tags-bar-height: 40px;
+      --tags-tab-height: 38px;
+    }
+
+    .tags-view-chrome__item {
+      padding-right: 10px;
+      padding-left: 10px;
+    }
+
+    .tags-view-chrome__item.active {
+      padding-right: 12px;
+      padding-left: 12px;
+    }
+
+    .tags-view-chrome__item.is-closable .tags-view-chrome__close {
+      width: 16px;
+      margin-left: 3px;
+      opacity: 0.68;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+  }
+}
+

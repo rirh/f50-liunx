@@ -16,11 +16,14 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" aria-label={t("app.language")}>
-          <LanguagesIcon data-icon="inline-start" />
-          <span className="hidden sm:inline">
-            {locale === "zh" ? "中文" : "EN"}
-          </span>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          aria-label={t("app.language")}
+          title={t("app.language")}
+          className="shadow-none"
+        >
+          <LanguagesIcon />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

@@ -19,6 +19,8 @@ source: `crates/f50-hw/src/object.rs`
 
 - **get** (read) — The slot Linux runs from, the default boot, the failed boots allowed before Android, whether Linux is \
              locked, the boot control block, and the last result of every boot stage.
+- **android** (write) — Makes the next boot Android's (the initramfs' Android block, written and read back) and reboots in two \
+             seconds. The device stays in Android until Linux is started from there.
 
 ## `f50.cpu`
 
@@ -111,6 +113,8 @@ source: `crates/f50-modem/src/objects/modem.rs`
 - **identity** (write) — IMEI, IMSI, ICCID, model, firmware and the SIM's own number.
 - **radio** (write) — Switches the radio of the card in use on or off, kept across reboots (a job when it changes now).
   - fields: `Field::req("state", Rule::Enum(&["on", "off"]))`
+- **own_number** (write) — Writes the SIM's own number to the card (its own-number phonebook, read by AT+CNUM; a job).
+  - fields: `Field::req("number", Rule::Word { re: r"\+?[0-9]{3,15}", max: 16 })`
 - **restart** (write) — Restarts the modem's protocol stack (a job).
 
 ## `f50.proto`

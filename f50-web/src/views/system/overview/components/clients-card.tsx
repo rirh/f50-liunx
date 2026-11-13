@@ -17,6 +17,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLiveState } from "@/hooks/use-live";
 import { t } from "@/i18n";
 import { formatDuration } from "@/lib/format";
 import { type TableColumn, columnHelper } from "@/lib/table";
@@ -99,6 +100,8 @@ export function ClientsCard() {
     refetchInterval: 15_000,
   });
   const [filter, setFilter] = useState("");
+  // the list refreshes itself every 15 s; a manual refresh only while the page is not live
+  const live = useLiveState() === "live";
   return (
     <Card>
       <CardHeader>
@@ -106,17 +109,19 @@ export function ClientsCard() {
         <CardDescription>
           {t("system.overview.clients.description")}
         </CardDescription>
-        <CardAction>
-          <PendingButton
-            size="sm"
-            variant="outline"
-            pending={query.isFetching}
-            onClick={() => query.refetch()}
-          >
-            <RefreshCwIcon data-icon="inline-start" />
-            {t("common.action.refresh")}
-          </PendingButton>
-        </CardAction>
+        {!live && (
+          <CardAction>
+            <PendingButton
+              size="sm"
+              variant="outline"
+              pending={query.isFetching}
+              onClick={() => query.refetch()}
+            >
+              <RefreshCwIcon data-icon="inline-start" />
+              {t("common.action.refresh")}
+            </PendingButton>
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent>
         <QueryState query={query} skeletonRows={4}>

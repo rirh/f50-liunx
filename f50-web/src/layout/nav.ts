@@ -103,6 +103,16 @@ export const NAV: NavGroup[] = [
   },
 ];
 
+/** The group and the page a path belongs to (null for a path the sidebar does not list). */
+export function locate(
+  pathname: string,
+): { group: NavGroup; item: NavItem } | null {
+  for (const group of NAV)
+    for (const item of group.items)
+      if (item.path === pathname) return { group, item };
+  return null;
+}
+
 /** The page title for the header, in the current language. */
 export function titleOf(pathname: string): string {
   for (const g of NAV)

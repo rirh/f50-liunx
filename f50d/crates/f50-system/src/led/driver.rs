@@ -3,6 +3,9 @@
 //!
 //! Every write is best effort: the PMIC rejects a brightness write now and then, and a cosmetic LED must never make
 //! anything fail. A write that failed is tried again at the next rendering.
+//!
+//! What was written is read back every [`RESYNC`]: something else may light an LED after f50d put it out (a vendor
+//! trigger, a PMIC write that did not stick, another program), and the cache alone would never notice.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -23,6 +26,8 @@ const BOOT_STEP: Duration = Duration::from_millis(120);
 const BOOT_MAX: Duration = Duration::from_secs(180);
 /// In idle, a key shows the LEDs this long when no timeout is set.
 const IDLE_PEEK: Duration = Duration::from_secs(60);
+/// How often what was written is read back and written again when it drifted.
+const RESYNC: Duration = Duration::from_secs(5);
 
 pub(crate) struct Driver {
     platform: Platform,
@@ -38,6 +43,7 @@ pub(crate) struct Driver {
     boot_until: Option<Instant>,
     phase: usize,
     next_step: Option<Instant>,
+    resync_at: Instant,
 }
 
 impl std::fmt::Debug for Driver {
@@ -81,6 +87,7 @@ impl Driver {
             boot_until,
             phase: 0,
             next_step: None,
+            resync_at: now + RESYNC,
         }
     }
 
@@ -105,11 +112,15 @@ impl Driver {
                 (None, _) => self.next_step = None,
                 _ => {}
             }
+            if now >= self.resync_at {
+                self.verify();
+                self.resync_at = now + RESYNC;
+            }
             let lit = self.lit(&s, &i, now);
             let outs = render(&Scene { settings: &s, inputs: &i, lit, overlay, max: self.max });
             self.apply(outs);
 
-            let deadline = [self.next_step, self.awake_until, self.peek_until, self.boot_until]
+            let deadline = [self.next_step, self.awake_until, self.peek_until, self.boot_until, Some(self.resync_at)]
                 .into_iter()
                 .flatten()
                 .filter(|t| *t > now)
@@ -160,6 +171,29 @@ impl Driver {
             self.peek_until = Some(now + if t.is_zero() { IDLE_PEEK } else { t });
         }
         self.awake_until = (!t.is_zero()).then(|| now + t);
+    }
+
+    /// Forgets what was written to an LED whose sysfs no longer shows it, so the next rendering writes it again.
+    fn verify(&mut self) {
+        let sys = self.platform.sysfs();
+        for l in LAMPS {
+            let Some(o) = self.written[l.index()] else { continue };
+            let dir = format!("/sys/class/leds/{}", l.sysfs_name());
+            let trigger = sys.read(format!("{dir}/trigger"));
+            let active = |name: &str| trigger.as_deref().is_none_or(|t| t.contains(&format!("[{name}]")));
+            let held = match o {
+                // under the timer the brightness is the blink's moment: only the trigger tells
+                Out::Blink { .. } => active("timer"),
+                Out::Off => active("none") && sys.read_num::<u32>(format!("{dir}/brightness")).is_none_or(|b| b == 0),
+                Out::Steady(level) => {
+                    active("none") && sys.read_num::<u32>(format!("{dir}/brightness")).is_none_or(|b| b == level)
+                }
+            };
+            if !held {
+                tracing::info!(led = l.sysfs_name(), ?o, ?trigger, "LED changed behind f50d: written again");
+                self.written[l.index()] = None;
+            }
+        }
     }
 
     fn apply(&mut self, outs: [Out; 4]) {
