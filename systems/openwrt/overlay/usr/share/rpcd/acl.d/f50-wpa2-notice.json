@@ -1,0 +1,21 @@
+{
+	"f50-wpa2-notice": {
+		"description": "F50: the notice that WPA3 on the hotspot was disabled (read it, dismiss it)",
+		"read": {
+			"file": {
+				"/etc/f50/wpa3-disabled": [ "read" ]
+			},
+			"ubus": {
+				"file": [ "read" ]
+			}
+		},
+		"write": {
+			"file": {
+				"/etc/f50/wpa3-disabled": [ "write" ]
+			},
+			"ubus": {
+				"file": [ "remove" ]
+			}
+		}
+	}
+}

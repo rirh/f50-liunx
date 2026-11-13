@@ -1,0 +1,279 @@
+# 简体中文 - F50 Linux installer. One line per message: English<TAB>translation; {1}.. are the arguments.
+# Check with: scripts/i18n/check-i18n.py
+could not read {1} from the device	无法从设备读取 {1}
+Checking host tools and device	正在检查电脑上的工具和设备
+{1} not found	未找到 {1}
+kernel outputs missing in {1} (run kernel/vendor/build-all.sh)	{1} 中缺少内核编译输出（请运行 kernel/vendor/build-all.sh）
+no root shell on the device: turn on USB debugging first (make adb, or http://192.168.0.1/index.html#usb_port), see README	设备上没有 root shell：请先开启 USB 调试（make adb，或 http://192.168.0.1/index.html#usb_port），见 README
+device: {1}	设备：{1}
+Not enough free space - this looks like the 32 GB variant	空闲空间不足——这似乎是 32 GB 版本
+could not read the partition table	无法读取分区表
+could not read the userdata entry from the partition table	无法从分区表中读取 userdata 条目
+there is not enough room to split: {1} in total,	空间不足，无法划分：总共 {1}，
+and Android needs at least {1} of it. Nothing is changed.	而 Android 至少需要其中的 {1}。未做任何更改。
+userdata now:         {1} (sectors {2}..{3})	当前 userdata：      {1}（扇区 {2}..{3}）
+free behind it:       {1}	其后的空闲空间：    {1}
+to share:             {1}	可分配空间：        {1}
+Android keeps at least {1}	Android 至少保留 {1}
+Only userdata changes size; it is the last partition, so nothing else moves.	只有 userdata 的大小会改变；它是最后一个分区，其他分区不会移动。
+--check writes nothing. Run the installer without it to make room.	--check 不会写入任何内容。去掉该参数运行安装程序即可腾出空间。
+Make room by shrinking userdata? (yes/no)	通过缩小 userdata 来腾出空间吗？(是/否)
+nothing was changed.	未做任何更改。
+How many GiB for Linux? (the rest stays with Android)	为 Linux 分配多少 GiB？（其余留给 Android）
+give a number, like 4 or 2.5	请输入数字，例如 4 或 2.5
+too small: Linux needs at least {1}	太小：Linux 至少需要 {1}
+too large: Android would be left with less than {1}	太大：Android 将只剩不到 {1}
+userdata (Android):   {1}	userdata（Android）： {1}
+Linux region:         {1}	Linux 区域：         {1}
+Rewriting the partition table	正在重写分区表
+the resize was refused; nothing is changed	调整大小被拒绝；未做任何更改
+Verifying	正在验证
+the table on the device does not read back as valid GPT.	设备上的分区表读回后不是有效的 GPT。
+the table did not take (userdata still ends at {1}). Nothing else was changed.	分区表未生效（userdata 仍结束于 {1}）。未做其他更改。
+userdata now ends at sector {1}	userdata 现在结束于扇区 {1}
+Reboot now? (yes/no)	现在重启吗？(是/否)
+Locating free eMMC space after the last partition	正在查找最后一个分区之后的空闲 eMMC 空间
+could not read the partition table from the device (is su granted? try again)	无法从设备读取分区表（是否已授予 su 权限？请重试）
+eMMC: {1} ({2} sectors), partitions end at {3} (sector {4}), free after them: {5}	eMMC：{1}（{2} 个扇区），分区结束于 {3}（扇区 {4}），其后空闲：{5}
+Linux region: offset {1}, {2}, existing f50root filesystem: {3}	Linux 区域：偏移 {1}，{2}，已有 f50root 文件系统：{3}
+data check: {1} of 16 samples contain data	数据检查：16 个样本中有 {1} 个含有数据
+OK: a F50 Linux installation is already present (it can be kept or replaced)	正常：已存在 F50 Linux 安装（可以保留或替换）
+WARNING: the unpartitioned space is not empty; it may be used by this firmware. Installing overwrites it	警告：未分区空间并非空白，可能正被此固件使用。安装将覆盖它
+OK: free and empty, same layout as the tested device (~32 GiB after userdata on the 64 GB eMMC)	正常：空闲且为空，与测试设备布局相同（64 GB eMMC 上 userdata 之后约 32 GiB）
+result: {1}	结果：{1}
+Nothing was written. Android version: {1}	未写入任何内容。Android 版本：{1}
+Type overwrite to use this region anyway	输入 overwrite 以仍然使用此区域
+cancelled	已取消
+invalid choice	无效的选择
+that choice needs about {1} MiB and this device has {2} MiB of free space	该选择需要约 {1} MiB，而此设备只有 {2} MiB 空闲空间
+Boot Linux by default instead of Android (falls back to Android if Linux fails)? (yes/no)	默认启动 Linux 而不是 Android 吗（Linux 启动失败时会回到 Android）？(是/否)
+How many failed Linux boots in a row before the device goes back to Android by itself?	Linux 连续启动失败多少次后，设备自动回到 Android？
+A boot counts as failed when it never finishes starting up - the power goes, the battery runs out, or	如果启动一直没有完成，就算作失败——例如断电、电池耗尽，或
+Linux hangs - before about a minute after power-on. One boot that does finish resets the count.	Linux 在开机后约一分钟内卡住。只要有一次成功启动，计数就会清零。
+* Higher is more forgiving: a flaky cable or a couple of power cuts while it is starting will not throw you	* 数值越大越宽容：启动时接触不良的数据线或几次断电不会
+  back into Android.	  把你送回 Android。
+* Lower gets you to Android sooner if Linux is really broken.	* 数值越小，Linux 真正损坏时越快回到 Android。
+* It is also your way back to Android with no computer at hand: cut the power while it is starting this	* 这也是手边没有电脑时回到 Android 的方法：在启动过程中连续断电
+  many times in a row.	  这么多次。
+1 is how this project used to behave (a single interrupted boot returns to Android). 1-6; the device's	1 是本项目以前的行为（一次中断的启动就会回到 Android）。可选 1-6；设备的
+boot counter has no room for more. It can be changed later with: f50-next-boot attempts N	启动计数器容纳不了更多。之后可以用以下命令更改：f50-next-boot attempts N
+Failed boots before Android (1-6)	回到 Android 前允许的失败启动次数（1-6）
+enter a number from 1 to 6	请输入 1 到 6 之间的数字
+Copy Android's hotspot name and password to Linux? (yes/no)	将 Android 的热点名称和密码复制到 Linux 吗？(是/否)
+Include the Mali GPU (OpenCL) userspace (~90 MiB)? (yes/no)	包含 Mali GPU（OpenCL）用户空间组件吗（约 90 MiB）？(是/否)
+Device	设备
+A F50 Linux installation is already on this device.	此设备上已经安装了 F50 Linux。
+update  install the new release over the systems and keep everything you added or changed in them	update  在系统上安装新版本，保留你添加或修改的一切
+        (files, settings, accounts; packages you installed come back at the first boot)	        （文件、设置、账户；你安装的软件包会在首次启动时重新安装）
+wipe    erase the Linux filesystem and install from scratch	wipe    清除 Linux 文件系统并全新安装
+update or wipe	update（更新）或 wipe（清除）
+Repeat	再次输入
+passwords differ or are shorter than 6 characters	两次密码不一致或少于 6 个字符
+Pulling device data into {1} (stays on this computer)	正在将设备数据拉取到 {1}（仅保存在这台电脑上）
+could not read the misc header from the device	无法从设备读取 misc 头部
+these firmware files could not be read from the device:{1}	无法从设备读取以下固件文件：{1}
+Wi-Fi and Bluetooth need them; without them the system installs and boots but has no hotspot.	Wi-Fi 和蓝牙需要这些文件；缺少它们系统仍可安装和启动，但没有热点。
+Building helper binaries	正在编译辅助程序
+Building the OpenWrt root filesystem	正在构建 OpenWrt 根文件系统
+Building the boot image	正在构建启动镜像
+Ready to install	准备安装
+source:         {1}	来源：          {1}
+local build	本地构建
+systems:        {1} (boots: {2})	系统：          {1}（启动：{2}）
+kernel:         {1}	内核：          {1}
+default boot:   {1}	默认启动：      {1}
+Linux (Android after {1} failed boots in a row)	Linux（连续 {1} 次启动失败后回到 Android）
+Android, Linux on demand	Android，需要时启动 Linux
+filesystem:     {1}	文件系统：      {1}
+CREATE new ext4 (erases the Linux region)	创建新的 ext4（将清除 Linux 区域）
+keep existing	保留现有的
+update:         everything you added to the chosen systems or changed in them is kept (/etc/f50/update-report)	更新：          保留你在所选系统中添加或修改的一切（/etc/f50/update-report）
+note:           the chosen systems are installed fresh; their previous files and settings are replaced	注意：          所选系统将全新安装；原有文件和设置会被替换
+writes:         Linux region at offset {1}, boot_{2}, 32 bytes of misc (boot_{3}, GPT and userdata are not touched)	写入：          偏移 {1} 处的 Linux 区域、boot_{2}、misc 的 32 字节（不会触碰 boot_{3}、GPT 和 userdata）
+Type INSTALL to continue	输入 INSTALL 继续
+Copying to the device	正在复制到设备
+Android no longer runs from slot {1}; boot_{2} and misc were not changed	Android 已不再从 {1} 槽运行；boot_{2} 和 misc 未被更改
+the boot image was not built for slot {1}; boot_{1} and misc were not changed	启动镜像不是为 {1} 槽构建的；boot_{1} 和 misc 未被更改
+Writing boot_{1} and arming slot {1}	正在写入 boot_{1} 并启用 {1} 槽
+pushed boot image hash mismatch	推送的启动镜像哈希不匹配
+boot_{1} verify failed (slot {2} still active, Android keeps booting)	boot_{1} 校验失败（{2} 槽仍然有效，Android 会照常启动）
+Installing the on-device switch (Magisk module)	正在安装设备端切换工具（Magisk 模块）
+(skipped; the installer keeps working either way)	（已跳过；不影响安装程序的使用）
+Done. Rebooting into {1}	完成。正在重启进入 {1}
+USB network: {1}   SSH: {2}	USB 网络：{1}   SSH：{2}
+back to Linux from Android (with Magisk): su -c f50-linux	从 Android 回到 Linux（需 Magisk）：su -c f50-linux
+Type ERASE to rewrite the partition table and wipe Android's data	输入 ERASE 以重写分区表并清除 Android 数据
+The backup copy at the end of the disk was written first, so Android's own repair may still fix this. Do not power off.	磁盘末尾的备份副本已先写入，Android 自身的修复仍可能解决此问题。请勿断电。
+ERROR:	错误:
+no adb device (boot Android, enable USB debugging)	没有 adb 设备（请启动 Android 并开启 USB 调试）
+The device is running F50 Linux, not Android	设备当前运行的是 F50 Linux，而不是 Android
+Installing and uninstalling happen from Android, so the device has to reboot first.	安装和卸载需在 Android 中进行，因此设备需要先重启。
+Reboot the device into Android now? (yes/no)	现在重启设备进入 Android 吗？(是/否)
+boot Android yourself (on the device: sudo f50-next-boot android && sudo reboot)	请自行启动 Android（在设备上执行：sudo f50-next-boot android && sudo reboot）
+{1} - enter the device password when asked (Ctrl-C to skip)	{1}——提示时请输入设备密码（按 Ctrl-C 跳过）
+rebooting	正在重启
+waiting for Android	正在等待 Android
+the device did not come back as Android; boot it yourself (f50-next-boot android)	设备没有以 Android 启动；请自行启动（f50-next-boot android）
+Android is up	Android 已启动
+could not reboot it over SSH; on the device run: sudo f50-next-boot android && sudo reboot	无法通过 SSH 重启；请在设备上执行：sudo f50-next-boot android && sudo reboot
+yes	是
+no	否
+update	update（更新）
+start of the region: {1}	区域开头：{1}
+waiting for Android to finish starting	正在等待 Android 启动完成
+SD card present but smaller than 700 MiB; not used	已插入 SD 卡，但容量小于 700 MiB；不使用
+SD card: {1}, {2}, existing f50sd filesystem: {3}	SD 卡：{1}，{2}，已有 f50sd 文件系统：{3}
+Linux filesystem: SD card {1}, {2}, existing f50sd filesystem: {3}	Linux 文件系统：SD 卡 {1}，{2}，已有 f50sd 文件系统：{3}
+OK: the SD card will be formatted; everything on it is erased	正常：SD 卡将被格式化；卡上的所有内容都会被清除
+Everything on the SD card ({1}, {2}) will be erased. Type ERASE to continue	SD 卡（{1}，{2}）上的所有内容都将被清除。输入 ERASE 继续
+CREATE new ext4 (erases the SD card)	创建新的 ext4（将清除 SD 卡）
+writes:         SD card {1}, boot_{2}, 32 bytes of misc (the eMMC region, boot_{3}, GPT and userdata are not touched)	写入：          SD 卡 {1}、boot_{2}、misc 的 32 字节（不会触碰 eMMC 上的 Linux 区域、boot_{3}、GPT 和 userdata）
+F50_STORAGE=sd, but there is no usable SD card in the device	F50_STORAGE=sd，但设备中没有可用的 SD 卡
+F50_STORAGE must be internal or sd	F50_STORAGE 必须是 internal 或 sd
+Where should the Linux filesystem go: internal storage or the SD card ({1}, {2})? (internal/sd)	Linux 文件系统要放在哪里：内部存储还是 SD 卡（{1}，{2}）？(internal/sd)
+the SD card ({1}) holds another Linux (ext4) filesystem, and the installer never formats one that is not its own (f50sd).	SD 卡（{1}）上有另一个 Linux（ext4）文件系统，安装程序绝不会格式化不属于自己（不是 f50sd）的文件系统。
+Copy off what you need and format the card elsewhere, use another card, or install to internal storage (F50_STORAGE=internal).	请先复制出需要的数据并在别处格式化该卡，或换一张卡，或安装到内部存储（F50_STORAGE=internal）。
+the SD card holds another Linux (ext4) filesystem; the installer will not format it	SD 卡上有另一个 Linux（ext4）文件系统；安装程序不会格式化它
+too little free eMMC space for Linux; the installer will offer the SD card instead (no repartitioning needed)	eMMC 上的空闲空间不足以安装 Linux；安装程序将改为提供 SD 卡选项（无需重新分区）
+The SD card ({1}) holds a Linux installation (f50sd), and the device always starts that one first: an installation to internal storage does not start while this card is in the slot.	SD 卡（{1}）上已有 Linux 安装（f50sd），设备总是先启动它：只要这张卡还在卡槽中，安装到内部存储的系统就不会启动。
+Take the card out before the device restarts, or erase its installation first with the uninstaller.	请在设备重启前取出这张卡，或先用卸载程序（uninstall）清除卡上的安装。
+Type internal to install to internal storage anyway	输入 internal 以仍然安装到内部存储
+adb to Linux over USB is on and lets every computer in: a root shell without a password for anyone who plugs in a cable. Let in only this computer's adb key (~/.android/adbkey.pub) instead? (yes/no)	通过 USB 对 Linux 的 adb 已开启，并接受任何电脑：任何插上数据线的人都能获得无需密码的 root shell。改为只接受这台电脑的 adb 密钥（~/.android/adbkey.pub）吗？(是/否)
+no adb key of this computer to authorise ({1})	这台电脑没有可授权的 adb 密钥（{1}）
+adb to Linux:   {1}	Linux adb：     {1}
+on, only for the adb key of this computer	开启，仅限这台电脑的 adb 密钥
+on, for every computer: a root shell without a password (on the device: f50-usb adb auth keys, or f50-usb adb off)	开启，任何电脑均可：无需密码的 root shell（在设备上：f50-usb adb auth keys，或 f50-usb adb off）
+asking it over adb ({1})	正在通过 adb 请求（{1}）
+Android runs from slot {1}; Linux goes to slot {2} (boot_{2})	Android 从槽位 {1} 运行；Linux 将安装到槽位 {2}（boot_{2}）
+boot_a and boot_b are the same partition	boot_a 和 boot_b 是同一个分区
+cannot tell which slot Android runs from	无法确定 Android 从哪个槽位运行
+installation on the device failed; boot_{1} and misc were not changed	设备上的安装失败；boot_{1} 和 misc 未被更改
+boot chain:     identical on both slots	启动链：        两个槽位相同
+boot chain:     {1} differ between the slots; Android's slot {2} is copied to slot {3} (backed up first)	启动链：        {1} 在两个槽位之间不同；将 Android 的槽位 {2} 复制到槽位 {3}（先备份）
+boot chain:     not synced (F50_SYNC_BOOTCHAIN=0)	启动链：        不同步（F50_SYNC_BOOTCHAIN=0）
+boot chain:     cannot be synced: {1}	启动链：        无法同步：{1}
+the boot chain cannot be copied to the Linux slot: {1}	无法将启动链复制到 Linux 槽位：{1}
+Nothing was changed. Experts can skip this step with F50_SYNC_BOOTCHAIN=0.	未做任何更改。高级用户可以用 F50_SYNC_BOOTCHAIN=0 跳过此步骤。
+no answer from the device	设备没有响应
+boot chain backup: {1}	启动链备份：{1}
+the boot chain backup could not be copied to this computer; it is on the Linux filesystem (.f50/bootchain)	无法将启动链备份复制到这台电脑；它保存在 Linux 文件系统中（.f50/bootchain）
+boot chain:     not synced (the model is not recognised)	启动链：        不同步（无法识别设备型号）
+the device log was kept at {1}	设备日志已保存在 {1}
+the new partition table did not arrive on the device as it was made; nothing is changed	新的分区表未能原样传到设备上；未做任何更改
+News and new releases are on the Telegram channel of the project, you can follow it: {1}	新闻和新版本发布在本项目的 Telegram 频道，欢迎关注：{1}
+Copying the boot image of Android (boot_{1}) and the first block of misc to this computer	正在把 Android 的启动镜像（boot_{1}）和 misc 的第一个块复制到这台电脑
+the copy of boot_{1} is not what the device holds; do not rely on it	boot_{1} 的副本与设备上的内容不一致；请不要依赖它
+Not copied, here or during an installation: the NV and calibration partitions (IMEI, radio calibration). The installer never reads or writes them.	这里和安装过程中都不会复制：NV 与校准分区（IMEI、射频校准）。安装程序从不读取或写入它们。
+Nothing was written to the device.	没有向设备写入任何内容。
+Installing on the device	正在设备上安装
+this question has no variable and cannot be answered without a terminal: {1}	这个问题没有对应的变量，没有终端就无法回答：{1}
+no answer to the question "{1}": set {2} (nothing is asked and nothing is assumed in answers mode)	问题“{1}”没有答案：请设置 {2}（应答模式下不提问，也不做任何假设）
+no answer to the question "{1}" on standard input ({2}=@stdin)	标准输入中没有问题“{1}”的答案（{2}=@stdin）
+the answer in {1} was not accepted: {2}	{1} 中的答案未被接受：{2}
+The bootloader is locked. Did you patch TrustOS? With a patched TrustOS Linux boots on a locked bootloader; without it the device goes back to Android by itself after the install.	引导加载程序已锁定。你给 TrustOS 打过补丁吗？打过补丁的 TrustOS 可以让 Linux 在锁定的引导加载程序上启动；否则安装后设备会自行回到 Android。
+WARNING: {1}	警告：{1}
+more than one device runs F50 Linux and adb could not reboot this one: boot Android yourself (on the device: sudo f50-next-boot android && sudo reboot), or give its address with F50_IP	有多台设备正在运行 F50 Linux，且 adb 无法重启这一台：请自行启动 Android（在设备上执行：sudo f50-next-boot android && sudo reboot），或用 F50_IP 指定它的地址
+could not read what identifies this device (serial, eMMC CID, userdata)	无法读取识别本设备的信息（序列号、eMMC CID、userdata）
+the partition table and the running kernel disagree about userdata; reboot Android and try again	分区表与正在运行的内核对 userdata 的认识不一致；请重启 Android 后再试
+encrypted	已加密
+not encrypted	未加密
+unknown	未知
+Backing up to {1}	正在备份到 {1}
+Done - the device restarts into the reset now	完成——设备现在重启并进行重置
+Android's recovery formats Android's data on the next start; then Android starts as new. Set it up,	下次启动时 Android 的 recovery 会格式化 Android 的数据，然后 Android 作为新设备启动。请完成设置，
+turn USB debugging on, bring root back (the Magisk app, Shell allowed), and run this installer again.	打开 USB 调试，恢复 root（Magisk 应用，允许 Shell），然后再次运行本安装程序。
+transaction: {1}	事务记录：{1}
+OK: the region prepared by making room, checked against its transaction	正常：腾出空间时准备的区域，已与其事务记录核对
+could not mark {1} as done	无法将 {1} 标记为已完成
+Android's data:       {1} ({2})	Android 数据：        {1}（{2}）
+Android's encryption state is unknown ({1}); nothing is changed.	Android 的加密状态未知（{1}）；未做任何更改。
+no saved transaction for this device in {1} (--transaction FILE names one)	{1} 中没有本设备已保存的事务（--transaction FILE 可指定一个）
+A prepared installation is waiting: {1}	有一个已准备的安装正在等待：{1}
+EXPERIMENTAL: it continues the installation that made room by resetting Android. --no-resume ignores it.	实验性功能：继续那次通过重置 Android 腾出空间的安装。--no-resume 会忽略它。
+could not read the transaction {1}	无法读取事务记录 {1}
+The prepared installation cannot be continued: {1}	无法继续已准备的安装：{1}
+Nothing was written. Keep the device as it is and keep {1}.	未写入任何内容。请保持设备现状，并保留 {1}。
+Another transaction: --transaction FILE. To install as if nothing had been prepared: --no-resume (the region is then treated as space that holds data).	使用其他事务记录：--transaction FILE。如同未做任何准备那样安装：--no-resume（届时该区域被视为含有数据的空间）。
+the device, its slot, its partition table, the region, the token and this installer are the ones the transaction was made with	设备、其槽位、分区表、区域、令牌和本安装程序均与创建该事务时一致
+Backing up {1}	正在备份 {1}
+the copy of {1} is not what the device holds; nothing was changed	{1} 的副本与设备上的内容不一致；未做任何更改
+could not compute the installer identity	无法计算安装程序的标识
+could not save the transaction; nothing was changed	无法保存事务记录；未做任何更改
+transaction saved: {1}	事务记录已保存：{1}
+could not prepare the files to write; nothing was changed	无法准备要写入的文件；未做任何更改
+the token did not read back from the device; misc was not changed, Android keeps its data. Run the installer again.	无法从设备读回令牌；misc 未被更改，Android 的数据得以保留。请再次运行安装程序。
+Asking Android's recovery to reset Android's data on the next boot	正在请求 Android 的 recovery 在下次启动时重置 Android 的数据
+the request for the reset did not read back from misc. The partition table is changed already: run the installer again, it continues from here.	无法从 misc 读回重置请求。分区表已经更改：请再次运行安装程序，它会从这里继续。
+could not save the transaction	无法保存事务记录
+could not create {1}	无法创建 {1}
+could not copy the partition table into the backup	无法将分区表复制到备份中
+could not make a token	无法生成令牌
+The installed {1} has a login password of its own.	已安装的 {1} 有自己的登录密码。
+yes  keep it: the current password is asked once and checked on the device	yes  保留：询问一次当前密码，并在设备上核对
+no   set a new password	no   设置新密码
+Keep the current password? (yes/no)	保留当前密码吗？（yes/no）
+Current password of "{1}" in the installed {2} (only Enter if it has none)	已安装的 {2} 中 "{1}" 的当前密码（没有密码时直接按 Enter）
+confirmed: the password of {1} stays as it is	已确认：{1} 的密码保持不变
+that is not the current password of "{1}" in {2}	这不是 {2} 中 "{1}" 的当前密码
+"{1}" in the installed {2} has no password login, so there is none to confirm. Nothing was changed: run the installer again and answer no to set a new password.	已安装的 {2} 中 "{1}" 不能用密码登录，因此没有可确认的密码。未做任何更改：请重新运行安装程序，并回答 no 以设置新密码。
+the current password of "{1}" in the installed {2} could not be checked on the device ({3}). Nothing was changed: run the installer again and answer no to set a new password.	无法在设备上核对已安装的 {2} 中 "{1}" 的当前密码（{3}）。未做任何更改：请重新运行安装程序，并回答 no 以设置新密码。
+the current password of "{1}" in the installed {2} was not confirmed. Nothing was changed: run the installer again and answer no to set a new password.	已安装的 {2} 中 "{1}" 的当前密码未被确认。未做任何更改：请重新运行安装程序，并回答 no 以设置新密码。
+password:       kept as it is in {1} (confirmed){2}	密码：          {1} 中保持不变（已确认）{2}
+the new one in {1}	{1} 中使用新密码
+Linux partition: the GPT partition named f50root, made by another installer, {1} at offset {2}; Linux goes there, the partition table is not changed	Linux 分区：另一个安装程序创建的名为 f50root 的 GPT 分区，{1}，偏移 {2}；Linux 安装到这里，分区表不会被修改
+WARNING: the partition named f50root is not empty, and it holds no Linux filesystem of this project. Installing overwrites it	警告：名为 f50root 的分区不为空，且其中没有本项目的 Linux 文件系统。安装会覆盖它
+Note: the Android data partition holds a Linux image file from another installer (/data/f50linux/openwrt.ext4). This installer cannot update that layout, and after this installation the device starts the new system, not that one. The file is left as it is: delete it in Android to free its space.	注意：Android 的数据分区中有另一个安装程序留下的 Linux 镜像文件（/data/f50linux/openwrt.ext4）。本安装程序无法更新这种布局，本次安装后设备启动的是新系统，而不是那个。该文件保持原样：如需释放空间，请在 Android 中删除它。
+The eMMC has {1} partitions named f50root, and which one holds Linux cannot be told. Nothing was changed: remove the one that is not used (with the installer that made it) and try again.	eMMC 上有 {1} 个名为 f50root 的分区，无法判断 Linux 在哪一个里。未做任何更改：请（用创建它的安装程序）删除不用的那个，然后重试。
+The partition named f50root holds another Linux (ext4) filesystem, not labelled f50root, and the installer never formats one that is not its own. Nothing was changed.	名为 f50root 的分区中有另一个未标记为 f50root 的 Linux（ext4）文件系统，安装程序绝不会格式化不属于自己的文件系统。未做任何更改。
+THIS IS EXPERIMENTAL. It rewrites the partition table. Take a full backup first:  sh scripts/device/backup-device.sh	这是实验性功能。它会改写分区表。请先做完整备份：  sh scripts/device/backup-device.sh
+Two ways:	两种方式：
+in use now. Method: dikeckaan; implementation: kanoqwq.	已用。方法：dikeckaan；实现：kanoqwq。
+more than one restart). Then set Android up again, turn USB debugging back on and bring root back	多次重启）。之后重新设置 Android，重新打开 USB 调试并恢复 root
+(Magisk: install the Magisk app again and let Shell have root), and run this installer again.	（Magisk：重新安装 Magisk 应用并允许 Shell 获取 root），然后再次运行本安装器。
+Either way the installation continues where it was prepared. What was prepared, and a backup of the partition	两种方式下安装都会从准备好的位置继续。所准备的内容，以及分区表、
+table, misc, boot and the boot chain, are kept on this computer in {1}.	misc、boot 和启动链的备份，保存在本电脑的 {1} 中。
+keep or reset	keep（保留）或 reset（重置）
+too large: {1}	太大：{1}
+Done - Android restarts once now, with the smaller userdata, and keeps its data	完成 - Android 现在将以缩小后的 userdata 重启一次，并保留其数据
+Restart Android (adb reboot), then run the installer again: it continues from here.	请重启 Android（adb reboot），然后再次运行安装器：它会从这里继续。
+Run the installer again once Android is up: it continues from here.	Android 启动后再次运行安装器：它会从这里继续。
+Android keeps its data (apps, files, accounts, settings): its filesystem is shrunk while Android runs,	Android 保留其数据（应用、文件、账户、设置）：其文件系统在 Android 运行时
+by Android's own kernel, then the partition table is written and Android restarts once. {1} of it is	由 Android 自己的内核缩小，然后写入分区表，Android 重启一次。其中 {1}
+not possible on this device: {1}	在此设备上不可行：{1}
+ERASES everything in Android: Android's own recovery resets it (a factory reset, a few minutes and	清除 Android 中的一切：由 Android 自己的 recovery 将其重置（恢复出厂设置，需要几分钟和
+Android's data:       {1} in use, kept; its filesystem becomes {2}	Android 数据：        已用 {1}，保留；文件系统变为 {2}
+Shrink userdata now, keeping Android's data? (yes/no)	现在缩小 userdata 并保留 Android 的数据吗？(是/否)
+this installer has no f50-f2fs-online (device-tools/f2fs-online)	本安装器缺少 f50-f2fs-online（device-tools/f2fs-online）
+the helper did not arrive on the device as it is here	辅助程序未能原样传到设备上
+the helper gave no geometry	辅助程序未给出文件系统几何信息
+shrink: {1}	缩小：{1}
+The shrink did not start. Run the installer again, it checks where the shrink got to.	缩小没有开始。请再次运行安装器，它会检查缩小进行到哪一步。
+the helper refused to start ({1}, errno {2}).	辅助程序拒绝启动（{1}，errno {2}）。
+the table on the device is not the one that was made. Do not restart or power off the device; run the installer again, it checks where the shrink got to.	设备上的分区表不是所生成的那一份。不要重启或关闭设备；请再次运行安装器，它会检查缩小进行到哪一步。
+the token did not read back from the device; run the installer again, it continues from here.	无法从设备读回令牌；请再次运行安装器，它会从这里继续。
+The shrink of {1} did not finish: checking where it got to	{1} 的缩小没有完成：正在检查进行到哪一步
+Nothing had changed yet: the device has its old partition table and Android its data. That transaction is put aside.	尚未有任何改变：设备保持原分区表，Android 保持其数据。该事务已搁置。
+Nothing was changed: Android keeps its data and its partition table. To make room by resetting Android instead, run the installer again and answer reset.	没有任何改变：Android 保留其数据和分区表。若要改为通过重置 Android 腾出空间，请再次运行安装器并回答 reset。
+The device does not answer while Android's data is being shrunk; the shrink goes on there. Do not restart or power off the device: connect it again and run the installer again, it checks where the shrink got to.	在缩小 Android 数据期间设备没有响应；缩小仍在设备上进行。不要重启或关闭设备：重新连接后再次运行安装器，它会检查缩小进行到哪一步。
+Android's kernel refused the shrink (errno {1}); the filesystem was read back at its old size.	Android 的内核拒绝了缩小（errno {1}）；读回的文件系统仍是原来的大小。
+The shrink stopped where it cannot tell by itself what happened (errno {1}). Do not restart or power off the device. Keep {2}; run the installer again, it checks where the shrink got to.	缩小在无法自行判断结果的位置停止了（errno {1}）。不要重启或关闭设备。保留 {2}；请再次运行安装器，它会检查缩小进行到哪一步。
+Shrinking Android's data in place (Android keeps running; this can take a few minutes)	正在原地缩小 Android 的数据（Android 保持运行；可能需要几分钟）
+Android's kernel does not shrink this F2FS while it is mounted (errno {1}).	Android 的内核不支持在挂载状态下缩小此 F2FS（errno {1}）。
+Android's data is not at the size it was shrunk to ({1} blocks). Do not restart the device; run the installer again.	Android 的数据不是缩小后的大小（{1} 块）。不要重启设备；请再次运行安装器。
+Android's data: {1}, the same filesystem as before	Android 的数据：{1}，与之前是同一个文件系统
+Android's data is at its new size; the partition table is finished now	Android 的数据已是新大小；现在完成分区表
+Cannot tell where the shrink got to: the partition table and Android's data are neither before nor after it. Nothing was written. Keep the device as it is and keep {1}; the partition table from before is {2}.	无法判断缩小进行到哪一步：分区表和 Android 的数据既不是缩小前也不是缩小后的状态。没有写入任何内容。请保持设备现状并保留 {1}；之前的分区表是 {2}。
+EXPERIMENTAL: it continues the installation that made room by shrinking Android's data in place. --no-resume ignores it.	实验性：继续通过原地缩小 Android 数据腾出空间的安装。--no-resume 会忽略它。
+the shrink of Android's data did not finish; run the installer without --check, it checks where it got to	Android 数据的缩小没有完成；请不带 --check 运行安装器，它会检查进行到哪一步
+Waiting for Android to start again	正在等待 Android 重新启动
+USB of Android: adb only for this run (was {1}; MTP can stall the connection, Windows then resets it)	Android 的 USB：本次运行期间仅 adb（原为 {1}；MTP 可能卡住连接，Windows 随后会重置它）
+Android kept its USB functions ({1}); going on with them	Android 保留了其 USB 功能（{1}）；继续使用这些功能
+the device did not come back on adb within {1} seconds after its USB was set to adb only: unplug it and plug it in again (or restart Android), then run this again (F50_USB_ADB_ONLY=0 leaves the USB as it is)	USB 设为仅 adb 后，设备在 {1} 秒内没有重新出现在 adb 上：请拔下后重新插入（或重启 Android），然后再次运行（F50_USB_ADB_ONLY=0 保持 USB 不变）
+USB of Android set back to {1}	Android 的 USB 已恢复为 {1}
+This does not look like a ZTE F50. Continue anyway? (yes/no)	这看起来不是 ZTE F50。仍要继续吗？(是/否)
+Linux needs at least  {1} (OpenWrt)	Linux 至少需要        {1}（OpenWrt）
+OK: free and empty, smaller than on the tested device; OpenWrt fits	正常：空闲且为空，比测试设备上的小；可装 OpenWrt
+Installing OpenWrt {1} (router, LuCI web UI) with the 5.4 vendor kernel	安装 OpenWrt {1}（路由器系统，LuCI 网页界面），使用 5.4 厂商内核
+Password for "root" (OpenWrt)	"root"（OpenWrt）的密码
+back to Android: f50-next-boot android	回到 Android：f50-next-boot android
+which adb device is the F50?	哪个 adb 设备是 F50？

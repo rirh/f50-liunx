@@ -1,0 +1,1009 @@
+#!/bin/busybox sh
+# F50 standalone Linux initramfs v10 (switch_root to OpenWrt on the free eMMC region; comm fix; custom kernel + modem_control + node perms + Android's slot modem) (Linux on the other slot, tries=2 one-shot trial).
+# Every stage is written to /dev/kmsg at KERN_ERR so it survives in
+# /sys/fs/pstore/console-ramoops-0 after the fallback boot into Android.
+/bin/busybox mkdir -p /bin /sbin /proc /sys /dev /run /tmp /root /etc /config
+/bin/busybox --install -s /bin
+export PATH=/bin:/sbin HOME=/root TERM=vt100
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+# 4, not 7: every KERN_INFO line went to the 115200 baud UART synchronously until OpenWrt's sysctl lowered it at ~14 s
+# (33 KB, ~2.9 s of the boot: the module loads below and procd's first second waited on the console). The stage
+# lines are KERN_ERR, so they still reach the UART and console-ramoops; everything stays in dmesg.
+echo 4 > /proc/sys/kernel/printk
+# the custom kernel has devtmpfs; fall back to tmpfs + mknod for safety
+if ! mount -t devtmpfs -o mode=0755 devtmpfs /dev; then
+    mount -t tmpfs -o mode=0755 tmpfs /dev
+    mknod /dev/null c 1 3
+    mknod /dev/console c 5 1
+    mknod /dev/kmsg c 1 11
+    mknod /dev/zero c 1 5
+    mknod /dev/urandom c 1 9
+fi
+pmsg_major=$(awk '$2=="pmsg"{print $1}' /proc/devices)
+[ -n "$pmsg_major" ] && [ ! -e /dev/pmsg0 ] && mknod /dev/pmsg0 c "$pmsg_major" 0
+# The kernel's random pool: no hardware RNG here (no SMCCC TRNG in this firmware), so it is initialised only once
+# something waits for it, by the kernel's timer-jitter loop (~0.9 s of one CPU). OpenWrt's ubusd was the first to
+# wait, and procd's init stage with it, once the boot before it had got fast. One blocking read in the background
+# here starts that loop on another CPU now; it is long done by switch_root.
+[ -c /dev/random ] && (head -c 1 /dev/random > /dev/null 2>&1) &
+
+log() {
+    echo "<3>F50-LINUX: $*" > /dev/kmsg
+    [ -c /dev/pmsg0 ] && echo "F50-LINUX: $*" > /dev/pmsg0
+    [ -d /run ] && echo "$(cut -d' ' -f1 /proc/uptime) $*" >> /run/stages
+}
+
+# Persistent log: 8 MiB at 48 MiB inside the Linux slot's boot partition, past the image and its AVB data
+# (image ends near 39 MiB). Survives a cold power cycle, unlike pstore.
+bootb=
+persist() {
+    # subshells (the reboot timer) started before the eMMC was found learn the device from this file
+    [ -n "$bootb" ] || bootb=$(cat /run/bootb 2>/dev/null)
+    [ -n "$bootb" ] && [ -b "$bootb" ] || return
+    # the periodic loop and the reboot timer both call this
+    mkdir /run/persist.lock 2>/dev/null || return
+    {
+        echo "F50-PERSIST-BEGIN uptime=$(cut -d' ' -f1 /proc/uptime)"
+        cat /run/stages
+        echo "--- lsmod"
+        cat /proc/modules
+        echo "--- udc"
+        ls /sys/class/udc 2>&1
+        echo "--- logcat"
+        tail -c 400000 /run/logcat.txt 2>&1
+        echo "--- modem_control"
+        cat /run/modem_control.log 2>&1 | tail -c 200000
+        echo "--- deferred"
+        cat /sys/kernel/debug/devices_deferred 2>&1
+        echo "--- dmesg"
+        dmesg | tail -c 6000000
+        echo "F50-PERSIST-END"
+    } > /run/persist.txt 2>&1
+    head -c 65536 /dev/zero >> /run/persist.txt
+    dd if=/run/persist.txt of="$bootb" bs=4096 seek=12288 count=2048 conv=notrunc 2>/dev/null
+    sync
+    rmdir /run/persist.lock
+}
+log "stage=init-start pid=$$"
+
+mkdir -p /dev/pts
+mount -t devpts -o mode=0620,ptmxmode=0666 devpts /dev/pts
+ln -sf pts/ptmx /dev/ptmx
+# /run is root's (0755), as procd makes it: a tmpfs is 1777 without a mode, and the whole system keeps
+# this one (moved into the new root below), where any user could then take the names root services lock with
+mount -t tmpfs -o mode=0755,nosuid,nodev tmpfs /run
+mount -t tmpfs tmpfs /tmp
+mount -t debugfs debugfs /sys/kernel/debug
+echo /bin/mdev > /proc/sys/kernel/hotplug
+mdev -s
+log "stage=devfs-ready"
+
+# Turn hangs into panics; the vendor kernel reboots after a panic.
+echo 1 > /proc/sys/kernel/softlockup_panic
+echo 1 > /proc/sys/kernel/panic_on_oops
+[ -e /proc/sys/kernel/hardlockup_panic ] && echo 1 > /proc/sys/kernel/hardlockup_panic
+echo 1 > /proc/sys/kernel/sysrq
+
+# Safety net: reboot after 5 minutes. By then misc points back at Android's slot.
+# Create /run/stay (e.g. over telnet) to keep Linux running.
+(sleep 300
+ if [ -e /run/stay ]; then log "stage=timer-skipped"; exit 0; fi
+ log "stage=timer-reboot"
+ while ! persist_done=$(mkdir /run/persist.lock 2>/dev/null && echo 1); do sleep 1; done
+ rmdir /run/persist.lock
+ persist; reboot -f; sleep 10; echo b > /proc/sysrq-trigger) &
+
+# The ZTE F50 only: its modules, in their order, from the generic ramdisk segment
+MODULE_ORDER=/etc/module-order
+
+# The USB network: 192.168.77.1 (the system's lan.conf overrides it after switch_root). The
+# gadget's MAC addresses and USB serial number go with the device's serial number and its eMMC's: two devices on one
+# computer used to have the same ones, and macOS then gave the second one no network interface at all. The serial
+# number alone was not enough: a device restored from another's backup has its androidboot.serialno too.
+NET=192.168.77
+# --- usb-id begin
+# usb_id BOOTARGS...: USBID (serial number-eMMC serial) and MAC (its first five bytes) from the bootloader's
+# arguments. Not from the eMMC's CID in /sys: this runs before the modules that find the eMMC, so it would come and go.
+usb_id() {
+    SERIALNO=$(cat "$@" 2>/dev/null | tr '\0' ' ' | sed -n 's/.*androidboot.serialno=\([^ ]*\).*/\1/p' | head -n1)
+    EMMCID=$(cat "$@" 2>/dev/null | tr '\0' ' ' | sed -n 's/.*androidboot.emmcid=\([^ ]*\).*/\1/p' | head -n1)
+    USBID=$SERIALNO
+    [ -n "$EMMCID" ] && USBID=${USBID:+$USBID-}$EMMCID
+    h=$(echo "$USBID" | md5sum)
+    MAC=02:50:$(echo "$h" | cut -c1-2):$(echo "$h" | cut -c3-4):${NET##*.}
+    # ETH_MAC: the first five bytes of the computer's side with "f50-usb net-name eth" (setup_usb_gadget). Linux
+    # names a CDC or RNDIS link usb0 when its MAC is locally administered (usbnet: FLAG_POINTTOPOINT and the 0x02 bit
+    # of the first byte), eth0 otherwise. Stock Android gives the computer the device's Wi-Fi address itself, so its
+    # link is eth0; here it is an address in the Wi-Fi address' vendor block (its first three bytes, LK's
+    # androidboot.wifimac) with this device's own bytes after them, because the Wi-Fi address belongs to wlan0, which
+    # shares br-lan with the gadget. Without a usable Wi-Fi address, MAC with the 0x02 bit cleared.
+    _w=$(cat "$@" 2>/dev/null | tr '\0' ' ' | sed -n 's/.*androidboot.wifimac=\([0-9A-Fa-f]\{12\}\).*/\1/p' | head -n1 | tr A-F a-f)
+    if [ -n "$_w" ] && [ $((0x$(echo "$_w" | cut -c1-2) & 3)) = 0 ]; then
+        ETH_MAC=$(echo "$_w" | sed 's/^\(..\)\(..\)\(..\).*/\1:\2:\3/'):$(echo "$h" | cut -c1-2):$(echo "$h" | cut -c3-4)
+    else
+        ETH_MAC=00:${MAC#02:}
+    fi
+}
+# --- usb-id end
+# (the bootloader's arguments: the command line, then the bootargs LK put in the device tree)
+usb_id /proc/cmdline /proc/device-tree/chosen/bootargs
+
+load_vendor_modules() {
+    loaded=0
+    failed=0
+    while read module; do
+        # vendor_boot's /lib/modules were built for the stock kernel; only our rebuilt copies match
+        file="/linux-modules/$module"
+        if insmod "$file" 2>/run/insmod.err; then
+            loaded=$((loaded + 1))
+        else
+            failed=$((failed + 1))
+            log "insmod-fail $module $(cat /run/insmod.err)"
+        fi
+    done < $MODULE_ORDER
+    mdev -s
+    log "stage=modules-done loaded=$loaded failed=$failed"
+}
+
+# Which slot this Linux runs from, and so which one is Android's (after an OTA Android often runs from b, and the
+# Magisk installer then puts Linux on a). LK names the slot it booted on the command line, else in the bootargs it
+# put in the device tree, as for the vendor daemons below. Then the slot the image was built for (etc/f50-linux-slot,
+# from the installer; etc/mu300-linux-slot in the device segment of an older installation), and b: every image
+# before this one was built for b.
+# --- slot begin
+linux_slot_detect() {
+    LINUX_SLOT=; _src=default
+    for _f in ${F50_CMDLINE_SRC:-/proc/cmdline /proc/device-tree/chosen/bootargs}; do
+        [ -r "$_f" ] || continue
+        LINUX_SLOT=$(tr '\000' ' ' < "$_f" | sed -n 's/.*androidboot\.slot_suffix=_\([ab]\).*/\1/p')
+        [ -n "$LINUX_SLOT" ] && { _src=$_f; break; }
+    done
+    _img=$(cat "${F50_ETC:-/etc}/f50-linux-slot" 2>/dev/null || cat "${F50_ETC:-/etc}/mu300-linux-slot" 2>/dev/null)
+    case $_img in a|b) ;; *) _img= ;; esac
+    if [ -z "$LINUX_SLOT" ]; then
+        LINUX_SLOT=${_img:-b}
+        [ -n "$_img" ] && _src=image
+    fi
+    [ -z "$_img" ] || [ "$_img" = "$LINUX_SLOT" ] || log "stage=linux-slot-MISMATCH booted=$LINUX_SLOT image=$_img"
+    if [ "$LINUX_SLOT" = a ]; then ANDROID_SLOT=b; else ANDROID_SLOT=a; fi
+    log "stage=linux-slot slot=$LINUX_SLOT source=$_src"
+}
+restore_android() { write_misc_bc "${F50_ETC:-/etc}/misc-bc-slot-$ANDROID_SLOT.bin" misc-restored; }
+# what userspace needs to choose the next boot (f50-next-boot): the slot and the two blocks of this pair. The old
+# names, which an older f50-next-boot reads, only where they mean what it thinks: Linux on b. With Linux on a its
+# "android" would write the slot-a block - Linux, marked successful - and without the files it fails instead.
+publish_slot() {
+    _r=${F50_RUN:-/run}/f50 _e=${F50_ETC:-/etc}
+    mkdir -p "$_r"
+    echo "$LINUX_SLOT" > "$_r/linux-slot"
+    cp "$_e/misc-bc-slot-$ANDROID_SLOT.bin" "$_r/misc-bc-android.bin"
+    cp "$_e/misc-bc-slot-$LINUX_SLOT-trial.bin" "$_r/misc-bc-linux-trial.bin"
+    if [ "$LINUX_SLOT" = b ]; then cp "$_e/misc-bc-slot-a.bin" "$_e/misc-bc-slot-b-trial.bin" "$_r/"; fi
+}
+# --- slot end
+linux_slot_detect
+
+# misc and the Linux slot's boot partition: where they are is known only once the eMMC is there, and its driver
+# (sdhci-sprd) is one of the vendor modules - an earlier lookup found nothing (misc-NOT-FOUND, no persistent log).
+# So this runs after load_vendor_modules; whether Android's slot is restored is decided once the rootfs is known.
+# --- emmc begin
+# The internal disk - the eMMC, or the UFS of a unit that has one (issue #396) - and the cards by what they are, never
+# by number: the shared lookup in /etc/f50-storage.sh (systems/base/overlay/opt/f50/lib/storage.sh).
+_sl=${F50_STORAGE_LIB:-/etc/f50-storage.sh}
+if [ -r "$_sl" ]; then . "$_sl"; else log "stage=storage-lib-MISSING $_sl"; fi   # "." of no file would end init
+mmc_disks() { f50_storage_mmc "$1"; }  # mmc_disks TYPE: the whole mmcblkN disks whose card is of TYPE (MMC, SD)
+# The internal disk's block device, and mmcblk0 only when sysfs has no disk at all (the order every kernel had until
+# 31l). Only cards there: nothing, status 1.
+emmc_dev() {
+    _e=$(f50_storage_disk) && { echo "${F50_DEV:-/dev}/$_e"; return 0; }
+    [ -n "$(mmc_disks SD)" ] && return 1
+    echo "${F50_DEV:-/dev}/mmcblk0"
+}
+# The internal disk's partition named NAME in its GPT. Only that disk's: a card can carry the same names (a raw clone
+# of a device backup), and what is found here is written to - the BCB in misc, the log in boot_<slot>.
+emmc_part() {  # emmc_part NAME -> /dev/<partition>; nothing (status 1) when the internal disk has none of that name
+    _e=$(f50_storage_part "$1") || return 1
+    echo "${F50_DEV:-/dev}/$_e"
+}
+# --- emmc end
+misc=
+find_partitions() {
+    # every 0.1 s for up to 20 s (mdev once a second): the eMMC's partitions appear ~0.2 s after the modules are in,
+    # and a whole second's pause here held every boot back that long
+    for n in $(seq 1 200); do
+        misc=$(emmc_part misc)
+        bootb=$(emmc_part "boot_$LINUX_SLOT")
+        [ -b "$misc" ] && [ -b "$bootb" ] && break
+        usleep 100000 2>/dev/null || sleep 1
+        [ $((n % 10)) != 0 ] || mdev -s
+    done
+    [ -b "$misc" ] || misc=
+    [ -b "$bootb" ] || bootb=
+    echo "$bootb" > /run/bootb
+    log "stage=persist-target dev=${bootb:-none} misc=${misc:-none}"
+    persist
+    (while :; do sleep 15; persist; done) &
+}
+
+write_misc_bc() {  # write_misc_bc FILE STAGE
+    [ -s "$1" ] || { log "stage=misc-block-missing $1"; return 1; }
+    [ -n "$misc" ] || { log "stage=misc-NOT-FOUND"; return 1; }
+    dd if="$1" of="$misc" bs=1 seek=2048 conv=notrunc 2>/dev/null
+    sync
+    dd if="$misc" of=/run/bc.bin bs=1 skip=2048 count=32 2>/dev/null
+    if cmp -s /run/bc.bin "$1"; then log "stage=$2 dev=$misc"; else log "stage=$2-MISMATCH dev=$misc"; fi
+}
+
+hostname f50-linux
+ifconfig lo 127.0.0.1 up
+# --- usb-gadget begin
+setup_usb_gadget() {  # setup_usb_gadget [FUNCTIONS]: FUNCTIONS, else F50_USBNET, else "ncm ecm" (see below)
+    usbnet_bound=${1:-${F50_USBNET:-ncm ecm}}
+    # the name the computer gives the link (usb_id, ETH_MAC): usb by default, eth when the system asks for it
+    usbname_bound=${usbname:-usb}
+    log "stage=usb-configfs"
+    [ -d /config/usb_gadget ] || mount -t configfs configfs /config
+    g=/config/usb_gadget/linux
+    mkdir -p "$g/strings/0x409" "$g/configs/c.1/strings/0x409"
+    # The USB network functions: whichever of these the kernel actually has. Creating one it was not built with
+    # fails here, and a gadget that is never bound leaves the device with no console and no network at all - which
+    # is exactly what an "improvement" to NCM cost once (on a build without it; the kernel has it now).
+    # NCM by default, in a single configuration with the ACM console: Windows 10 2004+/11 bind their inbox
+    # UsbNcm.sys to it, macOS and Linux their own drivers - all measured, none needs an INF. ECM, which Windows has
+    # no driver for, is the fallback. F50_USBNET (kernel command line) picks the functions; without it, the
+    # system that boots may ask for others in its etc/f50/usb-net (apply_usb_net below, D12).
+    # "rndis" is for Windows without NCM (7, 8, 10 before 2004): RNDIS and the ACM console share the single
+    # configuration, and rndis.sys is bound to it through the MS OS descriptors below. Windows does not make its
+    # composite parent for a device with several configurations: the earlier RNDIS + NCM arrangement bound the
+    # whole device to usbser and showed no network adapter. macOS has no RNDIS driver, which is why RNDIS is not
+    # the default; when RNDIS is made, no other network function is. (Ported from the kanoqwq fork, K6.)
+    # "multi" is RNDIS and NCM together in that one configuration, RNDIS first: one cable for every computer. Old
+    # Windows binds rndis.sys to RNDIS (MS OS descriptors) and has no driver for NCM, macOS binds NCM and has none for
+    # RNDIS, newer Windows and Linux bind both and show two adapters. A kernel without RNDIS makes NCM alone (then
+    # ECM), as it does for a saved "rndis"; "both" says that the two were made.
+    rndis= netfunc= both=
+    for f in $usbnet_bound; do
+        case $f in
+            multi)
+                [ -z "$netfunc$rndis" ] || continue
+                mkdir -p "$g/functions/rndis.rn0" 2>/dev/null && rndis=1
+                mkdir -p "$g/functions/ncm.usb0" 2>/dev/null && netfunc=ncm
+                [ -n "$rndis" ] && [ -n "$netfunc" ] && both=1 ;;
+            rndis) [ -z "$rndis" ] && mkdir -p "$g/functions/rndis.rn0" 2>/dev/null && rndis=1 ;;
+            *) [ -z "$netfunc$rndis" ] && mkdir -p "$g/functions/$f.usb0" 2>/dev/null && netfunc=$f ;;
+        esac
+    done
+    # "ncm rndis" made NCM before it met RNDIS: RNDIS wins, the NCM function goes again
+    [ -z "$both" ] && [ -n "$rndis" ] && [ -n "$netfunc" ] && { rmdir "$g/functions/$netfunc.usb0" 2>/dev/null; netfunc=; }
+    [ -n "$netfunc$rndis" ] || log "stage=usb-no-net-function (console only)"
+    echo 0x0525 > "$g/idVendor"
+    echo 0xa4a1 > "$g/idProduct"
+    echo 0x0200 > "$g/bcdUSB"
+    # Windows asks for the MS OS descriptors (below) once per VID/PID/bcdDevice and caches the answer, "none"
+    # included: the default bcdDevice follows the kernel version and was cached as "none" by every PC that met
+    # the earlier gadget. A value of our own makes them ask again. Change it whenever the descriptors change.
+    # 0x0302 is the single-configuration RNDIS descriptor, 0x0305 RNDIS + NCM, 0x0301 everything else (f50-adbd
+    # adds one while adb is in the gadget: 0x0303, 0x0304 and 0x0306).
+    if [ -n "$both" ]; then echo 0x0305 > "$g/bcdDevice"
+    elif [ -n "$rndis" ]; then echo 0x0302 > "$g/bcdDevice"
+    else echo 0x0301 > "$g/bcdDevice"; fi
+    # Miscellaneous / IAD: the network and the ACM functions each span two interfaces, and without this device class
+    # Windows' composite driver ignores their association descriptors and hands out the interfaces one by one, so a
+    # class driver never sees its function as a whole
+    echo 0xEF > "$g/bDeviceClass"
+    echo 0x02 > "$g/bDeviceSubClass"
+    echo 0x01 > "$g/bDeviceProtocol"
+    echo "F50LINUX${USBID:+-$USBID}" > "$g/strings/0x409/serialnumber"
+    echo Linux > "$g/strings/0x409/manufacturer"
+    # the name computers give the network card (macOS: "F50 (en11)")
+    echo F50 > "$g/strings/0x409/product"
+    # The computer's side of each function ends in :02 (usb0) or :04 (rndis0), the device's in :01 or :03. With
+    # net-name eth the computer's side is ETH_MAC's (usb_id), which Linux names eth0 rather than usb0; the device's
+    # side stays as it is.
+    hmac=$MAC; [ "$usbname_bound" = eth ] && hmac=$ETH_MAC
+    # USB serial console alongside the network function, in every configuration: recovery/debug access that does
+    # not depend on networking
+    mkdir -p "$g/functions/acm.GS0"
+    if [ -n "$both" ]; then
+        echo "RNDIS + NCM + ACM console" > "$g/configs/c.1/strings/0x409/configuration"
+    elif [ -n "$rndis" ]; then
+        echo "RNDIS + ACM console" > "$g/configs/c.1/strings/0x409/configuration"
+    else
+        echo "${netfunc:-no} net + ACM console" > "$g/configs/c.1/strings/0x409/configuration"
+    fi
+    echo 250 > "$g/configs/c.1/MaxPower"
+    # The interfaces follow the order in which the links are made, not their names: RNDIS first (interface 0, which
+    # the MS OS descriptors name), then NCM (f4: f2 is the console's and f3 adb's, f50-adbd), then the console.
+    if [ -n "$rndis" ]; then
+        echo $MAC:03 > "$g/functions/rndis.rn0/dev_addr"
+        echo $hmac:04 > "$g/functions/rndis.rn0/host_addr"
+        ln -s "$g/functions/rndis.rn0" "$g/configs/c.1/f1"
+    fi
+    if [ -n "$netfunc" ]; then
+        echo $MAC:01 > "$g/functions/$netfunc.usb0/dev_addr"
+        echo $hmac:02 > "$g/functions/$netfunc.usb0/host_addr"
+        if [ -n "$both" ]; then ln -s "$g/functions/$netfunc.usb0" "$g/configs/c.1/f4"
+        else ln -s "$g/functions/$netfunc.usb0" "$g/configs/c.1/f1"; fi
+    fi
+    ln -s "$g/functions/acm.GS0" "$g/configs/c.1/f2"
+    if [ -n "$rndis" ]; then
+        # MS OS descriptors: Windows asks for them with vendor request 0xcd and binds rndis.sys by compatible ID.
+        # They are what identifies the function: the stock f_rndis' control interface is 02/02/ff, which Windows
+        # would otherwise hand to usbser (a device with two configurations is never composite on Windows, so the
+        # first interface names the whole device). NCM's compatible ID stays empty: Windows binds UsbNcm.sys to it
+        # by its class.
+        echo 1 > "$g/os_desc/use"
+        echo 0xcd > "$g/os_desc/b_vendor_code"
+        echo MSFT100 > "$g/os_desc/qw_sign"
+        echo RNDIS > "$g/functions/rndis.rn0/os_desc/interface.rndis/compatible_id"
+        echo 5162001 > "$g/functions/rndis.rn0/os_desc/interface.rndis/sub_compatible_id"
+        ln -s "$g/configs/c.1" "$g/os_desc/c.1"
+    fi
+    usbnet_made=${netfunc:-none}
+    if [ -n "$both" ]; then usbnet_made=multi; elif [ -n "$rndis" ]; then usbnet_made=rndis; fi
+    log "stage=usb-net-function $usbnet_made name=$usbname_bound"
+    log "stage=usb-wait-udc"
+    for n in $(seq 1 40); do
+        [ -e /sys/class/udc/25100000.dwc3 ] && break
+        sleep 1
+    done
+    udc=
+    [ -e /sys/class/udc/25100000.dwc3 ] && udc=25100000.dwc3
+    [ -z "$udc" ] && for u in /sys/class/udc/*; do [ -e "$u" ] && { udc=$(basename "$u"); break; }; done
+    log "stage=udc udc=${udc:-none} available=$(ls /sys/class/udc 2>/dev/null | tr '\n' ',')"
+    persist
+    # (no pause here any more: a "sleep 1" from the first bring-up held every boot back a second, with the UDC there)
+    # Never rebind the gadget from a shell running on its own ACM console: the console dies with the unbind and the
+    # rebind never runs, which leaves the device with no USB at all until it is power-cycled.
+    log "stage=usb-bind-start"
+    [ -n "$udc" ] && echo "$udc" > "$g/UDC"
+    log "stage=usb-bind-done rc=$?"
+    persist
+
+    # The functions register their netdevs as they are bound, configuration by configuration, so RNDIS would take
+    # usb0 - the name lan-start and the OpenWrt bridge expect for the CDC link. Name them by function instead: RNDIS
+    # rndis0 first, then the CDC function usb0 (with "multi" it was registered after RNDIS, as usb1).
+    if [ -n "$rndis" ]; then
+        r=$(cat "$g/functions/rndis.rn0/ifname" 2>/dev/null)
+        case $r in ""|"(unnamed net_device)"|rndis0) ;; *) ip link set "$r" name rndis0 ;; esac
+        log "stage=usb-ifnames rndis=${r:-none}->rndis0"
+        ifconfig rndis0 up
+    fi
+    if [ -n "$both" ]; then
+        r=$(cat "$g/functions/$netfunc.usb0/ifname" 2>/dev/null)
+        case $r in ""|"(unnamed net_device)"|usb0) ;; *) ip link set "$r" name usb0 ;; esac
+        log "stage=usb-ifnames $netfunc=${r:-none}->usb0"
+    fi
+
+    # Bring usb0 up immediately after binding, before the host selects the data interface:
+    # f_ecm (and f_ncm alike) reports the link state in its first CONNECT notification, and macOS' ECM driver does not
+    # pick up a later "connected" notification (v10 left usb0 down until the system ran -> host "inactive").
+    ifconfig usb0 up
+
+    # Early DHCP (K5, ported from the kanoqwq fork, 1f5b82a): the host asks for a lease as soon as the gadget
+    # enumerates - Windows long before any system's server runs - so answer it from here, on the gadget's netdev
+    # (rndis0 with RNDIS, usb0 otherwise), with the one address $NET.200. The lease is 120 s, not the fork's 3600: the
+    # system may use another subnet (lan.conf, network.lan.ipaddr), and the host must not keep this one for an hour;
+    # it renews after 60 s and then gets the system's own (OpenWrt's preinit restarts this server on the system's
+    # subnet). The host's MAC is left in /run for OpenWrt's first-boot dnsmasq entry. One server at a time:
+    # apply_usb_net builds the gadget a second time, and that build replaces the first server (whose netdev may be
+    # gone) with one on the new netdev. It runs in the foreground of a background job so that its pid is known at
+    # once; killall ends it before switch_root. With "multi" a computer may ask on either netdev (old Windows on
+    # rndis0, macOS on usb0, newer ones on both), so both join usbbr, a bridge of this ramdisk alone, and the server
+    # answers on it: one subnet and one address for the device, as br-lan has them later. It goes before switch_root
+    # (usb_bridge_gone): the system bridges the two itself (lan-start, the LAN hook). Without it (a kernel without
+    # bridges) the server takes usb0.
+    early_net=usb0 early_host_mac=$hmac:02
+    [ -n "$rndis" ] && [ -z "$both" ] && { early_net=rndis0; early_host_mac=$hmac:04; }
+    [ -s /run/udhcpd-usb0.pid ] && kill "$(cat /run/udhcpd-usb0.pid)" 2>/dev/null
+    rm -f /run/udhcpd-usb0.pid
+    usb_bridge_gone
+    if [ -n "$both" ] && [ -e /sys/class/net/rndis0 ] && [ -e /sys/class/net/usb0 ] &&
+        ip link add usbbr type bridge 2>/dev/null; then
+        { echo 0 > /sys/class/net/usbbr/bridge/forward_delay; } 2>/dev/null
+        ip link set usb0 master usbbr && ip link set rndis0 master usbbr && early_net=usbbr
+        log "stage=usb-bridge-early ${early_net}"
+    fi
+    if [ -e "/sys/class/net/$early_net" ]; then
+        ifconfig "$early_net" "$NET.1" netmask 255.255.255.0 up
+        echo "$early_host_mac" > /run/f50-usb-host-mac
+        cat > /run/udhcpd-usb0.conf <<EOF
+start $NET.200
+end $NET.200
+interface $early_net
+option subnet 255.255.255.0
+option router $NET.1
+option dns $NET.1
+option lease 120
+lease_file /run/udhcpd-usb0.leases
+EOF
+        touch /run/udhcpd-usb0.leases
+        udhcpd -f /run/udhcpd-usb0.conf >/dev/null 2>&1 &
+        echo $! > /run/udhcpd-usb0.pid
+        log "stage=usb-dhcp-early dev=$early_net ip=$NET.1 host=$NET.200 lease=120"
+    fi
+}
+# usb_bridge_gone: the early bridge of "multi" goes, its ports stay up without an address (lan-start and OpenWrt's
+# preinit take them from there)
+usb_bridge_gone() {
+    [ -e /sys/class/net/usbbr ] || return 0
+    ip link del usbbr 2>/dev/null
+    for n in usb0 rndis0; do [ -e "/sys/class/net/$n" ] && ifconfig "$n" 0.0.0.0 up 2>/dev/null; done
+    log "stage=usb-bridge-gone"
+}
+teardown_usb_gadget() {  # unbind and take the functions away; setup_usb_gadget builds it again
+    g=/config/usb_gadget/linux
+    usb_bridge_gone
+    echo "" > "$g/UDC" 2>/dev/null
+    rm -f "$g/configs/c.1/f1" "$g/configs/c.1/f2" "$g/configs/c.1/f4" "$g/os_desc/c.1"
+    [ -e "$g/os_desc/use" ] && echo 0 > "$g/os_desc/use"
+    for f in "$g/functions"/*; do [ -d "$f" ] && rmdir "$f"; done
+    log "stage=usb-unbound"
+}
+# --- usb-gadget end
+
+# The vendor modules first, the gadget last. The host starts asking for a DHCP lease the moment the gadget
+# appears and gives up after a few seconds, so the closer the gadget comes to the system that answers (the DHCP
+# server starts right after switch_root), the more reliably the host gets an address.
+load_vendor_modules
+find_partitions
+setup_usb_gadget
+# The SD card as the home of the Linux filesystem: ext4 with the label f50sd (mu300sd: a card of an older
+# installation), on the card's first partition or on the whole card. Its own label, not f50root - a device can hold
+# both, and they must never be confused.
+# --- sd-root begin
+ext4_label() {  # ext4_label DEV: the volume label, nothing (and status 1) when DEV is not ext4
+    [ "$(dd if="$1" bs=1 skip=1080 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 53ef ] || return 1
+    dd if="$1" bs=1 skip=1144 count=16 2>/dev/null | tr -d '\000'; echo
+}
+sd_candidates() {  # the card's first partition, then the whole card, for every SD card there is
+    [ -n "${F50_SD_GLOB:-}" ] && { echo $F50_SD_GLOB; return; }
+    for n in $(mmc_disks SD); do echo "${F50_DEV:-/dev}/${n}p1"; done
+    for n in $(mmc_disks SD); do echo "${F50_DEV:-/dev}/$n"; done
+}
+find_sd_root() {  # the first card device that holds f50sd (or mu300sd); the eMMC is never looked at
+    for d in $(sd_candidates); do
+        [ -e "$d" ] || continue
+        case $(ext4_label "$d") in f50sd|mu300sd) echo "$d"; return 0 ;; esac
+    done
+    return 1
+}
+# Is a card on its way, so that waiting past the first seconds can pay off? Two cases: a card the host has found
+# whose block device is still being set up (its driver is bound once the partitions are read), and a card host at
+# all: the vendor 5.4 kernel's waits for a card-detect line instead of polling and was once seen to bring the card
+# only at 23.75 s.
+sd_coming() {
+    s=${F50_SYS:-/sys}
+    for c in "$s"/bus/mmc/devices/mmc*:*; do
+        [ "$(cat "$c/type" 2>/dev/null)" = SD ] || continue
+        [ -e "$c/driver" ] && return 1
+        return 0
+    done
+    for h in "$s"/class/mmc_host/mmc*; do   # a host that is not the eMMC's
+        [ -e "$h" ] || continue
+        e=0; for c in "$h"/mmc*:*; do [ "$(cat "$c/type" 2>/dev/null)" = MMC ] && e=1; done
+        [ "$e" = 0 ] && return 0
+    done
+    return 1
+}
+wait_sd_root() {  # wait_sd_root SECONDS [MAX]: a card the host has not found yet; up to MAX while sd_coming
+    n=0
+    while :; do
+        find_sd_root && return 0
+        if [ "$n" -ge "$1" ]; then
+            [ "$n" -lt "${2:-$1}" ] && sd_coming || return 1
+            [ "$n" = "$1" ] && log "stage=sd-wait-longer (a card may still be coming, up to $2 s)"
+        fi
+        sleep 1; mdev -s; n=$((n + 1))
+    done
+}
+# --- sd-root end
+ROOT_OFFSET=27762098176   # linux-boot/rootfs-region.env; outside every GPT partition
+# The region is not at the same place on every device (eMMC size, partition layout), and a number in this file is
+# not enough: the installer writes the device's offset in here, but the generic ramdisk segment that updates put
+# behind this one (f50-update) carries its own init, which replaces
+# this file - with the default above. Devices whose region is elsewhere then booted into standalone mode and went
+# back to Android. So find it the way the installer places it - the first 2 MiB boundary after the last partition
+# - and take the first candidate that really holds the f50root filesystem (ext4 magic and label; mu300root is the
+# label of an older installation's).
+# --- region begin
+is_f50root() {  # is_f50root OFFSET: on the eMMC ($EMMC)
+    [ "$(dd if="$EMMC" bs=1 skip=$(($1 + 1080)) count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 53ef ] || return 1
+    [ "$(dd if="$EMMC" bs=1 skip=$(($1 + 1144)) count=9 2>/dev/null)" = f50root ] && return 0
+    [ "$(dd if="$EMMC" bs=1 skip=$(($1 + 1144)) count=16 2>/dev/null | tr -d '\000')" = mu300root ]
+}
+find_root_offset() {
+    b=${F50_SYS:-/sys}/block/${EMMC##*/}
+    e=0
+    for p in "$b/$(f50_storage_prefix "$EMMC")"[0-9]*; do
+        [ -r "$p/start" ] || continue
+        x=$(( $(cat "$p/start") + $(cat "$p/size") ))
+        [ "$x" -gt "$e" ] && e=$x
+    done
+    # never past the disk's end: busybox dd reads its way to an offset it cannot seek to, byte by byte
+    size=$(( $(cat "$b/size" 2>/dev/null || echo 0) * 512 ))
+    for c in $(( (e / 4096 + 1) * 4096 * 512 )) $ROOT_OFFSET; do
+        [ "$size" = 0 ] || [ $((c + 4096)) -le "$size" ] || continue
+        is_f50root "$c" && { echo "$c"; return 0; }
+    done
+    return 1
+}
+# No region, but the eMMC's GPT partition named f50root holding that filesystem: where kanoqwq's desktop installer
+# puts the system ("independent internal partition"). His boot image's init finds it there; ours did not, and a device
+# updated from his system with f50-update found no system and went back to Android (issue #290, FINDINGS 178).
+# The whole label, not its first 9 bytes: "f50rootfs" is not this filesystem (from kanoqwq's 5161859d). An older
+# installation's partition and filesystem are both named mu300root: looked for after f50root.
+gpt_root() {
+    for _pn in f50root mu300root; do
+        _gp=$(emmc_part "$_pn") || continue
+        [ "$(dd if="$_gp" bs=1 skip=1080 count=2 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 53ef ] || continue
+        case $(dd if="$_gp" bs=1 skip=1144 count=16 2>/dev/null | tr -d '\000') in
+            f50root|mu300root) echo "$_gp"; return 0 ;;
+        esac
+    done
+    return 1
+}
+# --- region end
+# --- usb-net begin
+# The USB network mode the panel's Device page chose (D12): a file of the system that boots, etc/f50/usb-net
+# (etc/mu300/usb-net in a system of an older installation), holding ncm, ecm, rndis or multi. It is read once the root
+# is known, not before the gadget is made: the gadget comes up as early as before (the card scan can take 8 s), and a
+# different choice costs one rebind. F50_USBNET on the kernel command line still wins. etc/f50/usb-net-name, beside
+# it, holds eth when the computer's side should have a MAC that Linux names eth0 rather than usb0 (ETH_MAC, usb_id);
+# it goes with every mode.
+usb_net_policy() {  # usb_net_policy ROOTDIR: the functions ROOTDIR asks for, or nothing
+    [ -z "${F50_USBNET:-}" ] || return 0
+    case $(cat "$1/etc/f50/usb-net" 2>/dev/null || cat "$1/etc/mu300/usb-net" 2>/dev/null) in
+        ncm) echo 'ncm ecm' ;;
+        ecm) echo 'ecm ncm' ;;
+        # NCM, then ECM, only when this kernel cannot make RNDIS (setup_usb_gadget lets RNDIS win): a saved choice
+        # must never leave a system with no USB network function at all, boot after boot
+        rndis) echo 'rndis ncm ecm' ;;
+        # RNDIS + NCM, else NCM alone, then ECM (setup_usb_gadget)
+        multi) echo 'multi ncm ecm' ;;
+    esac
+}
+usb_name_policy() {  # usb_name_policy ROOTDIR: eth or usb
+    case $(cat "$1/etc/f50/usb-net-name" 2>/dev/null || cat "$1/etc/mu300/usb-net-name" 2>/dev/null) in eth) echo eth ;; *) echo usb ;; esac
+}
+apply_usb_net() {  # apply_usb_net ROOTDIR: rebind once if ROOTDIR asks for other functions or names than were bound
+    usbnet_want=$(usb_net_policy "$1")
+    usbname=$(usb_name_policy "$1")
+    [ -n "$usbnet_want" ] || [ "$usbname" != usb ] || return 0
+    [ -n "$usbnet_want" ] || usbnet_want=$usbnet_bound
+    # no controller came up for the first gadget: another 40 s of waiting for it would change nothing
+    [ -n "$udc" ] || { log "stage=usb-net-policy $usbnet_want skipped (no udc)"; return 0; }
+    if [ "$usbnet_want" != "$usbnet_bound" ] || [ "$usbname" != "$usbname_bound" ]; then
+        log "stage=usb-net-policy $usbnet_want name=$usbname (bound: $usbnet_bound name=$usbname_bound)"
+        teardown_usb_gadget
+        setup_usb_gadget "$usbnet_want"
+    fi
+    # the choice is in effect: the system's device-usb consumes a one-boot choice when it finds this (K8). It names
+    # the function made: rndis or multi only when RNDIS was made (multi: RNDIS and NCM both), NCM or ECM when this
+    # kernel has no RNDIS. usb-net-name-applied says which names the computer's side got.
+    mkdir -p /run/f50 && echo "$usbnet_made" > /run/f50/usb-net-applied
+    echo "$usbname_bound" > /run/f50/usb-net-name-applied
+}
+# --- usb-net end
+# --- pick-root begin
+# The ext4 area holds one or more systems: /openwrt, /openwrt-luci (selected by .f50/boot-os; an older installation's
+# disk has .mu300 instead of .f50). Explicit names only: a kept copy (openwrt.old, openwrt.broken) must never be what
+# boots, so a boot-os with a dot in it is ignored.
+has_init() { [ -x "$1/sbin/init" ]; }
+pick_root() {
+    _sd=/disk/.f50; [ -d "$_sd" ] || [ ! -d /disk/.mu300 ] || _sd=/disk/.mu300
+    want=$(cat "$_sd/boot-os" 2>/dev/null)
+    case $want in *.*|*/*) want= ;; esac
+    for os in $want openwrt openwrt-luci; do
+        [ -d "/disk/$os" ] && has_init "/disk/$os" && { echo "/disk/$os"; return; }
+    done
+}
+# --- pick-root end
+# --- fsck begin
+# The root filesystem's own record of errors, read before it is mounted (FINDINGS 182; kanoqwq's desktop init did it
+# first): ext4 sets ERROR_FS (bit 1 of s_state, superblock byte 58) when it finds corruption, and nothing on the
+# device ever cleared it - every later boot mounted the damaged filesystem as it was. One byte is read on a clean
+# filesystem; only with the bit set does the ramdisk's static e2fsck (device-tools/e2fsck/build.sh) run, -fy, on the
+# unmounted device - the loop over the region, the GPT partition, the card. Never a reason not to boot: whatever
+# e2fsck says, or when it takes longer than FSCK_TIMEOUT seconds (it is stopped then, TERM first: e2fsck cancels at a
+# safe point), the boot goes on with the filesystem as it is. Every outcome is a stage line; exit codes 4 and up
+# (errors left, operational error, cancelled) are stage=fsck-FAILED. Its output: /run/f50/fsck.log in the system.
+# F50_FSCK on the kernel command line: force (check even a clean filesystem) or off.
+FSCK=${F50_FSCK_BIN:-/sbin/e2fsck}
+FSCK_TIMEOUT=${F50_FSCK_TIMEOUT:-120}
+root_fsck() {  # root_fsck DEV: always true
+    [ "${F50_FSCK:-}" != off ] || return 0
+    _st=$(dd if="$1" bs=1 skip=1082 count=1 2>/dev/null | od -An -tu1 | tr -d ' \n')
+    case $_st in ''|*[!0-9]*) return 0 ;; esac
+    [ $((_st & 2)) != 0 ] || [ "${F50_FSCK:-}" = force ] || return 0
+    # s_error_count (superblock byte 404, little-endian), for the log only
+    _ec=$(dd if="$1" bs=1 skip=1428 count=4 2>/dev/null | od -An -tu1 | awk 'NF { print $1 + $2 * 256 + $3 * 65536 + $4 * 16777216; exit }')
+    if [ ! -x "$FSCK" ]; then
+        log "stage=fsck-unavailable dev=$1 state=$_st errors=$_ec (no e2fsck in this ramdisk; booting as it is)"
+        return 0
+    fi
+    log "stage=fsck-start dev=$1 state=$_st errors=$_ec timeout=${FSCK_TIMEOUT}s"
+    mkdir -p /run/f50
+    # the device's clock may be anywhere before NTP: no "last mount time in the future" repairs because of it
+    printf '[options]\n\tbroken_system_clock = 1\n' > /run/e2fsck.conf
+    _t0=$(cut -d' ' -f1 /proc/uptime)
+    E2FSCK_CONFIG=/run/e2fsck.conf "$FSCK" -fy "$1" > /run/f50/fsck.log 2>&1 </dev/null &
+    _fp=$!
+    rm -f /run/fsck.done
+    ( sleep "$FSCK_TIMEOUT"; [ -e /run/fsck.done ] && exit 0
+      log "stage=fsck-TIMEOUT dev=$1 after ${FSCK_TIMEOUT}s (stopping it; booting as it is)"
+      kill -TERM "$_fp" 2>/dev/null; sleep 15; [ -e /run/fsck.done ] || kill -KILL "$_fp" 2>/dev/null ) &
+    _fw=$!
+    wait "$_fp"; _rc=$?
+    : > /run/fsck.done
+    kill "$_fw" 2>/dev/null
+    _s=$(awk -v a="$_t0" '{printf "%.1f", $1 - a}' /proc/uptime)
+    # the summary line ("f50root: 12/16384 files ...") or the last thing it said
+    _last=$(grep -v '^$' /run/f50/fsck.log | tail -n 1)
+    case $_rc in
+        0) log "stage=fsck-done dev=$1 rc=0 (no errors) ${_s}s: $_last" ;;
+        1|2|3) log "stage=fsck-done dev=$1 rc=$_rc (errors corrected) ${_s}s: $_last" ;;
+        *) if [ "$_rc" -ge 128 ]; then _why="killed by signal $((_rc - 128))"
+           elif [ $((_rc & 32)) != 0 ]; then _why=cancelled
+           elif [ $((_rc & 8)) != 0 ]; then _why="operational error"
+           elif [ $((_rc & 4)) != 0 ]; then _why="errors left uncorrected"
+           else _why="usage or library error"; fi
+           log "stage=fsck-FAILED dev=$1 rc=$_rc ($_why; booting anyway) ${_s}s: $_last" ;;
+    esac
+    return 0
+}
+# --- fsck end
+mkdir -p /disk /newroot
+EMMC=$(emmc_dev)   # find_partitions has waited for the eMMC's partitions, so its disk is there
+log "stage=emmc dev=$EMMC sd=$(mmc_disks SD | tr '\n' ' ')"
+# --- root-select begin
+mount_internal() {  # the f50root region on the eMMC; busybox mount sets up a loop only for regular files, so
+    # attach it explicitly and verify its offset (the loop options would be handed to ext4: EINVAL)
+    if found=$(find_root_offset); then
+        [ "$found" = "$ROOT_OFFSET" ] || log "stage=root-offset found=$found (default $ROOT_OFFSET)"
+        ROOT_OFFSET=$found
+    elif gp=$(gpt_root) && [ "$gp" != "$part_first" ]; then
+        mount_part "$gp"; return
+    else
+        log "stage=root-offset not-found (trying the default $ROOT_OFFSET)"
+    fi
+    rootloop=$(losetup -f 2>/run/rootmount.err)
+    [ -n "$rootloop" ] && losetup -o $ROOT_OFFSET "$rootloop" "$EMMC" 2>>/run/rootmount.err \
+       && [ "$(cat /sys/block/${rootloop#/dev/}/loop/offset)" = "$ROOT_OFFSET" ] \
+       && [ "$(dd if="$rootloop" bs=1 skip=1080 count=2 2>/dev/null | od -An -tx1 | tr -d ' ')" = 53ef ] \
+       && root_fsck "$rootloop" \
+       && mount -t ext4 -o noatime "$rootloop" /disk 2>>/run/rootmount.err \
+       && echo "${EMMC##*/}@$ROOT_OFFSET" > /run/f50-root-dev && diskdev=$rootloop
+}
+mount_part() {  # mount_part DEV: the GPT partition f50root - mounted as it is, no loop. root-dev keeps the
+    # "<eMMC>@" of an internal system
+    rootloop=
+    root_fsck "$1"
+    if mount -t ext4 -o noatime "$1" /disk 2>>/run/rootmount.err; then
+        log "stage=root-part dev=$1"
+        echo "${EMMC##*/}@f50root" > /run/f50-root-dev && diskdev=$1
+        return 0
+    fi
+    log "stage=root-part-failed dev=$1"
+    return 1
+}
+mount_sd() {  # mount_sd DEV: the card, a block device of its own - no loop
+    root_fsck "$1"
+    mount -t ext4 -o noatime "$1" /disk 2>>/run/rootmount.err || return 1
+    if [ -z "$(pick_root)" ]; then
+        # the label without a system inside: an installation that was interrupted. Not a reason to give up on
+        # an internal system.
+        log "stage=sd-root-empty dev=$1"; umount /disk; return 1
+    fi
+    echo "$1" > /run/f50-root-dev; diskdev=$1
+    log "stage=sd-root dev=$1"
+}
+sd_wait() { wait_sd_root 8 30; }
+# kanoqwq's desktop installer writes the owner's storage choice into the device ramdisk segment, which updates keep:
+# /etc/f50-desktop-root-mode (/etc/mu300-desktop-root-mode in an older installation's). "part" is an explicit choice
+# of the GPT partition, so it boots first, before a card or a region (from kanoqwq's 5161859d). A choice, not a gate:
+# a partition that is missing or does not mount leaves the usual order below, and is not tried a second time.
+root_mounted=0 diskdev= part_first=
+[ "$(cat /etc/f50-desktop-root-mode 2>/dev/null || cat /etc/mu300-desktop-root-mode 2>/dev/null)" != part ] ||
+    part_first=$(gpt_root)
+if [ -n "$part_first" ] && mount_part "$part_first"; then
+    root_mounted=1
+    log "stage=root-part-chosen (the desktop installer's partition choice)"
+elif sd=$(find_sd_root) && mount_sd "$sd"; then
+    root_mounted=1
+elif mount_internal; then
+    root_mounted=1
+    # A card installation on a device that also has an internal one leaves this marker in the internal one: the
+    # card is what should boot, and the polled SD host may simply not have found it yet. Only then is it worth
+    # waiting; a device without a card installation never waits. (.mu300: an older installation's disk without .f50)
+    if [ -e /disk/.f50/root-on-sd ] || { [ ! -d /disk/.f50 ] && [ -e /disk/.mu300/root-on-sd ]; }; then
+        if sd=$(sd_wait); then
+            umount /disk && losetup -d "$rootloop" 2>/dev/null
+            mount_sd "$sd" || { log "stage=sd-root-failed dev=$sd"; mount_internal || root_mounted=0; }
+        else
+            log "stage=sd-root-missing (marker present, booting the internal system)"
+        fi
+    fi
+else
+    # nothing internal: the card is the only place a system can be, so it gets 8 seconds (30 while one is coming)
+    log "stage=sd-wait (no internal system)"
+    sd=$(sd_wait) && mount_sd "$sd" && root_mounted=1
+fi
+# --- root-select end
+# --- boot-tries begin
+# A way back to Android with no computer and no keyboard: cut the power during boot N times in a row (N is
+# .f50/boot-attempts, 5 without it; .mu300/ on the disk of an older installation that has no .f50/ yet). Every boot
+# counts up here and f50-next-boot --rearm clears the count once the system is really up, so only boots that never got
+# that far add up. LK does the same with the tries it was armed with (N+1) and normally gets there first; this is the
+# backstop, and it goes to Android on the boot after the Nth failed one, exactly when LK would. lk_tries: the tries LK
+# left the Linux slot with (it counts down before it starts the kernel); empty when unknown (only from a
+# bootloader_control block, magic BCAB, and only while the slot is not marked successful: LK does not count down a
+# successful slot, so its tries field says nothing about a fallback)
+lk_tries() {
+    [ -n "$misc" ] || return 0
+    [ "$(dd if="$misc" bs=1 skip=2052 count=4 2>/dev/null)" = BCAB ] || return 0
+    case $LINUX_SLOT in a) _o=2060 ;; *) _o=2062 ;; esac
+    _v=$(dd if="$misc" bs=1 skip=$_o count=1 2>/dev/null | od -An -tu1 | tr -d ' \n')
+    case $_v in ''|*[!0-9]*) return 0 ;; esac
+    [ $((_v & 128)) = 0 ] || return 0
+    echo $(( (_v >> 4) & 7 ))
+}
+# lk_locked: the Linux slot is marked successful in LK's block - f50-next-boot lock. Nothing goes to Android by
+# itself then; the bit is in misc, so this holds even when the Linux disk cannot be read.
+lk_locked() {
+    [ -n "$misc" ] || return 1
+    [ "$(dd if="$misc" bs=1 skip=2052 count=4 2>/dev/null)" = BCAB ] || return 1
+    case $LINUX_SLOT in a) _o=2060 ;; *) _o=2062 ;; esac
+    _v=$(dd if="$misc" bs=1 skip=$_o count=1 2>/dev/null | od -An -tu1 | tr -d ' \n')
+    case $_v in ''|*[!0-9]*) return 1 ;; esac
+    [ $((_v & 128)) != 0 ]
+}
+# boot_tries_exceeded ROOTDIR DISK: count this boot; true when the backstop sends it to Android
+boot_tries_exceeded() {
+    # only in default-Linux mode: with the one-shot trial every power cut already lands in Android
+    [ "$(cat "$1/etc/f50/default-boot" 2>/dev/null || cat "$1/etc/mu300/default-boot" 2>/dev/null)" = linux ] || return 1
+    # the disk's state directory: .f50, or an older installation's .mu300 as long as there is no .f50
+    _bd=$2/.f50; [ -d "$_bd" ] || [ ! -d "$2/.mu300" ] || _bd=$2/.mu300
+    # locked (the bit in misc and the wish on the disk, so a slot marked successful by anything else keeps the
+    # backstop): no count, no backstop
+    if lk_locked && [ -f "$_bd/boot-lock" ]; then log "stage=boot-locked (no backstop)"; return 1; fi
+    tries=$(cat "$_bd/boot-tries" 2>/dev/null || echo 0)
+    case $tries in ''|*[!0-9]*) tries=0 ;; esac
+    tries=$((tries + 1))
+    max=$(cat "$_bd/boot-attempts" 2>/dev/null); case $max in [1-6]) ;; *) max=5 ;; esac
+    # LK left this slot one try: it goes to Android by itself at the next failed boot. A count above N then is one
+    # LK has already acted on - it fell back, and the slot was armed again from Android (su -c f50-linux) - and
+    # sending this boot to Android as well would bounce every such arm straight back. Count from this boot.
+    if [ "$tries" -gt "$max" ] && [ "$(lk_tries)" = 1 ]; then
+        log "stage=boot-tries-restart count=$tries (LK armed this slot again after its own fallback)"
+        tries=1
+    fi
+    mkdir -p "$_bd" && echo "$tries" > "$_bd/boot-tries" && sync
+    [ "$tries" -gt "$max" ] || return 1
+    echo 0 > "$_bd/boot-tries" && sync
+    log "stage=boot-tries-exceeded count=$tries (booting Android instead)"
+}
+# --- boot-tries end
+# --- modules-settle begin
+# A kernel step of f50-update that a restart stopped (#422, docs/research/FINDINGS.md 236) leaves .f50's boot/modules.pending:
+# the release and banner of the kernel it was installing. Its module set is in the systems already, and with the image
+# before still in the slot the two builds did not match (an Oops in the Wi-Fi driver's probe 25 s in, then Android).
+# Before any module of the system loads, the set that goes with the kernel running now is put in: the unpacked
+# bundle's (on the disk before the step began) when this is the new kernel, else the one kept with the image before.
+# modules_settle DISK: DISK is the mounted Linux disk; always true
+modules_settle() {
+    _mp=$1/boot/modules.pending
+    [ -f "$_mp" ] || return 0
+    _mk=$(sed -n 1p "$_mp"); _mb=$(sed -n 2p "$_mp")
+    case $_mk in ''|*/*|.*) rm -f "$_mp"; sync; return 0 ;; esac
+    _mv=$(uname -v)
+    if [ "$(uname -r)" = "$_mk" ] && [ -n "$_mv" ] && [ "${_mb%" $_mv"}" != "$_mb" ]; then
+        _mw=new _ms=$1/.f50-update/boot/modules
+        # an older installation's update stages it in .mu300-update
+        ls "$_ms"/*.ko >/dev/null 2>&1 || ! ls "$1/.mu300-update/boot/modules"/*.ko >/dev/null 2>&1 ||
+            _ms=$1/.mu300-update/boot/modules
+        ls "$_ms"/*.ko >/dev/null 2>&1 || { log "stage=modules-settle-missing (the unpacked set is gone)"; rm -f "$_mp"; sync; return 0; }
+    else
+        _mw=kept _ms=
+        for _mc in "$1/boot/prev.modules.new" "$1/boot/prev.modules"; do
+            [ "$(cat "$_mc/kernel.release" 2>/dev/null)" = "$_mk" ] && { _ms=$_mc; break; }
+        done
+    fi
+    for _mo in openwrt openwrt-luci; do
+        [ -d "$1/$_mo" ] || continue
+        _md=$1/$_mo/lib/modules/$_mk
+        _mf=$_ms
+        [ "$_mw" = new ] || _mf=${_ms:+$_ms/$_mo}
+        [ -d "$_md" ] || [ "$_mw" = new ] || continue
+        mkdir -p "$_md" && rm -f "$_md"/*.ko
+        if [ -n "$_mf" ] && ls "$_mf"/*.ko >/dev/null 2>&1; then
+            ln "$_mf"/*.ko "$_md/" 2>/dev/null || cp "$_mf"/*.ko "$_md/"
+        fi
+    done
+    rm -f "$_mp"; sync
+    log "stage=modules-settled release=$_mk set=$_mw"
+}
+# --- modules-settle end
+if [ "$root_mounted" = 1 ] && rootdir=$(pick_root) && [ -n "$rootdir" ]; then
+    if boot_tries_exceeded "$rootdir" /disk; then
+        restore_android
+        persist
+        sync
+        reboot -f
+        sleep 30
+    fi
+    modules_settle /disk
+    # The system's modules into the page cache, beside the rest of the bring-up: OpenWrt's procd runs kmodloader before
+    # anything else, and its scan of every module (~2950 files, a few pages of each) cold off the eMMC held the boot
+    # 1.7 s. One cat of them all, from inside their directory so that it goes on after switch_root (the kill loop below
+    # spares it; its own binary and working directory stay valid), keeps ahead of the scan.
+    prefetch=
+    if [ -d "$rootdir/lib/modules/$(uname -r)" ]; then
+        (cd "$rootdir/lib/modules/$(uname -r)" && exec cat -- *.ko) >/dev/null 2>&1 </dev/null &
+        prefetch=$!
+    fi
+
+    # the USB mode this system's panel chose (D12): one rebind before switch_root when it differs
+    apply_usb_net "$rootdir"
+    if [ "$rootdir" = /disk ]; then
+        mount --move /disk /newroot
+    else
+        mount --bind "$rootdir" /newroot
+        # keep the whole disk reachable from inside (switching systems, editing the other one)
+        mkdir -p /newroot/mnt/f50-disk && mount --move /disk /newroot/mnt/f50-disk
+    fi
+    # Default-Linux mode: leave LK's decremented tries (Linux's slot: not successful). Userspace re-arms the Linux
+    # slot (tries N+1) once the system is up; N boots in a row that never get there and LK falls back to Android on
+    # the next one.
+    trial=1
+    if [ "$(cat /newroot/etc/f50/default-boot 2>/dev/null || cat /newroot/etc/mu300/default-boot 2>/dev/null)" = linux ]; then
+        log "stage=default-boot-linux (Android's slot restore skipped)"
+        trial=
+    else
+        restore_android
+    fi
+    publish_slot
+    [ -n "$misc" ] && echo "$misc" > /run/f50/misc-dev
+    # the device /disk was mounted from: the card, or the loop device over the internal region
+    echo "$diskdev" > /run/f50/disk-dev
+    echo f50 > /run/f50/device
+    init=/sbin/init
+    # OpenWrt: procd's first act is "kmodloader /etc/modules-boot.d/", and kmodloader begins by reading every module
+    # in /lib/modules/<release> (~2950 files, a few scattered blocks of each, cold off the eMMC: 1.7 s with procd
+    # waiting; parallel reads or the loop device's direct I/O won back 0.2 s at most). What that list loads is all in
+    # /etc/modules.d as well, which /etc/init.d/boot loads two seconds later (by then from the cache the prefetch
+    # above filled). So only that one call is skipped: a stub bind-mounted over /sbin/kmodloader takes itself away at
+    # its first run, whatever that is (lazily: the shell running it holds it open), and hands every call but
+    # procd's to the real kmodloader by its own name (modprobe, insmod, lsmod are links to it).
+    if [ -x /newroot/sbin/kmodloader ] && [ -d /newroot/etc/modules-boot.d ]; then
+        printf '%s\n' '#!/bin/sh' \
+            '# F50 initramfs (boot/init): stands in for kmodloader until its first run, procd'"'"'s modules-boot.d' \
+            'umount -l /sbin/kmodloader 2>/dev/null' \
+            '[ "${0##*/} $1" = "kmodloader /etc/modules-boot.d/" ] && exit 0' \
+            '[ -z "$F50_KMOD_ONCE" ] || exit 1' \
+            'export F50_KMOD_ONCE=1' \
+            'exec "$0" "$@"' > /run/.kmodloader-once
+        chmod 755 /run/.kmodloader-once
+        mount --bind /run/.kmodloader-once /newroot/sbin/kmodloader && log "stage=kmodloader-once"
+    fi
+    log "stage=switch-root root=$rootdir init=$init os=$(sed -n 's/^PRETTY_NAME=//p' /newroot/etc/os-release)"
+    persist
+    kill $(jobs -p | grep -vx "$prefetch") 2>/dev/null
+    for p in /proc/[0-9]*; do
+        p=${p#/proc/}
+        [ "$p" = 1 ] || [ "$p" = "$prefetch" ] || kill -9 "$p" 2>/dev/null
+    done
+    # Trial guard, only in images built with --trial-guard SECONDS (boot/flash-trial.sh experiments, never an
+    # install): the timer above ends here, and a trial kernel that boots but never brings up USB left a device that
+    # only failing five boots by hand brought back. So one more timer outlives switch_root: unless /run/stay exists by
+    # then (created over SSH), it reboots - into Android, as Android's slot is already restored. switch_root deletes
+    # this ramdisk, so it runs from a copy of busybox in /run, reached through its working directory once /run has
+    # moved.
+    # Only in a trial boot: f50-update keeps the device segment of whatever image is in the Linux slot's boot
+    # partition, and a guard that came along from an experiment into an installed system restarted it every 10
+    # minutes (FINDINGS 33e)
+    if [ -s /etc/f50-trial-guard ] && [ -z "$trial" ]; then
+        log "stage=trial-guard-ignored (Linux is the default: not a trial)"
+    elif [ -s /etc/f50-trial-guard ]; then
+        g=$(cat /etc/f50-trial-guard)
+        # (named busybox: busybox takes the applet from its own name when that is not "busybox")
+        mkdir -p /run/.trial-guard && cp /bin/busybox /run/.trial-guard/busybox
+        log "stage=trial-guard ${g}s"
+        (cd /run && exec .trial-guard/busybox sh -c ".trial-guard/busybox sleep $g; [ -e stay ] && exit 0; .trial-guard/busybox sync; .trial-guard/busybox reboot -f") \
+            </dev/null >/dev/null 2>&1 &
+    fi
+    umount /config 2>/dev/null
+    # the early DHCP server ends with this ramdisk (K5): the host keeps its lease, and the system's server answers
+    # the renewal (the kill loop above has already stopped it; this says so where it matters)
+    killall udhcpd 2>/dev/null
+    # and with it the early bridge of "multi": the system bridges usb0 and rndis0 itself
+    usb_bridge_gone
+    mkdir -p /newroot/dev /newroot/proc /newroot/sys /newroot/run
+    mount --move /dev /newroot/dev
+    mount --move /proc /newroot/proc
+    mount --move /sys /newroot/sys
+    mount --move /run /newroot/run 2>/dev/null
+    exec switch_root /newroot $init
+fi
+log "stage=rootfs-unavailable $(cat /run/rootmount.err)"
+# Locked (f50-next-boot lock): no system, and still no way to Android by itself - this rescue stays up (telnet)
+# and /run/to-android takes it there by hand. Otherwise Android's slot is restored, and the timer reboots into it.
+if lk_locked; then
+    log "stage=rootfs-unavailable-locked (staying: telnet in and run sh /run/to-android)"
+    touch /run/stay
+    printf '#!/bin/sh\ndd if=%s of=%s bs=1 seek=2048 conv=notrunc && sync && reboot -f\n' \
+        "${F50_ETC:-/etc}/misc-bc-slot-$ANDROID_SLOT.bin" "$misc" > /run/to-android
+    chmod 755 /run/to-android
+    RESCUE_NOTE="locked: no reboot to Android by itself; run sh /run/to-android to go there"
+else
+    restore_android
+    RESCUE_NOTE="auto reboot to Android after 300s unless /run/stay exists"
+fi
+# (with "multi" the address is the early bridge's, which has usb0 and rndis0 as its ports)
+rescue_net=usb0; [ -e /sys/class/net/usbbr ] && rescue_net=usbbr
+ifconfig $rescue_net $NET.1 netmask 255.255.255.0 up
+log "stage=usb0 $(ifconfig $rescue_net 2>&1 | head -1)"
+cat > /etc/udhcpd.conf <<EOF
+start $NET.2
+end $NET.9
+interface $rescue_net
+option subnet 255.255.255.0
+option lease 600
+lease_file /run/udhcpd.leases
+pidfile /run/udhcpd.pid
+EOF
+touch /run/udhcpd.leases
+# this server, with its pool, replaces the early one (setup_usb_gadget) on usb0 (or usbbr); with RNDIS (no usb0)
+# the early one on rndis0 stays, the only one there is
+[ -e /sys/class/net/$rescue_net ] && killall udhcpd 2>/dev/null
+udhcpd /etc/udhcpd.conf
+telnetd -b $NET.1 -p 23 -l /bin/sh
+mkdir -p /run/www
+echo "F50 standalone Linux v5: telnet $NET.1; $RESCUE_NOTE" > /run/www/index.html
+httpd -p $NET.1:80 -h /run/www
+log "stage=ready"
+
+# Android vendor services in a chroot. modem_control reloads pm_sys through Trusty; only then
+# can sprd_pmic_wdt send "watchdog rstoff" and stop the PM co-processor from cutting power.
+A=/android
+cp -a $A/dev/__properties__ /dev/__properties__
+mkdir -p /dev/block/by-name
+for u in /sys/class/block/$(f50_storage_prefix "$EMMC")[0-9]*/uevent; do
+    d=$(basename "$(dirname "$u")")
+    n=$(sed -n 's/^PARTNAME=//p' "$u")
+    ln -sf /dev/$d /dev/block/$d
+    [ -n "$n" ] && ln -sf /dev/$d /dev/block/by-name/$n
+done
+mkdir -p $A/dev $A/proc $A/sys $A/data/vendor $A/mnt $A/tmp
+mount --bind /dev $A/dev
+mount -t proc proc $A/proc
+mount -t sysfs sysfs $A/sys
+# modem_control switches to uid system(1000); apply Android's ueventd/init node ownership
+sh /etc/ueventd-perms.sh
+# the modem images Android uses (and keeps updated) are the ones of Android's slot
+# the vendor daemons read androidboot.* (slot, modem config) from the command line; when it has no slot, fall back to
+# the bootargs LK put in the device tree
+src=/proc/cmdline
+grep -q androidboot.slot_suffix /proc/cmdline || [ ! -r /proc/device-tree/chosen/bootargs ] || src=/proc/device-tree/chosen/bootargs
+tr -d '\000' < $src | sed "s/androidboot.slot_suffix=_$LINUX_SLOT/androidboot.slot_suffix=_$ANDROID_SLOT/" > /run/cmdline.android
+mount --bind /run/cmdline.android $A/proc/cmdline
+# liblog sends to logd's datagram socket; capture it so vendor daemons are debuggable
+mkdir -p /dev/socket
+/bin/logdw /dev/socket/logdw > /run/logcat.txt 2>&1 &
+sleep 1
+log "stage=android-chroot-ready nodes=$(ls /dev/modem /dev/pmsys /dev/sctl_pm /dev/trusty-ipc-dev0 2>&1 | tr '\n' ',')"
+# exec the binary itself (interpreter /system/bin/linker64): sprd_modem_loader only accepts
+# ioctls/writes from a task whose comm is exactly "modem_control"
+LD_LIBRARY_PATH=/apex/com.android.runtime/lib64/bionic:/system/lib64:/vendor/lib64 \
+    chroot $A /vendor/bin/modem_control > /run/modem_control.log 2>&1 &
+log "stage=modem_control-started pid=$!"
+(for n in $(seq 1 120); do
+    if dmesg | grep -q "sbuf ready for pmic wdt init"; then log "stage=pmic-wdt-rstoff-ready t=$n"; exit 0; fi
+    sleep 2
+ done; log "stage=pmic-wdt-NOT-ready") &
+while :; do
+    dmesg > /run/www/dmesg.txt
+    cat /proc/modules > /run/www/modules.txt
+    sleep 5
+done

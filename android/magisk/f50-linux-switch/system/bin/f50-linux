@@ -1,0 +1,3 @@
+#!/system/bin/sh
+# "su -c f50-linux" from a terminal or adb; see /data/adb/modules/f50_linux_switch/switch.sh
+exec sh /data/adb/modules/f50_linux_switch/switch.sh "$@"

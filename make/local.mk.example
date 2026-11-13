@@ -1,0 +1,7 @@
+# Copy to make/local.mk (ignored by Git) for settings of this computer; never store passwords here.
+# DEVICE_IP = 192.168.77.1
+# SSH_TARGET = root@192.168.77.1
+# SSH_OPTS = -o ConnectTimeout=8 -i ~/.ssh/id_ed25519
+# F50_IP = 192.168.0.1
+# F50_SERIAL =
+# INSTALL_ARGS = --check

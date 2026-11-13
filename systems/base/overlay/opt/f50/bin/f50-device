@@ -1,0 +1,46 @@
+#!/bin/sh
+# Which device this is: f50 or u30air. boot/init writes it to /run/f50/device; a boot image from before that does not,
+# so then the device tree tells, the way init decides: only the U30 Air's has the charger policy service.
+# (F50_SYSROOT is for tests/: a fake / to read from.)
+#   f50-device          f50 or u30air
+#   f50-device --json   one line of JSON for programs (the web installer, a GUI: "adb shell f50-device --json"):
+#                         the device, the system that runs, its release, the kernel, whether the caller is root and
+#                         what adb does. The fields are a contract: docs/guides/ADB-INTERFACE.md. New fields may be added;
+#                         "f50" (the version of this format) changes when one is taken away or changes meaning.
+R=${F50_SYSROOT:-}
+DT=$R/proc/device-tree
+device() {
+    if [ -s "$R/run/f50/device" ]; then
+        cat "$R/run/f50/device"
+    elif [ -d "$DT/charger_policy_service" ]; then
+        echo u30air
+    else
+        echo f50
+    fi
+}
+[ "${1:-}" = --json ] || { device; exit 0; }
+
+DISK=${F50_DISK:-/mnt/f50-disk}
+BIN=${F50_BIN:-/opt/f50/bin}
+# a value as it goes between two quotes: nothing that JSON would want escaped
+clean() { tr -cd 'A-Za-z0-9._+-' | cut -c1-64; }
+# the system that runs: the directory of the Linux partition that is / (openwrt, or one of the user's own; between an
+# update and the reboot / is the kept copy, NAME.old), else what / looks like
+system() {
+    for d in "$DISK"/*/; do
+        d=${d%/}
+        [ -d "$d/etc" ] && [ "${R:-/}" -ef "$d" ] || continue
+        n=${d##*/}; echo "${n%.old}"; return
+    done
+    if [ ! -e "$R/etc/openwrt_release" ]; then echo ubuntu
+    else echo openwrt; fi
+}
+# off, unavailable (no adbd or no FunctionFS in this system), open (every computer gets in) or keys
+adb=$("$BIN/f50-adbd" state 2>/dev/null)
+case $adb in off|open|keys) ;; *) adb=unavailable ;; esac
+[ "$(id -u)" = 0 ] && root=true || root=false
+release=$(cat "$R/etc/f50/image-version" 2>/dev/null | clean)
+printf '{"f50":1,"device":"%s","system":"%s","version_id":"%s","release":"%s","kernel":"%s","root":%s,"adb":"%s"}\n' \
+    "$(device | clean)" "$(system | clean)" \
+    "$(sed -n 's/^VERSION_ID="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' "$R/etc/os-release" 2>/dev/null | head -n1 | clean)" \
+    "${release:-unknown}" "$(uname -r | clean)" "$root" "$adb"
