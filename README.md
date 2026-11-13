@@ -1,99 +1,96 @@
-# F50
+# F50 Linux
 
-Device software for the ZTE F50 pocket 5G router running OpenWrt.
+让中兴 ZTE F50 随身 5G 路由器运行 OpenWrt：一个 Rust 守护进程 `f50d` 接管基带、移动数据、短信、Wi-Fi、USB 和系统，
+再配一个网页控制台。原厂 Android 保留在另一个槽位，随时可以切回去。
 
-| Directory | What it is |
+## 功能
+
+网页控制台（`http://192.168.77.1/f50/`，用 OpenWrt 的 root 账户登录）：
+
+- **仪表盘**：运营商、网络制式、实时网速、本期流量、信号，以及 CPU、内存、存储、温度；常用开关一页完成
+- **移动网络**：信号与小区（服务小区、邻区、载波聚合）、移动数据与 APN、流量统计与限额、SIM 卡、网络锁定（锁频/锁小区）
+- **短信**：收发与会话
+- **连接**：Wi-Fi 热点、Wi-Fi 上网（连接其他 Wi-Fi 作为上行）、局域网与 DHCP、USB 网络
+- **系统**：系统信息、性能与温控、指示灯、系统设置、系统更新、启动
+- **工具**：AT 终端、后台任务、系统日志
+
+页面上的数据通过 `f50.live` 实时推送（标题栏显示「实时」）；推送不可用时自动改为定时刷新。
+
+## 目录
+
+| 目录 | 内容 |
 |---|---|
-| [`f50d/`](f50d/README.md) | The device daemon in Rust. It owns the modem, mobile data, SMS, Wi-Fi/LAN/USB, the system and updates, and publishes them as ubus objects (`f50.*`). |
-| `f50-web/` | The web frontend (React + Vite). It calls `f50d` through uhttpd's `/ubus` JSON-RPC endpoint. |
-| `install.sh`, `installer/`, `boot/` | The first installation from stock Android: the boot image, the Linux slot, the root filesystem. |
-| `systems/openwrt/` | The OpenWrt root filesystem, built in docker from OpenWrt's own release with f50d and the web console in it. |
-| `kernel/vendor/` | The 5.4 vendor kernel build (`out/`). |
-| `device-tools/`, `android/vendor/`, `scripts/device/` | Small device programs, the Android vendor files taken from the device, backups and logs. |
+| [`f50d/`](f50d/README.md) | 设备守护进程（Rust），以 ubus 对象 `f50.*` 提供全部功能，接口见 [`f50d/docs/API.md`](f50d/docs/API.md) |
+| `f50-web/` | 网页控制台（React + Vite），经 uhttpd 的 `/ubus` 调用 `f50d` |
+| `install.sh`、`installer/`、`boot/` | 从原厂 Android 首次安装：启动镜像、Linux 槽位、根文件系统 |
+| `uninstall.sh` | 卸载 Linux，恢复原厂 Android |
+| `android/magisk/` | Android 里切回 Linux 用的 Magisk 模块 |
+| `systems/openwrt/` | OpenWrt 根文件系统（docker 构建，内含 f50d 和网页） |
+| `kernel/` | 5.4 厂商内核的构建，产物在 `out/` |
+| `make/` | 全部 make 命令，`make` 查看说明 |
 
-Based on [dikeckaan/mu300-linux](https://github.com/dikeckaan/mu300-linux); everything an installation needs is built
-from this repository (no release of that project is downloaded). The mainline kernels, Ubuntu's web panel and the
-documentation are not part of it.
+## 准备
 
-## Commands
+在 macOS 或 Linux 上：
 
-`make` lists them all (`make/*.mk`; settings in `make/local.mk`, see `make/local.mk.example`).
+- `adb`（macOS：`brew install android-platform-tools`）、Python 3、`lz4`、docker、Go 1.20+
+- Rust 工具链（`aarch64-unknown-linux-musl` 目标）和 Node.js + pnpm，用来构建 f50d 和网页
+- 一根能传数据的 USB 线
+
+可选：复制 `make/local.mk.example` 为 `make/local.mk`，修改设备地址等设置。
+
+## 首次安装
+
+设备运行原厂固件时：
 
 ```sh
-make kernel     # once: the 5.4 kernel into out/ (docker)
-make install    # first installation on a stock F50: builds f50d and the web console, flashes OpenWrt
-make test       # f50d tests, fmt and clippy, the web console's lint and type check
-make deploy     # f50d and the web console onto a running device over SSH
-make reboot     # restart the device
+make backup     # 先备份不可替代的分区
+make kernel     # 构建内核（只需一次）
+make install    # 构建 f50d 和网页，开启 ADB，刷入 OpenWrt
 ```
 
-## First installation
+`make install` 会自己开启 ADB 并准备 root；如果失败，先在原厂管理页 `http://192.168.0.1` 用**管理密码**打开
+「ADB 调试」，或运行 `make adb`，再重试。只想检查空间、不写入：`make install-check`。
 
-From a Mac or a Linux computer, on a ZTE F50 that still runs its stock firmware. Before `make install`:
+安装完成后设备重启进入 OpenWrt：电脑通过 USB 网络连到 `192.168.77.1`，打开 `http://192.168.77.1/f50/` 登录。
 
-1. **Tools on the computer**: `adb` (Android platform-tools; macOS: `brew install android-platform-tools`), Python 3,
-   Go 1.20+ for ADB recovery, `lz4`, docker, and the kernel in `out/` (`make kernel`, once).
-   The SMB helper is built from pinned dependencies into `work/bin/` before any device operation and reused later.
-2. **Cable**: the F50 plugged into the computer with a cable that carries data (some charging cables do not), the
-   USB not handed to a virtual machine.
-3. **USB debugging on**: open <http://192.168.0.1/index.html#usb_port> (the computer on the F50's Wi-Fi or USB
-   network), log in with the **admin password** (not the Wi-Fi password), turn ADB debugging on and save. If the
-   computer still does not list the device (`adb devices`), restart the F50 once.
-4. `make adb` first checks USB ADB. If it is already connected, it reports success, prints the shell command,
-   and exits without preparing SMB/root, changing device settings, or waiting through the stability check.
-   If disconnected, recovery writes the original tool's TCP 5555 properties in the first short-lived USB shell,
-   then prepares a root channel. Connect the computer to the F50's **Wi-Fi** for the TCP fallback: recovery uses actual adb-only
-   USB functions, which removes USB networking and MTP. A fallback connection is accepted only after matching
-   the boot ID captured over USB. Existing correct properties and root channels are reused without rebooting.
-   On macOS, preparation first checks that the Wi-Fi IPv4 subnet contains the F50 address. A phone hotspot or
-   unrelated Wi-Fi subnet stops preparation before any USB toggle or reboot; the check does not replace confirming
-   that the selected hotspot belongs to the F50.
-   It reuses a direct root shell, working Magisk `su`, or the local root socket. On firmware such as B15 where
-   ADB is an ordinary shell, it uses writable `/data/samba/etc/smb.conf` to install a Samba `root preexec` hook,
-   enables guest access, and accesses a share to start a local root socket. The original Samba configuration is
-   saved to `/data/local/tmp/f50-smb-before-root.conf`. A userspace SMB2/3 client connects to shares read from
-   `smb.conf`, avoiding the `smbutil` share-enumeration path. On macOS, a failed userspace attempt can fall back
-   to a temporary read-only `mount_smbfs` access to a known share, then unmount it. All SMB/root attempts share
-   a 10-second deadline; retries continue within that budget, with time reserved for cleanup and root probes.
-   The tool then checks the actual `sys.usb.config/state`, TCP connection and UID 0 for 30
-   consecutive seconds before reporting success; property writes alone are not success.
-   Without step 3 it offers to do it itself:
-   enter the admin password and it switches USB debugging on and restarts the F50, as the Windows F50-ADB tool
-   does. Nothing is flashed in this step.
-   When a Web password was supplied, it checks `samba_switch` and uses `SAMBA_SETTING` to enable sharing before
-   reboot. The ADB bootstrap separately reads `settings get global samba_enable` and enables it only when needed,
-   before checking or writing its root hook. A stock service that regenerates the configuration gets one bounded
-   repair attempt. An existing hook or socket file alone does not count as working root.
-   SMB logs identify protocol negotiation versus session setup without logging authentication data. If automatic
-   negotiation cannot establish a session, one SMB 2.1 compatibility attempt may use the remaining deadline;
-   no global host SMB/security settings are changed. These are recovery attempts, not a confirmed cause of EOF.
-   TCP `offline` transports at this device address are disconnected and reconnected with backoff. Every new
-   connection must match the USB boot ID; subsequent writes are pinned to its physical serial and guarded by that ID.
-5. `make install`. Installation and maintenance explicitly request `--prepare-root`, so they can prepare root
-   even when USB ADB is already connected. Steps 3 and 4 are only needed by hand when that preparation fails.
+## 在 Android 和 OpenWrt 之间切换
 
-USB debugging does **not** guarantee a root shell. The installer checks for UID 0 through the selected channel;
-it can use `/data/local/tmp/f50-root/command.sock` without installing Magisk. This local socket permits Android's
-shell user to execute root commands. Its listener must be started again through Samba after an Android reboot;
-the installation/resume path prepares it again when needed. This requires firmware with a writable Samba
-configuration and a functioning root hook; failure stops installation. Root preparation does not flash boot or
-TrustOS, and does not establish that the device can boot a modified image. Take a backup first: `make backup`.
+- **OpenWrt → Android**：侧边栏账户菜单里的「切换到 Android」，或在设备上执行
+  `ubus call f50.boot android`（两秒后重启进入 Android）
+- **Android → OpenWrt**：Magisk → 模块 → F50 Linux switch → 操作；或在电脑上
+  `adb shell su -c f50-linux`（`su -c "f50-linux status"` 只查看两个槽位）
 
-TCP ADB on port 5555 is now part of the default preparation, as in the original F50-ADB tool; `--wireless` remains
-accepted for compatibility. `scripts/device/f50-enable-adb.py --adb-only` only confirms or restores USB ADB,
-without root/Samba preparation or the stability claim. `make install` still uses USB and leaves the prepared
-adb-only mode in place rather than restoring MTP at exit. This is a per-boot preparation, not a guarantee that
-stock firmware will retain debugging forever.
+切换只改 misc 分区里的启动控制块，不动 Android 的系统和数据。Linux 连续两次启动失败会自动回到 Android。
 
-The Python entry point is `scripts/device/f50-enable-adb.py`; its implementation lives in
-`scripts/device/f50_adb/`. `config` handles arguments, `host` owns tools/logs/processes, `web` implements
-Goform, `adb` tracks transports and device identity, `smb` handles share access, `payloads` supplies Android
-commands, and `root`/`workflow` coordinate recovery. Imports do not start preparation or create logs.
+看设备当前在哪个系统：`adb devices -l`，序列号以 `F50LINUX-` 开头是 OpenWrt，纯数字是 Android。
 
-Implementation references: [UFI-TOOLS sharing controls](https://github.com/kanoqwq/UFI-TOOLS/blob/cf83b815efb114ed026f06dc90550845aafbfceb/app/frontEnd/public/script/main.js#L1517),
-[openSMB](https://github.com/kanoqwq/UFI-TOOLS/blob/cf83b815efb114ed026f06dc90550845aafbfceb/app/src/main/java/com/minikano/f50_sms/utils/ShellKano.kt#L760),
-and [the author's short-lived ADB discussion](https://github.com/kanoqwq/UFI-TOOLS/issues/64).
+## 日常开发
 
-## License
+```sh
+make dev            # 网页开发服务器 127.0.0.1:5173，/ubus 转发到设备
+make test           # f50d 测试、fmt、clippy，网页 lint 和类型检查
+make deploy         # 通过 SSH 部署 f50d 和网页到运行中的设备
+make deploy-f50d    # 只换 f50d 并重启守护进程
+make deploy-web     # 只部署网页
+make ssh            # 登录设备
+make status         # 内核、版本、内存和 f50d 状态
+make logs           # 跟踪系统日志
+```
 
-MIT, see [LICENSE](LICENSE).
+## 维护
+
+```sh
+make uninstall        # 卸载 Linux，恢复原厂 Android
+make reset-password   # 在 Android 里重置 OpenWrt 的 root 密码
+make collect-logs     # Linux 启动失败回到 Android 后，收集启动日志
+make backup-full      # 全分区备份
+```
+
+## 致谢
+
+最初基于 [dikeckaan/mu300-linux](https://github.com/dikeckaan/mu300-linux)；现在安装所需的一切都从本仓库构建。
+
+## 许可
+
+MIT，见 [LICENSE](LICENSE)。
