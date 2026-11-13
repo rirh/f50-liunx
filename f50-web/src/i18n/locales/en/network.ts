@@ -204,8 +204,18 @@ const m: Messages["network"] = {
     },
     scan: {
       title: "Nearby networks",
-      description:
-        "The radio cannot scan while the hotspot runs; you can join by typing a network name (takes effect after a reboot).",
+      description: "The networks in range; pick one to join.",
+      descriptionHotspot:
+        "The radio cannot scan while it is the hotspot: Scan reboots the device with the hotspot off (up to 10 minutes) to scan.",
+      rebootTitle: "Reboot and scan?",
+      rebootBody:
+        "This Wi-Fi chip cannot scan while it is the hotspot. The device reboots and keeps the hotspot off for the next 10 minutes to scan: devices on the hotspot are disconnected; USB and mobile data are not affected. With no network joined in 10 minutes, the hotspot comes back by itself.",
+      rebootConfirm: "Reboot and scan",
+      rebootFailed: "Could not start scan mode: {error}",
+      modeTitle: "Scan mode",
+      modeBody:
+        "The hotspot is off for now; it comes back at {time} unless a network is joined.",
+      restoreHotspot: "Restore the hotspot",
       manual: "Join manually",
       scan: "Scan",
       scanning: "Scanning",

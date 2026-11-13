@@ -216,6 +216,9 @@ pub(crate) async fn status(net: &Net) -> Value {
         FwState::Unknown => false,
         _ => active,
     });
+    // scan mode: `scan_until` while this boot keeps the hotspot off to scan, `scan_armed` when the next boot will
+    v["scan_until"] = json!(radio::scan_until(net));
+    v["scan_armed"] = json!(radio::scan_armed(net));
     v["saved"] = match saved::load(net) {
         Some(s) => json!({ "ssid": shown(s.ssid.as_bytes()), "at_boot": s.enable }),
         None => Value::Null,

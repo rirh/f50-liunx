@@ -186,8 +186,17 @@ export default {
     },
     scan: {
       title: "附近的网络",
-      description:
-        "热点运行时无线电无法扫描，可直接输入网络名称加入（重启后生效）。",
+      description: "列出附近的网络，选一个加入。",
+      descriptionHotspot:
+        "热点运行时无法扫描：点「扫描」会重启设备，并临时关闭热点（最多 10 分钟）用来扫描。",
+      rebootTitle: "重启并扫描？",
+      rebootBody:
+        "这块无线芯片在热点模式下无法扫描。设备将重启，并在随后的 10 分钟内关闭热点用来扫描：通过热点连接的设备会断开，USB 和移动数据不受影响。10 分钟内没有加入网络，热点会自动恢复。",
+      rebootConfirm: "重启并扫描",
+      rebootFailed: "无法进入扫描模式：{error}",
+      modeTitle: "扫描模式",
+      modeBody: "热点已暂时关闭，{time} 前没有加入网络会自动恢复。",
+      restoreHotspot: "恢复热点",
       manual: "手动加入",
       scan: "扫描",
       scanning: "扫描中",

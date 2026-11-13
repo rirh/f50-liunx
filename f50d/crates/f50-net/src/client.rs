@@ -51,6 +51,9 @@ pub(crate) async fn keep_radio_for_client(net: &Net) -> Result<bool> {
 
 /// See [`Net::boot_wifi_client`].
 pub(crate) async fn boot(net: &Net) -> Result<()> {
+    if radio::scan_until(net).is_some() {
+        tokio::spawn(scan_window(net.clone()));
+    }
     let Some(s) = saved::load(net) else { return Ok(()) };
     if !s.enable {
         tracing::info!("the saved Wi-Fi network is not joined at boot since it was disconnected");
@@ -62,12 +65,39 @@ pub(crate) async fn boot(net: &Net) -> Result<()> {
         Err(e) => {
             // the hotspot again, so a device reached over it is reachable again (connect gave it back if it had
             // taken it; the boot may have kept it off without running it)
-            if radio::had_ap(net) {
+            // (not in scan mode: the radio stays a station there, so another network can be picked)
+            if radio::had_ap(net) && radio::scan_until(net).is_none() {
                 let _ = radio::start_ap(net).await;
             }
             Err(e)
         }
     }
+}
+
+/// A scan-mode boot's window: when it passes with no network joined, the hotspot comes back; a network joined
+/// meanwhile keeps the radio (the hotspot then returns when it is left, as after any join).
+async fn scan_window(net: Net) {
+    tokio::time::sleep(radio::SCAN_WINDOW).await;
+    if radio::scan_until(&net).is_none() {
+        return;
+    }
+    let _st = net.inner.client.lock().await;
+    if is_active(&net).await {
+        radio::end_scan_mode(&net);
+        return;
+    }
+    tracing::info!("scan mode over with no network joined: the hotspot comes back");
+    if let Err(e) = radio::start_ap(&net).await {
+        tracing::warn!(error = %e, "hotspot after scan mode");
+    }
+}
+
+/// `f50.wificlient scan_reboot`: the next boot keeps the hotspot off for [`radio::SCAN_WINDOW`] so the radio can
+/// scan (this driver cannot leave access-point mode without a reboot), then reboots in two seconds.
+pub(crate) fn scan_reboot(net: &Net) -> Result<Value> {
+    radio::arm_scan(net)?;
+    net.platform().system().reboot_after(Duration::from_secs(2))?;
+    Ok(json!({ "reboot_in_s": 2, "window_s": radio::SCAN_WINDOW.as_secs() }))
 }
 
 /// `f50.wificlient status`.
@@ -91,9 +121,7 @@ pub(crate) async fn scan(net: &Net) -> Result<Value> {
         JobSpec::new("f50.wificlient scan", "wifi", Duration::from_secs(120)),
         move |ctx| async move {
             let _st = n.inner.client.lock().await;
-            radio::prepare_station(&n).await.map_err(|e| {
-                e.context("so it cannot scan either: give the network name to join, and it is joined after a reboot")
-            })?;
+            radio::prepare_station(&n).await?;
             ctx.log("scanning");
             let nets = scan::iw_scan(&n.cfg().wlan).await?;
             Ok(json!({ "networks": nets }))

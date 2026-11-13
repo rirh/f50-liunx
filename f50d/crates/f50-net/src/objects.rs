@@ -105,6 +105,13 @@ pub(crate) fn wificlient(net: &Net) -> Object {
             with!(net, |n, p| client::scan(&n).await),
         )
         .method(
+            "scan_reboot",
+            Access::Write,
+            NONE,
+            "Reboots with the hotspot off for ten minutes so the radio can scan (it cannot while it is the hotspot).",
+            with!(net, |n, p| client::scan_reboot(&n)),
+        )
+        .method(
             "join",
             Access::Write,
             JOIN,

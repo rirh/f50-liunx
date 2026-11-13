@@ -4,11 +4,13 @@ import { PageHeader } from "@/components/f50/page-header";
 import { PendingButton } from "@/components/f50/pending-button";
 import { QueryState } from "@/components/f50/query-state";
 import { t } from "@/i18n";
+import { errorMessage } from "@/lib/format";
 import type { JobStatus } from "@/lib/jobs";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PowerWait } from "@/views/system/settings/components/power-wait";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RefreshCwIcon } from "lucide-react";
 import { toast } from "sonner";
-import { clientKeys, getClientStatus } from "./api";
+import { clientKeys, getClientStatus, leaveNetwork } from "./api";
 import { JoinDialog, type JoinTarget } from "./components/join-dialog";
 import { ScanCard } from "./components/scan-card";
 import { ClientStatusCard } from "./components/status-card";
@@ -30,6 +32,13 @@ export default function WifiClientPage() {
   const [job, setJob] = useState<WifiJob | null>(null);
   const [target, setTarget] = useState<JoinTarget | null>(null);
   const busy = job?.running ?? false;
+  const [rebootAt, setRebootAt] = useState<number | null>(null);
+  const restore = useMutation({
+    mutationFn: () => leaveNetwork({ keep: true }),
+    onSuccess: (r) =>
+      setJob({ id: r.job, title: t("network.client.leaveJob"), running: true }),
+    onError: (e) => toast.error(errorMessage(e)),
+  });
 
   const onJoin = useCallback(
     (n: ScanNetwork | null) =>
@@ -53,6 +62,8 @@ export default function WifiClientPage() {
     qc.invalidateQueries({ queryKey: clientKeys.status });
     qc.invalidateQueries({ queryKey: ["f50.wifi"] });
   };
+
+  if (rebootAt != null) return <PowerWait action="reboot" since={rebootAt} />;
 
   return (
     <div className="flex flex-col gap-4">
@@ -95,7 +106,13 @@ export default function WifiClientPage() {
                 })
               }
             />
-            <ScanCard disabled={busy} onJoin={onJoin} />
+            <ScanCard
+              status={status}
+              disabled={busy || restore.isPending}
+              onJoin={onJoin}
+              onRebooting={setRebootAt}
+              onRestoreHotspot={() => restore.mutate()}
+            />
             <JoinDialog
               target={target}
               hotspotOn={status.mode === "hotspot"}

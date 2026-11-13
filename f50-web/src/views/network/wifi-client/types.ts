@@ -24,6 +24,10 @@ export interface ClientStatus {
   firewall_ok: boolean;
   /** The saved network; `at_boot`: it is joined at boot. */
   saved: { ssid: string; at_boot: boolean } | null;
+  /** Scan mode: this boot keeps the hotspot off until this Unix time (s) so the radio can scan. */
+  scan_until: number | null;
+  /** The next boot is a scan-mode boot. */
+  scan_armed: boolean;
 }
 
 /** As `scan.rs` labels a network's security. */
