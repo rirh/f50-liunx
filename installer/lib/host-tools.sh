@@ -19,18 +19,31 @@ find_adb() {
 }
 find_adb || true
 
-# Root on the device. A stock F50 whose USB debugging was turned on in its web console (index.html#usb_port, or
-# scripts/device/f50-enable-adb.sh) gives adb a root shell and has no su at all; a Magisk-rooted one has su. Which of
-# the two is decided once per run. A device running F50 Linux has a root shell too: installer/lib/linux-mode.sh tells
-# it apart by its serial number before anything here runs.
+# Root on the device: direct adb, Magisk su, or the stock F50 Samba bootstrap's local socket.
+# USB debugging alone does not imply root (notably on B15). A device running F50 Linux has a root shell too:
+# installer/lib/linux-mode.sh tells it apart by its serial number before anything here runs.
 # adb shell reads stdin: never let it eat the answers typed (or piped) into the installer.
 F50_ROOT_VIA=${F50_ROOT_VIA:-}
 root_via() {
-    [ -z "$F50_ROOT_VIA" ] || return 0
-    if [ "$(adb shell id -u </dev/null 2>/dev/null | tr -d '\r')" = 0 ]; then F50_ROOT_VIA=shell; else F50_ROOT_VIA=su; fi
+    case "$F50_ROOT_VIA" in shell|su|socket) return 0 ;; esac
+    if [ "$(adb shell id -u </dev/null 2>/dev/null | tr -d '\r')" = 0 ]; then
+        F50_ROOT_VIA=shell
+    elif [ "$(python3 "$TOP/installer/lib/adb-root.py" --timeout 4 'id -u' 2>/dev/null)" = 0 ]; then
+        F50_ROOT_VIA=socket
+    elif [ "$(adb shell 'su -c "id -u"' </dev/null 2>/dev/null | tr -d '\r')" = 0 ]; then
+        F50_ROOT_VIA=su
+    else
+        F50_ROOT_VIA=
+        echo 'No usable root channel; run make adb from stock Android first.' >&2
+        return 1
+    fi
 }
 su_do() {
-    root_via
-    if [ "$F50_ROOT_VIA" = shell ]; then adb shell "$1" </dev/null | tr -d '\r'
-    else adb shell "su -c '$1'" </dev/null | tr -d '\r'; fi
+    root_via || return 1
+    case "$F50_ROOT_VIA" in
+        shell) adb shell "$1" </dev/null | tr -d '\r' ;;
+        socket) python3 "$TOP/installer/lib/adb-root.py" "$1" ;;
+        su) _root_cmd=$(printf '%s' "$1" | sed "s/'/'\\\\''/g")
+            adb shell "su -c '$_root_cmd'" </dev/null | tr -d '\r' ;;
+    esac
 }

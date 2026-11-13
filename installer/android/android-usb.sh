@@ -13,6 +13,7 @@
 #   android-usb.sh restore OLD BOOT_ID   back to OLD, only in the boot that was switched (BOOT_ID) and only while the
 #                                    functions are still "adb" (the switch's): F50-USB restore OLD, else
 #                                    F50-USB keep CONFIG
+#   android-usb.sh keep-adb          root-only recovery: restore actual adb-only functions even if adb was removed.
 #
 # How (the F50's stock init.ums9620_2h10_ufi.usb.rc and AOSP's init.usb.configfs.rc, read from an F50's vendor and
 # system images, B09): sys.usb.config is what init builds the configfs gadget from. Android's UsbDeviceManager
@@ -59,6 +60,15 @@ switch() {
 cfg=$("$GETPROP" sys.usb.config)
 boot=$(boot_id)
 case ${1:-} in
+    keep-adb)
+        [ "$(id -u)" = 0 ] || { echo 'F50-USB error root-required'; exit 1; }
+        [ -z "$("$GETPROP" sys.powerctl)" ] || { echo 'F50-USB error reboot-in-progress'; exit 1; }
+        if [ "$cfg" = adb ] && [ "$("$GETPROP" sys.usb.state)" = adb ]; then
+            echo "F50-USB keep $cfg $boot"
+        else
+            echo "F50-USB switch ${cfg:-none} $boot"
+            switch adb
+        fi ;;
     adb-only)
         if ! config_ok "$cfg" || ! has "$cfg" adb || [ -n "$("$GETPROP" sys.powerctl)" ]; then
             echo "F50-USB skip ${cfg:-none} $boot"
@@ -78,5 +88,5 @@ case ${1:-} in
             switch "$old"
         fi ;;
     _switch) config_ok "${2:-}" && _switch "$2" ;;
-    *) echo "usage: android-usb.sh adb-only | restore CONFIG BOOT_ID" >&2; exit 2 ;;
+    *) echo "usage: android-usb.sh adb-only | keep-adb | restore CONFIG BOOT_ID" >&2; exit 2 ;;
 esac

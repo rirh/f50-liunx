@@ -32,23 +32,41 @@ make reboot     # restart the device
 From a Mac or a Linux computer, on a ZTE F50 that still runs its stock firmware. Before `make install`:
 
 1. **Tools on the computer**: `adb` (Android platform-tools; macOS: `brew install android-platform-tools`), Python 3,
-   `lz4`, docker, and the kernel in `out/` (`make kernel`, once).
+   Go 1.20+ for the first `make adb`, `lz4`, docker, and the kernel in `out/` (`make kernel`, once).
+   The SMB helper is built from pinned dependencies into `work/bin/` before any device operation and reused later.
 2. **Cable**: the F50 plugged into the computer with a cable that carries data (some charging cables do not), the
    USB not handed to a virtual machine.
 3. **USB debugging on**: open <http://192.168.0.1/index.html#usb_port> (the computer on the F50's Wi-Fi or USB
    network), log in with the **admin password** (not the Wi-Fi password), turn ADB debugging on and save. If the
    computer still does not list the device (`adb devices`), restart the F50 once.
-4. `make adb` checks that the F50 gives a root adb shell and keeps adb on across reboots
-   (`persist.sys.usb.config=adb,rndis`; the installer restarts Android). Without step 3 it offers to do it itself:
+4. `make adb` writes the original tool's TCP 5555 properties in the first short-lived USB shell, then prepares a
+   root channel. Connect the computer to the F50's **Wi-Fi** for the TCP fallback: recovery uses actual adb-only
+   USB functions, which removes USB networking and MTP. A fallback connection is accepted only after matching
+   the boot ID captured over USB. Existing correct properties and root channels are reused without rebooting.
+   It reuses a direct root shell, working Magisk `su`, or the local root socket. On firmware such as B15 where
+   ADB is an ordinary shell, it uses writable `/data/samba/etc/smb.conf` to install a Samba `root preexec` hook,
+   enables guest access, and accesses a share to start a local root socket. The original Samba configuration is
+   saved to `/data/local/tmp/f50-smb-before-root.conf`. A userspace SMB2/3 client connects to shares read from
+   `smb.conf`, avoiding macOS kernel mounts and the `smbutil` share-enumeration path. SMB/root startup is capped
+   at 10 seconds. The tool then checks the actual `sys.usb.config/state`, TCP connection and UID 0 for 30
+   consecutive seconds before reporting success; property writes alone are not success.
+   Without step 3 it offers to do it itself:
    enter the admin password and it switches USB debugging on and restarts the F50, as the Windows F50-ADB tool
    does. Nothing is flashed in this step.
 5. `make install`. It runs `make adb` first, so steps 3 and 4 are only needed by hand when that fails.
 
-Stock F50 needs no Magisk and no `su`: with USB debugging on, its adb shell is root, and the installer uses it
-directly (Magisk's `su` works too). Take a backup first: `make backup`.
+USB debugging does **not** guarantee a root shell. The installer checks for UID 0 through the selected channel;
+it can use `/data/local/tmp/f50-root/command.sock` without installing Magisk. This local socket permits Android's
+shell user to execute root commands. Its listener must be started again through Samba after an Android reboot;
+the installation/resume path prepares it again when needed. This requires firmware with a writable Samba
+configuration and a functioning root hook; failure stops installation. Root preparation does not flash boot or
+TrustOS, and does not establish that the device can boot a modified image. Take a backup first: `make backup`.
 
-Wireless adb, the rest of what the F50-ADB tool does (TCP port 5555 and Samba opened to guests to start adbd), is not
-needed for an installation: `scripts/device/f50-enable-adb.sh --wireless` (macOS).
+TCP ADB on port 5555 is now part of the default preparation, as in the original F50-ADB tool; `--wireless` remains
+accepted for compatibility. `scripts/device/f50-enable-adb.sh --adb-only` only restores and reads a USB shell,
+without root/Samba preparation or the stability claim. `make install` still uses USB and leaves the prepared
+adb-only mode in place rather than restoring MTP at exit. This is a per-boot preparation, not a guarantee that
+stock firmware will retain debugging forever.
 
 ## License
 

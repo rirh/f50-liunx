@@ -29,7 +29,9 @@ usb_wait() {
 usb_adb_only() {
     [ "${F50_USB_ADB_ONLY:-1}" != 0 ] || return 0
     usb_push || return 0
-    set -- $(usb_word "$(su_do "sh $USB_T/android-usb.sh adb-only")")
+    _usb_mode=adb-only
+    [ "${F50_KEEP_ADB:-0}" != 1 ] || _usb_mode=keep-adb
+    set -- $(usb_word "$(su_do "sh $USB_T/android-usb.sh $_usb_mode")")
     [ "${1:-}" = switch ] || { info usb.functions "${2:-}"; return 0; }
     USB_WAS=$2 USB_BOOT=${3:-}
     trap usb_exit EXIT
@@ -50,6 +52,7 @@ usb_adb_only() {
 # usb_restore: the functions of before, when the device is still in the boot that was switched and nothing else has
 # changed them since (android-usb.sh decides; it does nothing while a reboot is under way). Not waited for.
 usb_restore() {
+    [ "${F50_KEEP_ADB:-0}" != 1 ] || return 0
     [ -n "$USB_WAS" ] || return 0
     _ur=$USB_WAS; USB_WAS=
     usb_push || return 0

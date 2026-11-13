@@ -164,6 +164,12 @@ fi
 . "$TOP/installer/lib/linux-mode.sh"
 . "$TOP/installer/lib/usb-adb.sh"
 require_android
+# make adb may have seen Linux before require_android rebooted into Android.
+# Installation can prepare the root channel here; read-only modes keep their existing boundary.
+if [ $CHECK_ONLY = 0 ] && [ $BACKUP_ONLY = 0 ] && [ "$(su_do 'id -u' 2>/dev/null)" != 0 ]; then
+    "$TOP/scripts/device/f50-enable-adb.sh" --ip "${F50_IP:-192.168.0.1}" --serial "$ANDROID_SERIAL"
+    F50_ROOT_VIA=
+fi
 adb_prop() { adb shell getprop "$1" </dev/null 2>/dev/null | tr -d '\r' | head -n1; }
 # The bootloader's lock is a warning and never a refusal (the owner's decision of 2026-10-13, FINDINGS 71): Linux
 # needs a device that boots a modified boot image, and that is an unlocked bootloader or a locked one with a patched

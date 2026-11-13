@@ -449,12 +449,21 @@ online_recover() {
 # its USB functions are set up again, and the installation that goes on from here lost the device there.
 online_reboot_wait() {
     say "$(t 'Waiting for Android to start again')"
-    _w=0; _up=0
+    _w=0; _up=0; _root_boot=
     while [ $_w -lt 150 ]; do
         sleep 2; _w=$((_w + 1))
         if [ "$(adb get-state 2>/dev/null)" = device ] && [ "$(adb_prop sys.boot_completed)" = 1 ] &&
            _b=$(adb shell cat /proc/sys/kernel/random/boot_id </dev/null 2>/dev/null | tr -d '\r') &&
-           [ -n "$_b" ] && [ "$_b" != "$1" ] && [ "$(su_do 'id -u' 2>/dev/null)" = 0 ]; then
+           [ -n "$_b" ] && [ "$_b" != "$1" ]; then
+            if [ "$_root_boot" != "$_b" ]; then
+                F50_ROOT_VIA=
+                if [ "$(su_do 'id -u' 2>/dev/null)" != 0 ]; then
+                    "$TOP/scripts/device/f50-enable-adb.sh" --ip "${F50_IP:-192.168.0.1}" --serial "$ANDROID_SERIAL" || return 1
+                    F50_ROOT_VIA=
+                fi
+                _root_boot=$_b
+            fi
+            [ "$(su_do 'id -u' 2>/dev/null)" = 0 ] || { _up=0; continue; }
             _up=$((_up + 1))
             [ $_up -lt "${F50_ONLINE_SETTLE:-6}" ] || return 0
         else

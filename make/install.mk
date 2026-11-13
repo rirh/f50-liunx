@@ -1,5 +1,5 @@
-# The first installation, from macOS or Linux, on an F50 running its stock Android. Every target that talks to Android turns
-# on ADB first (scripts/device/f50-enable-adb.sh returns at once when it is on already).
+# First installation on stock Android, from macOS or Linux. Targets that talk to Android
+# prepare ADB and a root channel first (complete configurations are only checked).
 .PHONY: adb install install-check uninstall backup backup-full collect-logs reset-password
 
 ADB_ENABLE = scripts/device/f50-enable-adb.sh --ip "$(F50_IP)" $(if $(F50_SERIAL),--serial "$(F50_SERIAL)")
@@ -7,8 +7,9 @@ ADB_ENABLE = scripts/device/f50-enable-adb.sh --ip "$(F50_IP)" $(if $(F50_SERIAL
 # After `make adb` the F50 answers over USB: pin it so the scripts do not ask.
 # A device running Linux (serial F50LINUX-...) is left to the installer, which reboots it into Android.
 WITH_USB = adb=$$(./install.sh --adb-path 2>/dev/null) && export PATH="$${adb%/*}:$$PATH" && \
-	serial=$$(adb -d get-serialno 2>/dev/null) && \
-	case $$serial in F50LINUX*|'') ;; *) export ANDROID_SERIAL=$${ANDROID_SERIAL:-$$serial} ;; esac;
+	export F50_IP="$(F50_IP)" F50_KEEP_ADB=1 && \
+	serial=$$(adb $(if $(F50_SERIAL),-s "$(F50_SERIAL)",-d) get-serialno 2>/dev/null) && \
+	case $$serial in F50LINUX*|'') ;; *) export ANDROID_SERIAL="$$serial" ;; esac &&
 
 # The installer builds everything here, nothing downloaded from another project: the kernel of out/ (make kernel),
 # OpenWrt's own rootfs with f50d and the web console (systems/openwrt/build-rootfs.sh, docker), Android's vendor files
