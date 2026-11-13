@@ -38,7 +38,7 @@ class Helper(unittest.TestCase):
 
     def test_it_works_only_from_its_own_directory_in_dev(self):
         src = (HERE / 'f50-f2fs-online.c').read_text()
-        self.assertIn('strncmp(argv[10], "/dev/f50-online-", 18)', src)
+        self.assertIn('strncmp(argv[10], "/dev/f50-online-", sizeof "/dev/f50-online-" - 1)', src)
         self.assertIn('/dev/f50-f2fs-online.lock', src)
         sh = (TOP / 'installer/android/android-online-shrink.sh').read_text()
         self.assertIn('/dev/f50-online-$1', sh)

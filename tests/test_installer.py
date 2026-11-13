@@ -173,7 +173,7 @@ exit 0''')
             # never su, getprop or anything else of the installer in the Linux shell
             for line in log.splitlines():
                 if 'F50LINUX' in line:
-                    self.assertRegex(line, r'shell (if test -x /opt/f50/bin/f50-next-boot|\{ if \[ -x /opt/f50/bin/f50-next-boot \])')
+                    self.assertRegex(line, r'shell (if test -x /opt/f50/bin/f50-next-boot|\{ /opt/f50/bin/f50-next-boot android)')
 
     def test_named_by_android_serial_is_sent_back_too(self):
         for shell in self.each_shell():
