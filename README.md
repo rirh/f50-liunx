@@ -18,16 +18,16 @@
 
 ## 目录
 
-| 目录 | 内容 |
-|---|---|
-| [`f50d/`](f50d/README.md) | 设备守护进程（Rust），以 ubus 对象 `f50.*` 提供全部功能，接口见 [`f50d/docs/API.md`](f50d/docs/API.md) |
-| `f50-web/` | 网页控制台（React + Vite），经 uhttpd 的 `/ubus` 调用 `f50d` |
-| `install.sh`、`installer/`、`boot/` | 从原厂 Android 首次安装：启动镜像、Linux 槽位、根文件系统 |
-| `uninstall.sh` | 卸载 Linux，恢复原厂 Android |
-| `android/magisk/` | Android 里切回 Linux 用的 Magisk 模块 |
-| `systems/openwrt/` | OpenWrt 根文件系统（docker 构建，内含 f50d 和网页） |
-| `kernel/` | 5.4 厂商内核的构建，产物在 `out/` |
-| `make/` | 全部 make 命令，`make` 查看说明 |
+| 目录                                | 内容                                                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| [`f50d/`](f50d/README.md)           | 设备守护进程（Rust），以 ubus 对象 `f50.*` 提供全部功能，接口见 [`f50d/docs/API.md`](f50d/docs/API.md) |
+| `f50-web/`                          | 网页控制台（React + Vite），经 uhttpd 的 `/ubus` 调用 `f50d`                                           |
+| `install.sh`、`installer/`、`boot/` | 从原厂 Android 首次安装：启动镜像、Linux 槽位、根文件系统                                              |
+| `uninstall.sh`                      | 卸载 Linux，恢复原厂 Android                                                                           |
+| `android/magisk/`                   | Android 里切回 Linux 用的 Magisk 模块                                                                  |
+| `systems/openwrt/`                  | OpenWrt 根文件系统（docker 构建，内含 f50d 和网页）                                                    |
+| `kernel/`                           | 5.4 厂商内核的构建，产物在 `out/`                                                                      |
+| `make/`                             | 全部 make 命令，`make` 查看说明                                                                        |
 
 ## 准备
 
@@ -86,10 +86,6 @@ make reset-password   # 在 Android 里重置 OpenWrt 的 root 密码
 make collect-logs     # Linux 启动失败回到 Android 后，收集启动日志
 make backup-full      # 全分区备份
 ```
-
-## 致谢
-
-最初基于 [dikeckaan/mu300-linux](https://github.com/dikeckaan/mu300-linux)；现在安装所需的一切都从本仓库构建。
 
 ## 许可
 
