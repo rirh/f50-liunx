@@ -56,10 +56,10 @@ fi
 serial=$ANDROID_SERIAL
 F50_ROOT_VIA=
 root_via || die 'Android root preparation failed.'
-adb push "$TOP/work/busybox" /data/local/tmp/f50-busybox >/dev/null
+adb push "$TOP/work/busybox" /data/local/tmp/busybox-f50 >/dev/null
 adb push "$TOP/android/magisk/f50-linux-switch/switch.sh" /data/local/tmp/f50-linux-switch.sh >/dev/null
 # Check the completion marker as well: legacy su_do channels pipe output through tr.
-result=$(su_do 'chmod 755 /data/local/tmp/f50-busybox && F50_BUSYBOX=/data/local/tmp/f50-busybox sh /data/local/tmp/f50-linux-switch.sh --no-reboot && echo F50-SWITCH-OK')
+result=$(su_do 'chmod 755 /data/local/tmp/busybox-f50 && F50_BUSYBOX=/data/local/tmp/busybox-f50 sh /data/local/tmp/f50-linux-switch.sh --no-reboot && echo F50-SWITCH-OK')
 printf '%s\n' "$result"
 printf '%s\n' "$result" | grep -qx F50-SWITCH-OK || die 'Boot selection was not confirmed; no reboot requested.'
 adb reboot
