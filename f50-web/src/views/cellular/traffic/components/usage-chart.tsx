@@ -25,6 +25,9 @@ import { formatBytes } from "@/lib/format";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import type { DayUsage } from "../types";
 
+/** Bars keep this width; they only narrow when 31 days don't fit. */
+const BAR_WIDTH = 24;
+
 const chartConfig = () =>
   ({
     rx: { label: t("cellular.traffic.download"), color: "var(--chart-1)" },
@@ -87,11 +90,17 @@ export function UsageChart({ days }: { days: DayUsage[] }) {
                 }
               />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar dataKey="rx" stackId="a" fill="var(--color-rx)" />
+              <Bar
+                dataKey="rx"
+                stackId="a"
+                fill="var(--color-rx)"
+                maxBarSize={BAR_WIDTH}
+              />
               <Bar
                 dataKey="tx"
                 stackId="a"
                 fill="var(--color-tx)"
+                maxBarSize={BAR_WIDTH}
                 radius={[3, 3, 0, 0]}
               />
             </BarChart>
