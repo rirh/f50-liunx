@@ -81,7 +81,7 @@ export function UsageChart({ days }: { days: DayUsage[] }) {
                         <span className="text-muted-foreground">
                           {config[name as keyof typeof config]?.label ?? name}
                         </span>
-                        <span className="font-mono font-medium tabular-nums">
+                        <span className="font-medium tabular-nums">
                           {formatBytes(Number(v))}
                         </span>
                       </div>

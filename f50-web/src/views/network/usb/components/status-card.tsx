@@ -3,6 +3,7 @@ import { KvList } from "@/components/f50/kv-list";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -10,6 +11,8 @@ import {
 } from "@/components/ui/card";
 import { t } from "@/i18n";
 import { columnHelper } from "@/lib/table";
+import { UsbNetDialog } from "./net-card";
+import { UsbRoleDialog } from "./role-card";
 import { netBoundLabel, netModeLabel, roleLabel } from "../labels";
 import type { UsbDevice, UsbInfo } from "../types";
 
@@ -17,7 +20,7 @@ const col = columnHelper<UsbDevice>();
 const columns = [
   col.accessor("port", {
     header: () => t("network.usb.status.port"),
-    cell: (c) => <span className="font-mono">{c.getValue() ?? "—"}</span>,
+    cell: (c) => <span className="tabular-nums">{c.getValue() ?? "—"}</span>,
   }),
   col.accessor(
     (d) => [d.manufacturer, d.product].filter(Boolean).join(" ") || "—",
@@ -25,7 +28,7 @@ const columns = [
   ),
   col.accessor("id", {
     header: "ID",
-    cell: (c) => <span className="font-mono">{c.getValue()}</span>,
+    cell: (c) => <span className="tabular-nums">{c.getValue()}</span>,
   }),
   col.accessor("speed", {
     header: () => t("network.usb.status.speed"),
@@ -40,6 +43,7 @@ function roleText(info: UsbInfo) {
   return roleLabel(info.role);
 }
 
+/** The port and its gadget as they are; the role and network settings it shows open from its header in dialogs. */
 export function UsbStatusCard({ info }: { info: UsbInfo }) {
   const link = info.link;
   return (
@@ -50,6 +54,10 @@ export function UsbStatusCard({ info }: { info: UsbInfo }) {
           <Badge variant="secondary">{roleText(info)}</Badge>
         </CardTitle>
         <CardDescription>{t("network.usb.status.description")}</CardDescription>
+        <CardAction className="flex flex-wrap justify-end gap-2">
+          <UsbRoleDialog info={info} />
+          <UsbNetDialog info={info} />
+        </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <KvList
@@ -81,7 +89,7 @@ export function UsbStatusCard({ info }: { info: UsbInfo }) {
               label: t("network.usb.status.controller"),
               value: link ? (
                 <span className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono">{link.udc}</span>
+                  <span className="tabular-nums">{link.udc}</span>
                   <Badge variant={link.bound ? "default" : "secondary"}>
                     {link.bound
                       ? t("network.usb.status.bound")

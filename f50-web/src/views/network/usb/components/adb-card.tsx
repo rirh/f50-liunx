@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -14,7 +15,6 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
-  FieldSeparator,
 } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -22,13 +22,13 @@ import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AdbKeyForm } from "./adb-key-form";
+import { AdbKeyDialog } from "./adb-key-form";
 import { ConfirmDialog } from "../../shared/confirm-dialog";
 import { setAdb, usbKeys } from "../api";
 import { adbStateLabel } from "../labels";
 import type { AdbArgs, AdbSummary } from "../types";
 
-/** adb over USB: on/off and whom it lets in, the authorised keys. */
+/** adb over USB: on/off and whom it lets in apply at once; adding an authorised key opens a dialog from the header. */
 export function UsbAdbCard({
   adb,
   hostRole,
@@ -76,6 +76,9 @@ export function UsbAdbCard({
           </Badge>
         </CardTitle>
         <CardDescription>{t("network.usb.adb.description")}</CardDescription>
+        <CardAction>
+          <AdbKeyDialog />
+        </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {adb.state === "open" && (
@@ -180,8 +183,6 @@ export function UsbAdbCard({
                 : t("network.usb.adb.accessHint")}
             </FieldDescription>
           </Field>
-          <FieldSeparator />
-          <AdbKeyForm />
         </FieldGroup>
       </CardContent>
       <ConfirmDialog

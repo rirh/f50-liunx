@@ -276,6 +276,9 @@ const m: Messages["maintenance"] = {
     step: { name: "Step", outcome: "Result", detail: "Details" },
   },
   logs: {
+    liveHint: "Refreshes as soon as the logs change (pushed live)",
+    matched: "{count} matching lines",
+    matched_one: "{count} matching line",
     title: "System log",
     description:
       "Kernel log (dmesg) and system log (logread), newest at the bottom",

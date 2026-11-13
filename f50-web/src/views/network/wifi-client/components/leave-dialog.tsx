@@ -1,15 +1,7 @@
 import { useState } from "react";
+import { ResponsiveDialog } from "@/components/f50/form-dialog";
 import { PendingButton } from "@/components/f50/pending-button";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { t, type Key } from "@/i18n";
@@ -41,7 +33,10 @@ const CHOICES: Record<SavedChoice, { label: Key; hint: Key; args: LeaveArgs }> =
     },
   };
 
-/** Leave the network: the hotspot comes back; what happens to the saved network is the user's choice. */
+/**
+ * Leave the network: the hotspot comes back; what happens to the saved network is the user's choice. One choice and
+ * an action, not a settings form, so a plain responsive dialog (a drawer on a phone) with the action in its footer.
+ */
 export function LeaveDialog({
   disabled,
   onStarted,
@@ -60,20 +55,45 @@ export function LeaveDialog({
     onError: (e) => toast.error(errorMessage(e)),
   });
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline" disabled={disabled}>
-          <LogOutIcon data-icon="inline-start" />
-          {t("network.client.leave.action")}
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("network.client.leave.title")}</DialogTitle>
-          <DialogDescription>
-            {t("network.client.leave.description")}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={disabled}
+        onClick={() => {
+          setChoice("disable");
+          setOpen(true);
+        }}
+      >
+        <LogOutIcon data-icon="inline-start" />
+        {t("network.client.leave.action")}
+      </Button>
+      <ResponsiveDialog
+        open={open}
+        onOpenChange={(o) => !leave.isPending && setOpen(o)}
+        title={t("network.client.leave.title")}
+        description={t("network.client.leave.description")}
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={leave.isPending}
+            >
+              {t("common.action.cancel")}
+            </Button>
+            <PendingButton
+              variant="destructive"
+              pending={leave.isPending}
+              onClick={() => leave.mutate(CHOICES[choice].args)}
+            >
+              {leave.isPending
+                ? t("network.shared.submitting")
+                : t("network.client.leave.action")}
+            </PendingButton>
+          </>
+        }
+      >
         <Field>
           <FieldLabel>{t("network.client.leave.saved")}</FieldLabel>
           <ToggleGroup
@@ -91,25 +111,7 @@ export function LeaveDialog({
           </ToggleGroup>
           <FieldDescription>{t(CHOICES[choice].hint)}</FieldDescription>
         </Field>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => setOpen(false)}
-            disabled={leave.isPending}
-          >
-            {t("common.action.cancel")}
-          </Button>
-          <PendingButton
-            variant="destructive"
-            pending={leave.isPending}
-            onClick={() => leave.mutate(CHOICES[choice].args)}
-          >
-            {leave.isPending
-              ? t("network.shared.submitting")
-              : t("network.client.leave.action")}
-          </PendingButton>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialog>
+    </>
   );
 }

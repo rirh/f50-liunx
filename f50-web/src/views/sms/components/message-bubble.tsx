@@ -42,15 +42,18 @@ export function MessageBubble({
     <Bubble
       align={out ? "end" : "start"}
       variant={out ? "default" : "muted"}
-      className={cn("group/sms", deleting && "opacity-50")}
+      className={cn(
+        "group/sms max-w-[85%] gap-0.5 md:max-w-[70%]",
+        deleting && "opacity-50",
+      )}
       aria-busy={deleting}
     >
-      <BubbleContent className="whitespace-pre-wrap select-text">
+      <BubbleContent className="rounded-lg px-2.5 py-1.5 leading-snug whitespace-pre-wrap select-text">
         {message.text || t("sms.list.blank")}
       </BubbleContent>
       <div
         className={cn(
-          "flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground",
+          "flex h-5 flex-wrap items-center gap-1.5 px-0.5 text-[11px] text-muted-foreground tabular-nums",
           out && "justify-end",
         )}
       >
@@ -63,7 +66,11 @@ export function MessageBubble({
           </span>
         )}
         {message.incomplete && (
-          <Badge variant="destructive" title={t("sms.bubble.incompleteTitle")}>
+          <Badge
+            variant="destructive"
+            className="h-4 px-1 text-[10px]"
+            title={t("sms.bubble.incompleteTitle")}
+          >
             {t("sms.bubble.incomplete", {
               have: message.incomplete.have,
               total: message.incomplete.total,
@@ -71,7 +78,9 @@ export function MessageBubble({
           </Badge>
         )}
         {message.status === "unread" && (
-          <Badge variant="secondary">{t("sms.bubble.unread")}</Badge>
+          <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+            {t("sms.bubble.unread")}
+          </Badge>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -79,7 +88,7 @@ export function MessageBubble({
               variant="ghost"
               size="icon-xs"
               aria-label={t("sms.bubble.menu")}
-              className="opacity-100 sm:opacity-0 sm:group-hover/sms:opacity-100 sm:focus-visible:opacity-100"
+              className="size-5 opacity-100 sm:opacity-0 sm:group-hover/sms:opacity-100 sm:focus-visible:opacity-100"
             >
               <EllipsisVerticalIcon />
             </Button>

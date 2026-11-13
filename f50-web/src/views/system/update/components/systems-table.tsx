@@ -24,7 +24,7 @@ const columns = [
     header: () => t("maintenance.update.systems.name"),
     cell: ({ row }) => (
       <span className="flex items-center gap-2">
-        <span className="font-mono">{row.original.name}</span>
+        <span className="tabular-nums">{row.original.name}</span>
         {row.original.running && (
           <Badge variant="secondary">{t("common.state.running")}</Badge>
         )}
@@ -35,7 +35,7 @@ const columns = [
     id: "release",
     header: () => t("maintenance.update.systems.release"),
     cell: ({ row }) => (
-      <span className="font-mono">{row.original.release ?? "—"}</span>
+      <span className="tabular-nums">{row.original.release ?? "—"}</span>
     ),
   }),
   col.display({
@@ -51,7 +51,7 @@ const columns = [
         );
       return (
         <span className="flex items-center gap-2">
-          <span className="font-mono">
+          <span className="tabular-nums">
             {p.release ?? t("maintenance.update.status.unknownRelease")}
           </span>
           {p.running && (

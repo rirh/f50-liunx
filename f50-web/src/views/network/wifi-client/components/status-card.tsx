@@ -70,7 +70,7 @@ export function ClientStatusCard({
             {
               label: t("network.client.status.address"),
               value: status.address && (
-                <span className="font-mono">{status.address}</span>
+                <span className="tabular-nums">{status.address}</span>
               ),
             },
             {

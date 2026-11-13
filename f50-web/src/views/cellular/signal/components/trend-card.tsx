@@ -94,7 +94,7 @@ export function TrendCard() {
                           <span className="text-muted-foreground">
                             {config[k]?.label}
                           </span>
-                          <span className="font-mono tabular-nums">
+                          <span className="tabular-nums">
                             {typeof v === "number"
                               ? `${v.toFixed(1)} ${UNIT[k]}`
                               : "—"}

@@ -253,6 +253,9 @@ export default {
     step: { name: "步骤", outcome: "结果", detail: "说明" },
   },
   logs: {
+    liveHint: "日志有新内容时自动刷新（实时推送）",
+    matched: "{count} 行匹配",
+    matched_one: "{count} 行匹配",
     title: "系统日志",
     description: "内核日志（dmesg）与系统日志（logread），最新的在最下方",
     copied: "已复制 {count} 行",

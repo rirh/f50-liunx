@@ -17,6 +17,7 @@ import { RefreshCwIcon } from "lucide-react";
 import { getLocks, lockKeys } from "./api";
 import { BandsCard } from "./components/bands-card";
 import { CellCard } from "./components/cell-card";
+import { LocksHelp } from "./components/help-dialog";
 import { ModeCard } from "./components/mode-card";
 import { OptionsCard } from "./components/options-card";
 import { ResetCard } from "./components/reset-card";
@@ -132,6 +133,7 @@ export default function LocksPage() {
             >
               {t("cellular.locks.reread")}
             </PendingButton>
+            <LocksHelp />
           </>
         }
       />

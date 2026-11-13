@@ -97,11 +97,11 @@ function useInvalidateSms() {
 export function useSyncSms() {
   const invalidate = useInvalidateSms();
   return useMutation({
-    mutationFn: syncSms,
-    onSuccess: () => {
-      toast.success(t("sms.toast.syncStarted"));
-      // the sync runs in the background: look again shortly
-      window.setTimeout(() => void invalidate(), 3000);
+    // the device syncs in the background: the mutation stays pending (the button shines) until the list is read again
+    mutationFn: async () => {
+      await syncSms();
+      await new Promise((r) => window.setTimeout(r, 3000));
+      await invalidate();
     },
     onError: (e) => toast.error(errorMessage(e)),
   });
@@ -110,7 +110,7 @@ export function useSyncSms() {
 export function useDeleteSms() {
   const invalidate = useInvalidateSms();
   return useMutation({
-    mutationFn: ({ id, sim }: { id: number | "all"; sim: boolean }) =>
+    mutationFn: ({ id, sim }: { id: number; sim: boolean }) =>
       deleteSms(id, sim),
     onSuccess: (r) =>
       toast.success(

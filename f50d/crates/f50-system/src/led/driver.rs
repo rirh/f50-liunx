@@ -173,10 +173,21 @@ impl Driver {
         self.awake_until = (!t.is_zero()).then(|| now + t);
     }
 
-    /// Forgets what was written to an LED whose sysfs no longer shows it, so the next rendering writes it again.
+    /// Forgets what was written to an LED whose sysfs no longer shows it, so the next rendering writes it again. A
+    /// lamp missing at the start is looked for again: its driver may be loaded after f50d started.
     fn verify(&mut self) {
         let sys = self.platform.sysfs();
         for l in LAMPS {
+            if !self.present[l.index()] {
+                let dir = format!("/sys/class/leds/{}", l.sysfs_name());
+                if sys.path(&dir).is_dir() {
+                    tracing::info!(led = l.sysfs_name(), "LED appeared");
+                    self.present[l.index()] = true;
+                    self.max[l.index()] = sys.read_num(format!("{dir}/max_brightness")).unwrap_or(255);
+                    self.written[l.index()] = None;
+                }
+                continue;
+            }
             let Some(o) = self.written[l.index()] else { continue };
             let dir = format!("/sys/class/leds/{}", l.sysfs_name());
             let trigger = sys.read(format!("{dir}/trigger"));

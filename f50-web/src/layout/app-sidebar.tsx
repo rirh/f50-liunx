@@ -228,6 +228,7 @@ function SessionIdentity({ username }: { username: string }) {
                 {t("dashboard.quick.reboot")}
               </DropdownMenuItem>
               <DropdownMenuItem
+                variant="destructive"
                 disabled={busy || androidBlocked}
                 title={
                   androidBlocked

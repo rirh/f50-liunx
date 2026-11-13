@@ -8,28 +8,43 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { SweepShine } from "@/components/ui/sweep-shine";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { type Key, t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { FlameIcon, GaugeIcon, LeafIcon, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { cpuKey, setProfile } from "../api";
 import type { CpuProfile, CpuStatus } from "../types";
 
-const PROFILE_TEXT: Record<CpuProfile, { label: Key; description: Key }> = {
+const PROFILE_TEXT: Record<
+  CpuProfile,
+  { label: Key; short: Key; description: Key; icon: LucideIcon }
+> = {
   saving: {
     label: "system.cpu.profile.label.saving",
+    short: "system.cpu.profile.short.saving",
     description: "system.cpu.profile.text.saving",
+    icon: LeafIcon,
   },
   balanced: {
     label: "system.cpu.profile.label.balanced",
+    short: "system.cpu.profile.short.balanced",
     description: "system.cpu.profile.text.balanced",
+    icon: GaugeIcon,
   },
   performance: {
     label: "system.cpu.profile.label.performance",
+    short: "system.cpu.profile.short.performance",
     description: "system.cpu.profile.text.performance",
+    icon: FlameIcon,
   },
 };
+
+/**
+ * The mode as three cards to pick from: name and one plain line each, the chosen one marked. Picking applies at once.
+ * The governor details stay in each card's tooltip for those who want them.
+ */
 
 export function ProfileCard({ data }: { data: CpuStatus }) {
   const qc = useQueryClient();
@@ -69,43 +84,60 @@ export function ProfileCard({ data }: { data: CpuStatus }) {
           )}
         </CardAction>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          spacing={0}
-          value={shown}
-          disabled={apply.isPending}
+      <CardContent>
+        <div
+          role="radiogroup"
+          aria-label={t("system.cpu.profile.title")}
           aria-busy={apply.isPending}
-          onValueChange={(v) => {
-            if (v && v !== data.profile) apply.mutate(v as CpuProfile);
-          }}
-          className="w-full sm:w-fit"
+          className="grid gap-2 sm:grid-cols-3"
         >
-          {data.profiles.map((p) => (
-            <ToggleGroupItem
-              key={p}
-              value={p}
-              className="flex-1 sm:flex-none sm:px-6"
-            >
-              {apply.isPending && apply.variables === p ? (
-                <SweepShine>{t(PROFILE_TEXT[p].label)}</SweepShine>
-              ) : (
-                t(PROFILE_TEXT[p].label)
-              )}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        <dl className="grid gap-2 text-sm sm:grid-cols-3">
-          {data.profiles.map((p) => (
-            <div key={p} className="flex flex-col gap-0.5">
-              <dt className="font-medium">{t(PROFILE_TEXT[p].label)}</dt>
-              <dd className="text-muted-foreground">
-                {t(PROFILE_TEXT[p].description)}
-              </dd>
-            </div>
-          ))}
-        </dl>
+          {data.profiles.map((p) => {
+            const text = PROFILE_TEXT[p];
+            const Icon = text.icon;
+            const on = shown === p;
+            const busy = apply.isPending && apply.variables === p;
+            return (
+              <button
+                key={p}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                title={t(text.description)}
+                disabled={apply.isPending}
+                onClick={() => p !== data.profile && apply.mutate(p)}
+                className={cn(
+                  "flex items-start gap-3 rounded-xl border p-3 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default",
+                  on
+                    ? "border-primary bg-primary/6 ring-1 ring-primary"
+                    : "hover:bg-muted/60",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex size-8 shrink-0 items-center justify-center rounded-lg",
+                    on
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  <Icon aria-hidden className="size-4" />
+                </span>
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-sm font-medium">
+                    {busy ? (
+                      <SweepShine>{t(text.label)}</SweepShine>
+                    ) : (
+                      t(text.label)
+                    )}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {t(text.short)}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );

@@ -90,12 +90,12 @@ export function StatusCard({ d }: { d: DataStatus }) {
             },
             {
               label: t("cellular.data.status.device"),
-              value: <span className="font-mono">{d.device}</span>,
+              value: <span className="tabular-nums">{d.device}</span>,
             },
             {
               label: t("cellular.data.status.addresses"),
               value: d.addresses.length ? (
-                <span className="flex flex-col font-mono">
+                <span className="flex flex-col tabular-nums">
                   {d.addresses.map((a) => (
                     <span key={a} className="break-all">
                       {a}
@@ -109,7 +109,9 @@ export function StatusCard({ d }: { d: DataStatus }) {
             {
               label: "DNS",
               value: d.dns?.length ? (
-                <span className="font-mono break-all">{d.dns.join(", ")}</span>
+                <span className="tabular-nums break-all">
+                  {d.dns.join(", ")}
+                </span>
               ) : (
                 "—"
               ),

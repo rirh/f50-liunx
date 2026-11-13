@@ -1,13 +1,5 @@
-import { useMemo } from "react";
-import { PendingButton } from "@/components/f50/pending-button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useMemo, useState } from "react";
+import { EditButton, FormDialog } from "@/components/f50/form-dialog";
 import {
   Field,
   FieldDescription,
@@ -22,37 +14,59 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { SettingRow } from "./setting-row";
 import { infoKey, setHostname } from "../api";
 import { type HostnameValues, hostnameSchema } from "../schemas";
 
-export function HostnameForm({ current }: { current: string }) {
+/**
+ * The hostname as a row of the General card, edited in a dialog. Edit resets the form to the device's current name,
+ * so the dialog never shows a stale draft from an earlier, cancelled edit.
+ */
+export function HostnameSetting({ current }: { current: string }) {
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
   const schema = useMemo(() => hostnameSchema(), []);
   const form = useForm<HostnameValues>({
     resolver: zodResolver(schema),
-    values: { name: current },
+    defaultValues: { name: current },
   });
   const save = useMutation({
     mutationFn: (v: HostnameValues) => setHostname(v.name),
     onSuccess: (r) => {
       toast.success(t("system.settings.hostname.saved", { name: r.hostname }));
+      setOpen(false);
       qc.invalidateQueries({ queryKey: infoKey });
     },
     onError: (e) => reportFormError(e, form.setError, { name: "name" }),
   });
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("system.settings.hostname.title")}</CardTitle>
-        <CardDescription>
-          {t("system.settings.hostname.description")}
-        </CardDescription>
-      </CardHeader>
-      <form
-        onSubmit={form.handleSubmit((v) => save.mutate(v))}
-        className="contents"
+    <>
+      <SettingRow
+        label={t("system.settings.hostname.title")}
+        value={<span className="font-mono">{current}</span>}
+        action={
+          <EditButton
+            onClick={() => {
+              form.reset({ name: current });
+              setOpen(true);
+            }}
+          />
+        }
+      />
+      <FormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("system.settings.hostname.title")}
+        description={t("system.settings.hostname.description")}
+        formId="hostname-form"
+        size="sm"
+        pending={save.isPending}
+        dirty={form.formState.isDirty}
       >
-        <CardContent>
+        <form
+          id="hostname-form"
+          onSubmit={form.handleSubmit((v) => save.mutate(v))}
+        >
           <FieldGroup>
             <Controller
               name="name"
@@ -79,17 +93,8 @@ export function HostnameForm({ current }: { current: string }) {
               )}
             />
           </FieldGroup>
-        </CardContent>
-        <CardFooter>
-          <PendingButton
-            type="submit"
-            pending={save.isPending}
-            disabled={!form.formState.isDirty}
-          >
-            {t("common.action.save")}
-          </PendingButton>
-        </CardFooter>
-      </form>
-    </Card>
+        </form>
+      </FormDialog>
+    </>
   );
 }

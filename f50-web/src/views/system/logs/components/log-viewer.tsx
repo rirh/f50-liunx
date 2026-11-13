@@ -1,50 +1,48 @@
-import { useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
-/** Monospace lines, newest at the bottom; follows the end while the reader is there. */
-export function LogViewer({
-  lines,
-  empty,
-}: {
-  lines: string[];
-  empty: string;
-}) {
-  const box = useRef<HTMLDivElement>(null);
-  const atEnd = useRef(true);
-  useLayoutEffect(() => {
-    const el = box.current;
-    if (el && atEnd.current) el.scrollTop = el.scrollHeight;
-  }, [lines]);
+/** "Fri Nov 13 18:48:16 2026 kern.warn kernel: …": the time, the facility.level, then the message. */
+const SYSLOG = /^(\w{3} \w{3} +\d+ [\d:]{8} \d{4}) (\S+)\.(\w+) (.*)$/;
+
+const LEVEL_TONE: Record<string, string> = {
+  emerg: "text-[#ff7b72]",
+  alert: "text-[#ff7b72]",
+  crit: "text-[#ff7b72]",
+  err: "text-[#ff7b72]",
+  warn: "text-[#d29922]",
+  notice: "text-[#79c0ff]",
+};
+
+function Line({ text }: { text: string }) {
+  if (text.startsWith("--- "))
+    return (
+      <span className="mt-3 block font-semibold text-[#58a6ff] first:mt-0">
+        {text}
+      </span>
+    );
+  const m = SYSLOG.exec(text);
+  if (!m) return <span className="block">{text || " "}</span>;
+  const [, time, facility, level, message] = m;
+  const tone = LEVEL_TONE[level];
   return (
-    <div
-      ref={box}
-      onScroll={(e) => {
-        const el = e.currentTarget;
-        atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
-      }}
-      className="h-[65dvh] min-h-64 overflow-auto rounded-md border bg-muted/40 p-3"
-      role="log"
-      aria-live="off"
-      tabIndex={0}
-    >
-      {lines.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{empty}</p>
-      ) : (
-        <pre className="font-mono text-xs leading-5 whitespace-pre-wrap break-all">
-          {lines.map((l, i) => (
-            <span
-              key={i}
-              className={cn(
-                "block",
-                l.startsWith("--- ") &&
-                  "mt-2 font-semibold text-foreground first:mt-0",
-              )}
-            >
-              {l || " "}
-            </span>
-          ))}
-        </pre>
-      )}
-    </div>
+    <span className={cn("block", tone)}>
+      <span className="text-[#6e7681]">{time}</span>{" "}
+      <span className={tone ?? "text-[#8b949e]"}>
+        {facility}.{level}
+      </span>{" "}
+      <span className={tone ?? "text-[#c9d1d9]"}>{message}</span>
+    </span>
+  );
+}
+
+/** The log lines inside a {@link Terminal}: the time dimmed, warnings amber, errors red, section headers blue. */
+export function LogLines({ lines, empty }: { lines: string[]; empty: string }) {
+  if (lines.length === 0)
+    return <p className="font-sans text-[#8b949e]">{empty}</p>;
+  return (
+    <pre className="font-mono whitespace-pre-wrap break-all">
+      {lines.map((l, i) => (
+        <Line key={i} text={l} />
+      ))}
+    </pre>
   );
 }

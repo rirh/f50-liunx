@@ -27,6 +27,8 @@ export interface NavItem {
   title: Key;
   path: string;
   icon: LucideIcon;
+  /** The page fills the whole content area edge to edge (no padding, no width cap) and scrolls by itself. */
+  fullBleed?: boolean;
 }
 
 export interface NavGroup {
@@ -35,15 +37,22 @@ export interface NavGroup {
 }
 
 /**
- * Every page of the app, as the sidebar shows them (the routes in App.tsx match these paths). Grouped by how often
- * they are used: the everyday figures first, then the connections, the device, and last what needs care (locks, AT
- * commands) or is for diagnosis.
+ * Every page of the app, as the sidebar shows them (the routes in App.tsx match these paths). Grouped and ordered by
+ * how often they are visited: the daily pages first (dashboard, messages, system), then the radio in the order it is
+ * checked (signal, usage, then the set-once APN and SIM), the connections, the device, and last what needs care
+ * (locks, AT commands) or is for diagnosis.
  */
 export const NAV: NavGroup[] = [
   {
     title: "nav.group.overview",
     items: [
       { title: "nav.page.dashboard", path: "/", icon: LayoutDashboardIcon },
+      {
+        title: "nav.page.sms",
+        path: "/sms",
+        icon: MessageSquareIcon,
+        fullBleed: true,
+      },
       {
         title: "nav.page.systemInfo",
         path: "/system/overview",
@@ -55,9 +64,8 @@ export const NAV: NavGroup[] = [
     title: "nav.group.mobile",
     items: [
       { title: "nav.page.signal", path: "/cellular/signal", icon: SignalIcon },
-      { title: "nav.page.data", path: "/cellular/data", icon: ArrowUpDownIcon },
       { title: "nav.page.traffic", path: "/cellular/traffic", icon: GaugeIcon },
-      { title: "nav.page.sms", path: "/sms", icon: MessageSquareIcon },
+      { title: "nav.page.data", path: "/cellular/data", icon: ArrowUpDownIcon },
       { title: "nav.page.sim", path: "/cellular/sim", icon: CardSimIcon },
     ],
   },
@@ -95,9 +103,19 @@ export const NAV: NavGroup[] = [
     title: "nav.group.advanced",
     items: [
       { title: "nav.page.locks", path: "/cellular/locks", icon: LockIcon },
-      { title: "nav.page.at", path: "/tools/at", icon: TerminalIcon },
+      {
+        title: "nav.page.at",
+        path: "/tools/at",
+        icon: TerminalIcon,
+        fullBleed: true,
+      },
       { title: "nav.page.jobs", path: "/tools/jobs", icon: ListChecksIcon },
-      { title: "nav.page.logs", path: "/system/logs", icon: ScrollTextIcon },
+      {
+        title: "nav.page.logs",
+        path: "/system/logs",
+        icon: ScrollTextIcon,
+        fullBleed: true,
+      },
       { title: "nav.page.boot", path: "/system/boot", icon: PowerIcon },
     ],
   },

@@ -1,13 +1,6 @@
-import { PendingButton } from "@/components/f50/pending-button";
+import { useState } from "react";
+import { EditButton, FormDialog } from "@/components/f50/form-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
@@ -36,9 +29,13 @@ const schema = z.object({
 type NetForm = z.infer<typeof schema>;
 const FIELDS = ["net", "scope", "name"] as const;
 
-/** The gadget's network function from the next boot, and the link's name on a Linux computer. */
-export function UsbNetCard({ info }: { info: UsbInfo }) {
+/**
+ * The gadget's network function from the next boot, and the link's name on a Linux computer. The status card shows
+ * both already, so they open from its header in a dialog.
+ */
+export function UsbNetDialog({ info }: { info: UsbInfo }) {
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
   const initial: NetForm = {
     net: info.net_mode,
     scope: info.net_scope,
@@ -52,6 +49,7 @@ export function UsbNetCard({ info }: { info: UsbInfo }) {
     mutationFn: setUsb,
     onSuccess: () => {
       toast.success(t("network.usb.net.saved"));
+      setOpen(false);
       qc.invalidateQueries({ queryKey: usbKeys.info });
     },
     onError: (e) => reportFormError(e, form.setError, FIELDS),
@@ -77,13 +75,30 @@ export function UsbNetCard({ info }: { info: UsbInfo }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("network.usb.net.title")}</CardTitle>
-        <CardDescription>{t("network.usb.net.description")}</CardDescription>
-      </CardHeader>
-      <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
-        <CardContent className="flex flex-col gap-4">
+    <>
+      <EditButton
+        onClick={() => {
+          form.reset(initial);
+          setOpen(true);
+        }}
+      >
+        {t("network.usb.net.title")}
+      </EditButton>
+      <FormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("network.usb.net.title")}
+        description={t("network.usb.net.description")}
+        formId="usb-net"
+        pending={save.isPending}
+        dirty={form.formState.isDirty}
+      >
+        <form
+          id="usb-net"
+          onSubmit={form.handleSubmit(onSubmit)}
+          noValidate
+          className="flex flex-col gap-4"
+        >
           {hostRole && (
             <Alert>
               <AlertTitle>{t("network.usb.net.hostRole.title")}</AlertTitle>
@@ -183,15 +198,8 @@ export function UsbNetCard({ info }: { info: UsbInfo }) {
               )}
             />
           </FieldGroup>
-        </CardContent>
-        <CardFooter className="mt-4 flex justify-end">
-          <PendingButton type="submit" pending={save.isPending}>
-            {save.isPending
-              ? t("common.action.saving")
-              : t("common.action.save")}
-          </PendingButton>
-        </CardFooter>
-      </form>
-    </Card>
+        </form>
+      </FormDialog>
+    </>
   );
 }

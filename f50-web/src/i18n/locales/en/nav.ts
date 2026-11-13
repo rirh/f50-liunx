@@ -2,7 +2,7 @@ import type { Messages } from "../zh";
 
 const m: Messages["nav"] = {
   group: {
-    overview: "Overview",
+    overview: "Everyday",
     mobile: "Mobile network",
     connect: "Connectivity",
     device: "Device",

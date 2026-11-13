@@ -12,6 +12,7 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
+import { useBuildLog } from "@/components/build-info";
 import { LanguageSwitcher } from "@/components/f50/language-switcher";
 import { AppUpdateChecker } from "@/components/providers/app-update-checker";
 import { LiveProvider } from "@/components/providers/live-provider";
@@ -50,6 +51,7 @@ export function PageFallback() {
 /** Notices and toasts, shared by the login page and the app shell. */
 export function GlobalChrome() {
   const { resolvedTheme } = useTheme();
+  useBuildLog();
   return (
     <>
       <aside
@@ -189,11 +191,19 @@ export function AppLayout() {
           />
           <main className="@container/main flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
             <PageTransition routeKey={pathname}>
-              <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 sm:p-6">
-                <Suspense fallback={<PageFallback />}>
-                  <Outlet />
-                </Suspense>
-              </div>
+              {active?.fullBleed ? (
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                  <Suspense fallback={<PageFallback />}>
+                    <Outlet />
+                  </Suspense>
+                </div>
+              ) : (
+                <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 sm:p-6">
+                  <Suspense fallback={<PageFallback />}>
+                    <Outlet />
+                  </Suspense>
+                </div>
+              )}
             </PageTransition>
           </main>
         </SidebarInset>

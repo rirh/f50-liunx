@@ -19,10 +19,13 @@ export function ConfirmClassDialog({
   pending,
   onConfirm,
   onCancel,
+  onClosed,
 }: {
   pending: PendingConfirm | null;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Where focus goes once it has closed (the prompt). */
+  onClosed?: () => void;
 }) {
   const label = pending?.cls ? CLASS_LABEL[pending.cls] : null;
   // closing after "确认发送" is not a cancel
@@ -38,7 +41,13 @@ export function ConfirmClassDialog({
         accepted.current = false;
       }}
     >
-      <AlertDialogContent>
+      <AlertDialogContent
+        onCloseAutoFocus={(e) => {
+          if (!onClosed) return;
+          e.preventDefault();
+          onClosed();
+        }}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle className="flex flex-wrap items-center gap-2">
             {t("tools.at.confirm.title")}

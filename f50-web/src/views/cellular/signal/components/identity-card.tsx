@@ -30,20 +30,20 @@ function IdentityList({ d }: { d: ModemIdentity }) {
       items={[
         {
           label: "IMEI",
-          value: <span className="font-mono">{id?.imei ?? "—"}</span>,
+          value: <span className="tabular-nums">{id?.imei ?? "—"}</span>,
         },
         {
           label: "IMSI",
-          value: <span className="font-mono">{id?.imsi ?? "—"}</span>,
+          value: <span className="tabular-nums">{id?.imsi ?? "—"}</span>,
         },
         {
           label: "ICCID",
-          value: <span className="font-mono">{id?.iccid ?? "—"}</span>,
+          value: <span className="tabular-nums">{id?.iccid ?? "—"}</span>,
         },
         {
           label: t("cellular.signal.identity.ownNumber"),
           value: d.msisdn ? (
-            <span className="font-mono">
+            <span className="tabular-nums">
               {d.msisdn}
               {d.msisdn_src && (
                 <span className="text-muted-foreground">

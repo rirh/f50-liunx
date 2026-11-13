@@ -8,87 +8,6 @@ import { t } from "@/i18n";
 import type { SignalPoint } from "@/lib/series";
 import { cn } from "@/lib/utils";
 
-const pct = (n: number | null) => (n == null ? "—" : `${Math.round(n)}%`);
-
-/** The tone of a share: green, amber from 70%, red from 90%. */
-const toneOfShare = (v: number | null) =>
-  v == null
-    ? { bar: "bg-muted-foreground/30", text: "text-foreground" }
-    : v >= 90
-      ? { bar: "bg-destructive", text: "text-destructive" }
-      : v >= 70
-        ? { bar: "bg-amber-500", text: "text-amber-600 dark:text-amber-400" }
-        : { bar: "bg-emerald-500", text: "text-foreground" };
-
-/** A thin capsule bar (Apple's progress style). */
-export function Capsule({
-  value,
-  className,
-  tone,
-}: {
-  value: number | null;
-  className?: string;
-  tone?: string;
-}) {
-  const v = value == null ? 0 : Math.min(100, Math.max(0, value));
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "block h-1 w-full overflow-hidden rounded-full bg-foreground/[0.07]",
-        className,
-      )}
-    >
-      <span
-        className={cn(
-          "block h-full rounded-full transition-[width] duration-500",
-          tone ?? toneOfShare(value).bar,
-        )}
-        style={{ width: `${v}%` }}
-      />
-    </span>
-  );
-}
-
-/** One resource: name and share on a line, a capsule under it, the detail below. No box of its own. */
-export function ResourceMeter({
-  label,
-  percent,
-  detail,
-}: {
-  label: string;
-  percent: number | null;
-  detail: string;
-}) {
-  const value =
-    percent == null ? null : Math.min(100, Math.max(0, Math.round(percent)));
-  const tone = toneOfShare(value);
-  return (
-    <div
-      aria-label={`${label} ${pct(value)}`}
-      className="flex min-w-0 flex-col gap-1.5"
-    >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="truncate text-[12px] text-muted-foreground">
-          {label}
-        </span>
-        <span
-          className={cn(
-            "shrink-0 text-[13px] font-semibold tabular-nums",
-            tone.text,
-          )}
-        >
-          <AnimatedNumber value={value} format={pct} />
-        </span>
-      </div>
-      <Capsule value={value} />
-      <span className="truncate text-[11px] leading-tight text-muted-foreground tabular-nums">
-        {detail}
-      </span>
-    </div>
-  );
-}
-
 const BAR_COUNT = 24;
 
 /** Five tones, best to worst (Apple's system green, mint, yellow, orange, red). */
@@ -151,10 +70,10 @@ function SignalCell({ kind, points }: { kind: Kind; points: SignalPoint[] }) {
     n == null ? "—" : `${n.toFixed(1)} ${kind.unit}`;
   const pad = BAR_COUNT - recent.length;
   return (
-    <div className="group/panel flex min-w-0 flex-col gap-1.5">
+    <div className="group/panel flex min-w-0 flex-col gap-1">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[12px] text-muted-foreground">{kind.label}</span>
-        <span className="text-[13px] font-semibold text-foreground tabular-nums">
+        <span className="text-xs text-muted-foreground">{kind.label}</span>
+        <span className="tabular-nums text-sm font-semibold text-foreground">
           {latest == null ? (
             <span className="font-normal text-muted-foreground">
               {t("dashboard.device.probing")}
@@ -165,7 +84,7 @@ function SignalCell({ kind, points }: { kind: Kind; points: SignalPoint[] }) {
         </span>
       </div>
       <div
-        className="grid h-5 shrink-0 items-end gap-[2px]"
+        className="grid h-3.5 shrink-0 items-end gap-[2px]"
         style={{ gridTemplateColumns: `repeat(${BAR_COUNT}, minmax(0, 1fr))` }}
       >
         {Array.from({ length: pad }, (_, i) => (

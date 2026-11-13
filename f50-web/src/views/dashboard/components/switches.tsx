@@ -41,7 +41,7 @@ export function DataSwitch({ data }: { data: DataInfo }) {
     <div className="flex items-center gap-2">
       <Label
         htmlFor="dash-data-power"
-        className="text-[13px] text-muted-foreground"
+        className="text-sm text-muted-foreground"
       >
         {power.isPending ? (
           <SweepShine>{t("common.action.switching")}</SweepShine>
@@ -92,7 +92,7 @@ export function WifiSwitch({ wifi }: { wifi: WifiInfo }) {
     <div className="flex items-center gap-2">
       <Label
         htmlFor="dash-wifi-power"
-        className="text-[13px] text-muted-foreground"
+        className="text-sm text-muted-foreground"
       >
         {power.isPending ? (
           <SweepShine>{t("common.action.switching")}</SweepShine>

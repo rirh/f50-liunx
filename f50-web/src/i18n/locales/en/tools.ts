@@ -4,8 +4,6 @@ const m: Messages["tools"] = {
   at: {
     page: {
       title: "AT terminal",
-      description:
-        "Send AT commands straight to the modem. PINs and passwords are not kept in the history.",
     },
     class: {
       scan: {
@@ -46,19 +44,17 @@ const m: Messages["tools"] = {
       busy: "A long AT command is still running in the background (job {job}); wait for it to finish",
     },
     form: {
-      title: "Command",
-      description:
-        "One command at a time, sent on the control channel. Commands that change settings need confirming; scans and commands with a timeout over 15 seconds run as background jobs.",
       label: "AT command",
       send: "Send",
-      sending: "Sending",
-      history: "browse this boot's command history ({count} commands)",
-      history_one: "browse this boot's command history ({count} command)",
-      historyLoading: "browse this boot's command history (loading)",
+      history: "{count} commands this boot",
+      history_one: "{count} command this boot",
+      historyLoading: "loading history",
+      historyNote: "PINs and passwords are never written to the history",
       timeout: "Answer timeout",
+      timeoutHint:
+        "1–60 seconds, empty for the default 8; over 15 runs as a background job",
       seconds: "s",
       quick: "Common commands",
-      jobTitle: "Background command {command}",
       commandRequired: "Enter an AT command",
       commandMax: "At most {max} characters",
       commandAscii: "Printable ASCII characters only",
@@ -79,14 +75,14 @@ const m: Messages["tools"] = {
       send: "Send anyway",
     },
     output: {
-      title: "Output",
       count: "{count} entries",
       count_one: "{count} entry",
-      empty: "No output yet",
+      empty:
+        "Type an AT command and press Enter, e.g. AT+CSQ; commands that change settings ask first",
+      waiting: "waiting for the answer",
+      jobRunning: "background job {job} running",
       copied: "Output copied",
       copyFailed: "Could not copy",
-      emptyTitle: "No commands yet",
-      emptyDescription: "Type an AT command below, for example AT+CSQ.",
     },
   },
   jobs: {
@@ -96,11 +92,8 @@ const m: Messages["tools"] = {
         "Long operations such as sending SMS, long AT commands and updates run in the background; they are kept until the device restarts.",
     },
     list: {
-      title: "Jobs",
       running: "{count} running",
       running_one: "{count} running",
-      runningDescription: "Jobs are running; refreshing every 3 seconds.",
-      idleDescription: "Click a row to see its state, result and log.",
       emptyTitle: "No jobs",
       emptyDescription: "No background jobs since this boot.",
     },

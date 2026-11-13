@@ -36,7 +36,7 @@ function SlotRow({
 }) {
   return (
     <TableRow>
-      <TableCell className="font-mono">
+      <TableCell className="tabular-nums">
         <span className="flex items-center gap-2">
           {name.toUpperCase()}
           <Badge variant="outline">{linux ? "Linux" : "Android"}</Badge>

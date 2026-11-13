@@ -1,14 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { FormDialog } from "@/components/f50/form-dialog";
 import { JobProgress } from "@/components/f50/job-progress";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Field,
   FieldDescription,
@@ -19,13 +11,41 @@ import { Input } from "@/components/ui/input";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import type { JobStatus } from "@/lib/jobs";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 import { setOwnNumber } from "../api";
 
 /** What f50d's `own_number` accepts: an optional "+" and 3 to 15 digits (spaces and dashes are dropped here). */
 const NUMBER = /^\+?\d{3,15}$/;
 const clean = (v: string) => v.replace(/[\s()-]/g, "");
+
+const ownNumberSchema = () =>
+  z.object({
+    number: z
+      .string()
+      .refine(
+        (v) => NUMBER.test(clean(v)),
+        t("system.overview.info.ownNumberSet.invalid"),
+      ),
+  });
+type OwnNumberValues = z.infer<ReturnType<typeof ownNumberSchema>>;
+
+/**
+ * Counts openings. The panel is keyed by it, so every opening starts fresh (the current number, no job left over from
+ * an earlier attempt) while closing keeps the same panel for the drawer's or dialog's exit animation.
+ */
+function useOpenCount(open: boolean) {
+  const [count, setCount] = useState(0);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setCount(count + 1);
+  }
+  return count;
+}
 
 /** Writes the SIM's own number to the card, for SIMs that do not carry it (AT+CNUM finds nothing). */
 export function OwnNumberDialog({
@@ -39,43 +59,36 @@ export function OwnNumberDialog({
   current: string | null;
   onSaved: () => void;
 }) {
+  const session = useOpenCount(open);
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {t("system.overview.info.ownNumberSet.title")}
-          </DialogTitle>
-          <DialogDescription>
-            {t("system.overview.info.ownNumberSet.description")}
-          </DialogDescription>
-        </DialogHeader>
-        {open && (
-          <OwnNumberForm
-            current={current}
-            onCancel={() => onOpenChange(false)}
-            onSaved={() => {
-              onOpenChange(false);
-              onSaved();
-            }}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+    <OwnNumberPanel
+      key={session}
+      open={open}
+      onOpenChange={onOpenChange}
+      current={current}
+      onSaved={() => {
+        onOpenChange(false);
+        onSaved();
+      }}
+    />
   );
 }
 
-function OwnNumberForm({
+function OwnNumberPanel({
+  open,
+  onOpenChange,
   current,
-  onCancel,
   onSaved,
 }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   current: string | null;
-  onCancel: () => void;
   onSaved: () => void;
 }) {
-  const [value, setValue] = useState(current ?? "");
-  const [invalid, setInvalid] = useState(false);
+  const form = useForm<OwnNumberValues>({
+    resolver: zodResolver(useMemo(() => ownNumberSchema(), [])),
+    defaultValues: { number: current ?? "" },
+  });
   const [job, setJob] = useState<string | null>(null);
   const save = useMutation({
     mutationFn: setOwnNumber,
@@ -91,62 +104,55 @@ function OwnNumberForm({
     }
   };
   return (
-    <form
-      className="flex flex-col gap-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const n = clean(value);
-        if (!NUMBER.test(n)) {
-          setInvalid(true);
-          return;
-        }
-        save.mutate(n);
-      }}
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t("system.overview.info.ownNumberSet.title")}
+      description={t("system.overview.info.ownNumberSet.description")}
+      formId="own-number-form"
+      size="sm"
+      // only the request itself blocks closing: a job that never reports back must not trap the dialog
+      pending={save.isPending}
+      dirty={form.formState.isDirty && !job}
     >
-      <Field data-invalid={invalid}>
-        <FieldLabel htmlFor="own-number">
-          {t("system.overview.info.ownNumber")}
-        </FieldLabel>
-        <Input
-          id="own-number"
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder="13800138000"
-          className="font-mono text-base sm:text-sm"
-          aria-invalid={invalid}
-          disabled={running}
-          value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
-            setInvalid(false);
-          }}
+      <form
+        id="own-number-form"
+        className="flex flex-col gap-4"
+        onSubmit={form.handleSubmit((v) => save.mutate(clean(v.number)))}
+      >
+        <Controller
+          name="number"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="own-number">
+                {t("system.overview.info.ownNumber")}
+              </FieldLabel>
+              <Input
+                {...field}
+                id="own-number"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="13800138000"
+                className="font-mono text-base sm:text-sm"
+                aria-invalid={fieldState.invalid}
+                disabled={running}
+              />
+              <FieldDescription>
+                {t("system.overview.info.ownNumberSet.hint")}
+              </FieldDescription>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
         />
-        <FieldDescription>
-          {t("system.overview.info.ownNumberSet.hint")}
-        </FieldDescription>
-        {invalid && (
-          <FieldError
-            errors={[
-              { message: t("system.overview.info.ownNumberSet.invalid") },
-            ]}
+        {job && (
+          <JobProgress
+            id={job}
+            title={t("system.overview.info.ownNumberSet.job")}
+            onDone={onDone}
           />
         )}
-      </Field>
-      {job && (
-        <JobProgress
-          id={job}
-          title={t("system.overview.info.ownNumberSet.job")}
-          onDone={onDone}
-        />
-      )}
-      <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>
-          {t("common.action.cancel")}
-        </Button>
-        <Button type="submit" disabled={running} aria-busy={running}>
-          {t("common.action.save")}
-        </Button>
-      </DialogFooter>
-    </form>
+      </form>
+    </FormDialog>
   );
 }

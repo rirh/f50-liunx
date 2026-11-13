@@ -12,7 +12,14 @@ import { t } from "@/i18n";
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "/ubus";
 
-export type LiveTopic = "status" | "system" | "modem" | "cells" | "sms";
+export type LiveTopic =
+  | "status"
+  | "system"
+  | "modem"
+  | "cells"
+  | "sms"
+  /** A fingerprint of the newest log lines (the logs are private); the log page reads them again on a change. */
+  | "logs";
 
 export interface LiveEvent {
   topic: string;

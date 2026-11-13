@@ -1,15 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ConfirmButton } from "@/components/f50/confirm-button";
-import { PendingButton } from "@/components/f50/pending-button";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { EditButton, FormDialog } from "@/components/f50/form-dialog";
 import {
   Field,
   FieldContent,
@@ -70,8 +61,13 @@ class KeyError extends Error {
 
 type Change = [Exclude<TrafficKey, "clear">, string];
 
-export function SettingsCard({ t: tr }: { t: TrafficStatus }) {
+/**
+ * The plan's settings (name, reset day, cap, reminder, cut-off) and clearing the counters: set once, changed rarely,
+ * so they open from the page header in a dialog instead of taking room on the page.
+ */
+export function SettingsDialog({ t: tr }: { t: TrafficStatus }) {
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
   const form = useForm<TrafficForm>({
     resolver: zodResolver(useMemo(() => trafficSchema(), [])),
     defaultValues: defaults(tr),
@@ -89,7 +85,10 @@ export function SettingsCard({ t: tr }: { t: TrafficStatus }) {
         }
       }
     },
-    onSuccess: () => toast.success(t("cellular.shared.saved")),
+    onSuccess: () => {
+      toast.success(t("cellular.shared.saved"));
+      setOpen(false);
+    },
     onError: (e) => {
       if (
         e instanceof KeyError &&
@@ -107,7 +106,10 @@ export function SettingsCard({ t: tr }: { t: TrafficStatus }) {
   });
   const clear = useMutation({
     mutationFn: clearTraffic,
-    onSuccess: () => toast.success(t("cellular.traffic.settings.cleared")),
+    onSuccess: () => {
+      toast.success(t("cellular.traffic.settings.cleared"));
+      setOpen(false);
+    },
     onError: (e) => toast.error(errorMessage(e)),
     onSettled: refresh,
   });
@@ -126,159 +128,155 @@ export function SettingsCard({ t: tr }: { t: TrafficStatus }) {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("cellular.traffic.settings.title")}</CardTitle>
-        <CardDescription>
-          {t("cellular.traffic.settings.description")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form id="traffic-settings" onSubmit={submit}>
-          <FieldGroup>
-            <Field data-invalid={!!errors.plan}>
-              <FieldLabel htmlFor="traffic-plan">
-                {t("cellular.traffic.settings.plan")}
-              </FieldLabel>
-              <Input
-                id="traffic-plan"
-                autoComplete="off"
-                aria-invalid={!!errors.plan}
-                {...form.register("plan")}
+    <>
+      <EditButton
+        onClick={() => {
+          form.reset(defaults(tr));
+          setOpen(true);
+        }}
+      >
+        {t("cellular.traffic.settings.title")}
+      </EditButton>
+      <FormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("cellular.traffic.settings.title")}
+        description={t("cellular.traffic.settings.description")}
+        formId="traffic-settings"
+        pending={save.isPending}
+        dirty={isDirty}
+        extra={
+          <ConfirmButton
+            variant="ghost"
+            className="text-destructive"
+            title={t("cellular.traffic.settings.clearTitle")}
+            description={t("cellular.traffic.settings.clearDescription")}
+            confirmText={t("cellular.traffic.settings.clearConfirm")}
+            pending={clear.isPending}
+            onConfirm={() => clear.mutate()}
+          >
+            {t("cellular.traffic.settings.clear")}
+          </ConfirmButton>
+        }
+      >
+    <form id="traffic-settings" onSubmit={submit}>
+      <FieldGroup>
+        <Field data-invalid={!!errors.plan}>
+          <FieldLabel htmlFor="traffic-plan">
+            {t("cellular.traffic.settings.plan")}
+          </FieldLabel>
+          <Input
+            id="traffic-plan"
+            autoComplete="off"
+            aria-invalid={!!errors.plan}
+            {...form.register("plan")}
+          />
+          <FieldError errors={[errors.plan]} />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field data-invalid={!!errors.reset_day}>
+            <FieldLabel htmlFor="traffic-reset-day">
+              {t("cellular.traffic.settings.resetDay")}
+            </FieldLabel>
+            <InputGroup>
+              <InputGroupInput
+                id="traffic-reset-day"
+                inputMode="numeric"
+                aria-invalid={!!errors.reset_day}
+                {...form.register("reset_day")}
               />
-              <FieldError errors={[errors.plan]} />
-            </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field data-invalid={!!errors.reset_day}>
-                <FieldLabel htmlFor="traffic-reset-day">
-                  {t("cellular.traffic.settings.resetDay")}
-                </FieldLabel>
-                <InputGroup>
-                  <InputGroupInput
-                    id="traffic-reset-day"
-                    inputMode="numeric"
-                    aria-invalid={!!errors.reset_day}
-                    {...form.register("reset_day")}
-                  />
-                  <InputGroupAddon align="inline-end">
-                    <InputGroupText>
-                      {t("cellular.traffic.settings.daySuffix")}
-                    </InputGroupText>
-                  </InputGroupAddon>
-                </InputGroup>
-                <FieldDescription>
-                  {t("cellular.traffic.settings.resetDayHint")}
-                </FieldDescription>
-                <FieldError errors={[errors.reset_day]} />
-              </Field>
-              <Field data-invalid={!!errors.warn}>
-                <FieldLabel htmlFor="traffic-warn">
-                  {t("cellular.traffic.settings.warn")}
-                </FieldLabel>
-                <InputGroup>
-                  <InputGroupInput
-                    id="traffic-warn"
-                    inputMode="numeric"
-                    aria-invalid={!!errors.warn}
-                    {...form.register("warn")}
-                  />
-                  <InputGroupAddon align="inline-end">
-                    <InputGroupText>%</InputGroupText>
-                  </InputGroupAddon>
-                </InputGroup>
-                <FieldError errors={[errors.warn]} />
-              </Field>
-            </div>
-            <Field data-invalid={!!errors.cap}>
-              <FieldLabel htmlFor="traffic-cap">
-                {t("cellular.traffic.settings.cap")}
-              </FieldLabel>
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  id="traffic-cap"
-                  inputMode="decimal"
-                  placeholder={t("cellular.traffic.settings.unlimited")}
-                  className="w-32"
-                  aria-invalid={!!errors.cap}
-                  {...form.register("cap")}
-                />
-                <Controller
-                  control={form.control}
-                  name="unit"
-                  render={({ field }) => (
-                    <ToggleGroup
-                      type="single"
-                      variant="outline"
-                      value={field.value}
-                      onValueChange={(v) => v && field.onChange(v as CapUnit)}
-                    >
-                      {(Object.keys(UNITS) as CapUnit[]).map((u) => (
-                        <ToggleGroupItem key={u} value={u}>
-                          {u}
-                        </ToggleGroupItem>
-                      ))}
-                    </ToggleGroup>
-                  )}
-                />
-              </div>
-              <FieldDescription>
-                {t("cellular.traffic.settings.capHint")}
-              </FieldDescription>
-              <FieldError errors={[errors.cap]} />
-            </Field>
-            <FieldSeparator />
-            <Field orientation="horizontal" data-invalid={!!errors.cut}>
-              <FieldContent>
-                <FieldLabel htmlFor="traffic-cut">
-                  {t("cellular.traffic.settings.cut")}
-                </FieldLabel>
-                <FieldDescription>
-                  {t("cellular.traffic.settings.cutHint")}
-                </FieldDescription>
-                <FieldError errors={[errors.cut]} />
-              </FieldContent>
-              <Controller
-                control={form.control}
-                name="cut"
-                render={({ field }) => (
-                  <Switch
-                    id="traffic-cut"
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                )}
+              <InputGroupAddon align="inline-end">
+                <InputGroupText>
+                  {t("cellular.traffic.settings.daySuffix")}
+                </InputGroupText>
+              </InputGroupAddon>
+            </InputGroup>
+            <FieldDescription>
+              {t("cellular.traffic.settings.resetDayHint")}
+            </FieldDescription>
+            <FieldError errors={[errors.reset_day]} />
+          </Field>
+          <Field data-invalid={!!errors.warn}>
+            <FieldLabel htmlFor="traffic-warn">
+              {t("cellular.traffic.settings.warn")}
+            </FieldLabel>
+            <InputGroup>
+              <InputGroupInput
+                id="traffic-warn"
+                inputMode="numeric"
+                aria-invalid={!!errors.warn}
+                {...form.register("warn")}
               />
-            </Field>
-          </FieldGroup>
-        </form>
-      </CardContent>
-      <CardFooter className="flex flex-wrap gap-2">
-        <PendingButton
-          type="submit"
-          form="traffic-settings"
-          pending={save.isPending}
-          disabled={!isDirty}
-        >
-          {t("common.action.save")}
-        </PendingButton>
-        <Button
-          variant="outline"
-          disabled={!isDirty || save.isPending}
-          onClick={() => form.reset(defaults(tr))}
-        >
-          {t("common.action.reset")}
-        </Button>
-        <ConfirmButton
-          variant="outline"
-          title={t("cellular.traffic.settings.clearTitle")}
-          description={t("cellular.traffic.settings.clearDescription")}
-          confirmText={t("cellular.traffic.settings.clearConfirm")}
-          pending={clear.isPending}
-          onConfirm={() => clear.mutate()}
-        >
-          {t("cellular.traffic.settings.clear")}
-        </ConfirmButton>
-      </CardFooter>
-    </Card>
+              <InputGroupAddon align="inline-end">
+                <InputGroupText>%</InputGroupText>
+              </InputGroupAddon>
+            </InputGroup>
+            <FieldError errors={[errors.warn]} />
+          </Field>
+        </div>
+        <Field data-invalid={!!errors.cap}>
+          <FieldLabel htmlFor="traffic-cap">
+            {t("cellular.traffic.settings.cap")}
+          </FieldLabel>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              id="traffic-cap"
+              inputMode="decimal"
+              placeholder={t("cellular.traffic.settings.unlimited")}
+              className="w-32"
+              aria-invalid={!!errors.cap}
+              {...form.register("cap")}
+            />
+            <Controller
+              control={form.control}
+              name="unit"
+              render={({ field }) => (
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  value={field.value}
+                  onValueChange={(v) => v && field.onChange(v as CapUnit)}
+                >
+                  {(Object.keys(UNITS) as CapUnit[]).map((u) => (
+                    <ToggleGroupItem key={u} value={u}>
+                      {u}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              )}
+            />
+          </div>
+          <FieldDescription>
+            {t("cellular.traffic.settings.capHint")}
+          </FieldDescription>
+          <FieldError errors={[errors.cap]} />
+        </Field>
+        <FieldSeparator />
+        <Field orientation="horizontal" data-invalid={!!errors.cut}>
+          <FieldContent>
+            <FieldLabel htmlFor="traffic-cut">
+              {t("cellular.traffic.settings.cut")}
+            </FieldLabel>
+            <FieldDescription>
+              {t("cellular.traffic.settings.cutHint")}
+            </FieldDescription>
+            <FieldError errors={[errors.cut]} />
+          </FieldContent>
+          <Controller
+            control={form.control}
+            name="cut"
+            render={({ field }) => (
+              <Switch
+                id="traffic-cut"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
+            )}
+          />
+        </Field>
+      </FieldGroup>
+    </form>
+      </FormDialog>
+    </>
   );
 }

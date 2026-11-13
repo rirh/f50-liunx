@@ -1,14 +1,6 @@
-import { useMemo } from "react";
-import { PendingButton } from "@/components/f50/pending-button";
+import { useMemo, useState } from "react";
+import { EditButton, FormDialog } from "@/components/f50/form-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Field,
   FieldError,
@@ -22,12 +14,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { SettingRow } from "./setting-row";
 import { setPassword } from "../api";
 import { type PasswordValues, passwordSchema } from "../schemas";
 
 const EMPTY: PasswordValues = { password: "", confirm: "" };
 
-export function PasswordForm() {
+/**
+ * The root password as a row of the General card. The device never reveals it, so the row shows a mask; Change opens
+ * an empty form in a dialog (cleared each time, so a typed password does not linger after Cancel).
+ */
+export function PasswordSetting() {
+  const [open, setOpen] = useState(false);
   const schema = useMemo(() => passwordSchema(), []);
   const form = useForm<PasswordValues>({
     resolver: zodResolver(schema),
@@ -37,6 +35,7 @@ export function PasswordForm() {
     mutationFn: (v: PasswordValues) => setPassword(v.password),
     onSuccess: () => {
       form.reset(EMPTY);
+      setOpen(false);
       toast.success(t("system.settings.password.saved"), {
         description: t("system.settings.password.savedDescription"),
       });
@@ -44,18 +43,37 @@ export function PasswordForm() {
     onError: (e) => reportFormError(e, form.setError, { password: "password" }),
   });
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("system.settings.password.title")}</CardTitle>
-        <CardDescription>
-          {t("system.settings.password.description")}
-        </CardDescription>
-      </CardHeader>
-      <form
-        onSubmit={form.handleSubmit((v) => save.mutate(v))}
-        className="contents"
+    <>
+      <SettingRow
+        label={t("system.settings.password.title")}
+        value={<span aria-hidden>••••••••</span>}
+        action={
+          <EditButton
+            onClick={() => {
+              form.reset(EMPTY);
+              setOpen(true);
+            }}
+          >
+            {t("system.settings.password.change")}
+          </EditButton>
+        }
+      />
+      <FormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("system.settings.password.title")}
+        description={t("system.settings.password.description")}
+        formId="password-form"
+        size="sm"
+        pending={save.isPending}
+        dirty={form.formState.isDirty}
+        submitText={t("system.settings.password.submit")}
       >
-        <CardContent className="flex flex-col gap-4">
+        <form
+          id="password-form"
+          onSubmit={form.handleSubmit((v) => save.mutate(v))}
+          className="flex flex-col gap-4"
+        >
           <FieldGroup>
             <Controller
               name="password"
@@ -105,13 +123,8 @@ export function PasswordForm() {
               {t("system.settings.password.note")}
             </AlertDescription>
           </Alert>
-        </CardContent>
-        <CardFooter>
-          <PendingButton type="submit" pending={save.isPending}>
-            {t("system.settings.password.submit")}
-          </PendingButton>
-        </CardFooter>
-      </form>
-    </Card>
+        </form>
+      </FormDialog>
+    </>
   );
 }

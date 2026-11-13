@@ -33,8 +33,8 @@ export const readMessage = (id: number) =>
 export const sendSms = (number: string, text: string) =>
   f50<JobStarted>(OBJ, "send", { number, text });
 
-/** One message, or `"all"`; with `sim`, the matching ones in the modem's store too. */
-export const deleteSms = (id: number | "all", sim: boolean) =>
+/** One message; with `sim`, its copy in the modem's store too. The console never deletes all at once. */
+export const deleteSms = (id: number, sim: boolean) =>
   f50<DeleteResult>(OBJ, "delete", { id: String(id), sim });
 
 /** A sync of the modem's store, in the background. */

@@ -20,6 +20,46 @@ const LOGS_MAX: usize = 256 * 1024;
 /// The reply leaves first: the action waits this long.
 const ACTION_DELAY: Duration = Duration::from_secs(2);
 
+/// LuCI's zone table: `'Asia/Shanghai': 'CST-8',` per line (zoneinfo2ucode.pl).
+const LUCI_ZONEINFO: &str = "/usr/share/ucode/luci/zoneinfo.uc";
+
+/// The browsers' (ICU's) old names of zones LuCI's table lists under their current one.
+const ALIASES: &[(&str, &str)] = &[
+    ("Africa/Asmera", "Africa/Asmara"),
+    ("America/Buenos_Aires", "America/Argentina/Buenos_Aires"),
+    ("America/Catamarca", "America/Argentina/Catamarca"),
+    ("America/Coral_Harbour", "America/Atikokan"),
+    ("America/Cordoba", "America/Argentina/Cordoba"),
+    ("America/Godthab", "America/Nuuk"),
+    ("America/Indianapolis", "America/Indiana/Indianapolis"),
+    ("America/Jujuy", "America/Argentina/Jujuy"),
+    ("America/Louisville", "America/Kentucky/Louisville"),
+    ("America/Mendoza", "America/Argentina/Mendoza"),
+    ("Asia/Calcutta", "Asia/Kolkata"),
+    ("Asia/Katmandu", "Asia/Kathmandu"),
+    ("Asia/Rangoon", "Asia/Yangon"),
+    ("Asia/Saigon", "Asia/Ho_Chi_Minh"),
+    ("Atlantic/Faeroe", "Atlantic/Faroe"),
+    ("Europe/Kiev", "Europe/Kyiv"),
+    ("Pacific/Enderbury", "Pacific/Kanton"),
+    ("Pacific/Ponape", "Pacific/Pohnpei"),
+    ("Pacific/Truk", "Pacific/Chuuk"),
+];
+
+/// The TZ string of `zone` (or of the zone it is an old name of) in LuCI's table.
+fn luci_tz(table: &str, zone: &str) -> Option<String> {
+    let current = ALIASES.iter().find(|(old, _)| *old == zone).map(|(_, new)| *new);
+    luci_row(table, zone).or_else(|| luci_row(table, current?))
+}
+
+fn luci_row(table: &str, zone: &str) -> Option<String> {
+    let key = format!("'{zone}':");
+    table.lines().find_map(|l| {
+        let v = l.trim().strip_prefix(&key)?.trim().trim_end_matches(',').trim();
+        Some(v.strip_prefix('\'')?.strip_suffix('\'')?.to_owned())
+    })
+}
+
 /// OpenWrt keeps a POSIX TZ string: the last line of the zone's file (`UTC0` for UTC).
 pub(crate) fn tz_of(zone: &str, zonefile: Option<&str>) -> Result<String> {
     if zone.contains("..") || !matches(ZONE_RE, zone) {
@@ -44,8 +84,12 @@ impl System {
     pub(crate) async fn set_timezone(&self, zone: &str) -> Result<Value> {
         let file = self.inner.platform.paths().sys(format!("/usr/share/zoneinfo/{zone}"));
         let text = if zone != "UTC" && !zone.contains("..") {
-            // a zone file holds binary data before the TZ footer
-            std::fs::read(&file).ok().map(|b| String::from_utf8_lossy(&b).into_owned())
+            // a zone file holds binary data before the TZ footer; OpenWrt ships no zoneinfo unless a zoneinfo
+            // package is installed, so LuCI's table (which every LuCI image has) answers otherwise
+            std::fs::read(&file).ok().map(|b| String::from_utf8_lossy(&b).into_owned()).or_else(|| {
+                let table = std::fs::read_to_string(self.inner.platform.paths().sys(LUCI_ZONEINFO)).ok()?;
+                luci_tz(&table, zone)
+            })
         } else {
             None
         };
@@ -84,6 +128,22 @@ impl System {
         let text = format!("--- dmesg (last {lines} lines)\n{dmesg}\n--- system log (last {lines} lines)\n{logread}\n");
         Ok(json!({ "text": sanitize_text(tail_bytes(&text, LOGS_MAX)) }))
     }
+
+    /// A fingerprint of the newest kernel and system log line: it changes when either log gains a line, and says
+    /// nothing of what the lines are (the logs are private; this is a read, pushed on `f50.live` to every login), so
+    /// the log page knows when to read `logs` again. Two short reads: `dmesg`'s last line and `logread -l 1`.
+    pub(crate) async fn logs_mark(&self) -> Result<Value> {
+        use std::hash::{Hash, Hasher};
+        let run = |p: &'static str, args: &'static [&'static str]| {
+            Cmd::new(p).args(args).timeout(Duration::from_secs(5)).max_output(512 * 1024).output()
+        };
+        let dmesg = run("dmesg", &[]).await.map(|o| o.stdout).unwrap_or_default();
+        let logread = run("logread", &["-l", "1"]).await.map(|o| o.stdout).unwrap_or_default();
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        dmesg.lines().last().unwrap_or_default().hash(&mut h);
+        logread.lines().last().unwrap_or_default().hash(&mut h);
+        Ok(json!({ "mark": format!("{:016x}", h.finish()) }))
+    }
 }
 
 #[cfg(test)]
@@ -93,6 +153,13 @@ mod tests {
     #[test]
     fn zones_as_the_shell_api() {
         assert_eq!(tz_of("UTC", None).expect("utc"), "UTC0");
+        let table = "export default {\n\t'Asia/Shanghai': 'CST-8',\n\t'Europe/Istanbul': '<+03>-3',\n};\n";
+        assert_eq!(luci_tz(table, "Asia/Shanghai").as_deref(), Some("CST-8"));
+        assert_eq!(luci_tz(table, "Europe/Istanbul").as_deref(), Some("<+03>-3"));
+        assert_eq!(luci_tz(table, "Asia/Shang"), None);
+        let kolkata = "\t'Asia/Kolkata': 'IST-5:30',\n";
+        assert_eq!(luci_tz(kolkata, "Asia/Calcutta").as_deref(), Some("IST-5:30"));
+        assert_eq!(tz_of("Asia/Shanghai", luci_tz(table, "Asia/Shanghai").as_deref()).expect("sh"), "CST-8");
         assert_eq!(tz_of("Europe/Istanbul", Some("TZif...\n<+03>-3\n")).expect("ist"), "<+03>-3");
         assert_eq!(tz_of("Europe/Nowhere", None).map_err(|e| e.code()), Err(f50_core::Code::Unsupported));
         assert_eq!(tz_of("Europe/../etc", None).map_err(|e| e.code()), Err(f50_core::Code::BadValue));

@@ -91,7 +91,7 @@ export function TrendCard({ live }: { live: LiveStatus | undefined }) {
                     <span className="truncate text-muted-foreground">
                       {zoneLabel(z.name)}
                     </span>
-                    <span className="shrink-0 font-mono tabular-nums">
+                    <span className="shrink-0 tabular-nums">
                       {formatCelsius(z.millicelsius / 1000)}
                     </span>
                   </div>

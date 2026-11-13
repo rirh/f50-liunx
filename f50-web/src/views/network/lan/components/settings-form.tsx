@@ -1,14 +1,5 @@
 import { useMemo, useState } from "react";
-import { PendingButton } from "@/components/f50/pending-button";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { EditButton, FormDialog } from "@/components/f50/form-dialog";
 import {
   Field,
   FieldDescription,
@@ -53,7 +44,11 @@ function prefixOf(mask: string): number {
     .reduce((n, o) => n + (Number(o).toString(2).match(/1/g)?.length ?? 0), 0);
 }
 
-export function LanSettingsForm({
+/**
+ * The LAN's address and DHCP pool: changed rarely and shown by the status card already, so they open from that card's
+ * header in a dialog. Moving the address (or netmask) asks once more, since the console then lives elsewhere.
+ */
+export function LanSettingsDialog({
   info,
   onMoved,
 }: {
@@ -61,6 +56,7 @@ export function LanSettingsForm({
   onMoved: (url: string) => void;
 }) {
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
   const initial = useMemo(() => lanDefaults(info), [info]);
   const schema = useMemo(() => lanSchema(), []);
   const form = useForm<LanForm>({
@@ -73,6 +69,7 @@ export function LanSettingsForm({
   const save = useMutation({
     mutationFn: setLan,
     onSuccess: (_, args) => {
+      setOpen(false);
       if (args.address) {
         onMoved(consoleUrlAt(args.address));
         toast.success(t("network.lan.settings.savedMoved"));
@@ -101,15 +98,29 @@ export function LanSettingsForm({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("network.lan.settings.title")}</CardTitle>
-        <CardDescription>
-          {t("network.lan.settings.description")}
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
-        <CardContent>
+    <>
+      <EditButton
+        onClick={() => {
+          form.reset(lanDefaults(info));
+          setOpen(true);
+        }}
+      />
+      <FormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("network.lan.settings.title")}
+        description={t("network.lan.settings.description")}
+        formId="lan-settings"
+        pending={save.isPending}
+        dirty={form.formState.isDirty}
+        submitText={t("network.shared.saveApply")}
+        size="lg"
+      >
+        <form
+          id="lan-settings"
+          onSubmit={form.handleSubmit(onSubmit)}
+          noValidate
+        >
           <FieldGroup>
             <div className="grid gap-4 md:grid-cols-2">
               <Controller
@@ -240,27 +251,12 @@ export function LanSettingsForm({
             {dhcp && range && (
               <FieldDescription>
                 {t("network.lan.settings.pool")}
-                <span className="font-mono">{range}</span>
+                <span className="tabular-nums">{range}</span>
               </FieldDescription>
             )}
           </FieldGroup>
-        </CardContent>
-        <CardFooter className="mt-4 flex flex-wrap justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={save.isPending || !form.formState.isDirty}
-            onClick={() => form.reset(initial)}
-          >
-            {t("common.action.reset")}
-          </Button>
-          <PendingButton type="submit" pending={save.isPending}>
-            {save.isPending
-              ? t("common.action.saving")
-              : t("network.shared.saveApply")}
-          </PendingButton>
-        </CardFooter>
-      </form>
+        </form>
+      </FormDialog>
       <ConfirmDialog
         open={pending !== null}
         onOpenChange={(o) => !o && setPending(null)}
@@ -273,20 +269,20 @@ export function LanSettingsForm({
             {pending?.address ? (
               <span>
                 {t("network.lan.settings.confirm.consoleAt")}
-                <span className="font-mono break-all">
+                <span className="tabular-nums break-all">
                   {consoleUrlAt(pending.address)}
                 </span>
               </span>
             ) : (
               <span>
                 {t("network.lan.settings.confirm.newNetmask")}
-                <span className="font-mono">{pending?.netmask}</span>
+                <span className="tabular-nums">{pending?.netmask}</span>
               </span>
             )}
           </>
         }
         onConfirm={() => pending && save.mutate(pending)}
       />
-    </Card>
+    </>
   );
 }

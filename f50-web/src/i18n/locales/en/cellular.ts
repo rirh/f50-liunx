@@ -83,6 +83,7 @@ const m: Messages["cellular"] = {
       waiting: "Recording signal (needs two readings)",
     },
     cells: {
+      network: "Network",
       title: "Cells",
       description:
         "Serving and neighbour cells, carrier aggregation and QoS · refreshed every 5 seconds · read {age}",
@@ -165,6 +166,43 @@ const m: Messages["cellular"] = {
     autoApplyOn: "Apply at boot turned on",
     autoApplyOff: "Apply at boot turned off",
     current: "Current: {value}",
+    help: {
+      button: "How to use",
+      title: "Using network locks",
+      description:
+        "Locks keep the device on the mode, bands or cells you choose. When unsure, leave everything automatic.",
+      read: {
+        title: "Check the current state",
+        p1: "The page shows the locks as read from the modem; “Read again” at the top right refreshes them.",
+        p2: "Locks apply to SIM1 only; they cannot be changed while the built-in card (SIM2) is in use.",
+      },
+      mode: {
+        title: "Network mode",
+        p1: "Pick a mode, then press “Apply”.",
+        p2: "5G NSA needs EN-DC switched on under “Other options”.",
+      },
+      bands: {
+        title: "Band locks",
+        p1: "Press “Edit” on the LTE or NR card and tick the bands to use.",
+        p2: "No band ticked means automatic; only bands the device supports are listed.",
+        p3: "With no tower on the locked bands nearby there is no signal: go back to automatic.",
+      },
+      cell: {
+        title: "Cell locks",
+        p1: "“Lock serving cell” locks the cell in use in one step.",
+        p2: "“Add lock” takes an ARFCN and PCI, found on the “Signal and cells” page.",
+        p3: "Cell locks are lost on reboot; “Apply at boot” brings them back.",
+      },
+      effect: {
+        title: "When changes take effect",
+        p1: "Every change except EN-DC restarts the protocol stack and drops the cellular connection for about half a minute.",
+        p2: "Several changes run one after another; progress shows at the top of the page.",
+      },
+      reset: {
+        title: "If something goes wrong",
+        p1: "“Reset to automatic” clears and checks every lock, and deletes the saved locks too.",
+      },
+    },
     modes: {
       auto: { label: "Automatic", hint: "2G/3G/4G/5G automatic" },
       auto152: {
@@ -193,6 +231,7 @@ const m: Messages["cellular"] = {
       hint: "Select no band for automatic. Only bands the device supports are listed.",
       unsupported: " The current lock includes unsupported bands: {bands}.",
       clear: "Clear (automatic)",
+      lockedBands: "Locked bands",
     },
     cell: {
       title: "Cell lock",
@@ -205,6 +244,7 @@ const m: Messages["cellular"] = {
       rat: "RAT",
       hint: "Find the ARFCN and PCI under the serving or neighbour cells on the “Signal and cells” page.",
       add: "Add lock",
+      addTitle: "Add a cell lock",
       serving: "Lock serving cell",
       unlockNrJob: "Remove NR cell locks",
       unlockNr: "Remove NR",
@@ -295,6 +335,9 @@ const m: Messages["cellular"] = {
       description: "The access point of SIM{slot} in use; changing it redials",
       authBoth: "Current: automatic (PAP or CHAP, chosen by the network)",
       authInvalid: "The saved authentication is invalid",
+      authAuto: "Automatic (PAP or CHAP)",
+      authInvalidShort: "Invalid",
+      apnDefault: "Network default",
       savedRedial: "Saved, redialling",
       apnHint: "Leave empty to use the network's default access point.",
       pdp: "IP type",
@@ -327,6 +370,8 @@ const m: Messages["cellular"] = {
     },
     level: { none: "No cap", ok: "Normal", warn: "Near cap", over: "Over cap" },
     summary: {
+      total: "Total",
+      cycle: "This cycle",
       title: "This cycle",
       description: "Billing cycle {start} to {last} · {count} days left",
       description_one: "Billing cycle {start} to {last} · {count} day left",

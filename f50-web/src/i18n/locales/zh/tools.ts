@@ -3,7 +3,6 @@ export default {
   at: {
     page: {
       title: "AT 终端",
-      description: "直接向调制解调器发送 AT 命令。PIN 和密码不会写入历史记录。",
     },
     class: {
       scan: {
@@ -40,19 +39,16 @@ export default {
       busy: "后台仍有长时间 AT 命令在运行（任务 {job}），请等待它结束",
     },
     form: {
-      title: "命令",
-      description:
-        "一次一条命令，在控制通道上发送。会改动设置的命令需要确认；扫描和超时超过 15 秒的命令以后台任务运行。",
       label: "AT 命令",
       send: "发送",
-      sending: "发送中",
-      history: "浏览本次开机的历史命令（{count} 条）",
-      history_one: "浏览本次开机的历史命令（{count} 条）",
-      historyLoading: "浏览本次开机的历史命令（读取中）",
+      history: "本次开机的历史命令 {count} 条",
+      history_one: "本次开机的历史命令 {count} 条",
+      historyLoading: "历史命令读取中",
+      historyNote: "PIN 和密码不会写入历史记录",
       timeout: "应答超时",
+      timeoutHint: "1–60 秒，留空为默认 8 秒；超过 15 秒以后台任务运行",
       seconds: "秒",
       quick: "常用命令",
-      jobTitle: "后台命令 {command}",
       commandRequired: "请输入 AT 命令",
       commandMax: "最多 {max} 个字符",
       commandAscii: "只能是可打印的 ASCII 字符",
@@ -73,14 +69,13 @@ export default {
       send: "确认发送",
     },
     output: {
-      title: "输出",
       count: "{count} 条记录",
       count_one: "{count} 条记录",
-      empty: "尚无输出",
+      empty: "输入 AT 命令后按回车，例如 AT+CSQ；改动设置的命令会先请你确认",
+      waiting: "等待应答",
+      jobRunning: "后台任务 {job} 运行中",
       copied: "已复制输出",
       copyFailed: "复制失败",
-      emptyTitle: "还没有命令",
-      emptyDescription: "在下方输入 AT 命令，例如 AT+CSQ。",
     },
   },
   jobs: {
@@ -90,11 +85,8 @@ export default {
         "发送短信、长时间 AT 命令、更新等耗时操作在后台运行；设备重启前保留。",
     },
     list: {
-      title: "任务列表",
       running: "{count} 个进行中",
       running_one: "{count} 个进行中",
-      runningDescription: "有任务在运行，每 3 秒自动刷新。",
-      idleDescription: "点击一行查看状态、结果和日志。",
       emptyTitle: "没有任务",
       emptyDescription: "本次开机以来还没有后台任务。",
     },

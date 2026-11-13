@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { KvList, type KvItem } from "@/components/f50/kv-list";
+import { Row } from "@/components/f50/grouped-list";
 import { QueryState } from "@/components/f50/query-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,6 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Separator } from "@/components/ui/separator";
 import { usePoll } from "@/hooks/use-live";
 import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
@@ -39,7 +38,7 @@ const sigSrcLabel = (src: "nr" | "lte" | "cesq") =>
       ? t("cellular.signal.cells.lteServing")
       : "CESQ";
 
-function lteItems(c: LteServing): KvItem[] {
+function lteItems(c: LteServing): Fact[] {
   return [
     {
       label: t("cellular.signal.cells.bandEarfcn"),
@@ -65,7 +64,7 @@ function lteItems(c: LteServing): KvItem[] {
   ];
 }
 
-function nrItems(c: NrServing): KvItem[] {
+function nrItems(c: NrServing): Fact[] {
   return [
     {
       label: t("cellular.signal.cells.bandArfcn"),
@@ -111,6 +110,31 @@ function qosText(q: Qos | null | undefined) {
   });
 }
 
+interface Fact {
+  label: string;
+  value: ReactNode;
+}
+
+/** A settings-style group: every value whole (wrapping, never cut). */
+function Facts({ title, items }: { title?: ReactNode; items: Fact[] }) {
+  return (
+    <section className="flex min-w-0 flex-col gap-1.5">
+      {title && (
+        <h3 className="flex items-center gap-2 px-3 text-xs font-medium text-muted-foreground">
+          {title}
+        </h3>
+      )}
+      <div className="divide-y divide-border/60 overflow-hidden rounded-xl bg-muted/40">
+        {items.map((f) => (
+          <Row key={f.label} label={f.label} wrap>
+            {f.value}
+          </Row>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Section({
   title,
   badge,
@@ -121,7 +145,7 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-2">
       <h3 className="flex items-center gap-2 text-sm font-medium">
         {title}
         {badge}
@@ -152,58 +176,62 @@ function CellsBody({ d }: { d: CellDetail | null }) {
   const ca = d.lte?.ca === "DL_CA";
   return (
     <div className="flex flex-col gap-5">
-      <KvList
-        items={[
-          { label: t("cellular.signal.cells.regLte"), value: regText(d.reg) },
-          { label: t("cellular.signal.cells.reg5g"), value: regText(d.reg5g) },
-          {
-            label: t("cellular.shared.operator"),
-            value: d.operator
-              ? [d.operator.name, d.operator.plmn]
-                  .filter(Boolean)
-                  .join(" · ") || "—"
-              : "—",
-          },
-          {
-            label: t("cellular.signal.cells.sigSrc"),
-            value: d.sig_src ? sigSrcLabel(d.sig_src) : "—",
-          },
-          {
-            label: t("cellular.signal.cells.ca"),
-            value: ca
-              ? t("cellular.signal.cells.caOn", { bw: d.lte?.bw })
-              : t("cellular.signal.cells.caOff"),
-          },
-          {
-            label: t("cellular.signal.cells.bearerQos"),
-            value: qosText(d.qos),
-          },
-        ]}
-      />
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Section
-          title={t("cellular.signal.cells.lteServing")}
-          badge={ca && <Badge variant="secondary">CA</Badge>}
-        >
-          {d.lte ? (
-            <KvList items={lteItems(d.lte)} />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {t("cellular.signal.cells.noLte")}
-            </p>
-          )}
-        </Section>
-        <Section title={t("cellular.signal.cells.nrServing")}>
-          {d.nr ? (
-            <KvList items={nrItems(d.nr)} />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {t("cellular.signal.cells.noNr")}
-            </p>
-          )}
-        </Section>
+      <div className="grid items-start gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        <Facts
+          title={t("cellular.signal.cells.network")}
+          items={[
+            { label: t("cellular.signal.cells.regLte"), value: regText(d.reg) },
+            {
+              label: t("cellular.signal.cells.reg5g"),
+              value: regText(d.reg5g),
+            },
+            {
+              label: t("cellular.shared.operator"),
+              value: d.operator
+                ? [d.operator.name, d.operator.plmn]
+                    .filter(Boolean)
+                    .join(" · ") || "—"
+                : "—",
+            },
+            {
+              label: t("cellular.signal.cells.sigSrc"),
+              value: d.sig_src ? sigSrcLabel(d.sig_src) : "—",
+            },
+            {
+              label: t("cellular.signal.cells.ca"),
+              value: ca
+                ? t("cellular.signal.cells.caOn", { bw: d.lte?.bw })
+                : t("cellular.signal.cells.caOff"),
+            },
+            {
+              label: t("cellular.signal.cells.bearerQos"),
+              value: qosText(d.qos),
+            },
+          ]}
+        />
+        {d.nr && (
+          <Facts
+            title={t("cellular.signal.cells.nrServing")}
+            items={nrItems(d.nr)}
+          />
+        )}
+        {d.lte && (
+          <Facts
+            title={
+              <>
+                {t("cellular.signal.cells.lteServing")}
+                {ca && <Badge variant="secondary">CA</Badge>}
+              </>
+            }
+            items={lteItems(d.lte)}
+          />
+        )}
       </div>
-      <Separator />
+      {!d.nr && !d.lte && (
+        <p className="text-sm text-muted-foreground">
+          {t("cellular.signal.cells.noLte")} · {t("cellular.signal.cells.noNr")}
+        </p>
+      )}
       <Section
         title={t("cellular.signal.cells.neighbours")}
         badge={<Badge variant="outline">{d.neigh?.length ?? 0}</Badge>}

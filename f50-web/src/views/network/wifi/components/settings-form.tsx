@@ -1,15 +1,6 @@
 import { useMemo, useState } from "react";
-import { PendingButton } from "@/components/f50/pending-button";
+import { EditButton, FormDialog } from "@/components/f50/form-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
@@ -66,8 +57,14 @@ function argText(k: keyof WifiSetArgs, v: unknown): string {
   return String(v);
 }
 
-export function WifiSettingsForm({ info }: { info: WifiInfo }) {
+/**
+ * The hotspot's name, password, band, channel and country: the status card shows them already, so they open from its
+ * header in a dialog. The notice that saving restarts the radio sits above the fields, and applying still asks once
+ * more with the list of what changes.
+ */
+export function WifiSettingsDialog({ info }: { info: WifiInfo }) {
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
   const initial = useMemo(() => wifiDefaults(info), [info]);
   const schema = useMemo(() => wifiSchema(initial), [initial]);
   const form = useForm<WifiForm>({
@@ -81,7 +78,7 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
     mutationFn: setWifi,
     onSuccess: () => {
       toast.success(t("network.wifi.settings.saved"));
-      form.reset({ ...form.getValues(), password: "" });
+      setOpen(false);
       qc.invalidateQueries({ queryKey: wifiKeys.info });
     },
     onError: (e) => reportFormError(e, form.setError, WIFI_FIELDS),
@@ -119,15 +116,36 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("network.wifi.settings.title")}</CardTitle>
-        <CardDescription>
-          {t("network.wifi.settings.description")}
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
-        <CardContent className="flex flex-col gap-4">
+    <>
+      <EditButton
+        onClick={() => {
+          form.reset(wifiDefaults(info));
+          setOpen(true);
+        }}
+      />
+      <FormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("network.wifi.settings.title")}
+        description={t("network.wifi.settings.description")}
+        formId="wifi-settings"
+        pending={save.isPending}
+        dirty={form.formState.isDirty}
+        submitText={t("network.shared.saveApply")}
+        size="lg"
+      >
+        <form
+          id="wifi-settings"
+          onSubmit={form.handleSubmit(onSubmit)}
+          noValidate
+          className="flex flex-col gap-4"
+        >
+          <Alert>
+            <AlertTitle>{t("network.wifi.restartAlert.title")}</AlertTitle>
+            <AlertDescription>
+              {t("network.wifi.restartAlert.description")}
+            </AlertDescription>
+          </Alert>
           {info.client_mode && (
             <Alert>
               <AlertTitle>
@@ -384,23 +402,8 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
               )}
             />
           </FieldGroup>
-        </CardContent>
-        <CardFooter className="mt-4 flex flex-wrap justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={save.isPending || !form.formState.isDirty}
-            onClick={() => form.reset(initial)}
-          >
-            {t("common.action.reset")}
-          </Button>
-          <PendingButton type="submit" pending={save.isPending}>
-            {save.isPending
-              ? t("common.action.saving")
-              : t("network.shared.saveApply")}
-          </PendingButton>
-        </CardFooter>
-      </form>
+        </form>
+      </FormDialog>
       <ConfirmDialog
         open={pending !== null}
         onOpenChange={(o) => !o && setPending(null)}
@@ -425,7 +428,7 @@ export function WifiSettingsForm({ info }: { info: WifiInfo }) {
         }
         onConfirm={() => pending && save.mutate(pending)}
       />
-    </Card>
+    </>
   );
 }
 

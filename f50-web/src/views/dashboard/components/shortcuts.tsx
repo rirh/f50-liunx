@@ -51,7 +51,7 @@ const LINKS: { to: string; icon: LucideIcon; title: Key }[] = [
 export function Shortcuts() {
   return (
     <section className="rounded-2xl border bg-card px-2 pt-3.5 pb-2">
-      <h2 className="px-2 pb-1.5 text-[13px] font-semibold tracking-[-0.01em] text-muted-foreground">
+      <h2 className="px-2 pb-1.5 text-sm font-semibold text-muted-foreground">
         {t("dashboard.panel.more")}
       </h2>
       <div className="grid grid-cols-4 gap-1">
@@ -66,7 +66,7 @@ export function Shortcuts() {
               className="size-5 text-foreground/70 transition-colors group-hover:text-primary"
               strokeWidth={1.8}
             />
-            <span className="line-clamp-1 text-[12px] font-medium text-foreground/80">
+            <span className="line-clamp-1 text-xs font-medium text-foreground/80">
               {t(title)}
             </span>
           </Link>

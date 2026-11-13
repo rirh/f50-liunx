@@ -7,7 +7,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSetAtom } from "jotai";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 import { atKeys, atSend } from "../api";
 import { CLASS_LABEL, classOf, translate } from "../messages";
@@ -42,9 +41,17 @@ export interface PendingConfirm {
   message: string;
 }
 
+/** A command running as a job: its id, the line sent and when (ms), for the elapsed time and duration. */
+export interface RunningJob {
+  id: string;
+  command: string;
+  start: number;
+}
+
 /**
- * Sends one command: the reply goes to the output; `missing` on `confirm` asks first and resends with
- * `confirm: true`; a scan or a long timeout comes back as a job whose result's reply lines go to the output.
+ * Sends one command: the command, the reply and any refusal go to the transcript; `missing` on `confirm` asks
+ * first and resends with `confirm: true`; a scan or a long timeout comes back as a job whose result's reply lines
+ * go to the transcript when it ends.
  */
 export function useAtSend() {
   const qc = useQueryClient();
@@ -54,8 +61,7 @@ export function useAtSend() {
     defaultValues: { command: "", timeout: "" },
   });
   const [confirm, setConfirm] = useState<PendingConfirm | null>(null);
-  const [job, setJob] = useState<{ id: string; command: string } | null>(null);
-  const [jobRunning, setJobRunning] = useState(false);
+  const [job, setJob] = useState<RunningJob | null>(null);
 
   const send = useMutation({
     mutationFn: ({
@@ -74,26 +80,28 @@ export function useAtSend() {
       if (!confirmed)
         append({ kind: "command", lines: [values.command.trim()] });
       else append({ kind: "info", lines: [t("tools.at.log.resend")] });
+      return { start: Date.now() };
     },
-    onSuccess: (r, { values }) => {
+    onSuccess: (r, { values }, ctx) => {
+      const start = ctx?.start ?? Date.now();
       form.reset({ command: "", timeout: values.timeout });
       if (isJobStarted(r)) {
-        setJob({ id: r.job, command: values.command.trim() });
-        setJobRunning(true);
+        setJob({ id: r.job, command: values.command.trim(), start });
         append({
           kind: "info",
           lines: [t("tools.at.log.jobStarted", { job: r.job })],
         });
       } else {
-        const reply = r;
         append({
           kind: "reply",
-          lines: reply.reply_lines,
-          status: reply.status,
+          lines: r.reply_lines,
+          status: r.status,
+          ms: Date.now() - start,
         });
       }
     },
-    onError: (e, { values }) => {
+    onError: (e, { values }, ctx) => {
+      const start = ctx?.start ?? Date.now();
       if (
         e instanceof ApiError &&
         e.code === "missing" &&
@@ -120,22 +128,26 @@ export function useAtSend() {
             ? t("tools.at.log.refused", { message: msg })
             : msg,
         ],
+        ms: Date.now() - start,
       });
-      if (
-        e instanceof ApiError &&
-        (e.field === "command" || e.field === "timeout")
-      ) {
-        form.setError(e.field, { message: msg });
-      } else toast.error(msg);
+      // the message is in the transcript; a bad timeout also marks the timeout setting
+      if (e instanceof ApiError && e.field === "timeout")
+        form.setError("timeout", { message: msg });
     },
     onSettled: () => qc.invalidateQueries({ queryKey: atKeys.history }),
   });
 
   const onJobDone = (j: JobStatus) => {
-    setJobRunning(false);
+    const ms = job ? Date.now() - job.start : undefined;
+    setJob(null);
     if (j.state === "done") {
       const r = j.result as AtReply | undefined;
-      append({ kind: "reply", lines: r?.reply_lines ?? [], status: r?.status });
+      append({
+        kind: "reply",
+        lines: r?.reply_lines ?? [],
+        status: r?.status,
+        ms,
+      });
     } else {
       append({
         kind: "error",
@@ -146,17 +158,29 @@ export function useAtSend() {
               ? t("tools.at.log.jobCancelled")
               : t("tools.at.log.jobUnfinished"),
         ],
+        ms,
       });
     }
   };
 
+  const busy = send.isPending || job !== null;
+  const submit = form.handleSubmit((values) => {
+    if (!busy) send.mutate({ values, confirmed: false });
+  });
+
   return {
     form,
-    submit: form.handleSubmit((values) =>
-      send.mutate({ values, confirmed: false }),
-    ),
+    submit,
+    /** Puts `command` on the prompt line and sends it. */
+    run: (command: string) => {
+      form.setValue("command", command);
+      form.clearErrors("command");
+      return submit();
+    },
     sending: send.isPending,
-    busy: send.isPending || jobRunning,
+    /** When the pending request was sent (ms). */
+    sentAt: send.submittedAt,
+    busy,
     confirm,
     acceptConfirm: () => {
       if (confirm) send.mutate({ values: confirm.values, confirmed: true });
@@ -167,8 +191,6 @@ export function useAtSend() {
       setConfirm(null);
     },
     job,
-    jobRunning,
     onJobDone,
-    dismissJob: () => setJob(null),
   };
 }

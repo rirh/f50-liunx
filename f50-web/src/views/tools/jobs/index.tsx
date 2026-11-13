@@ -3,13 +3,7 @@ import { PageHeader } from "@/components/f50/page-header";
 import { QueryState } from "@/components/f50/query-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -43,57 +37,49 @@ export default function JobsPage() {
         title={t("tools.jobs.page.title")}
         description={t("tools.jobs.page.description")}
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={query.isFetching}
-            aria-busy={query.isFetching}
-            onClick={() => void query.refetch()}
-          >
-            <RefreshCwIcon data-icon="inline-start" />
-            {refreshing ? (
-              <SweepShine>{t("common.action.refreshing")}</SweepShine>
-            ) : (
-              t("common.action.refresh")
-            )}
-          </Button>
-        }
-      />
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {t("tools.jobs.list.title")}
+          <>
             {running > 0 && (
               <Badge>{t("tools.jobs.list.running", { count: running })}</Badge>
             )}
-          </CardTitle>
-          <CardDescription>
-            {running > 0
-              ? t("tools.jobs.list.runningDescription")
-              : t("tools.jobs.list.idleDescription")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <QueryState query={query} skeletonRows={5}>
-            {(jobs) =>
-              jobs.length === 0 ? (
-                <Empty>
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <ListChecksIcon />
-                    </EmptyMedia>
-                    <EmptyTitle>{t("tools.jobs.list.emptyTitle")}</EmptyTitle>
-                    <EmptyDescription>
-                      {t("tools.jobs.list.emptyDescription")}
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={query.isFetching}
+              aria-busy={query.isFetching}
+              onClick={() => void query.refetch()}
+            >
+              <RefreshCwIcon data-icon="inline-start" />
+              {refreshing ? (
+                <SweepShine>{t("common.action.refreshing")}</SweepShine>
               ) : (
+                t("common.action.refresh")
+              )}
+            </Button>
+          </>
+        }
+      />
+      <Card className="py-1">
+        <QueryState query={query} skeletonRows={5}>
+          {(jobs) =>
+            jobs.length === 0 ? (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <ListChecksIcon />
+                  </EmptyMedia>
+                  <EmptyTitle>{t("tools.jobs.list.emptyTitle")}</EmptyTitle>
+                  <EmptyDescription>
+                    {t("tools.jobs.list.emptyDescription")}
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              <div className="px-2">
                 <JobsTable data={jobs} onOpen={setOpen} />
-              )
-            }
-          </QueryState>
-        </CardContent>
+              </div>
+            )
+          }
+        </QueryState>
       </Card>
       <JobDetailSheet id={open} onClose={() => setOpen(null)} />
     </div>

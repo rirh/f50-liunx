@@ -4,12 +4,14 @@ import { QueryState } from "@/components/f50/query-state";
 import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { getSettingsInfo, infoKey } from "./api";
-import { HostnameForm } from "./components/hostname-form";
-import { PasswordForm } from "./components/password-form";
+import { GeneralCard } from "./components/general-card";
 import { type PowerAction, PowerCard } from "./components/power-card";
 import { PowerWait } from "./components/power-wait";
-import { TimezoneForm } from "./components/timezone-form";
 
+/**
+ * One General card (hostname, time zone, root password as read-only rows, each edited in its own dialog) beside the
+ * power actions. Once a reboot or power-off starts, the page gives way to the wait screen.
+ */
 export default function Page() {
   const info = useQuery({ queryKey: infoKey, queryFn: getSettingsInfo });
   const [power, setPower] = useState<{
@@ -40,10 +42,8 @@ export default function Page() {
       />
       <QueryState query={info} skeletonRows={6}>
         {(d) => (
-          <div className="grid gap-6 lg:grid-cols-2">
-            <HostnameForm current={d.hostname} />
-            <TimezoneForm current={d.timezone} time={d.time} />
-            <PasswordForm />
+          <div className="grid items-start gap-6 lg:grid-cols-2">
+            <GeneralCard info={d} />
             <PowerCard
               onStarted={(action) => setPower({ action, since: Date.now() })}
             />

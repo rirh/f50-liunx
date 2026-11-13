@@ -86,6 +86,13 @@ pub(crate) fn objects(s: &System) -> Vec<Object> {
                 s.logs(n).await
             }),
         )
+        .method(
+            "logs_mark",
+            Access::Read,
+            NONE,
+            "A fingerprint of the newest log lines; changes when the logs do, reveals nothing of them.",
+            h(s, |s, _| async move { s.logs_mark().await }),
+        )
         .build();
     let cpu = Object::builder("f50.cpu")
         .method(

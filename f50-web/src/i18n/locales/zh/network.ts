@@ -252,8 +252,7 @@ export default {
       },
     },
     status: {
-      title: "当前局域网",
-      description: "路由器地址与 DHCP 地址池",
+      router: "路由器",
       address: "路由器地址",
       netmask: "子网掩码",
       live: "br-lan 实际地址",
@@ -414,7 +413,7 @@ export default {
       authKeys: "仅授权密钥",
       authOpen: "开放",
       savingHint: "正在保存…",
-      accessHint: "推荐“仅授权密钥”，并在下方添加电脑的 adbkey.pub",
+      accessHint: "推荐“仅授权密钥”，并用“添加密钥”授权电脑的 adbkey.pub",
       confirmOpen: {
         title: "改为开放模式？",
         confirm: "改为开放",

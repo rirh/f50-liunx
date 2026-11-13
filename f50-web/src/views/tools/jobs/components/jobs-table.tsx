@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/table";
 import { t } from "@/i18n";
 import { formatAgo, formatTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import {
   createColumnHelper,
   createSortedRowModel,
@@ -49,18 +50,20 @@ const columns = col.columns([
     header: () => t("tools.jobs.field.action"),
     sortFn: "text",
     cell: (info) => (
-      <div className="flex min-w-0 flex-col">
-        <span className="truncate">{jobMethodLabel(info.getValue())}</span>
-        <code className="truncate font-mono text-xs text-muted-foreground">
-          {info.row.original.id}
-        </code>
-      </div>
+      // one line: the id is in the tooltip and the details
+      <span title={info.row.original.id}>
+        {jobMethodLabel(info.getValue())}
+      </span>
     ),
   }),
   col.accessor("kind", {
     header: () => t("tools.jobs.field.kind"),
     sortFn: "text",
-    cell: (info) => jobKindLabel(info.getValue()),
+    cell: (info) => (
+      <span className="text-muted-foreground">
+        {jobKindLabel(info.getValue())}
+      </span>
+    ),
   }),
   col.accessor("state", {
     header: () => t("tools.jobs.field.state"),
@@ -137,13 +140,16 @@ export function JobsTable({
               return (
                 <TableHead
                   key={h.id}
-                  className={hideOnPhone ? "hidden sm:table-cell" : undefined}
+                  className={cn(
+                    "h-8 text-xs text-muted-foreground",
+                    hideOnPhone && "hidden sm:table-cell",
+                  )}
                 >
                   {h.isPlaceholder ? null : h.column.getCanSort() ? (
                     <Button
                       variant="ghost"
                       size="xs"
-                      className="-ml-2"
+                      className="-ml-2 text-xs text-muted-foreground"
                       onClick={h.column.getToggleSortingHandler()}
                       aria-sort={
                         sorted === "asc"
@@ -188,11 +194,12 @@ export function JobsTable({
             {row.getAllCells().map((cell) => (
               <TableCell
                 key={cell.id}
-                className={
-                  cell.column.id === "kind" || cell.column.id === "finished"
-                    ? "hidden sm:table-cell"
-                    : undefined
-                }
+                className={cn(
+                  "py-1.5 tabular-nums",
+                  (cell.column.id === "kind" ||
+                    cell.column.id === "finished") &&
+                    "hidden sm:table-cell",
+                )}
               >
                 <table.FlexRender cell={cell} />
               </TableCell>

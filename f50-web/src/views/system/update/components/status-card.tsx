@@ -66,7 +66,7 @@ export function StatusCard({ status: s }: { status: UpdateStatus }) {
             {
               label: t("maintenance.update.status.version"),
               value: (
-                <span className="font-mono">
+                <span className="tabular-nums">
                   {s.installed ?? t("common.state.unknown")}
                 </span>
               ),
@@ -74,7 +74,7 @@ export function StatusCard({ status: s }: { status: UpdateStatus }) {
             {
               label: t("maintenance.update.status.kernel"),
               value: (
-                <span className="font-mono">{s.kernel.running ?? "—"}</span>
+                <span className="tabular-nums">{s.kernel.running ?? "—"}</span>
               ),
             },
             {
@@ -87,7 +87,7 @@ export function StatusCard({ status: s }: { status: UpdateStatus }) {
             {
               label: t("maintenance.update.status.boot"),
               value: (
-                <span className="font-mono">
+                <span className="tabular-nums">
                   {s.boot.release ?? "—"} · {s.boot.kernel ?? "—"} ·{" "}
                   {t("maintenance.update.status.slot", { slot: s.boot.slot })}
                 </span>
@@ -96,7 +96,7 @@ export function StatusCard({ status: s }: { status: UpdateStatus }) {
             {
               label: t("maintenance.update.status.bootBackup"),
               value: s.boot.previous ? (
-                <span className="flex flex-wrap items-center gap-2 font-mono">
+                <span className="flex flex-wrap items-center gap-2 tabular-nums">
                   {s.boot.previous.release ??
                     t("maintenance.update.status.unknownRelease")}{" "}
                   · {s.boot.previous.kernel ?? "—"}

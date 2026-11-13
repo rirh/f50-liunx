@@ -8,10 +8,10 @@ import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLinkIcon, RefreshCwIcon } from "lucide-react";
 import { getLan, lanKeys } from "./api";
-import { LanSettingsForm } from "./components/settings-form";
-import { LanStatusCard } from "./components/status-card";
-import { lanDefaults } from "./schema";
+import { LanSettingsDialog } from "./components/settings-form";
+import { LanStatus } from "./components/status-card";
 
+/** The LAN as it is, as grouped rows; its settings open in a dialog from the page's actions. */
 export default function LanPage() {
   const query = useQuery({ queryKey: lanKeys.info, queryFn: getLan });
   /** The console's new address after the LAN moved: this page's own address no longer answers. */
@@ -22,17 +22,22 @@ export default function LanPage() {
         title={t("network.lan.title")}
         description={t("network.lan.description")}
         actions={
-          <PendingButton
-            variant="outline"
-            size="sm"
-            pending={query.isFetching}
-            onClick={() => query.refetch()}
-          >
-            <RefreshCwIcon data-icon="inline-start" />
-            {query.isFetching
-              ? t("common.action.refreshing")
-              : t("common.action.refresh")}
-          </PendingButton>
+          <>
+            {query.data && (
+              <LanSettingsDialog info={query.data} onMoved={setMoved} />
+            )}
+            <PendingButton
+              variant="outline"
+              size="sm"
+              pending={query.isFetching}
+              onClick={() => query.refetch()}
+            >
+              <RefreshCwIcon data-icon="inline-start" />
+              {query.isFetching
+                ? t("common.action.refreshing")
+                : t("common.action.refresh")}
+            </PendingButton>
+          </>
         }
       />
       {moved && (
@@ -43,23 +48,14 @@ export default function LanPage() {
             <Button asChild size="sm" variant="outline">
               <a href={moved}>
                 <ExternalLinkIcon data-icon="inline-start" />
-                <span className="font-mono break-all">{moved}</span>
+                <span className="tabular-nums break-all">{moved}</span>
               </a>
             </Button>
           </AlertDescription>
         </Alert>
       )}
       <QueryState query={query} skeletonRows={6}>
-        {(info) => (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-            <LanStatusCard info={info} />
-            <LanSettingsForm
-              key={JSON.stringify(lanDefaults(info))}
-              info={info}
-              onMoved={setMoved}
-            />
-          </div>
-        )}
+        {(info) => <LanStatus info={info} />}
       </QueryState>
     </div>
   );

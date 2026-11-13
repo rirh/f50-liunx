@@ -30,7 +30,7 @@ export function BootSummary({ info }: { info: BootInfo }) {
             {
               label: t("maintenance.boot.summary.slot"),
               value: (
-                <span className="font-mono">{info.slot.toUpperCase()}</span>
+                <span className="tabular-nums">{info.slot.toUpperCase()}</span>
               ),
             },
             {

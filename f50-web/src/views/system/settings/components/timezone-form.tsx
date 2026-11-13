@@ -1,13 +1,5 @@
-import { useMemo } from "react";
-import { PendingButton } from "@/components/f50/pending-button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useMemo, useState } from "react";
+import { EditButton, FormDialog } from "@/components/f50/form-dialog";
 import {
   Combobox,
   ComboboxContent,
@@ -30,10 +22,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { SettingRow } from "./setting-row";
 import { infoKey, setTimezone } from "../api";
 import { type TimezoneValues, timezoneSchema, zoneList } from "../schemas";
 
-export function TimezoneForm({
+/**
+ * The time zone as a row of the General card, with the device's clock under it (so a wrong zone shows at a glance),
+ * edited in a dialog. A device without a zone set runs on UTC, so that is what the row and the form start from.
+ */
+export function TimezoneSetting({
   current,
   time,
 }: {
@@ -41,6 +38,7 @@ export function TimezoneForm({
   time: number;
 }) {
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
   const zones = useMemo(() => {
     const list = zoneList();
     return current && !list.includes(current) ? [current, ...list] : list;
@@ -48,31 +46,48 @@ export function TimezoneForm({
   const schema = useMemo(() => timezoneSchema(), []);
   const form = useForm<TimezoneValues>({
     resolver: zodResolver(schema),
-    values: { zone: current ?? "UTC" },
+    defaultValues: { zone: current ?? "UTC" },
   });
   const save = useMutation({
     mutationFn: (v: TimezoneValues) => setTimezone(v.zone),
     onSuccess: (r) => {
       toast.success(t("system.settings.timezone.saved", { zone: r.timezone }));
+      setOpen(false);
       qc.invalidateQueries({ queryKey: infoKey });
     },
     onError: (e) => reportFormError(e, form.setError, { zone: "zone" }),
   });
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("system.settings.timezone.title")}</CardTitle>
-        <CardDescription>
-          {t("system.settings.timezone.description", {
-            time: formatTime(time),
-          })}
-        </CardDescription>
-      </CardHeader>
-      <form
-        onSubmit={form.handleSubmit((v) => save.mutate(v))}
-        className="contents"
+    <>
+      <SettingRow
+        label={t("system.settings.timezone.title")}
+        value={current ?? "UTC"}
+        hint={t("system.settings.timezone.now", { time: formatTime(time) })}
+        action={
+          <EditButton
+            onClick={() => {
+              form.reset({ zone: current ?? "UTC" });
+              setOpen(true);
+            }}
+          />
+        }
+      />
+      <FormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("system.settings.timezone.title")}
+        description={t("system.settings.timezone.description", {
+          time: formatTime(time),
+        })}
+        formId="timezone-form"
+        size="sm"
+        pending={save.isPending}
+        dirty={form.formState.isDirty}
       >
-        <CardContent>
+        <form
+          id="timezone-form"
+          onSubmit={form.handleSubmit((v) => save.mutate(v))}
+        >
           <FieldGroup>
             <Controller
               name="zone"
@@ -118,17 +133,8 @@ export function TimezoneForm({
               )}
             />
           </FieldGroup>
-        </CardContent>
-        <CardFooter>
-          <PendingButton
-            type="submit"
-            pending={save.isPending}
-            disabled={!form.formState.isDirty}
-          >
-            {t("common.action.save")}
-          </PendingButton>
-        </CardFooter>
-      </form>
-    </Card>
+        </form>
+      </FormDialog>
+    </>
   );
 }

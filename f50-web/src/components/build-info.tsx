@@ -14,7 +14,8 @@ const compactBuildTime = validBuildTime
   : null;
 let printed = false;
 
-export function BuildInfo() {
+/** Prints the console's name, version and build time (and the public Vite values) once per page load. */
+export function useBuildLog() {
   useEffect(() => {
     // Avoid duplicate logs during Strict Mode effects and route remounts.
     if (printed) return;
@@ -41,7 +42,10 @@ export function BuildInfo() {
     console.table(variables);
     console.groupEnd();
   }, []);
+}
 
+export function BuildInfo() {
+  useBuildLog();
   const relativeTime = validBuildTime
     ? formatDistanceToNow(buildDate, { addSuffix: true, locale: dateLocale() })
     : "";
@@ -52,7 +56,7 @@ export function BuildInfo() {
     >
       <span className="inline-flex items-center gap-2">
         <span>{name}</span>
-        <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">
+        <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-2xs">
           v{version}
         </span>
       </span>

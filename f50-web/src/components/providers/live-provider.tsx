@@ -4,6 +4,7 @@
  * - Each event goes into the query cache under the key the page that shows it reads, so a page renders pushed and
  *   polled figures alike; while the stream is live, those pages stop polling (`usePoll`).
  * - A new unread count means a message came or was read: the conversation list is fetched again at once.
+ * - A new log fingerprint means the logs gained a line: the open log page reads them again at once.
  * - The stream reconnects with a growing pause (1 s to 30 s). A refused subscription (a login older than the
  *   `:subscribe` grant) is tried again only every 5 minutes; the pages poll meanwhile.
  * - A stream alone never touches the rpcd session, which then expires after 5 idle minutes: one cheap read a minute
@@ -21,6 +22,7 @@ import { STATUS_KEY } from "@/views/dashboard/api";
 import type { DashboardStatus } from "@/views/dashboard/types";
 import { smsKeys } from "@/views/sms/api";
 import type { UnreadCounts } from "@/views/sms/types";
+import { logsAll, logsMarkKey } from "@/views/system/logs/api";
 import { systemKeys } from "@/views/system/overview/api";
 import type { CpuTimes, SystemStatus } from "@/views/system/overview/types";
 import { cpuPercent, memPercent } from "@/views/system/overview/utils";
@@ -32,6 +34,7 @@ const TOPIC_KEYS: Record<string, readonly unknown[]> = {
   modem: signalKeys.status,
   cells: signalKeys.cells,
   sms: smsKeys.unread,
+  logs: logsMarkKey,
 };
 
 const BACKOFF_MIN = 1000;
@@ -124,6 +127,13 @@ function onEvent(qc: QueryClient, e: LiveEvent) {
         queryKey: smsKeys.all,
         refetchType: "active",
       });
+  }
+  if (e.topic === "logs") {
+    const before = qc.getQueryData<{ mark: string }>(logsMarkKey);
+    const now = env.data as { mark: string };
+    // the logs gained a line: the log page (if open) reads them again; nothing else is fetched
+    if (before && before.mark !== now.mark)
+      void qc.invalidateQueries({ queryKey: logsAll, refetchType: "active" });
   }
   qc.setQueryData(key, env.data);
 }

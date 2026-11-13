@@ -16,8 +16,9 @@ import { TrendCard } from "./components/trend-card";
 import { useLiveStatus } from "./hooks/use-live-status";
 
 /**
- * The device at a glance: any alert, the four headline figures, the grouped facts in four columns, the load history, then
- * the clients. Pushed figures need no refresh button; it shows only while the page polls.
+ * The device at a glance, live before static: any alert, the four headline figures, their history, who is connected,
+ * and last the grouped facts in four columns (they rarely change, so they are looked up rather than watched). Pushed
+ * figures need no refresh button; it shows only while the page polls.
  */
 export default function Page() {
   const info = useQuery({ queryKey: systemKeys.info, queryFn: getInfo });
@@ -82,9 +83,9 @@ export default function Page() {
         </Alert>
       )}
       <StatTiles live={status.data} info={info.data} />
-      <AboutCard info={info.data} live={status.data} />
       <TrendCard live={status.data} />
       <ClientsCard />
+      <AboutCard info={info.data} live={status.data} />
     </>
   );
 }

@@ -1,7 +1,7 @@
 /** The sidebar: groups and page titles (also the header's page title). */
 export default {
   group: {
-    overview: "概览",
+    overview: "常用",
     mobile: "移动网络",
     connect: "连接",
     device: "设备",

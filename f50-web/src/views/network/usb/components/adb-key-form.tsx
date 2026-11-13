@@ -1,16 +1,13 @@
-import { useMemo } from "react";
-import { PendingButton } from "@/components/f50/pending-button";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+import { useMemo, useState } from "react";
+import { FormDialog } from "@/components/f50/form-dialog";
+import { Button } from "@/components/ui/button";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { KeyRoundIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -41,8 +38,13 @@ const schema = () =>
   });
 type KeyForm = z.infer<ReturnType<typeof schema>>;
 
-export function AdbKeyForm() {
+/**
+ * Authorising a computer's adb key: a 700-character paste that would crowd the adb card, so it opens from the card's
+ * header in a dialog.
+ */
+export function AdbKeyDialog() {
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
   const resolverSchema = useMemo(() => schema(), []);
   const form = useForm<KeyForm>({
     resolver: zodResolver(resolverSchema),
@@ -55,54 +57,62 @@ export function AdbKeyForm() {
       if (r.added)
         toast.success(t("network.usb.adbKey.added", { count: r.keys }));
       else toast.info(t("network.usb.adbKey.exists"));
-      form.reset({ key: "" });
+      setOpen(false);
       qc.invalidateQueries({ queryKey: usbKeys.info });
     },
     onError: (e) => reportFormError(e, form.setError, ["key"]),
   });
   return (
-    <form
-      onSubmit={form.handleSubmit((v) => add.mutate(v))}
-      noValidate
-      className="flex flex-col gap-3"
-    >
-      <Controller
-        control={form.control}
-        name="key"
-        render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="adb-key">
-              {t("network.usb.adbKey.label")}
-            </FieldLabel>
-            <Textarea
-              id="adb-key"
-              rows={4}
-              spellCheck={false}
-              className="font-mono text-xs break-all"
-              placeholder="QAAAA…= user@host"
-              aria-invalid={fieldState.invalid}
-              {...field}
-            />
-            {fieldState.error ? (
-              <FieldError errors={[fieldState.error]} />
-            ) : (
-              <FieldDescription>
-                {t("network.usb.adbKey.hint")}
-              </FieldDescription>
-            )}
-          </Field>
-        )}
-      />
-      <PendingButton
-        type="submit"
+    <>
+      <Button
+        variant="outline"
         size="sm"
-        className="self-end"
-        pending={add.isPending}
+        onClick={() => {
+          form.reset({ key: "" });
+          setOpen(true);
+        }}
       >
-        {add.isPending
-          ? t("network.usb.adbKey.adding")
-          : t("network.usb.adbKey.add")}
-      </PendingButton>
-    </form>
+        <KeyRoundIcon data-icon="inline-start" />
+        {t("network.usb.adbKey.add")}
+      </Button>
+      <FormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("network.usb.adbKey.add")}
+        description={t("network.usb.adbKey.hint")}
+        formId="adb-key"
+        pending={add.isPending}
+        dirty={form.formState.isDirty}
+        submitText={t("network.usb.adbKey.add")}
+      >
+        <form
+          id="adb-key"
+          onSubmit={form.handleSubmit((v) => add.mutate(v))}
+          noValidate
+        >
+          <Controller
+            control={form.control}
+            name="key"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="adb-key-input">
+                  {t("network.usb.adbKey.label")}
+                </FieldLabel>
+                <Textarea
+                  id="adb-key-input"
+                  rows={6}
+                  spellCheck={false}
+                  className="font-mono text-xs break-all"
+                  placeholder="QAAAA…= user@host"
+                  aria-invalid={fieldState.invalid}
+                  {...field}
+                />
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
+        </form>
+      </FormDialog>
+    </>
   );
 }

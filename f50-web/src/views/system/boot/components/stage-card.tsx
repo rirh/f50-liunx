@@ -47,7 +47,7 @@ const columns: TableColumn<Step>[] = [
     header: () => t("maintenance.boot.step.name"),
     enableSorting: false,
     cell: (x) => (
-      <span className="font-mono whitespace-nowrap">{x.getValue()}</span>
+      <span className="tabular-nums whitespace-nowrap">{x.getValue()}</span>
     ),
   }),
   c.accessor("outcome", {

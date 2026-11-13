@@ -36,11 +36,11 @@ const stationColumns: TableColumn<Station>[] = [
   st.accessor((r) => r.ip ?? "", {
     id: "ip",
     header: () => t("system.overview.clients.col.ip"),
-    cell: (c) => <span className="font-mono">{c.getValue() || "—"}</span>,
+    cell: (c) => <span className="tabular-nums">{c.getValue() || "—"}</span>,
   }),
   st.accessor("mac", {
     header: "MAC",
-    cell: (c) => <span className="font-mono">{c.getValue()}</span>,
+    cell: (c) => <span className="tabular-nums">{c.getValue()}</span>,
   }),
   st.accessor("signal", {
     header: () => t("system.overview.clients.col.signal"),
@@ -75,11 +75,11 @@ const leaseColumns: TableColumn<Lease>[] = [
   }),
   ls.accessor("ip", {
     header: () => t("system.overview.clients.col.ip"),
-    cell: (c) => <span className="font-mono">{c.getValue()}</span>,
+    cell: (c) => <span className="tabular-nums">{c.getValue()}</span>,
   }),
   ls.accessor("mac", {
     header: "MAC",
-    cell: (c) => <span className="font-mono">{c.getValue()}</span>,
+    cell: (c) => <span className="tabular-nums">{c.getValue()}</span>,
   }),
   ls.accessor("left", {
     header: () => t("system.overview.clients.col.left"),

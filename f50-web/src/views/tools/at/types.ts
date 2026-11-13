@@ -34,4 +34,6 @@ export interface OutputEntry {
   lines: string[];
   /** The final result line of a reply. */
   status?: string;
+  /** How long the reply took, in milliseconds. */
+  ms?: number;
 }

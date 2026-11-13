@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { AnimatedNumber } from "@/components/f50/animated-number";
 import { Button } from "@/components/ui/button";
 import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 import {
@@ -17,17 +17,10 @@ import { t } from "@/i18n";
 import { formatBytes, formatDuration, formatRate } from "@/lib/format";
 import { type RatePoint, useSeries } from "@/lib/series";
 import { cn } from "@/lib/utils";
-import { getInfo, systemKeys } from "@/views/system/overview/api";
-import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  EllipsisIcon,
-  ThermometerIcon,
-} from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, EllipsisIcon } from "lucide-react";
 import { Area, AreaChart, YAxis } from "recharts";
 import { CarrierLogo } from "./carrier-logo";
-import { Capsule, ResourceMeter, SignalGrid } from "./device-meters";
+import { SignalGrid } from "./device-meters";
 import { SignalBars } from "./signal-bars";
 import { CARRIER_NAME, carrierOf } from "../carrier";
 import { DATA_PHASE_LABEL, RAT_LABEL, label } from "../labels";
@@ -41,9 +34,6 @@ const share = (
   total: number | null | undefined,
 ) => (used != null && total ? (used / total) * 100 : null);
 
-const kb = (n: number | null | undefined) =>
-  n == null ? "—" : formatBytes(n * 1024);
-
 /** "23.3 KB/s" -> ["23.3", "KB/s"], so the figure can be large and the unit small (as Apple's widgets set them). */
 const split = (s: string): [string, string] => {
   const i = s.lastIndexOf(" ");
@@ -55,37 +45,15 @@ const rateChart = {
   tx: { label: "tx", color: "#34C759" },
 } satisfies ChartConfig;
 
-/** A section's caption: Apple's footnote style, with an optional figure on the right. */
-function Caption({
-  children,
-  aside,
-}: {
-  children: ReactNode;
-  aside?: ReactNode;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-[12px] font-medium text-muted-foreground">
-        {children}
-      </span>
-      {aside && (
-        <span className="text-[12px] text-muted-foreground tabular-nums">
-          {aside}
-        </span>
-      )}
-    </div>
-  );
-}
-
 /** One direction of the live speed: arrow and label, the figure large, the unit small. */
 function Speed({ dir, value }: { dir: "down" | "up"; value: number | null }) {
-  const [n, unit] = split(formatRate(value));
+  const unit = split(formatRate(value))[1];
   const Icon = dir === "down" ? ArrowDownIcon : ArrowUpIcon;
   return (
     <div className="flex min-w-0 flex-col">
       <span
         className={cn(
-          "flex items-center gap-1 text-[12px] font-medium",
+          "flex items-center gap-1 text-xs font-medium",
           dir === "down"
             ? "text-[#0A84FF]"
             : "text-[#248A3D] dark:text-[#30D158]",
@@ -94,11 +62,13 @@ function Speed({ dir, value }: { dir: "down" | "up"; value: number | null }) {
         <Icon aria-hidden className="size-3.5" strokeWidth={2.5} />
         {t(dir === "down" ? "dashboard.hero.down" : "dashboard.hero.up")}
       </span>
-      <span className="truncate tabular-nums">
-        <span className="text-[28px] leading-[1.15] font-semibold tracking-[-0.02em]">
-          {n}
-        </span>
-        <span className="ms-1 text-[13px] font-medium text-muted-foreground">
+      <span className="truncate">
+        <AnimatedNumber
+          value={value}
+          format={(v) => split(formatRate(v))[0]}
+          className="tabular-nums text-xl leading-tight font-semibold"
+        />
+        <span className="ms-1 text-sm font-medium text-muted-foreground">
           {unit}
         </span>
       </span>
@@ -118,14 +88,14 @@ const cycleElapsed = (start: string, last: string, left: number) => {
 function SpeedChart({ k, points }: { k: "rx" | "tx"; points: RatePoint[] }) {
   if (points.length < 2)
     return (
-      <div className="flex h-16 items-center text-[12px] text-muted-foreground">
+      <div className="flex h-10 items-center text-xs text-muted-foreground">
         {t("dashboard.hero.collecting")}
       </div>
     );
   return (
     <ChartContainer
       config={rateChart}
-      className="aspect-auto h-16 w-full"
+      className="aspect-auto h-10 w-full"
       aria-hidden
     >
       <AreaChart
@@ -168,22 +138,14 @@ function SpeedChart({ k, points }: { k: "rx" | "tx"; points: RatePoint[] }) {
 /**
  * The network at a glance, most-looked-at first: the carrier's emblem, the generation and the link (state, SIM,
  * address); the live speed in large figures over its curve; the data used this cycle; the signal's recent readings;
- * then the device (name, model, uptime, temperature, CPU, memory, storage). Sections are separated by hairlines, never
+ * the device's own state is the system card's (system-card.tsx). Sections are separated by hairlines, never
  * boxed. Data, the hotspot, USB, messages and the version are the service list's, so this card does not repeat them.
  */
 export function DeviceCard({ s }: { s: DashboardStatus }) {
-  const info = useQuery({
-    queryKey: systemKeys.info,
-    queryFn: getInfo,
-    staleTime: 60_000,
-  });
-  const i = info.data;
   const modem = ok(s.modem);
   const data = ok(s.data);
   const traffic = ok(s.traffic);
-  const system = ok(s.system);
 
-  const cpu = useSeries("system").at(-1)?.cpu ?? null;
   const rates = useSeries("rate");
   const rate = rates.at(-1);
   const signal = useSeries("signal");
@@ -210,15 +172,9 @@ export function DeviceCard({ s }: { s: DashboardStatus }) {
       : label(DATA_PHASE_LABEL, data.state)
     : t("common.state.readFailed");
 
-  const mem = system?.memory ?? i?.memory;
-  const memUsed =
-    mem?.total_kb != null && mem.avail_kb != null
-      ? mem.total_kb - mem.avail_kb
-      : null;
-  const disk = i?.storage?.disk ?? i?.storage?.root ?? null;
-
   const capped = !!traffic && traffic.cap.bytes > 0;
   const used = traffic ? share(traffic.cycle.used, traffic.cap.bytes) : null;
+  // the background fills to the share of the cap used; with no cap, to how far the cycle has gone
   const elapsed = traffic
     ? cycleElapsed(
         traffic.cycle.start,
@@ -226,11 +182,16 @@ export function DeviceCard({ s }: { s: DashboardStatus }) {
         traffic.cycle.days_left,
       )
     : null;
-  const temp = system
-    ? (system.temperatures.hottest ?? system.temperatures.cpu)
-    : null;
-  const hot = !!system?.heat_alarm;
-  const uptime = system?.uptime ?? i?.uptime ?? null;
+
+  const fill = Math.min(100, Math.max(0, (capped ? used : elapsed) ?? 0));
+  const fillTone =
+    traffic?.cap.level === "over"
+      ? "bg-destructive/15"
+      : traffic?.cap.level === "warn"
+        ? "bg-amber-500/18"
+        : capped
+          ? "bg-emerald-500/14"
+          : "bg-[#0A84FF]/10";
 
   return (
     <article
@@ -238,28 +199,28 @@ export function DeviceCard({ s }: { s: DashboardStatus }) {
       data-state={data?.state}
     >
       {/* 1 · the network: carrier, generation, state, bars */}
-      <header className="flex items-center gap-3 px-4 pt-4 pb-3">
+      <header className="flex items-center gap-3 px-4 pt-3.5 pb-2">
         <CarrierLogo carrier={carrier} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <div className="flex min-w-0 items-center gap-1.5">
             <Link
               to="/cellular/signal"
-              className="truncate text-[17px] leading-tight font-semibold tracking-[-0.022em] hover:text-primary"
+              className="truncate text-base leading-tight font-semibold hover:text-primary"
             >
               {carrierName}
             </Link>
             {modem?.registered && modem.rat && (
-              <span className="shrink-0 rounded-[5px] bg-foreground px-1.5 py-px text-[11px] leading-4 font-semibold text-background">
+              <span className="shrink-0 rounded-[5px] bg-foreground px-1.5 py-px text-2xs leading-4 font-semibold text-background">
                 {label(RAT_LABEL, modem.rat)}
               </span>
             )}
             {modem?.roaming && (
-              <span className="shrink-0 rounded-[5px] bg-[#FF9500]/15 px-1.5 py-px text-[11px] leading-4 font-semibold text-[#C93400] dark:text-[#FF9F0A]">
+              <span className="shrink-0 rounded-[5px] bg-[#FF9500]/15 px-1.5 py-px text-2xs leading-4 font-semibold text-[#C93400] dark:text-[#FF9F0A]">
                 {t("dashboard.hero.roaming")}
               </span>
             )}
           </div>
-          <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+          <span className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
             <span className="relative flex size-2 shrink-0">
               {online && (
                 <span
@@ -280,7 +241,7 @@ export function DeviceCard({ s }: { s: DashboardStatus }) {
             {data?.addresses[0] && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="truncate text-muted-foreground/70 tabular-nums">
+                  <span className="truncate tabular-nums text-xs text-muted-foreground/70">
                     · {data.addresses[0]}
                   </span>
                 </TooltipTrigger>
@@ -327,12 +288,12 @@ export function DeviceCard({ s }: { s: DashboardStatus }) {
       </header>
 
       {/* 2 · the live speed: download and upload side by side, each over its own curve */}
-      <section className="grid grid-cols-2 divide-x pb-3">
-        <div className="flex min-w-0 flex-col gap-1 ps-4 pe-3">
+      <section className="grid grid-cols-2 divide-x pb-2.5">
+        <div className="flex min-w-0 flex-col gap-0.5 ps-4 pe-3">
           <Speed dir="down" value={rate?.rx ?? null} />
           <SpeedChart k="rx" points={rates} />
         </div>
-        <div className="flex min-w-0 flex-col gap-1 ps-3 pe-4">
+        <div className="flex min-w-0 flex-col gap-0.5 ps-3 pe-4">
           <Speed dir="up" value={rate?.tx ?? null} />
           <SpeedChart k="tx" points={rates} />
         </div>
@@ -340,118 +301,69 @@ export function DeviceCard({ s }: { s: DashboardStatus }) {
 
       {/* 3 · data used this cycle: one tile, today under the total, a thin bar for how far the cycle has gone */}
       {traffic && (
-        <section className="border-t px-4 py-3">
+        <section className="border-t px-4 py-2.5">
           <Link
             to="/cellular/traffic"
-            className="relative block overflow-hidden rounded-lg border border-foreground/5 bg-muted/25 px-3 py-2.5 transition-colors hover:bg-muted/40"
+            className="relative block overflow-hidden rounded-lg border border-foreground/5 bg-muted/25 px-3 py-2 transition-colors hover:bg-muted/40"
           >
-            <span className="relative flex items-baseline justify-between gap-2">
-              <span className="text-[12px] font-medium text-muted-foreground">
-                {t("dashboard.hero.usage")}
+            {fill != null && fill > 0 && (
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute inset-y-0 left-0 transition-[width] duration-500",
+                  fillTone,
+                )}
+                style={{ width: `${fill}%` }}
+              />
+            )}
+            <span className="relative flex items-baseline justify-between gap-3">
+              <span className="flex min-w-0 items-baseline gap-2 truncate">
+                <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                  {t("dashboard.hero.usage")}
+                </span>
+                <AnimatedNumber
+                  value={traffic.cycle.used}
+                  format={(v) => split(formatBytes(v))[0]}
+                  className="tabular-nums text-base leading-tight font-semibold"
+                />
+                <span className="-ms-1 text-xs font-medium text-muted-foreground">
+                  {split(formatBytes(traffic.cycle.used))[1]}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                  /{" "}
+                  {capped ? (
+                    <span className="tabular-nums">
+                      {formatBytes(traffic.cap.bytes)} · {Math.round(used ?? 0)}
+                      %
+                    </span>
+                  ) : (
+                    t("dashboard.device.unlimited")
+                  )}
+                </span>
               </span>
-              <span className="text-[12px] text-muted-foreground tabular-nums">
-                {t("dashboard.hero.daysLeft", { n: traffic.cycle.days_left })}
+              <span className="flex shrink-0 items-baseline gap-2 text-xs text-muted-foreground">
+                <span>
+                  {t("dashboard.hero.today")}{" "}
+                  <AnimatedNumber
+                    value={traffic.today.rx + traffic.today.tx}
+                    format={(v) => formatBytes(v)}
+                    className="tabular-nums font-semibold text-foreground"
+                  />
+                </span>
+                <span className="tabular-nums">
+                  {t("dashboard.hero.daysLeft", {
+                    n: traffic.cycle.days_left,
+                  })}
+                </span>
               </span>
             </span>
-            <span className="relative mt-0.5 block truncate tabular-nums">
-              <span className="text-[22px] leading-tight font-semibold tracking-[-0.02em]">
-                {split(formatBytes(traffic.cycle.used))[0]}
-              </span>
-              <span className="ms-1 text-[13px] font-medium text-muted-foreground">
-                {split(formatBytes(traffic.cycle.used))[1]}
-              </span>
-              <span className="ms-1.5 text-[13px] text-muted-foreground">
-                /{" "}
-                {capped
-                  ? `${formatBytes(traffic.cap.bytes)} · ${Math.round(used ?? 0)}%`
-                  : t("dashboard.device.unlimited")}
-              </span>
-            </span>
-            <span className="relative mt-1.5 inline-flex items-center gap-1 rounded-md bg-background/70 px-1.5 py-0.5 text-[11px] text-muted-foreground tabular-nums">
-              {t("dashboard.hero.today")}
-              <span className="font-semibold text-foreground">
-                {formatBytes(traffic.today.rx + traffic.today.tx)}
-              </span>
-            </span>
-            <Capsule
-              value={elapsed}
-              className="relative mt-2 h-1"
-              tone={
-                traffic.cap.level === "over"
-                  ? "bg-destructive"
-                  : traffic.cap.level === "warn"
-                    ? "bg-amber-500"
-                    : "bg-[#0A84FF]"
-              }
-            />
           </Link>
         </section>
       )}
 
       {/* 4 · the signal's recent readings */}
-      <section className="flex flex-col gap-2 border-t px-4 py-3">
-        <Caption>{t("dashboard.device.signal")}</Caption>
+      <section className="border-t px-4 pt-2.5 pb-3">
         <SignalGrid points={signal} />
-      </section>
-
-      {/* 5 · the device */}
-      <section className="flex flex-col gap-2 border-t px-4 py-3">
-        <Caption
-          aside={
-            <span className="flex items-center gap-2.5">
-              {uptime != null && (
-                <span>
-                  {t("dashboard.overview.uptime", {
-                    time: formatDuration(uptime),
-                  })}
-                </span>
-              )}
-              <span
-                className={cn(
-                  "flex items-center gap-0.5 font-medium",
-                  hot
-                    ? "text-[#FF3B30]"
-                    : temp != null && temp >= 70
-                      ? "text-[#C93400] dark:text-[#FF9F0A]"
-                      : "text-foreground/80",
-                )}
-              >
-                <ThermometerIcon aria-hidden className="size-3.5" />
-                {temp == null ? "—" : `${temp.toFixed(0)}°C`}
-              </span>
-            </span>
-          }
-        >
-          <Link to="/system/overview" className="hover:text-foreground">
-            {i?.hostname ?? "ZTE F50"}
-            {i?.model && (
-              <span className="ms-1.5 font-normal text-muted-foreground/80">
-                {i.model}
-              </span>
-            )}
-          </Link>
-        </Caption>
-        <div className="grid grid-cols-3 gap-4">
-          <ResourceMeter
-            label={t("dashboard.hero.cpu")}
-            percent={cpu}
-            detail={
-              system?.load
-                ? t("dashboard.device.cores", { n: system.load.n })
-                : "—"
-            }
-          />
-          <ResourceMeter
-            label={t("dashboard.hero.memory")}
-            percent={share(memUsed, mem?.total_kb)}
-            detail={`${kb(memUsed)} / ${kb(mem?.total_kb)}`}
-          />
-          <ResourceMeter
-            label={t("dashboard.device.storage")}
-            percent={share(disk?.used_kb, disk?.size_kb)}
-            detail={disk ? `${kb(disk.used_kb)} / ${kb(disk.size_kb)}` : "—"}
-          />
-        </div>
       </section>
     </article>
   );

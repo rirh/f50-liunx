@@ -51,6 +51,8 @@ pub const TOPICS: &[Topic] = &[
     topic("cells", "f50.modem", "cells", 5000),
     // the unread count in the navigation
     topic("sms", "f50.sms", "unread", 5000),
+    // the log page: a fingerprint only (the logs are private), so it reads them again when they change
+    topic("logs", "f50.system", "logs_mark", 2000),
 ];
 
 /// The topics whose methods exist and are plain reads in `objects` (a topic that is not is never pushed).

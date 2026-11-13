@@ -51,7 +51,7 @@ export function UsbAdaptersCard({ hostRole }: { hostRole: boolean }) {
     () => [
       col.accessor("name", {
         header: t("network.usb.adapters.name"),
-        cell: (c) => <span className="font-mono">{c.getValue()}</span>,
+        cell: (c) => <span className="tabular-nums">{c.getValue()}</span>,
       }),
       col.accessor("carrier", {
         header: t("network.usb.adapters.carrier"),

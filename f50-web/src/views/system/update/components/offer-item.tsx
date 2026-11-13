@@ -43,7 +43,7 @@ export function OfferItem({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-1">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="font-mono font-medium">{offer.tag}</span>
+            <span className="tabular-nums font-medium">{offer.tag}</span>
             {offer.prerelease && (
               <Badge variant="outline">
                 {t("maintenance.update.offer.prerelease")}
@@ -130,7 +130,7 @@ export function OfferItem({
             <ul className="flex flex-col gap-1 text-xs">
               {offer.files.map((f) => (
                 <li key={f.name} className="flex justify-between gap-2">
-                  <span className="truncate font-mono">{f.name}</span>
+                  <span className="truncate tabular-nums">{f.name}</span>
                   <span className="text-muted-foreground tabular-nums">
                     {formatBytes(f.size)}
                   </span>

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { t, type Key } from "@/i18n";
 import { WifiPowerControl } from "./power-control";
+import { WifiSettingsDialog } from "./settings-form";
 import type { WifiInfo, WifiSecurity } from "../types";
 
 const SECURITY_LABEL = {
@@ -20,6 +21,7 @@ const SECURITY_LABEL = {
   other: "network.wifi.security.other",
 } satisfies Record<WifiSecurity, Key>;
 
+/** The hotspot as it is; power applies at once, the settings open in a dialog from the same header. */
 export function WifiStatusCard({ info }: { info: WifiInfo }) {
   return (
     <Card>
@@ -40,7 +42,8 @@ export function WifiStatusCard({ info }: { info: WifiInfo }) {
         <CardDescription>
           {t("network.wifi.status.description")}
         </CardDescription>
-        <CardAction>
+        <CardAction className="flex flex-wrap justify-end gap-2">
+          <WifiSettingsDialog info={info} />
           <WifiPowerControl info={info} />
         </CardAction>
       </CardHeader>

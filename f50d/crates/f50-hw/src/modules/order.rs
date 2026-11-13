@@ -56,6 +56,8 @@ const VENDOR_DRIVERS: &[&str] = &[
     "thermal-generic-adc",
     "sprd_cpu_cooling",
     "leds-sc27xx-bltc",
+    // the Wi-Fi lamp: the keypad backlight sink (`keyboard-backlight`, FINDINGS 34)
+    "leds-sc27xx-keypad",
     "zte_sar",
     "zte_card_holder_det",
     "sc27xx-vibra",

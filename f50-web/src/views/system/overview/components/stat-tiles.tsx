@@ -1,12 +1,11 @@
-import type { ReactNode } from "react";
 import { AnimatedNumber } from "@/components/f50/animated-number";
+import { FillMeter } from "@/components/f50/fill-meter";
 import { t } from "@/i18n";
 import { formatBytes } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { tempShare } from "@/lib/utils";
 import {
   CpuIcon,
   HardDriveIcon,
-  type LucideIcon,
   MemoryStickIcon,
   ThermometerIcon,
 } from "lucide-react";
@@ -20,71 +19,6 @@ import {
   kb,
   memPercent,
 } from "../utils";
-
-function Tile({
-  icon: Icon,
-  label,
-  value,
-  percent,
-  hint,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: ReactNode;
-  percent: number | null;
-  hint?: string;
-}) {
-  const p =
-    percent == null ? null : Math.min(100, Math.max(0, Math.round(percent)));
-  const critical = p != null && p >= 90;
-  const warning = p != null && p >= 70;
-  return (
-    <div className="relative min-w-0 overflow-hidden rounded-lg border border-foreground/5 bg-muted/25 px-3 py-2">
-      {p != null && p > 0 && (
-        <span
-          aria-hidden
-          className={cn(
-            "absolute inset-y-0 left-0 transition-[width] duration-500",
-            critical
-              ? "bg-destructive/15"
-              : warning
-                ? "bg-amber-500/18"
-                : "bg-emerald-500/14",
-          )}
-          style={{ width: `${p}%` }}
-        />
-      )}
-      <div className="relative flex items-baseline justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
-          <Icon aria-hidden className="size-3.5 shrink-0" />
-          <span className="truncate">{label}</span>
-        </span>
-        <span
-          className={cn(
-            "shrink-0 font-mono text-sm font-semibold tabular-nums",
-            critical
-              ? "text-destructive"
-              : warning
-                ? "text-amber-600 dark:text-amber-400"
-                : "text-foreground",
-          )}
-        >
-          {value}
-        </span>
-      </div>
-      <span
-        className="relative block truncate font-mono text-[11px] leading-tight text-muted-foreground"
-        title={hint}
-      >
-        {hint ?? "—"}
-      </span>
-    </div>
-  );
-}
-
-/** Temperatures from 30 °C (empty) to 90 °C (full), for the bar. */
-const tempShare = (c: number | null) =>
-  c == null ? null : ((c - 30) / 60) * 100;
 
 /** The four figures that matter most: CPU, memory, storage and temperature. */
 export function StatTiles({
@@ -110,7 +44,7 @@ export function StatTiles({
   );
   return (
     <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-      <Tile
+      <FillMeter
         icon={CpuIcon}
         label="CPU"
         value={
@@ -129,7 +63,7 @@ export function StatTiles({
             : undefined
         }
       />
-      <Tile
+      <FillMeter
         icon={MemoryStickIcon}
         label={t("system.overview.live.mem")}
         value={
@@ -138,7 +72,7 @@ export function StatTiles({
         percent={mem}
         hint={`${formatBytes(kb(used))} / ${formatBytes(kb(memory?.total_kb))}`}
       />
-      <Tile
+      <FillMeter
         icon={HardDriveIcon}
         label={t("system.overview.live.storage")}
         value={formatPercent(diskPercent(disk), 0)}
@@ -149,7 +83,7 @@ export function StatTiles({
             : t("system.overview.info.notMounted")
         }
       />
-      <Tile
+      <FillMeter
         icon={ThermometerIcon}
         label={t("system.overview.live.hottest")}
         value={<AnimatedNumber value={hottest} format={formatCelsius} />}

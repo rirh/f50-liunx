@@ -18,11 +18,11 @@ const columns = [
   }),
   col.accessor("ip", {
     header: () => t("network.wifi.clients.ip"),
-    cell: (c) => <span className="font-mono">{c.getValue() ?? "—"}</span>,
+    cell: (c) => <span className="tabular-nums">{c.getValue() ?? "—"}</span>,
   }),
   col.accessor("mac", {
     header: () => t("network.wifi.clients.mac"),
-    cell: (c) => <span className="font-mono">{c.getValue()}</span>,
+    cell: (c) => <span className="tabular-nums">{c.getValue()}</span>,
   }),
 ];
 

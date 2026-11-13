@@ -1,16 +1,7 @@
-import { useMemo } from "react";
-import { PendingButton } from "@/components/f50/pending-button";
+import { useEffect, useMemo } from "react";
+import { FormDialog } from "@/components/f50/form-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Field,
   FieldDescription,
@@ -61,6 +52,10 @@ export interface JoinTarget {
   open: boolean;
 }
 
+/**
+ * Joining a network picked from the scan (or typed by hand): a dialog on a wide screen, a bottom drawer on a phone.
+ * Each new target refills the form, so it opens with that network's name and no stale password.
+ */
 export function JoinDialog({
   target,
   hotspotOn,
@@ -73,46 +68,17 @@ export function JoinDialog({
   onOpenChange: (open: boolean) => void;
   onStarted: (job: string, ssid: string) => void;
 }) {
-  return (
-    <Dialog open={target !== null} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("network.client.join.title")}</DialogTitle>
-          <DialogDescription>
-            {t("network.client.join.description")}
-          </DialogDescription>
-        </DialogHeader>
-        {target && (
-          <JoinFormBody
-            key={`${target.ssid}|${target.open}`}
-            target={target}
-            hotspotOn={hotspotOn}
-            onCancel={() => onOpenChange(false)}
-            onStarted={onStarted}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function JoinFormBody({
-  target,
-  hotspotOn,
-  onCancel,
-  onStarted,
-}: {
-  target: JoinTarget;
-  hotspotOn: boolean;
-  onCancel: () => void;
-  onStarted: (job: string, ssid: string) => void;
-}) {
   const resolverSchema = useMemo(() => schema(), []);
   const form = useForm<JoinForm>({
     resolver: zodResolver(resolverSchema),
-    defaultValues: { ssid: target.ssid, password: "", open: target.open },
+    defaultValues: { ssid: "", password: "", open: false },
     mode: "onTouched",
   });
+  // the target is set by the scan list, not by a trigger here: refill when it changes
+  useEffect(() => {
+    if (target)
+      form.reset({ ssid: target.ssid, password: "", open: target.open });
+  }, [target, form]);
   const join = useMutation({
     mutationFn: joinNetwork,
     onSuccess: (r, args) => onStarted(r.job, args.ssid),
@@ -128,102 +94,102 @@ function JoinFormBody({
   };
 
   return (
-    <form
-      onSubmit={form.handleSubmit(onSubmit)}
-      noValidate
-      className="flex flex-col gap-4"
+    <FormDialog
+      open={target !== null}
+      onOpenChange={onOpenChange}
+      title={t("network.client.join.title")}
+      description={t("network.client.join.description")}
+      formId="wifi-join"
+      pending={join.isPending}
+      submitText={
+        join.isPending
+          ? t("network.shared.submitting")
+          : t("network.client.join.submit")
+      }
     >
-      {hotspotOn && (
-        <Alert>
-          <AlertTitle>{t("network.client.join.hotspotOn.title")}</AlertTitle>
-          <AlertDescription>
-            {t("network.client.join.hotspotOn.description")}
-          </AlertDescription>
-        </Alert>
-      )}
-      <FieldGroup>
-        <Controller
-          control={form.control}
-          name="ssid"
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="join-ssid">
-                {t("network.client.join.ssid")}
-              </FieldLabel>
-              <Input
-                id="join-ssid"
-                autoComplete="off"
-                aria-invalid={fieldState.invalid}
-                {...field}
-              />
-              <FieldError errors={[fieldState.error]} />
-            </Field>
-          )}
-        />
-        <Controller
-          control={form.control}
-          name="open"
-          render={({ field }) => (
-            <Field orientation="horizontal">
-              <Checkbox
-                id="join-open"
-                checked={field.value}
-                onCheckedChange={(c) => {
-                  field.onChange(c === true);
-                  if (c === true) form.clearErrors("password");
-                }}
-              />
-              <FieldLabel htmlFor="join-open">
-                {t("network.client.join.open")}
-              </FieldLabel>
-            </Field>
-          )}
-        />
-        <Controller
-          control={form.control}
-          name="password"
-          render={({ field, fieldState }) => (
-            <Field
-              data-invalid={fieldState.invalid}
-              data-disabled={open || undefined}
-            >
-              <FieldLabel htmlFor="join-password">
-                {t("network.client.join.password")}
-              </FieldLabel>
-              <Input
-                id="join-password"
-                type="password"
-                autoComplete="off"
-                disabled={open}
-                aria-invalid={fieldState.invalid}
-                {...field}
-              />
-              {fieldState.error ? (
+      <form
+        id="wifi-join"
+        onSubmit={form.handleSubmit(onSubmit)}
+        noValidate
+        className="flex flex-col gap-4"
+      >
+        {hotspotOn && (
+          <Alert>
+            <AlertTitle>{t("network.client.join.hotspotOn.title")}</AlertTitle>
+            <AlertDescription>
+              {t("network.client.join.hotspotOn.description")}
+            </AlertDescription>
+          </Alert>
+        )}
+        <FieldGroup>
+          <Controller
+            control={form.control}
+            name="ssid"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="join-ssid">
+                  {t("network.client.join.ssid")}
+                </FieldLabel>
+                <Input
+                  id="join-ssid"
+                  autoComplete="off"
+                  aria-invalid={fieldState.invalid}
+                  {...field}
+                />
                 <FieldError errors={[fieldState.error]} />
-              ) : (
-                <FieldDescription>
-                  {t("network.client.join.passwordHint")}
-                </FieldDescription>
-              )}
-            </Field>
-          )}
-        />
-      </FieldGroup>
-      <DialogFooter>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={join.isPending}
-        >
-          {t("common.action.cancel")}
-        </Button>
-        <PendingButton type="submit" pending={join.isPending}>
-          {join.isPending
-            ? t("network.shared.submitting")
-            : t("network.client.join.submit")}
-        </PendingButton>
-      </DialogFooter>
-    </form>
+              </Field>
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="open"
+            render={({ field }) => (
+              <Field orientation="horizontal">
+                <Checkbox
+                  id="join-open"
+                  checked={field.value}
+                  onCheckedChange={(c) => {
+                    field.onChange(c === true);
+                    if (c === true) form.clearErrors("password");
+                  }}
+                />
+                <FieldLabel htmlFor="join-open">
+                  {t("network.client.join.open")}
+                </FieldLabel>
+              </Field>
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="password"
+            render={({ field, fieldState }) => (
+              <Field
+                data-invalid={fieldState.invalid}
+                data-disabled={open || undefined}
+              >
+                <FieldLabel htmlFor="join-password">
+                  {t("network.client.join.password")}
+                </FieldLabel>
+                <Input
+                  id="join-password"
+                  type="password"
+                  autoComplete="off"
+                  disabled={open}
+                  aria-invalid={fieldState.invalid}
+                  {...field}
+                />
+                {fieldState.error ? (
+                  <FieldError errors={[fieldState.error]} />
+                ) : (
+                  <FieldDescription>
+                    {t("network.client.join.passwordHint")}
+                  </FieldDescription>
+                )}
+              </Field>
+            )}
+          />
+        </FieldGroup>
+      </form>
+    </FormDialog>
   );
 }

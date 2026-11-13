@@ -22,10 +22,7 @@ export default function DataPage() {
         {(d) => (
           <div className="grid items-start gap-4 lg:grid-cols-2">
             <StatusCard d={d} />
-            <SettingsCard
-              key={`${d.slot}|${d.apn}|${d.auth}|${d.username}|${d.pdp}|${d.roaming}|${d.password_set}`}
-              d={d}
-            />
+            <SettingsCard d={d} />
           </div>
         )}
       </QueryState>

@@ -2,13 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BubbleGroup } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { SweepShine } from "@/components/ui/sweep-shine";
@@ -46,7 +39,7 @@ export function ThreadView({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b p-2">
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b px-2">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -56,9 +49,11 @@ export function ThreadView({
         >
           <ArrowLeftIcon />
         </Button>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate font-medium">{peer}</span>
-          <span className="text-xs text-muted-foreground">
+        <div className="flex min-w-0 flex-1 items-baseline gap-2">
+          <span className="truncate text-sm font-semibold tabular-nums">
+            {peer}
+          </span>
+          <span className="shrink-0 text-[11px] text-muted-foreground">
             {thread.isPending
               ? t("sms.thread.loading")
               : t("sms.thread.count", { count: total })}
@@ -79,7 +74,8 @@ export function ThreadView({
           trigger={
             <Button
               variant="ghost"
-              size="sm"
+              size="xs"
+              title={t("sms.thread.deleteConversation")}
               disabled={delConv.isPending || total === 0}
               aria-busy={delConv.isPending}
             >
@@ -98,13 +94,13 @@ export function ThreadView({
 
       <div
         ref={scroller}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-muted/20 px-3 py-2"
       >
         {thread.isPending ? (
-          <div className="flex flex-col gap-3">
-            <Skeleton className="h-12 w-2/3" />
-            <Skeleton className="h-12 w-1/2 self-end" />
-            <Skeleton className="h-16 w-3/5" />
+          <div className="flex flex-col gap-1.5">
+            <Skeleton className="h-8 w-2/3" />
+            <Skeleton className="h-8 w-1/2 self-end" />
+            <Skeleton className="h-10 w-3/5" />
           </div>
         ) : thread.isError ? (
           <Alert variant="destructive">
@@ -121,23 +117,17 @@ export function ThreadView({
             </AlertDescription>
           </Alert>
         ) : messages.length === 0 ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <MessagesSquareIcon />
-              </EmptyMedia>
-              <EmptyTitle>{t("sms.thread.emptyTitle")}</EmptyTitle>
-              <EmptyDescription>
-                {t("sms.thread.emptyDescription")}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <div className="flex flex-col items-center gap-1 py-10 text-center text-muted-foreground">
+            <MessagesSquareIcon className="size-5" />
+            <span className="text-sm">{t("sms.thread.emptyTitle")}</span>
+            <span className="text-xs">{t("sms.thread.emptyDescription")}</span>
+          </div>
         ) : (
-          <BubbleGroup className="gap-3">
+          <BubbleGroup className="gap-1.5">
             {thread.hasNextPage && (
               <Button
-                variant="outline"
-                size="sm"
+                variant="ghost"
+                size="xs"
                 className="self-center"
                 disabled={thread.isFetchingNextPage}
                 aria-busy={thread.isFetchingNextPage}

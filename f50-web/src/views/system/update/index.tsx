@@ -25,14 +25,24 @@ export default function UpdatePage() {
             <>
               <JobPanel status={s} />
               <StatusAlerts status={s} />
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className="flex flex-col gap-4">
-                  <ReleasesCard status={s} busy={busy} />
-                  <OfflineCard status={s} busy={busy} />
+              {/* on a wide screen the update paths on the left, the installed systems on the right; on a phone one
+                  column in order of use: releases, what runs now, a file, rollback */}
+              <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start">
+                <div className="contents lg:flex lg:flex-col lg:gap-4">
+                  <div className="order-1 lg:order-none">
+                    <ReleasesCard status={s} busy={busy} />
+                  </div>
+                  <div className="order-3 lg:order-none">
+                    <OfflineCard status={s} busy={busy} />
+                  </div>
                 </div>
-                <div className="flex flex-col gap-4">
-                  <StatusCard status={s} />
-                  <RollbackCard status={s} busy={busy} />
+                <div className="contents lg:flex lg:flex-col lg:gap-4">
+                  <div className="order-2 lg:order-none">
+                    <StatusCard status={s} />
+                  </div>
+                  <div className="order-4 lg:order-none">
+                    <RollbackCard status={s} busy={busy} />
+                  </div>
                 </div>
               </div>
             </>

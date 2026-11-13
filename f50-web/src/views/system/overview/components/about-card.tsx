@@ -13,7 +13,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { EyeIcon, EyeOffIcon, PencilIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Group, Row } from "./grouped-list";
+import { Group, Row } from "@/components/f50/grouped-list";
 import { OwnNumberDialog } from "./own-number-dialog";
 import { getOwnNumber } from "../api";
 import type { LiveStatus } from "../hooks/use-live-status";
@@ -49,7 +49,7 @@ function OwnNumber() {
   return (
     <span className="flex flex-wrap items-center gap-2">
       {d.msisdn ? (
-        <span className="font-mono">
+        <span className="tabular-nums">
           {d.msisdn}
           {d.msisdn_src && (
             <span className="text-muted-foreground">

@@ -276,8 +276,7 @@ const m: Messages["network"] = {
       },
     },
     status: {
-      title: "Current LAN",
-      description: "Router address and DHCP pool",
+      router: "Router",
       address: "Router address",
       netmask: "Subnet mask",
       live: "br-lan actual address",
@@ -449,7 +448,7 @@ const m: Messages["network"] = {
       authOpen: "Open",
       savingHint: "Saving…",
       accessHint:
-        "“Authorized keys only” is recommended; add your computer's adbkey.pub below",
+        "“Authorized keys only” is recommended; authorize your computer's adbkey.pub with “Add key”",
       confirmOpen: {
         title: "Switch to open mode?",
         confirm: "Make open",

@@ -110,7 +110,16 @@ async fn net_boot(s: Services, shutdown: CancellationToken) {
     let net = s.net;
     let step = async move {
         match net.boot_wifi_config().await {
-            Ok(true) => tracing::info!("wireless configuration prepared for this boot"),
+            Ok(true) => {
+                tracing::info!("wireless configuration prepared for this boot");
+                // netifd may have read /etc/config/wireless already (it starts first): without a reload it never
+                // learns of the radio, and the hotspot stays down until something restarts the Wi-Fi
+                if let Err(e) =
+                    f50_core::exec::Cmd::new("/sbin/wifi").arg("reload").timeout(Duration::from_secs(60)).run().await
+                {
+                    tracing::warn!(error = %e, "wifi reload after the boot configuration");
+                }
+            }
             Ok(false) => {}
             Err(e) => tracing::warn!(error = %e, "wireless boot configuration"),
         }
@@ -127,16 +136,22 @@ async fn net_boot(s: Services, shutdown: CancellationToken) {
             }
             tokio::time::sleep(Duration::from_secs(2)).await;
         }
+        // the one Wi-Fi restart: for a radio that failed, and for one still not up after the wait (netifd that
+        // never learnt of it waits for ever)
+        let mut restart = true;
         for _ in 0..45 {
             match net.wifi_ready().await {
-                f50_net::WifiReady::Ready => break,
-                f50_net::WifiReady::Failed => {
-                    tracing::warn!("Wi-Fi did not come up; restarting it once");
-                    let _ = f50_core::exec::Cmd::new("/sbin/wifi").timeout(Duration::from_secs(60)).run().await;
+                f50_net::WifiReady::Ready => {
+                    restart = false;
                     break;
                 }
+                f50_net::WifiReady::Failed => break,
                 f50_net::WifiReady::Waiting => tokio::time::sleep(Duration::from_secs(2)).await,
             }
+        }
+        if restart {
+            tracing::warn!("Wi-Fi did not come up; restarting it once");
+            let _ = f50_core::exec::Cmd::new("/sbin/wifi").timeout(Duration::from_secs(60)).run().await;
         }
         net.usb_rebind_if_no_lease(Duration::from_secs(90));
     };

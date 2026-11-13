@@ -1,14 +1,6 @@
 import { useState } from "react";
-import { PendingButton } from "@/components/f50/pending-button";
+import { EditButton, FormDialog } from "@/components/f50/form-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
@@ -35,9 +27,13 @@ const schema = z.object({
 });
 type RoleForm = z.infer<typeof schema>;
 
-/** The port's role now, and the host role at every boot (device is the boot default). */
-export function UsbRoleCard({ info }: { info: UsbInfo }) {
+/**
+ * The port's role now, and the host role at every boot (device is the boot default). The status card shows both, so
+ * they open from its header in a dialog; switching the role asks once more, since USB networking and adb drop.
+ */
+export function UsbRoleDialog({ info }: { info: UsbInfo }) {
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
   const initial: RoleForm = {
     role: info.role === "host" ? "host" : "device",
     at_boot: info.role_boot === "host",
@@ -50,6 +46,7 @@ export function UsbRoleCard({ info }: { info: UsbInfo }) {
   const save = useMutation({
     mutationFn: setUsb,
     onSuccess: (r) => {
+      setOpen(false);
       toast.success(
         r.pending
           ? t("network.usb.roleCard.saved")
@@ -83,15 +80,31 @@ export function UsbRoleCard({ info }: { info: UsbInfo }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("network.usb.roleCard.title")}</CardTitle>
-        <CardDescription>
-          {t("network.usb.roleCard.description")}
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
-        <CardContent className="flex flex-col gap-4">
+    <>
+      <EditButton
+        onClick={() => {
+          form.reset(initial);
+          setOpen(true);
+        }}
+      >
+        {t("network.usb.roleCard.title")}
+      </EditButton>
+      <FormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("network.usb.roleCard.title")}
+        description={t("network.usb.roleCard.description")}
+        formId="usb-role"
+        pending={save.isPending}
+        dirty={supported && form.formState.isDirty}
+        submitText={t("common.action.apply")}
+      >
+        <form
+          id="usb-role"
+          onSubmit={form.handleSubmit(onSubmit)}
+          noValidate
+          className="flex flex-col gap-4"
+        >
           {!supported && (
             <Alert>
               <AlertTitle>
@@ -159,19 +172,8 @@ export function UsbRoleCard({ info }: { info: UsbInfo }) {
               {t("network.usb.roleCard.atBootHint")}
             </FieldDescription>
           </FieldGroup>
-        </CardContent>
-        <CardFooter className="mt-4 flex justify-end">
-          <PendingButton
-            type="submit"
-            pending={save.isPending}
-            disabled={!supported}
-          >
-            {save.isPending
-              ? t("common.action.saving")
-              : t("common.action.apply")}
-          </PendingButton>
-        </CardFooter>
-      </form>
+        </form>
+      </FormDialog>
       <ConfirmDialog
         open={pending !== null}
         onOpenChange={(o) => !o && setPending(null)}
@@ -191,6 +193,6 @@ export function UsbRoleCard({ info }: { info: UsbInfo }) {
         }
         onConfirm={() => pending && save.mutate(pending)}
       />
-    </Card>
+    </>
   );
 }

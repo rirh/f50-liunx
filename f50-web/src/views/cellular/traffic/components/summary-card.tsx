@@ -24,27 +24,17 @@ const LEVEL: Record<
   over: { label: "cellular.traffic.level.over", variant: "destructive" },
 };
 
-function Stat({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-}) {
+/** One row of the breakdown: download, upload and their sum, right-aligned in monospace so the columns line up. */
+function Line({ label, rx, tx }: { label: string; rx: number; tx: number }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5 rounded-lg bg-muted/50 p-3">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-lg leading-tight font-semibold break-words tabular-nums">
-        {value}
+    <>
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right font-mono">{formatBytes(rx)}</span>
+      <span className="text-right font-mono">{formatBytes(tx)}</span>
+      <span className="text-right font-mono font-medium">
+        {formatBytes(rx + tx)}
       </span>
-      {sub && (
-        <span className="text-xs break-words text-muted-foreground tabular-nums">
-          {sub}
-        </span>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -87,30 +77,21 @@ export function SummaryCard({ t: tr }: { t: TrafficStatus }) {
             </AlertDescription>
           </Alert>
         )}
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-2">
-          <Stat
-            label={t("cellular.traffic.summary.used")}
-            value={formatBytes(cycle.used)}
-            sub={
-              cap.bytes > 0
-                ? t("cellular.traffic.summary.cap", {
-                    bytes: formatBytes(cap.bytes),
-                  })
-                : undefined
-            }
-          />
-          <Stat
-            label={t("cellular.traffic.summary.today")}
-            value={formatBytes(today.rx + today.tx)}
-            sub={`↓ ${formatBytes(today.rx)} ↑ ${formatBytes(today.tx)}`}
-          />
-          <Stat
-            label={t("cellular.traffic.summary.cycleDownload")}
-            value={formatBytes(cycle.rx)}
-            sub={t("cellular.traffic.summary.uploadOf", {
-              bytes: formatBytes(cycle.tx),
-            })}
-          />
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-sm text-muted-foreground">
+            {t("cellular.traffic.summary.used")}
+          </span>
+          <span className="min-w-0 truncate">
+            <span className="font-mono text-2xl font-semibold tracking-tight">
+              {formatBytes(cycle.used)}
+            </span>
+            <span className="ms-1.5 text-sm text-muted-foreground">
+              /{" "}
+              {cap.bytes > 0
+                ? formatBytes(cap.bytes)
+                : t("cellular.traffic.level.none")}
+            </span>
+          </span>
         </div>
         {pct != null && (
           <div className="flex flex-col gap-1.5">
@@ -127,6 +108,28 @@ export function SummaryCard({ t: tr }: { t: TrafficStatus }) {
             </span>
           </div>
         )}
+        <div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-4 gap-y-2 rounded-lg bg-muted/40 px-3 py-2.5 text-[13px] tabular-nums">
+          <span />
+          <span className="text-right text-xs text-muted-foreground">
+            ↓ {t("cellular.traffic.download")}
+          </span>
+          <span className="text-right text-xs text-muted-foreground">
+            ↑ {t("cellular.traffic.upload")}
+          </span>
+          <span className="text-right text-xs text-muted-foreground">
+            {t("cellular.traffic.summary.total")}
+          </span>
+          <Line
+            label={t("cellular.traffic.summary.today")}
+            rx={today.rx}
+            tx={today.tx}
+          />
+          <Line
+            label={t("cellular.traffic.summary.cycle")}
+            rx={cycle.rx}
+            tx={cycle.tx}
+          />
+        </div>
         <KvList
           items={[
             {

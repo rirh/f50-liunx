@@ -7,10 +7,12 @@ import { RefreshCwIcon } from "lucide-react";
 import { getUsb, usbKeys } from "./api";
 import { UsbAdaptersCard } from "./components/adapters-card";
 import { UsbAdbCard } from "./components/adb-card";
-import { UsbNetCard } from "./components/net-card";
-import { UsbRoleCard } from "./components/role-card";
 import { UsbStatusCard } from "./components/status-card";
 
+/**
+ * The port's state beside adb, then the USB adapters across. The role and network settings open from the status card
+ * in dialogs instead of taking two cards.
+ */
 export default function UsbPage() {
   const query = useQuery({ queryKey: usbKeys.info, queryFn: getUsb });
   return (
@@ -34,13 +36,8 @@ export default function UsbPage() {
       />
       <QueryState query={query} skeletonRows={8}>
         {(info) => (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid items-start gap-4 lg:grid-cols-2">
             <UsbStatusCard info={info} />
-            <UsbRoleCard key={`${info.role}|${info.role_boot}`} info={info} />
-            <UsbNetCard
-              key={`${info.net_mode}|${info.net_scope}|${info.net_name}`}
-              info={info}
-            />
             <UsbAdbCard adb={info.adb} hostRole={info.role === "host"} />
             <div className="lg:col-span-2">
               <UsbAdaptersCard hostRole={info.role === "host"} />

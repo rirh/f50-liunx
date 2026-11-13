@@ -1,12 +1,12 @@
-import { useMemo } from "react";
-import { PendingButton } from "@/components/f50/pending-button";
+import { useMemo, useState } from "react";
+import { EditButton, FormDialog } from "@/components/f50/form-dialog";
+import { KvList } from "@/components/f50/kv-list";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -30,12 +30,39 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { dataKeys, setData } from "../api";
 import { type DataForm, dataSchema } from "../schema";
-import type { AuthWrite, DataSettings, DataStatus } from "../types";
+import type {
+  AuthRead,
+  AuthWrite,
+  DataSettings,
+  DataStatus,
+  Pdp,
+} from "../types";
 
 const AUTH_NOTE = {
   both: "cellular.data.settings.authBoth",
   invalid: "cellular.data.settings.authInvalid",
 } as const satisfies Record<string, Key>;
+
+const PDP_NAME: Record<Pdp, string> = {
+  ipv4: "IPv4",
+  ipv6: "IPv6",
+  ipv4v6: "IPv4v6",
+};
+
+function authName(a: AuthRead): string {
+  switch (a) {
+    case "none":
+      return t("cellular.data.settings.authNone");
+    case "pap":
+      return "PAP";
+    case "chap":
+      return "CHAP";
+    case "both":
+      return t("cellular.data.settings.authAuto");
+    case "invalid":
+      return t("cellular.data.settings.authInvalidShort");
+  }
+}
 
 function defaults(d: DataStatus): DataForm {
   return {
@@ -48,9 +75,13 @@ function defaults(d: DataStatus): DataForm {
   };
 }
 
-/** The APN settings and data roaming of the SIM in use; only changed fields are sent. */
+/**
+ * The APN settings and data roaming of the SIM in use: read-only on the page, edited in a dialog (set once, changed
+ * rarely, and a change redials). The dialog opens with the device's current values; only changed fields are sent.
+ */
 export function SettingsCard({ d }: { d: DataStatus }) {
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
   const form = useForm<DataForm>({
     resolver: zodResolver(useMemo(() => dataSchema(), [])),
     defaultValues: defaults(d),
@@ -63,6 +94,7 @@ export function SettingsCard({ d }: { d: DataStatus }) {
           ? t("cellular.data.settings.savedRedial")
           : t("cellular.shared.saved"),
       );
+      setOpen(false);
       qc.invalidateQueries({ queryKey: dataKeys.get });
     },
     onError: (e) => reportFormError(e, form.setError),
@@ -92,8 +124,59 @@ export function SettingsCard({ d }: { d: DataStatus }) {
         <CardDescription>
           {t("cellular.data.settings.description", { slot: d.slot })}
         </CardDescription>
+        <CardAction>
+          <EditButton
+            onClick={() => {
+              form.reset(defaults(d));
+              setOpen(true);
+            }}
+          />
+        </CardAction>
       </CardHeader>
       <CardContent>
+        <KvList
+          items={[
+            {
+              label: "APN",
+              value: d.apn || t("cellular.data.settings.apnDefault"),
+            },
+            { label: t("cellular.data.settings.pdp"), value: PDP_NAME[d.pdp] },
+            {
+              label: t("cellular.data.settings.auth"),
+              value: authName(d.auth),
+            },
+            ...(d.auth !== "none"
+              ? [
+                  {
+                    label: t("cellular.data.settings.username"),
+                    value: d.username || "—",
+                  },
+                  {
+                    label: t("cellular.data.settings.password"),
+                    value: d.password_set
+                      ? t("cellular.data.settings.passwordSet")
+                      : t("cellular.data.settings.passwordUnset"),
+                  },
+                ]
+              : []),
+            {
+              label: t("cellular.data.settings.roaming"),
+              value: d.roaming
+                ? t("common.state.enabled")
+                : t("common.state.disabled"),
+            },
+          ]}
+        />
+      </CardContent>
+      <FormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("cellular.data.settings.title")}
+        description={t("cellular.data.settings.description", { slot: d.slot })}
+        formId="data-settings"
+        pending={save.isPending}
+        dirty={isDirty}
+      >
         <form id="data-settings" onSubmit={submit}>
           <FieldGroup>
             <Field data-invalid={!!errors.apn}>
@@ -228,24 +311,7 @@ export function SettingsCard({ d }: { d: DataStatus }) {
             </Field>
           </FieldGroup>
         </form>
-      </CardContent>
-      <CardFooter className="flex flex-wrap gap-2">
-        <PendingButton
-          type="submit"
-          form="data-settings"
-          pending={save.isPending}
-          disabled={!isDirty}
-        >
-          {t("common.action.save")}
-        </PendingButton>
-        <Button
-          variant="outline"
-          disabled={!isDirty || save.isPending}
-          onClick={() => form.reset(defaults(d))}
-        >
-          {t("common.action.reset")}
-        </Button>
-      </CardFooter>
+      </FormDialog>
     </Card>
   );
 }

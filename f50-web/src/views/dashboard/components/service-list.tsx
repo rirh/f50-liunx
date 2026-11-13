@@ -64,17 +64,15 @@ function Row({
     <>
       <Glyph icon={icon} color={color} />
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-[15px] leading-5 font-medium tracking-[-0.01em]">
-          {title}
-        </span>
+        <span className="truncate text-sm leading-5 font-medium">{title}</span>
         {detail && (
-          <span className="truncate text-[12px] leading-4 text-muted-foreground tabular-nums">
+          <span className="truncate text-xs leading-4 text-muted-foreground tabular-nums">
             {detail}
           </span>
         )}
       </span>
       {value != null && (
-        <span className="max-w-[45%] shrink-0 truncate text-[14px] text-muted-foreground tabular-nums">
+        <span className="max-w-[45%] shrink-0 truncate text-sm text-muted-foreground tabular-nums">
           {value}
         </span>
       )}
@@ -115,7 +113,14 @@ const failed = (p: Part<unknown> | undefined) =>
  * their switches), the Wi-Fi uplink, USB, messages and the system version. The network itself (carrier, speed, usage,
  * signal) is the device card's.
  */
-export function ServiceList({ s }: { s: DashboardStatus }) {
+export function ServiceList({
+  s,
+  aside,
+}: {
+  s: DashboardStatus;
+  /** Shown at the right of the heading (the page's health and, while polling, refresh). */
+  aside?: ReactNode;
+}) {
   const data = ok(s.data);
   const wifi = ok(s.wifi);
   const up = ok(s.wificlient);
@@ -132,9 +137,12 @@ export function ServiceList({ s }: { s: DashboardStatus }) {
 
   return (
     <section className="overflow-hidden rounded-2xl border bg-card">
-      <h2 className="px-4 pt-3.5 pb-1 text-[13px] font-semibold tracking-[-0.01em] text-muted-foreground">
-        {t("dashboard.panel.services")}
-      </h2>
+      <div className="flex min-h-11 items-center justify-between gap-2 px-4 pt-3 pb-1">
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          {t("dashboard.panel.services")}
+        </h2>
+        {aside && <div className="flex items-center gap-1.5">{aside}</div>}
+      </div>
       <ul className="divide-y divide-border/70">
         <Row
           icon={GlobeIcon}
@@ -228,7 +236,7 @@ export function ServiceList({ s }: { s: DashboardStatus }) {
           value={
             sms ? (
               sms.unread > 0 ? (
-                <span className="rounded-full bg-[#FF3B30] px-2 py-0.5 text-[12px] font-semibold text-white">
+                <span className="rounded-full bg-[#FF3B30] px-2 py-0.5 text-xs font-semibold text-white">
                   {sms.unread}
                 </span>
               ) : (
@@ -254,7 +262,7 @@ export function ServiceList({ s }: { s: DashboardStatus }) {
           value={
             update ? (
               update.notice ? (
-                <span className="rounded-full bg-[#FF9500]/15 px-2 py-0.5 text-[12px] font-semibold text-[#C93400] dark:text-[#FF9F0A]">
+                <span className="rounded-full bg-[#FF9500]/15 px-2 py-0.5 text-xs font-semibold text-[#C93400] dark:text-[#FF9F0A]">
                   {update.notice.tag}
                 </span>
               ) : (

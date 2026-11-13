@@ -89,7 +89,7 @@ export function InspectResult({
           {
             label: t("maintenance.update.inspect.release"),
             value: (
-              <span className="font-mono">
+              <span className="tabular-nums">
                 {r.tag ?? t("common.state.unknown")}
               </span>
             ),

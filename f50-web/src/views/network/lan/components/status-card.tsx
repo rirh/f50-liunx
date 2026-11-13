@@ -1,17 +1,11 @@
-import { KvList } from "@/components/f50/kv-list";
+import { Group, Row } from "@/components/f50/grouped-list";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { t } from "@/i18n";
 import { dhcpRange } from "../schema";
 import type { LanInfo } from "../types";
 
-export function LanStatusCard({ info }: { info: LanInfo }) {
+/** The LAN as configured and as live, as two settings-style groups: the router's addresses, then DHCP. */
+export function LanStatus({ info }: { info: LanInfo }) {
   const configured = `${info.address}/${info.prefix}`;
   const pending = info.live != null && info.live !== configured;
   const range =
@@ -24,64 +18,46 @@ export function LanStatusCard({ info }: { info: LanInfo }) {
         )
       : null;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("network.lan.status.title")}</CardTitle>
-        <CardDescription>{t("network.lan.status.description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <KvList
-          items={[
-            {
-              label: t("network.lan.status.address"),
-              value: <span className="font-mono">{configured}</span>,
-            },
-            {
-              label: t("network.lan.status.netmask"),
-              value: <span className="font-mono">{info.netmask}</span>,
-            },
-            {
-              label: t("network.lan.status.live"),
-              value: (
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono">{info.live ?? "—"}</span>
-                  {pending && (
-                    <Badge variant="secondary">
-                      {t("network.lan.status.pending")}
-                    </Badge>
-                  )}
-                </span>
-              ),
-            },
-            {
-              label: t("network.lan.status.usbHost"),
-              value: <span className="font-mono">{info.usb_host_address}</span>,
-            },
-            {
-              label: t("network.lan.status.default"),
-              value: <span className="font-mono">{info.default_address}</span>,
-            },
-            {
-              label: "DHCP",
-              value: (
-                <Badge variant={info.dhcp.enabled ? "default" : "secondary"}>
-                  {info.dhcp.enabled
-                    ? t("common.state.enabled")
-                    : t("common.state.disabled")}
-                </Badge>
-              ),
-            },
-            {
-              label: t("network.lan.status.pool"),
-              value: range && <span className="font-mono">{range}</span>,
-            },
-            {
-              label: t("network.lan.status.leasetime"),
-              value: info.dhcp.leasetime,
-            },
-          ]}
-        />
-      </CardContent>
-    </Card>
+    <div className="flex max-w-2xl flex-col gap-6">
+      <Group title={t("network.lan.status.router")}>
+        <Row label={t("network.lan.status.address")}>{configured}</Row>
+        <Row label={t("network.lan.status.netmask")}>{info.netmask}</Row>
+        <Row label={t("network.lan.status.live")}>
+          <span className="inline-flex items-center gap-2">
+            {pending && (
+              <Badge variant="secondary">
+                {t("network.lan.status.pending")}
+              </Badge>
+            )}
+            {info.live ?? "—"}
+          </span>
+        </Row>
+        <Row label={t("network.lan.status.usbHost")}>
+          {info.usb_host_address}
+        </Row>
+        <Row label={t("network.lan.status.default")}>
+          {info.default_address}
+        </Row>
+      </Group>
+      <Group title="DHCP">
+        <Row label="DHCP">
+          <span
+            className={
+              info.dhcp.enabled
+                ? "text-[#248A3D] dark:text-[#30D158]"
+                : "text-muted-foreground"
+            }
+          >
+            {info.dhcp.enabled
+              ? t("common.state.enabled")
+              : t("common.state.disabled")}
+          </span>
+        </Row>
+        <Row label={t("network.lan.status.pool")}>{range}</Row>
+        <Row label={t("network.lan.status.leasetime")}>
+          {info.dhcp.leasetime}
+        </Row>
+      </Group>
+    </div>
   );
 }

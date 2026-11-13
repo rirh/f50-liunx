@@ -59,7 +59,7 @@ export function LiveChart({ samples }: { samples: Sample[] }) {
                   <span className="text-muted-foreground">
                     {config[name as keyof typeof config]?.label}
                   </span>
-                  <span className="font-mono tabular-nums">
+                  <span className="tabular-nums">
                     {typeof v === "number"
                       ? `${v.toFixed(1)}${name === "temp" ? " °C" : "%"}`
                       : "—"}

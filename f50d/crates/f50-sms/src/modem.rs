@@ -78,18 +78,37 @@ async fn select_store(s: &mut AtSession, mem: &str) -> Result<Option<(u32, u32)>
     Err(Error::failed(format!("the modem refused the {mem} message store")))
 }
 
-/// The store that holds anything, SIM (SM) first, then the modem's own (ME), as the shell tools picked it.
+/// The store to list, SIM (SM) first, then the modem's own (ME): one that holds anything, else one that can hold
+/// anything. The choice is left selected, receiving included: on the F50 ME has no room at all ("ME",0,0), and a
+/// modem left on it has nowhere to put an incoming message.
 async fn pick_store(s: &mut AtSession) -> Result<Storage> {
-    let mut chosen = None;
-    for mem in ["SM", "ME"] {
+    const STORES: [&str; 2] = ["SM", "ME"];
+    let mut seen: Vec<Storage> = Vec::new();
+    for mem in STORES {
         let Ok(cap) = select_store(s, mem).await else { continue };
         let (used, total) = cap.unwrap_or((0, 0));
-        chosen = Some(Storage { store: mem.into(), used, total, at: unix_now() });
+        seen.push(Storage { store: mem.into(), used, total, at: unix_now() });
         if used != 0 {
             break;
         }
     }
-    chosen.ok_or_else(|| Error::failed("the modem accepted neither SM nor ME storage"))
+    let last = seen.last().map(|st| st.store.clone());
+    let chosen = choose_store(seen).ok_or_else(|| Error::failed("the modem accepted neither SM nor ME storage"))?;
+    if last.as_deref() != Some(chosen.store.as_str()) {
+        select_store(s, &chosen.store).await?;
+    }
+    Ok(chosen)
+}
+
+/// Of the stores the modem accepted (in the order tried): the first that holds anything, else the first with room,
+/// else the first.
+fn choose_store(seen: Vec<Storage>) -> Option<Storage> {
+    let pick = seen
+        .iter()
+        .position(|st| st.used != 0)
+        .or_else(|| seen.iter().position(|st| st.total != 0))
+        .unwrap_or(0);
+    seen.into_iter().nth(pick)
 }
 
 /// Every stored message (`AT+CMGL=4`, "all" in PDU mode) of the store that holds any.
@@ -264,6 +283,17 @@ mod tests {
         );
         assert_eq!(parse_cmgr(&lines("+CMGR: 1,,40"), 4), None);
         assert_eq!(parse_cmgr(&[], 4), None);
+    }
+
+    #[test]
+    fn store_choice() {
+        let st = |store: &str, used, total| Storage { store: store.into(), used, total, at: 0 };
+        // the F50: an empty SIM and a modem store without room; the SIM stays the store
+        assert_eq!(choose_store(vec![st("SM", 0, 50), st("ME", 0, 0)]).unwrap().store, "SM");
+        assert_eq!(choose_store(vec![st("SM", 0, 50), st("ME", 3, 20)]).unwrap().store, "ME");
+        assert_eq!(choose_store(vec![st("SM", 2, 50)]).unwrap().store, "SM");
+        assert_eq!(choose_store(vec![st("ME", 0, 0)]).unwrap().store, "ME");
+        assert_eq!(choose_store(vec![]), None);
     }
 
     #[test]

@@ -108,6 +108,10 @@ const m: Messages["system"] = {
     description: "Hostname, time zone, admin password and power",
     rebooting: "The device is rebooting",
     poweringOff: "The device is shutting down",
+    general: {
+      title: "General",
+      description: "The device's name, time zone and root password",
+    },
     hostname: {
       title: "Hostname",
       description: "The device's name on the local network",
@@ -128,6 +132,7 @@ const m: Messages["system"] = {
       hint: "An IANA time zone name (e.g. Asia/Shanghai) or UTC. Rejected if the device lacks data for that zone.",
       saved: "Time zone changed to {zone}",
       required: "Choose a time zone",
+      now: "Device time {time}",
       invalid: "Invalid time zone name",
     },
     password: {
@@ -136,6 +141,7 @@ const m: Messages["system"] = {
       label: "New password",
       confirmLabel: "Confirm new password",
       note: "Once changed, the current session may end and you will need to sign in with the new password.",
+      change: "Change",
       submit: "Change password",
       saved: "root password changed",
       savedDescription:
@@ -188,6 +194,11 @@ const m: Messages["system"] = {
         balanced: "Balanced",
         performance: "Performance",
       },
+      short: {
+        saving: "Frequency capped: coolest, least power",
+        balanced: "Scales with load (default)",
+        performance: "Always at full speed: fastest, hottest",
+      },
       text: {
         saving:
           "schedutil governor, maximum frequency capped at the step within about 60% of the hardware maximum; least heat and power.",
@@ -196,6 +207,21 @@ const m: Messages["system"] = {
         performance:
           "performance governor, always at the maximum frequency; fastest response but the most heat.",
       },
+    },
+    clusters: {
+      title: "Core speed",
+      description:
+        "What each group of cores runs at right now (refreshed every 5 s)",
+      little: "Efficiency cores",
+      big: "Performance cores",
+      prime: "Prime core",
+      all: "CPU",
+      cores: "{count} cores · CPU {cpus}",
+      cores_one: "{count} core · CPU {cpus}",
+      range: "Range {min} – {max}",
+      capped: "Capped at {max}",
+      governor: "Governor {name}",
+      curLabel: "{name}: current share of the maximum",
     },
     policies: {
       title: "Frequency policies",
@@ -217,6 +243,32 @@ const m: Messages["system"] = {
       description:
         "Kernel thermal zones, trip points and bound cooling devices (a state above 0 means throttling or cooling)",
       empty: "No thermal zones",
+      hottest: "Hottest",
+      hottestAt: "at {zone}",
+      ok: "Normal",
+      warm: "Warm",
+      hot: "Hot",
+      headroom: "{deg} below throttling",
+      atTrip: "At the throttling temperature",
+      throttling: "Throttling to cool down",
+      zones: "Temperatures",
+      showAll: "Show all {count} zones",
+      showLess: "Show less",
+      details: "Technical details: trip points and cooling devices",
+      zone: {
+        soc: "Processor",
+        cpu: "CPU cores",
+        gpu: "GPU",
+        board: "Board",
+        chg: "Charger",
+        battery: "Battery",
+        nr: "5G radio",
+        lte: "4G radio",
+        pa: "RF amplifier",
+        modem: "Modem",
+        ddr: "Memory",
+        skin: "Surface",
+      },
       enabled: "Enabled",
       disabled: "Disabled",
       trip: {
@@ -240,6 +292,10 @@ const m: Messages["system"] = {
     description:
       "LED switches, brightness, auto-off and alarm effects; changes apply at once",
     lamps: {
+      on: "On",
+      off: "Off",
+      panel: "Control Center",
+      panelHint: "Tap to switch, drag up or down for brightness",
       title: "LEDs",
       description:
         "Switch and brightness (brightness saves when you release the slider)",
@@ -251,8 +307,10 @@ const m: Messages["system"] = {
       offNote: " When off it stays dark (the overheating alarm still shows).",
       brightness: "Brightness",
       brightnessLabel: "{lamp} brightness",
+      statusOn: "On · {pct}% brightness",
     },
     behaviour: {
+      group: "Effects",
       title: "Effects",
       description: "Boot indicator and overheating alarm",
       boot: "Boot indicator",
@@ -264,6 +322,15 @@ const m: Messages["system"] = {
       thermalOption: { siren: "Siren", blink: "Blinking red", off: "Hidden" },
     },
     timeout: {
+      preset: {
+        always: "Always",
+        s30: "30 s",
+        m1: "1 min",
+        m5: "5 min",
+        custom: "Custom",
+      },
+      save: "Save",
+      restore: "Restore default",
       title: "Auto-off",
       current: "Current: {text}",
       always: "Always on",

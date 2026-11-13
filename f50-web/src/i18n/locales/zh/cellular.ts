@@ -79,6 +79,7 @@ export default {
       waiting: "正在记录信号（需要两次读数）",
     },
     cells: {
+      network: "网络",
       title: "小区信息",
       description: "服务小区、邻区、载波聚合与 QoS · 每 5 秒刷新 · 读数 {age}",
       noReading: "没有小区读数",
@@ -158,6 +159,43 @@ export default {
     autoApplyOn: "已开启启动时自动应用",
     autoApplyOff: "已关闭启动时自动应用",
     current: "当前：{value}",
+    help: {
+      button: "使用说明",
+      title: "网络锁定使用说明",
+      description:
+        "锁定让设备只用指定的模式、频段或小区。不确定时保持自动即可。",
+      read: {
+        title: "先看当前状态",
+        p1: "页面显示的是从模组读取的锁定状态，右上角「重新读取」可刷新。",
+        p2: "锁定只适用于 SIM1；使用内置卡（SIM2）时无法更改。",
+      },
+      mode: {
+        title: "网络模式",
+        p1: "选择模式后点「应用」。",
+        p2: "选 5G NSA 时需在「其他选项」中开启 EN-DC。",
+      },
+      bands: {
+        title: "频段锁定",
+        p1: "点 LTE 或 NR 卡片上的「编辑」，勾选要使用的频段。",
+        p2: "不勾选任何频段即为自动；只列出设备支持的频段。",
+        p3: "锁定的频段附近没有基站时会没有信号，此时请恢复自动。",
+      },
+      cell: {
+        title: "小区锁定",
+        p1: "「锁定当前服务小区」一键锁定正在使用的小区。",
+        p2: "「添加锁定」需填写 ARFCN 与 PCI，可在「信号与小区」页查到。",
+        p3: "重启后小区锁定会丢失，需开启「启动时自动应用」才能恢复。",
+      },
+      effect: {
+        title: "生效与中断",
+        p1: "除 EN-DC 外，每次更改都会重启协议栈，蜂窝连接中断约半分钟。",
+        p2: "多个更改依次排队执行，进度显示在页面顶部。",
+      },
+      reset: {
+        title: "出问题时",
+        p1: "「恢复自动」清除全部锁定并逐项校验，已保存的锁定也会删除。",
+      },
+    },
     modes: {
       auto: { label: "自动", hint: "2G/3G/4G/5G 自动" },
       auto152: { label: "自动（无 2G）", hint: "自动，但不使用 2G" },
@@ -182,6 +220,7 @@ export default {
       hint: "不选任何频段即为自动。仅列出设备支持的频段。",
       unsupported: " 当前锁定中含不支持的频段：{bands}。",
       clear: "清空（自动）",
+      lockedBands: "锁定频段",
     },
     cell: {
       title: "小区锁定",
@@ -193,6 +232,7 @@ export default {
       rat: "制式",
       hint: "可在「信号与小区」页的服务小区或邻区中查到 ARFCN 与 PCI。",
       add: "添加锁定",
+      addTitle: "添加小区锁定",
       serving: "锁定当前服务小区",
       unlockNrJob: "解除 NR 小区锁定",
       unlockNr: "解除 NR",
@@ -279,6 +319,9 @@ export default {
       description: "当前 SIM{slot} 的接入点；更改接入参数会重新拨号",
       authBoth: "当前：自动（PAP 或 CHAP，由网络选择）",
       authInvalid: "当前保存的认证方式无效",
+      authAuto: "自动（PAP 或 CHAP）",
+      authInvalidShort: "无效",
+      apnDefault: "网络默认",
       savedRedial: "已保存，正在重新拨号",
       apnHint: "留空则使用网络默认接入点。",
       pdp: "IP 类型",
@@ -310,6 +353,8 @@ export default {
     },
     level: { none: "不限量", ok: "正常", warn: "接近上限", over: "已超额" },
     summary: {
+      total: "合计",
+      cycle: "本期",
       title: "本期用量",
       description: "计费周期 {start} 至 {last} · 剩余 {count} 天",
       description_one: "计费周期 {start} 至 {last} · 剩余 {count} 天",

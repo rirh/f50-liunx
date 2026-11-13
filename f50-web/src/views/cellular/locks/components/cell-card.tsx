@@ -1,8 +1,12 @@
+import { useMemo, useState } from "react";
 import { ConfirmButton } from "@/components/f50/confirm-button";
+import { FormDialog } from "@/components/f50/form-dialog";
 import { PendingButton } from "@/components/f50/pending-button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
@@ -11,7 +15,6 @@ import {
 } from "@/components/ui/card";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -21,7 +24,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { t } from "@/i18n";
 import { reportFormError } from "@/lib/form-error";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LocateFixedIcon, XIcon } from "lucide-react";
+import { LocateFixedIcon, PlusIcon, XIcon } from "lucide-react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { type OnJob, useLockSet } from "../use-lock-set";
@@ -37,7 +40,12 @@ type Values = z.infer<ReturnType<typeof schema>>;
 
 const RAT_NAME = { lte: "LTE", nr: "NR" } as const;
 
-/** Cell locks: one cell (RAT, ARFCN, PCI) added at a time, the serving cell, or removed per RAT. */
+const EMPTY: Values = { rat: "nr", arfcn: "", pci: "" };
+
+/**
+ * Cell locks: the locked cells and the one-click actions (lock the serving cell, remove per RAT) on the page; a cell
+ * by RAT, ARFCN and PCI is added one at a time in a dialog.
+ */
 export function CellCard({
   cells,
   disabled,
@@ -47,9 +55,10 @@ export function CellCard({
   disabled: boolean;
   onJob: OnJob;
 }) {
+  const [open, setOpen] = useState(false);
   const form = useForm<Values>({
-    resolver: zodResolver(schema()),
-    defaultValues: { rat: "nr", arfcn: "", pci: "" },
+    resolver: zodResolver(useMemo(() => schema(), [])),
+    defaultValues: EMPTY,
   });
   const add = useLockSet(onJob);
   const quick = useLockSet(onJob);
@@ -77,7 +86,10 @@ export function CellCard({
           pci: v.pci,
         }),
       },
-      { onError: (e) => reportFormError(e, form.setError, { value: "arfcn" }) },
+      {
+        onSuccess: () => setOpen(false),
+        onError: (e) => reportFormError(e, form.setError, { value: "arfcn" }),
+      },
     );
   });
   const err = form.formState.errors;
@@ -90,6 +102,20 @@ export function CellCard({
         <CardDescription>
           {t("cellular.locks.cell.description")}
         </CardDescription>
+        <CardAction>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => {
+              form.reset(EMPTY);
+              setOpen(true);
+            }}
+          >
+            <PlusIcon data-icon="inline-start" />
+            {t("cellular.locks.cell.add")}
+          </Button>
+        </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -109,68 +135,8 @@ export function CellCard({
             </Badge>
           ))}
         </div>
-        <form id="cell-lock-form" onSubmit={submit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel>{t("cellular.locks.cell.rat")}</FieldLabel>
-              <Controller
-                control={form.control}
-                name="rat"
-                render={({ field }) => (
-                  <ToggleGroup
-                    type="single"
-                    variant="outline"
-                    value={field.value}
-                    disabled={busy}
-                    onValueChange={(v) => v && field.onChange(v)}
-                  >
-                    <ToggleGroupItem value="nr">NR (5G)</ToggleGroupItem>
-                    <ToggleGroupItem value="lte">LTE (4G)</ToggleGroupItem>
-                  </ToggleGroup>
-                )}
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field data-invalid={!!err.arfcn}>
-                <FieldLabel htmlFor="cell-arfcn">
-                  {rat === "nr" ? "NR-ARFCN" : "EARFCN"}
-                </FieldLabel>
-                <Input
-                  id="cell-arfcn"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  disabled={busy}
-                  aria-invalid={!!err.arfcn}
-                  {...form.register("arfcn")}
-                />
-                <FieldError errors={[err.arfcn]} />
-              </Field>
-              <Field data-invalid={!!err.pci}>
-                <FieldLabel htmlFor="cell-pci">PCI</FieldLabel>
-                <Input
-                  id="cell-pci"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  disabled={busy}
-                  aria-invalid={!!err.pci}
-                  {...form.register("pci")}
-                />
-                <FieldError errors={[err.pci]} />
-              </Field>
-            </div>
-            <FieldDescription>{t("cellular.locks.cell.hint")}</FieldDescription>
-          </FieldGroup>
-        </form>
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2">
-        <PendingButton
-          type="submit"
-          form="cell-lock-form"
-          pending={add.isPending}
-          disabled={busy}
-        >
-          {t("cellular.locks.cell.add")}
-        </PendingButton>
         <PendingButton
           variant="outline"
           pending={quickPending("auto")}
@@ -215,6 +181,69 @@ export function CellCard({
           {t("cellular.locks.cell.unlockAll")}
         </ConfirmButton>
       </CardFooter>
+      <FormDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("cellular.locks.cell.addTitle")}
+        description={t("cellular.locks.cell.hint")}
+        formId="cell-lock-form"
+        pending={add.isPending}
+        dirty={form.formState.isDirty}
+        submitText={t("cellular.locks.cell.add")}
+        size="sm"
+      >
+        <form id="cell-lock-form" onSubmit={submit}>
+          <FieldGroup>
+            <Field>
+              <FieldLabel>{t("cellular.locks.cell.rat")}</FieldLabel>
+              <Controller
+                control={form.control}
+                name="rat"
+                render={({ field }) => (
+                  <ToggleGroup
+                    type="single"
+                    variant="outline"
+                    value={field.value}
+                    disabled={add.isPending}
+                    onValueChange={(v) => v && field.onChange(v)}
+                  >
+                    <ToggleGroupItem value="nr">NR (5G)</ToggleGroupItem>
+                    <ToggleGroupItem value="lte">LTE (4G)</ToggleGroupItem>
+                  </ToggleGroup>
+                )}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field data-invalid={!!err.arfcn}>
+                <FieldLabel htmlFor="cell-arfcn">
+                  {rat === "nr" ? "NR-ARFCN" : "EARFCN"}
+                </FieldLabel>
+                <Input
+                  id="cell-arfcn"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  disabled={add.isPending}
+                  aria-invalid={!!err.arfcn}
+                  {...form.register("arfcn")}
+                />
+                <FieldError errors={[err.arfcn]} />
+              </Field>
+              <Field data-invalid={!!err.pci}>
+                <FieldLabel htmlFor="cell-pci">PCI</FieldLabel>
+                <Input
+                  id="cell-pci"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  disabled={add.isPending}
+                  aria-invalid={!!err.pci}
+                  {...form.register("pci")}
+                />
+                <FieldError errors={[err.pci]} />
+              </Field>
+            </div>
+          </FieldGroup>
+        </form>
+      </FormDialog>
     </Card>
   );
 }

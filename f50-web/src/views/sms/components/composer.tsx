@@ -23,14 +23,17 @@ export function Composer({ peer }: { peer: string }) {
 
   if (!NUMBER_RE.test(peer)) {
     return (
-      <p className="border-t p-3 text-sm text-muted-foreground">
+      <p className="border-t px-3 py-2 text-xs text-muted-foreground">
         {t("sms.composer.notNumber")}
       </p>
     );
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-2 border-t p-3">
+    <form
+      onSubmit={submit}
+      className="flex shrink-0 flex-col gap-1.5 border-t p-2"
+    >
       {job && (
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
@@ -58,8 +61,8 @@ export function Composer({ peer }: { peer: string }) {
           <InputGroupTextarea
             aria-label={t("sms.composer.textLabel")}
             placeholder={t("sms.composer.placeholder")}
-            rows={2}
-            className="max-h-40 min-h-12 text-base sm:text-sm"
+            rows={1}
+            className="field-sizing-content max-h-32 min-h-9 py-2 text-base sm:text-sm"
             aria-invalid={!!error}
             disabled={pending}
             onKeyDown={(e) => {
@@ -70,13 +73,13 @@ export function Composer({ peer }: { peer: string }) {
             }}
             {...form.register("text")}
           />
-          <InputGroupAddon align="block-end">
-            <SmsCounter text={text} />
+          <InputGroupAddon align="inline-end" className="self-end pb-1.5">
+            <SmsCounter text={text} className="hidden text-[11px] sm:inline" />
             <InputGroupButton
               type="submit"
               variant="default"
-              size="sm"
-              className="ml-auto"
+              size="xs"
+              title="Ctrl/⌘ + Enter"
               disabled={pending}
               aria-busy={pending}
             >
