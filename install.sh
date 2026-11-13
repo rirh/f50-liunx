@@ -167,7 +167,7 @@ require_android
 # make adb may have seen Linux before require_android rebooted into Android.
 # Installation can prepare the root channel here; read-only modes keep their existing boundary.
 if [ $CHECK_ONLY = 0 ] && [ $BACKUP_ONLY = 0 ] && [ "$(su_do 'id -u' 2>/dev/null)" != 0 ]; then
-    "$TOP/scripts/device/f50-enable-adb.sh" --ip "${F50_IP:-192.168.0.1}" --serial "$ANDROID_SERIAL"
+    python3 "$TOP/scripts/device/f50-enable-adb.py" --ip "${F50_IP:-192.168.0.1}" --serial "$ANDROID_SERIAL"
     F50_ROOT_VIA=
 fi
 adb_prop() { adb shell getprop "$1" </dev/null 2>/dev/null | tr -d '\r' | head -n1; }
@@ -708,6 +708,9 @@ mkdir -p "$WORK/dumps" "$WORK/firmware"
 step pull 15
 say "$(t 'Pulling device data into {1} (stays on this computer)' "$WORK")"
 pull_boot_and_misc
+# the vendor extractors run as their own processes: hand them the root channel found here (B15 has no su)
+root_via || die "$(t 'no answer from the device')"
+export F50_ROOT_VIA
 # what a complete subset must hold, not only the directory: an interrupted run left a partial one behind that the
 # old check then accepted for good (issue #6)
 [ -e "$WORK/android-subset/vendor/bin/modem_control" ] && [ -e "$WORK/android-subset/linkerconfig/ld.config.txt" ] ||

@@ -2,7 +2,7 @@
 # prepare ADB and a root channel first (complete configurations are only checked).
 .PHONY: adb install install-check uninstall backup backup-full collect-logs reset-password
 
-ADB_ENABLE = scripts/device/f50-enable-adb.sh --ip "$(F50_IP)" $(if $(F50_SERIAL),--serial "$(F50_SERIAL)")
+ADB_ENABLE = $(PYTHON) scripts/device/f50-enable-adb.py --ip "$(F50_IP)" $(if $(F50_SERIAL),--serial "$(F50_SERIAL)")
 
 # After `make adb` the F50 answers over USB: pin it so the scripts do not ask.
 # A device running Linux (serial F50LINUX-...) is left to the installer, which reboots it into Android.

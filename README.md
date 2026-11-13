@@ -50,8 +50,10 @@ From a Mac or a Linux computer, on a ZTE F50 that still runs its stock firmware.
    ADB is an ordinary shell, it uses writable `/data/samba/etc/smb.conf` to install a Samba `root preexec` hook,
    enables guest access, and accesses a share to start a local root socket. The original Samba configuration is
    saved to `/data/local/tmp/f50-smb-before-root.conf`. A userspace SMB2/3 client connects to shares read from
-   `smb.conf`, avoiding macOS kernel mounts and the `smbutil` share-enumeration path. SMB/root startup is capped
-   at 10 seconds. The tool then checks the actual `sys.usb.config/state`, TCP connection and UID 0 for 30
+   `smb.conf`, avoiding the `smbutil` share-enumeration path. On macOS, a failed userspace attempt can fall back
+   to a temporary read-only `mount_smbfs` access to a known share, then unmount it. All SMB/root attempts share
+   a 10-second deadline; retries continue within that budget, with time reserved for cleanup and root probes.
+   The tool then checks the actual `sys.usb.config/state`, TCP connection and UID 0 for 30
    consecutive seconds before reporting success; property writes alone are not success.
    Without step 3 it offers to do it itself:
    enter the admin password and it switches USB debugging on and restarts the F50, as the Windows F50-ADB tool
@@ -62,7 +64,7 @@ From a Mac or a Linux computer, on a ZTE F50 that still runs its stock firmware.
    repair attempt. An existing hook or socket file alone does not count as working root.
    SMB logs identify protocol negotiation versus session setup without logging authentication data. If automatic
    negotiation cannot establish a session, one SMB 2.1 compatibility attempt may use the remaining deadline;
-   SMB1 and global host security changes are not enabled. These are recovery attempts, not a confirmed cause of EOF.
+   no global host SMB/security settings are changed. These are recovery attempts, not a confirmed cause of EOF.
    TCP `offline` transports at this device address are disconnected and reconnected with backoff. Every new
    connection must match the USB boot ID; subsequent writes are pinned to its physical serial and guarded by that ID.
 5. `make install`. It runs `make adb` first, so steps 3 and 4 are only needed by hand when that fails.
@@ -75,7 +77,7 @@ configuration and a functioning root hook; failure stops installation. Root prep
 TrustOS, and does not establish that the device can boot a modified image. Take a backup first: `make backup`.
 
 TCP ADB on port 5555 is now part of the default preparation, as in the original F50-ADB tool; `--wireless` remains
-accepted for compatibility. `scripts/device/f50-enable-adb.sh --adb-only` only restores and reads a USB shell,
+accepted for compatibility. `scripts/device/f50-enable-adb.py --adb-only` only restores and reads a USB shell,
 without root/Samba preparation or the stability claim. `make install` still uses USB and leaves the prepared
 adb-only mode in place rather than restoring MTP at exit. This is a per-boot preparation, not a guarantee that
 stock firmware will retain debugging forever.

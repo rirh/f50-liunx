@@ -32,10 +32,25 @@ def run(args, timeout=TIMEOUT, **kw):
         return None
 
 
+# The installer's root channel (installer/lib/host-tools.sh exports F50_ROOT_VIA): su, a root adb shell, or the
+# stock F50 root socket - B15 firmware has no su at all. Unset: su, as before.
+ROOT_VIA = os.environ.get('F50_ROOT_VIA') or 'su'
+ADB_ROOT = Path(__file__).resolve().parents[2] / 'installer/lib/adb-root.py'
+
+
+def as_root(cmd, timeout=TIMEOUT):
+    """the command line that runs cmd as root on the device"""
+    if ROOT_VIA == 'socket':
+        return [sys.executable, str(ADB_ROOT), '--timeout', str(max(1, timeout - 5)), cmd]
+    if ROOT_VIA == 'shell':
+        return ['adb', 'exec-out', cmd]
+    return ['adb', 'exec-out', "su -c '" + cmd + "'"]
+
+
 def adb(cmd):
     """run one command as root on the device and return its output (b'' when the command failed)"""
     for _ in range(TRIES):
-        r = run(['adb', 'exec-out', f"su -c '{cmd}; echo __RC$?'"], capture_output=True)
+        r = run(as_root(f'{cmd}; echo __RC$?'), capture_output=True)
         if r is None:
             continue
         out = r.stdout
@@ -47,9 +62,9 @@ def adb(cmd):
     raise SystemExit('adb unavailable (device gone, or su stopped working?)')
 
 
-def adb_shell(cmd):
-    """no output wanted; the device may take its time, but not for ever"""
-    run(['adb', 'shell', cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+def adb_root(cmd):
+    """as root, no output wanted; the device may take its time, but not for ever"""
+    run(as_root(cmd), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def locate(libs):
@@ -70,11 +85,11 @@ def locate(libs):
 # A binary read must not go through `adb exec-out "su -c ..."`: on some devices su gives the command a pty
 # whose ONLCR rewrites every LF as CRLF, and the file arrives inflated and unparsable (issue #2).
 def adb_pull_file(path):
-    adb_shell(f"su -c 'cat {path} > {DEV}'")
+    adb_root(f'cat {path} > {DEV}; chmod 644 {DEV}')
     if WORK.exists():
         WORK.unlink()
     r = run(['adb', 'pull', DEV, str(WORK)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    adb_shell(f"su -c 'rm -f {DEV}'")
+    adb_root(f'rm -f {DEV}')
     if r is None or r.returncode != 0 or not WORK.is_file():
         return b''
     return WORK.read_bytes()

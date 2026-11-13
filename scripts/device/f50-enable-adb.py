@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env python3
 # Stock F50: keep USB ADB available and establish a root channel for the installer. macOS or Linux.
 # Reuse direct root, su or the local root socket; otherwise bootstrap through writable Samba configuration.
 # Normally run through `make adb`; `make install` runs it first. Complete configurations are only checked.
@@ -12,34 +12,6 @@
 # Prepares TCP 5555 in the first USB shell, then restores actual adb-only USB functions through root.
 # Non-root firmware also needs the Samba guest/root-preexec bootstrap and a local Unix root socket.
 # Protocol and commands: work/analysis/F50-ADB-aaadddbbb-2026-11-12/提取命令.txt. Nothing is flashed.
-set -eu
-TOP=$(cd "$(dirname "$0")/../.." && pwd)
-. "$TOP/installer/lib/host-tools.sh"
-find_adb || { echo '缺少 adb：请安装 Android platform-tools（macOS: brew install android-platform-tools）。' >&2; exit 1; }
-command -v python3 >/dev/null || { echo '缺少 Python 3。' >&2; exit 1; }
-# Build the small userspace SMB client before touching USB, never during its short connection window.
-_need_smb=1
-for _arg in "$@"; do case "$_arg" in --adb-only|-h|--help) _need_smb=0 ;; esac; done
-F50_SMB_TRIGGER="$TOP/work/bin/f50-smb-trigger"
-if [ "$_need_smb" = 1 ]; then
-    _build_smb=0
-    [ -x "$F50_SMB_TRIGGER" ] || _build_smb=1
-    for _source in "$TOP/scripts/device/smb-trigger/"*; do
-        if [ "$_source" -nt "$F50_SMB_TRIGGER" ]; then _build_smb=1; fi
-    done
-    if [ "$_build_smb" = 1 ]; then
-        command -v go >/dev/null || { echo '首次运行需要 Go 1.20+ 构建 SMB 客户端；尚未操作设备。' >&2; exit 1; }
-        mkdir -p "$TOP/work/bin"
-        _smb_tmp="$F50_SMB_TRIGGER.tmp.$$"
-        trap 'rm -f "$_smb_tmp"' EXIT
-        echo '准备用户态 SMB 客户端（首次运行会下载固定版本的 Go 依赖）……'
-        (cd "$TOP/scripts/device/smb-trigger" && go build -mod=readonly -trimpath -o "$_smb_tmp" .)
-        mv "$_smb_tmp" "$F50_SMB_TRIGGER"
-        trap - EXIT
-    fi
-fi
-export F50_SMB_TRIGGER
-exec python3 - "$TOP" "$@" <<'PY'
 import argparse
 import getpass
 import hashlib
@@ -56,11 +28,12 @@ import signal
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import time
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
-TOP = Path(sys.argv.pop(1))
+TOP = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(
     description='原厂 F50：准备 USB/TCP ADB 与 root 通道，连续观察 30 秒后才报告保持成功。',
     epilog='前置条件：数据线连接电脑；在 http://192.168.0.1/index.html#usb_port 开启 ADB 调试，'
@@ -79,7 +52,27 @@ except ValueError:
 if args.serial and ':' in args.serial:
     parser.error('--serial 应为 USB 序列号，不能是无线 ADB 地址')
 
+# Match the installers' host-tool lookup, keeping the caller's PATH first.
+host_path = os.environ.get('PATH', os.defpath).split(os.pathsep)
+for directory in ('/opt/homebrew/bin', '/usr/local/bin'):
+    if Path(directory).is_dir() and directory not in host_path:
+        host_path.append(directory)
+os.environ['PATH'] = os.pathsep.join(host_path)
 ADB = shutil.which('adb')
+if not ADB:
+    adb_dirs = [TOP, TOP / 'platform-tools', TOP / 'work/deploy/bin', Path.cwd() / 'platform-tools',
+                Path.home() / 'platform-tools', Path.home() / 'Downloads/platform-tools',
+                Path.home() / 'Library/Android/sdk/platform-tools']
+    adb_dirs.extend(Path(os.environ[key]) / 'platform-tools'
+                    for key in ('ANDROID_HOME', 'ANDROID_SDK_ROOT') if os.environ.get(key))
+    for directory in adb_dirs:
+        candidate = directory / 'adb'
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            ADB = str(candidate)
+            os.environ['PATH'] = str(directory) + os.pathsep + os.environ['PATH']
+            break
+if not ADB:
+    sys.exit('缺少 adb：请安装 Android platform-tools（macOS: brew install android-platform-tools）。')
 USB = ['-s', args.serial] if args.serial else ['-d']
 ENDPOINT = args.ip + ':5555'
 CONSOLE = f'http://{args.ip}/index.html#usb_port'
@@ -90,7 +83,7 @@ DEVICE_SERIAL = args.serial
 TCP_LAST_RECONNECT = 0
 TCP_LAST_STATE = None
 SMB_SHARES = []
-SMB_TRIGGER = os.environ['F50_SMB_TRIGGER']
+SMB_TRIGGER = str(TOP / 'work/bin/f50-smb-trigger')
 # Use the local ADB server even if the parent terminal selected a remote server/device.
 ENV = dict(os.environ, LC_ALL='C')
 for key in ('ANDROID_SERIAL', 'ADB_SERVER_SOCKET', 'ANDROID_ADB_SERVER_ADDRESS', 'ANDROID_ADB_SERVER_PORT'):
@@ -583,11 +576,10 @@ def start_tcp(target, deadline=None):
 
 
 def wait_root(target, deadline=None):
-    say(f'尝试通过用户态 SMB 触发 root（最多 {ROOT_WAIT}s）。')
+    say(f'尝试通过 SMB 触发 root（最多 {ROOT_WAIT}s）。')
     deadline = min(deadline or float('inf'), time.monotonic() + ROOT_WAIT)
     last = '尚未取得 root'
     repaired = False
-    smb_attempts = 0
     next_smb_try = 0
     while time.monotonic() < deadline:
         current = live_target(deadline)
@@ -614,8 +606,7 @@ def wait_root(target, deadline=None):
                     say('文件共享准备时连接中断；只读回状态，不立即重复写入。')
         if time.monotonic() >= deadline:
             break
-        if smb_attempts < 3 and time.monotonic() >= next_smb_try:
-            smb_attempts += 1
+        if time.monotonic() >= next_smb_try:
             try:
                 last = trigger_samba(deadline)
             except (OSError, subprocess.TimeoutExpired) as exc:
@@ -694,13 +685,52 @@ def trigger_samba(deadline):
     if remaining <= 0:
         raise TimeoutError('SMB 阶段已到达总等待上限')
     # Known share names avoid the IPC$/srvsvc enumeration path that smbutil stalled in.
-    command = [SMB_TRIGGER, '--address', args.ip + ':445', '--timeout', str(min(6, remaining))]
+    native_shares = [name for name in SMB_SHARES if '/' not in name and '\\' not in name]
+    if sys.platform != 'darwin':
+        native_shares = []
+    helper_timeout = min(3 if native_shares else 6, remaining)
+    command = [SMB_TRIGGER, '--address', args.ip + ':445', '--timeout', str(helper_timeout)]
     for name in SMB_SHARES:
         command += ['--share', name]
-    rc, output = run(command, timeout=remaining, label='用户态 SMB 会话与共享访问')
-    if rc == 0 and 'F50_SMB_TRIGGERED' in output.splitlines():
-        return '共享访问成功；以随后的 UID=0 结果确认 root。'
-    return output or f'SMB helper 退出码 {rc}'
+    try:
+        rc, output = run(command, timeout=min(remaining, helper_timeout + 0.25), label='用户态 SMB 会话与共享访问')
+        if rc == 0 and 'F50_SMB_TRIGGERED' in output.splitlines():
+            return '共享访问成功；以随后的 UID=0 结果确认 root。'
+        last = output or f'SMB helper 退出码 {rc}'
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        last = str(exc)
+        say('用户态 SMB 触发失败：' + last)
+    for name in native_shares:
+        remaining = deadline - time.monotonic()
+        # Reserve time for unmounting and the next boot-ID/UID probe.
+        if remaining <= 3:
+            break
+        mountpoint = Path(tempfile.mkdtemp(prefix='f50-smb-', dir=TOP / 'work'))
+        try:
+            rc, output = run(['/sbin/mount_smbfs', '-N', '-o', 'ro,nobrowse',
+                              f'//guest:@{args.ip}/{quote(name, safe="")}', str(mountpoint)],
+                             timeout=min(3, remaining - 3), label='macOS 只读 SMB 共享回退')
+            if rc == 0:
+                return 'macOS 共享访问成功；以随后的启动标识与 UID=0 结果确认 root。'
+            last = output or f'macOS SMB 挂载退出码 {rc}'
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            last = str(exc)
+            say('macOS SMB 回退失败：' + last)
+        finally:
+            if mountpoint.is_mount():
+                # Cleanup must also run after STOP is set, so it cannot use run().
+                try:
+                    result = subprocess.run(['/sbin/umount', str(mountpoint)], stdin=subprocess.DEVNULL,
+                                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                            text=True, env=ENV, timeout=2, start_new_session=True)
+                    if result.returncode:
+                        raise RuntimeError(result.stdout.strip() or f'umount 退出码 {result.returncode}')
+                except (OSError, subprocess.TimeoutExpired, RuntimeError) as exc:
+                    message = f'临时 SMB 挂载未能卸载，已保留目录 {mountpoint}：{exc}'
+                    say(message)
+                    raise RuntimeError(message) from exc
+            mountpoint.rmdir()
+    return last
 
 
 def ensure_stable():
@@ -819,6 +849,27 @@ def enable_via_web(password):
 def main():
     global WEB_PORT
     say(f'日志文件：{LOG_PATH}')
+    # Build before touching USB, never during its short connection window.
+    if not args.adb_only:
+        helper = Path(SMB_TRIGGER)
+        source_dir = TOP / 'scripts/device/smb-trigger'
+        if not os.access(helper, os.X_OK) or any(
+                source.stat().st_mtime_ns > helper.stat().st_mtime_ns
+                for source in source_dir.glob('*')):
+            go = shutil.which('go')
+            if not go:
+                raise RuntimeError('首次运行需要 Go 1.20+ 构建 SMB 客户端；尚未操作设备。')
+            helper.parent.mkdir(parents=True, exist_ok=True)
+            temporary = helper.with_name(f'{helper.name}.tmp.{os.getpid()}')
+            say('准备用户态 SMB 客户端（首次运行会下载固定版本的 Go 依赖）……')
+            try:
+                result = subprocess.run([go, 'build', '-mod=readonly', '-trimpath', '-o', str(temporary), '.'],
+                                        cwd=source_dir)
+                if result.returncode:
+                    raise RuntimeError(f'SMB 客户端构建失败（退出码 {result.returncode}）；尚未操作设备。')
+                temporary.replace(helper)
+            finally:
+                temporary.unlink(missing_ok=True)
     say(f'设备 {args.ip}；USB 目标 {args.serial or "单台 USB 设备"}；Samba/root 等待上限 {ROOT_WAIT}s。')
     if not args.adb_only:
         say('默认开启 TCP 5555 备用 ADB。请连接 F50 Wi-Fi：USB 稳定模式会移除 USB 网卡/MTP 功能。')
@@ -874,7 +925,8 @@ def main():
                 except Exception as exc:
                     outcome.append(exc)
 
-            thread = threading.Thread(target=worker, daemon=True)
+            # Wait for the worker's temporary SMB mount cleanup even on Ctrl-C.
+            thread = threading.Thread(target=worker)
             if reboot_request is None or usb_target():
                 say('USB ADB 已出现，直接确认连接，不重启。' if args.adb_only else
                     '开启 USB 调试后 ADB 已连接，直接准备 root 通道，不重启。')
@@ -921,4 +973,3 @@ finally:
         except ProcessLookupError:
             pass
         process.wait()
-PY
