@@ -315,6 +315,7 @@ apk list --installed | sort > $R/etc/f50/packages.txt
 rm -rf $R/lib/modules/6.* $R/boot
 # f50d in place of the shell layer of the overlays (before the manifest: it changes the image)
 [ -x /in/f50d ] || { echo "f50d is not built" >&2; exit 1; }
+apk add coreutils-install >/dev/null
 sh /in/f50d-openwrt/install.sh $R /in/f50d /in/f50d-openwrt $([ -f /in/f50-web/index.html ] && echo /in/f50-web)
 # The manifest of the image: every file it holds, with type, mode, owner, size and sha256 (scripts/release/image-manifest.py has
 # the format and makes the same lines from the tarball; make-release.sh holds the two against each other). The next

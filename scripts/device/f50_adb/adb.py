@@ -154,8 +154,9 @@ class AdbClient:
         except subprocess.TimeoutExpired:
             self.host.say('TCP 启用请求期间连接中断，将通过实际连接确认。')
 
-    def usb_target(self):
-        rc, output = self.host.run([self.host.adb, *self.usb, 'get-state'], timeout=4, label='USB ADB 状态')
+    def usb_target(self, verbose=True):
+        rc, output = self.host.run([self.host.adb, *self.usb, 'get-state'], timeout=4,
+                                  label='USB ADB 状态' if verbose else None)
         if 'more than one' in output:
             raise RuntimeError('发现多台 USB 设备，请使用 --serial 或只连接 F50')
         return self.usb if rc == 0 and output == 'device' else None

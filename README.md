@@ -32,15 +32,17 @@ make reboot     # restart the device
 From a Mac or a Linux computer, on a ZTE F50 that still runs its stock firmware. Before `make install`:
 
 1. **Tools on the computer**: `adb` (Android platform-tools; macOS: `brew install android-platform-tools`), Python 3,
-   Go 1.20+ for the first `make adb`, `lz4`, docker, and the kernel in `out/` (`make kernel`, once).
+   Go 1.20+ for ADB recovery, `lz4`, docker, and the kernel in `out/` (`make kernel`, once).
    The SMB helper is built from pinned dependencies into `work/bin/` before any device operation and reused later.
 2. **Cable**: the F50 plugged into the computer with a cable that carries data (some charging cables do not), the
    USB not handed to a virtual machine.
 3. **USB debugging on**: open <http://192.168.0.1/index.html#usb_port> (the computer on the F50's Wi-Fi or USB
    network), log in with the **admin password** (not the Wi-Fi password), turn ADB debugging on and save. If the
    computer still does not list the device (`adb devices`), restart the F50 once.
-4. `make adb` writes the original tool's TCP 5555 properties in the first short-lived USB shell, then prepares a
-   root channel. Connect the computer to the F50's **Wi-Fi** for the TCP fallback: recovery uses actual adb-only
+4. `make adb` first checks USB ADB. If it is already connected, it reports success, prints the shell command,
+   and exits without preparing SMB/root, changing device settings, or waiting through the stability check.
+   If disconnected, recovery writes the original tool's TCP 5555 properties in the first short-lived USB shell,
+   then prepares a root channel. Connect the computer to the F50's **Wi-Fi** for the TCP fallback: recovery uses actual adb-only
    USB functions, which removes USB networking and MTP. A fallback connection is accepted only after matching
    the boot ID captured over USB. Existing correct properties and root channels are reused without rebooting.
    On macOS, preparation first checks that the Wi-Fi IPv4 subnet contains the F50 address. A phone hotspot or
@@ -67,7 +69,8 @@ From a Mac or a Linux computer, on a ZTE F50 that still runs its stock firmware.
    no global host SMB/security settings are changed. These are recovery attempts, not a confirmed cause of EOF.
    TCP `offline` transports at this device address are disconnected and reconnected with backoff. Every new
    connection must match the USB boot ID; subsequent writes are pinned to its physical serial and guarded by that ID.
-5. `make install`. It runs `make adb` first, so steps 3 and 4 are only needed by hand when that fails.
+5. `make install`. Installation and maintenance explicitly request `--prepare-root`, so they can prepare root
+   even when USB ADB is already connected. Steps 3 and 4 are only needed by hand when that preparation fails.
 
 USB debugging does **not** guarantee a root shell. The installer checks for UID 0 through the selected channel;
 it can use `/data/local/tmp/f50-root/command.sock` without installing Magisk. This local socket permits Android's
@@ -77,7 +80,7 @@ configuration and a functioning root hook; failure stops installation. Root prep
 TrustOS, and does not establish that the device can boot a modified image. Take a backup first: `make backup`.
 
 TCP ADB on port 5555 is now part of the default preparation, as in the original F50-ADB tool; `--wireless` remains
-accepted for compatibility. `scripts/device/f50-enable-adb.py --adb-only` only restores and reads a USB shell,
+accepted for compatibility. `scripts/device/f50-enable-adb.py --adb-only` only confirms or restores USB ADB,
 without root/Samba preparation or the stability claim. `make install` still uses USB and leaves the prepared
 adb-only mode in place rather than restoring MTP at exit. This is a per-boot preparation, not a guarantee that
 stock firmware will retain debugging forever.

@@ -458,7 +458,7 @@ online_reboot_wait() {
             if [ "$_root_boot" != "$_b" ]; then
                 F50_ROOT_VIA=
                 if [ "$(su_do 'id -u' 2>/dev/null)" != 0 ]; then
-                    python3 "$TOP/scripts/device/f50-enable-adb.py" --ip "${F50_IP:-192.168.0.1}" --serial "$ANDROID_SERIAL" || return 1
+                    python3 "$TOP/scripts/device/f50-enable-adb.py" --prepare-root --ip "${F50_IP:-192.168.0.1}" --serial "$ANDROID_SERIAL" || return 1
                     F50_ROOT_VIA=
                 fi
                 _root_boot=$_b

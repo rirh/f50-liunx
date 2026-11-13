@@ -1,6 +1,7 @@
 """Coordinate Web recovery, the short USB window and root preparation."""
 import getpass
 import http.client
+import shlex
 import threading
 import time
 
@@ -50,16 +51,20 @@ def prepare(config, host):
     web = WebConsole(config, host)
     thread = None
     try:
+        rc, output = host.run([host.adb, 'start-server'])
+        if rc:
+            raise RuntimeError('无法启动本机 ADB 服务：' + output)
+        target = adb.usb_target(verbose=False)
+        if target and not config.prepare_root:
+            host.say('USB ADB 连接成功。')
+            host.say('进入设备：' + shlex.join([host.adb, *target, 'shell']))
+            return
         host.say(f'日志文件：{host.log_path}')
         if not config.adb_only:
             prepare_helper(host)
         host.say(f'设备 {config.ip}；USB 目标 {config.serial or "单台 USB 设备"}；Samba/root 等待上限 {ROOT_WAIT}s。')
         if not config.adb_only:
             host.say('默认开启 TCP 5555 备用 ADB。请连接 F50 Wi-Fi：USB 稳定模式会移除 USB 网卡/MTP 功能。')
-        rc, output = host.run([host.adb, 'start-server'], label='启动 ADB 服务')
-        if rc:
-            raise RuntimeError('无法启动本机 ADB 服务：' + output)
-        target = adb.usb_target()
         if target:
             if config.adb_only:
                 adb.wait_usb_only()

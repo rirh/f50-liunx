@@ -34,7 +34,7 @@ root_via() {
         F50_ROOT_VIA=su
     else
         F50_ROOT_VIA=
-        echo 'No usable root channel; run make adb from stock Android first.' >&2
+        echo 'No usable root channel; run python3 scripts/device/f50-enable-adb.py --prepare-root from this project on stock Android.' >&2
         return 1
     fi
 }

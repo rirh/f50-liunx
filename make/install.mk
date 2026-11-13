@@ -1,6 +1,6 @@
 # First installation on stock Android, from macOS or Linux. Targets that talk to Android
-# prepare ADB and a root channel first (complete configurations are only checked).
-.PHONY: adb install install-check uninstall backup backup-full collect-logs reset-password
+# prepare a root channel explicitly; plain `make adb` exits when USB is already connected.
+.PHONY: adb _prepare-adb install install-check uninstall backup backup-full collect-logs reset-password
 
 ADB_ENABLE = $(PYTHON) scripts/device/f50-enable-adb.py --ip "$(F50_IP)" $(if $(F50_SERIAL),--serial "$(F50_SERIAL)")
 
@@ -18,24 +18,28 @@ WITH_USB = adb=$$(./install.sh --adb-path 2>/dev/null) && export PATH="$${adb%/*
 adb:
 	$(ADB_ENABLE)
 
-install: build adb
+# Installation and maintenance require root even when USB ADB is already connected.
+_prepare-adb:
+	$(ADB_ENABLE) --prepare-root
+
+install: build _prepare-adb
 	@[ -f out/Image ] && ls out/modules/*.ko >/dev/null 2>&1 || { echo "no kernel in out/: run make kernel first" >&2; exit 1; }
 	@$(WITH_USB) ./install.sh $(INSTALL_ARGS)
 
-install-check: adb
+install-check: _prepare-adb
 	@$(WITH_USB) ./install.sh --check
 
-uninstall: adb
+uninstall: _prepare-adb
 	@$(WITH_USB) ./uninstall.sh
 
-backup: adb
+backup: _prepare-adb
 	@$(WITH_USB) scripts/device/backup-device.sh $(BACKUP_DIR)
 
-backup-full: adb
+backup-full: _prepare-adb
 	@$(WITH_USB) scripts/device/backup-full.sh "$(or $(BACKUP_DIR),backup/full-$(shell date +%Y%m%d-%H%M%S))"
 
-collect-logs: adb
+collect-logs: _prepare-adb
 	@$(WITH_USB) scripts/device/collect-logs.sh $(LOG_DIR)
 
-reset-password: adb
+reset-password: _prepare-adb
 	@$(WITH_USB) scripts/device/reset-password.sh $(or $(SYSTEM),openwrt)

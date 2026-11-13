@@ -167,7 +167,7 @@ require_android
 # make adb may have seen Linux before require_android rebooted into Android.
 # Installation can prepare the root channel here; read-only modes keep their existing boundary.
 if [ $CHECK_ONLY = 0 ] && [ $BACKUP_ONLY = 0 ] && [ "$(su_do 'id -u' 2>/dev/null)" != 0 ]; then
-    python3 "$TOP/scripts/device/f50-enable-adb.py" --ip "${F50_IP:-192.168.0.1}" --serial "$ANDROID_SERIAL"
+    python3 "$TOP/scripts/device/f50-enable-adb.py" --prepare-root --ip "${F50_IP:-192.168.0.1}" --serial "$ANDROID_SERIAL"
     F50_ROOT_VIA=
 fi
 adb_prop() { adb shell getprop "$1" </dev/null 2>/dev/null | tr -d '\r' | head -n1; }
@@ -743,6 +743,7 @@ docker run --rm f50-ubuntu:24.04 cat /bin/busybox > "$WORK/busybox"; chmod +x "$
 sh "$TOP/device-tools/e2fsck/build.sh" "$WORK/device-tools/e2fsck/e2fsck" >/dev/null && E2FSCK=$WORK/device-tools/e2fsck/e2fsck
 # adbd (adb to Linux is on by default; a build here takes a few minutes)
 sh "$TOP/device-tools/adbd/build.sh" "$WORK/device-tools/adbd/adbd" >/dev/null
+docker build -q -t f50-kbuild "$TOP/kernel/vendor" >/dev/null
 docker run --rm -v "$TOP/device-tools":/src:ro -v "$WORK/device-tools":/o f50-kbuild sh -c '
   gcc -O2 -static -o /o/logdw/logdw /src/logdw/logdw.c &&
   gcc -O2 -static -o /o/bt-init/f50-bt-init /src/bt-init/f50-bt-init.c &&

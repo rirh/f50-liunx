@@ -14,6 +14,7 @@ class Config:
     port: Optional[int]
     serial: Optional[str]
     adb_only: bool
+    prepare_root: bool = False
 
     @property
     def endpoint(self):
@@ -26,13 +27,14 @@ class Config:
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
-        description='原厂 F50：准备 USB/TCP ADB 与 root 通道，连续观察 30 秒后才报告保持成功。',
+        description='原厂 F50：USB ADB 已连接时提示成功并退出；未连接时恢复 ADB 与 root 通道。',
         epilog='前置条件：数据线连接电脑；在 http://192.168.0.1/index.html#usb_port 开启 ADB 调试，'
                '或在提示时输入后台密码由本脚本开启。')
     parser.add_argument('--ip', default='192.168.0.1', help='F50 后台 IPv4 地址（默认 192.168.0.1）')
     parser.add_argument('--port', type=int, help='F50 后台 Web 端口（默认先试 80，再试 8080）')
     parser.add_argument('--serial', help='只操作指定的 USB ADB 序列号；默认只允许一台 USB 设备')
     parser.add_argument('--adb-only', action='store_true', help='只恢复并确认 USB ADB，不写入 Samba/root 配置')
+    parser.add_argument('--prepare-root', action='store_true', help='供安装/维护流程使用：已连接时仍准备 root 通道')
     parser.add_argument('--wireless', action='store_true',
                         help='兼容旧参数；默认流程已包含 TCP 5555 备用连接')
     args = parser.parse_args(argv)
@@ -42,4 +44,4 @@ def parse_args(argv=None):
         parser.error('--ip 必须是 IPv4 地址')
     if args.serial and ':' in args.serial:
         parser.error('--serial 应为 USB 序列号，不能是无线 ADB 地址')
-    return Config(args.ip, args.port, args.serial, args.adb_only)
+    return Config(args.ip, args.port, args.serial, args.adb_only, args.prepare_root)
