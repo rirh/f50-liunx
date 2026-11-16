@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -43,6 +45,40 @@ func TestThisDeviceNamesTheRouter(t *testing.T) {
 	}
 }
 
+func TestReadOSRelease(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "openwrt_release")
+	body := "DISTRIB_ID='OpenWrt'\nDISTRIB_RELEASE='25.12.6'\nDISTRIB_REVISION='r33311-981c978eff'\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := readOSRelease(path); got != "25.12.6" {
+		t.Fatalf("got %q", got)
+	}
+	if got := readOSRelease(filepath.Join(t.TempDir(), "none")); got != "" {
+		t.Fatalf("no file: want empty, got %q", got)
+	}
+}
+
+func TestReadMachineIDFallsBackToTheEMMCCID(t *testing.T) {
+	dir := t.TempDir()
+	machineID, cid := filepath.Join(dir, "machine-id"), filepath.Join(dir, "cid")
+	if err := os.WriteFile(cid, []byte("150100424a54443452059e4e1f2a1300\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := readMachineID([]string{machineID, cid}); got != deviceID("150100424a54443452059e4e1f2a1300") {
+		t.Fatalf("no machine-id: want the CID's hash, got %q", got)
+	}
+	if err := os.WriteFile(machineID, []byte("abc\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := readMachineID([]string{machineID, cid}); got != deviceID("abc") {
+		t.Fatalf("machine-id comes first, got %q", got)
+	}
+	if got := readMachineID([]string{filepath.Join(dir, "none")}); got != "" {
+		t.Fatalf("no source: want empty, got %q", got)
+	}
+}
+
 func TestFetchSendsDeviceAndExplainsGatewayRefusal(t *testing.T) {
 	var got http.Header
 	refuse := false
@@ -72,6 +108,10 @@ func TestFetchSendsDeviceAndExplainsGatewayRefusal(t *testing.T) {
 	}
 	if got.Get("X-Device-OS") != "OpenWrt" || got.Get("X-Device-Model") != "ZTE F50" {
 		t.Fatalf("device headers %q %q", got.Get("X-Device-OS"), got.Get("X-Device-Model"))
+	}
+
+	if got.Get("X-Ver-OS") != thisDevice().Version {
+		t.Fatalf("X-Ver-OS %q, want %q", got.Get("X-Ver-OS"), thisDevice().Version)
 	}
 
 	refuse = true

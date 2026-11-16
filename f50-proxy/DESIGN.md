@@ -52,7 +52,9 @@ groups, failover); the pages are `web/src/app/pc` rebuilt in f50-web's own desig
      service has (it runs as root under procd; `CAP_NET_ADMIN` for IP_TRANSPARENT/SO_MARK).
 2. **`Conn.source`**: the client address (IP only) of every connection, from the inbound's source.
 3. **Subscription fetch headers**: `User-Agent: v2rayN/7.15 F50Proxy/<ver>`, `X-Device-OS: OpenWrt`,
-   `X-Device-Model: ZTE F50`; no HWID unless one is cheap and stable (`/etc/machine-id` hashed).
+   `X-Ver-OS` (`DISTRIB_RELEASE` of `/etc/openwrt_release`), `X-Device-Model: ZTE F50`, `X-HWID` = hashed `/etc/machine-id`, else the eMMC CID
+   (`/sys/block/mmcblk0/device/cid`; stock OpenWrt has no machine-id). One Node's gateway calls the client
+   `One Node F50` (policy id `one-node-f50`) and refuses it without X-HWID once its client policy is enforced.
 4. Rule sets: embedded ones as in onecore; the remote catalogue base comes from `rule_sets` in the start request
    (f50d's default: `https://marseo.eu.org/api/v1/one/rules/`); cache under `--cache-dir` (default
    `/etc/f50d/proxy/rulesets`).

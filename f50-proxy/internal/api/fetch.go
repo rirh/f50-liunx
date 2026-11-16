@@ -27,6 +27,8 @@ var gatewayErrors = map[string]string{
 	"device_id_invalid":  "本机设备标识无效",
 	"quota_exceeded":     "订阅流量已用完",
 	"token_expired":      "订阅已过期",
+	"device_inactive":    "这台设备已被管理员停用，请联系管理员",
+	"client_policy":      "订阅的客户端策略拒绝了这台设备，请联系管理员",
 }
 
 type subscription struct {

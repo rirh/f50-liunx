@@ -60,7 +60,9 @@ a child process, `testserver`) are in `internal/engine`.
   `119.29.29.29` directly instead of dnsmasq, whose upstream queries the nftables rules send back to the engine.
 - **`Conn.source`**: the client's IP (from the inbound's source; IPv4-mapped addresses written as IPv4).
 - **Subscription headers**: `User-Agent: v2rayN/7.15 F50Proxy/<ver>`, `X-Device-OS: OpenWrt`,
-  `X-Device-Model: ZTE F50`, and `X-HWID` only when `/etc/machine-id` exists (hashed).
+  `X-Ver-OS` (`DISTRIB_RELEASE` of `/etc/openwrt_release`), `X-Device-Model: ZTE F50`, and `X-HWID`: `/etc/machine-id`, else the eMMC CID
+  (`/sys/block/mmcblk0/device/cid`), hashed. The One Node gateway shows the router as client `One Node F50`
+  (policy id `one-node-f50`) and requires the HWID under its client policy.
 - **Rule-set cache on disk**: `serve --cache-dir` (default `/etc/f50d/proxy/rulesets`; empty = memory only) keeps
   the catalogue's rule sets with their ETag, so a boot without network still has them.
 - ICMP probes fall back to a raw socket as root (OpenWrt's `ping_group_range` admits no group).
