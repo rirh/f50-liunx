@@ -147,7 +147,7 @@ func watchHealth(node string, tr *tracker.Tracker, src healthSources) *healthWat
 	if first.online {
 		logtap.Note("network: sending from " + first.local)
 	} else {
-		logtap.Note("network down: the router has no route to the internet")
+		logtap.Warn("network down: the router has no route to the internet")
 	}
 	go w.run(ctx, first, node, tr, src)
 	return w

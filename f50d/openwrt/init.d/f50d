@@ -12,6 +12,8 @@ start_service() {
 	procd_set_param respawn 3600 5 0
 	# f50d drains its tasks for up to 20 s on SIGTERM
 	procd_set_param term_timeout 25
+	# INFO lines on stdout (daemon.info), warnings and errors on stderr (daemon.err)
+	procd_set_param stdout 1
 	procd_set_param stderr 1
 	procd_close_instance
 }

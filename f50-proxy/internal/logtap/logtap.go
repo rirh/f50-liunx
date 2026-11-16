@@ -5,7 +5,9 @@ package logtap
 
 import (
 	"cmp"
+	"io"
 	stdlog "log"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -56,6 +58,19 @@ var tap = newLogTap()
 // Note records a line of our own (connect, stop) next to Xray's.
 func Note(text string) { tap.Note(text) }
 
+// Warn records a line of our own that reports trouble: filed on the trouble
+// logger (SetTroubleOutput) and kept as a warning for the page.
+func Warn(text string) { tap.Warn(text) }
+
+// troubleLog files Xray's warnings and errors and our Warn lines. It writes
+// where the standard logger does unless SetTroubleOutput splits the two: under
+// procd the standard logger goes to stdout (logd's daemon.info) and this one
+// to stderr (daemon.err), so syslog's priority says which lines are trouble.
+var troubleLog = stdlog.New(os.Stderr, "", stdlog.LstdFlags|stdlog.Lmicroseconds)
+
+// SetTroubleOutput sets where trouble lines go (see troubleLog).
+func SetTroubleOutput(w io.Writer) { troubleLog.SetOutput(w) }
+
 // Install makes the tap Xray's handler again, filing at inst's loglevel (nil: keep the last).
 func Install(inst *core.Instance) { tap.install(inst) }
 
@@ -105,7 +120,11 @@ func (t *logTap) Handle(msg log.Message) {
 			write, suffix = trouble.allow(repeatKey(text), time.Now())
 		}
 		if write {
-			stdlog.Printf("[%s] %s%s", m.Severity, text, suffix)
+			logger := stdlog.Default()
+			if m.Severity <= log.Severity_Warning {
+				logger = troubleLog
+			}
+			logger.Printf("[%s] %s%s", m.Severity, text, suffix)
 		}
 	}
 	if m.Severity <= log.Severity_Info {
@@ -117,6 +136,12 @@ func (t *logTap) Handle(msg log.Message) {
 func (t *logTap) Note(text string) {
 	stdlog.Printf("f50-proxy: %s", text)
 	t.add(log.Severity_Info, "f50-proxy: "+text)
+}
+
+// Warn files and keeps one trouble line of our own.
+func (t *logTap) Warn(text string) {
+	troubleLog.Printf("f50-proxy: %s", text)
+	t.add(log.Severity_Warning, "f50-proxy: "+text)
 }
 
 func (t *logTap) add(sev log.Severity, text string) {

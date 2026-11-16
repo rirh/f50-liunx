@@ -50,6 +50,19 @@ func TestEndLine(t *testing.T) {
 		t.Errorf("a normal end is not logged: %q", line)
 	}
 
+	// A pooled keep-alive connection: a request answered, then silence until
+	// the idle timeout ends it with an error. Nobody was waiting on it.
+	idle := c
+	idle.Down, idle.Last, idle.End = 4862, c.Start+800, c.Start+300_100
+	if line, _ := endLine(idle, reset); line != "" {
+		t.Errorf("an idle connection's end is not a cut-off: %q", line)
+	}
+	// The same error while data still flowed is the stall.
+	idle.Last = idle.End - 500
+	if line, _ := endLine(idle, reset); !strings.HasPrefix(line, "conn cut off") {
+		t.Errorf("cut off while busy: %q", line)
+	}
+
 	c.Down = 0
 	if line, _ := endLine(c, nil); !strings.HasPrefix(line, "conn no reply") {
 		t.Errorf("sent, nothing back: %q", line)

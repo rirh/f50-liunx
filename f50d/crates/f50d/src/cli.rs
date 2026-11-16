@@ -68,7 +68,7 @@ fn short<F: std::future::Future<Output = ExitCode>>(f: F) -> ExitCode {
 }
 
 fn at_keeper() -> ExitCode {
-    log::init(None);
+    log::init_service(None);
     let mut devices: Vec<PathBuf> = Vec::new();
     for slot in [0, 1] {
         let c = f50_at::AtConfig::for_slot(slot);

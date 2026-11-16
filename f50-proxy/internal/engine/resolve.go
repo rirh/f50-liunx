@@ -36,7 +36,7 @@ func resolveServers(config *core.Config) error {
 		// that does not is left to the core's DNS and its delay test.
 		if ob.Tag != "proxy" && !strings.HasPrefix(ob.Tag, "proxy"+link.ViaSuffix) {
 			if err := resolveServer(ob); err != nil {
-				logtap.Note(fmt.Sprintf("outbound %q: %v", ob.Tag, err))
+				logtap.Warn(fmt.Sprintf("outbound %q: %v", ob.Tag, err))
 			}
 			continue
 		}

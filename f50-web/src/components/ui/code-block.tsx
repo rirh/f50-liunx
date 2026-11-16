@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { copyText } from "@/lib/clipboard";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 import { CheckIcon, CopyIcon } from "lucide-react";
@@ -111,8 +112,7 @@ function CodeBlockCopyButton({
         className={cn(className)}
         onClick={(event) => {
           onClick?.(event);
-          navigator.clipboard
-            .writeText(value)
+          copyText(value)
             .then(() => setCopied(true))
             .catch(() => {});
         }}

@@ -3,7 +3,7 @@
 // One Node's PC core (onecore) cut down to Linux, with a gateway mode for the
 // router's transparent proxy (DESIGN.md §1).
 //
-//	f50-proxy serve  --listen 127.0.0.1:17891 --token-file f [--log f] [--loglevel l] [--cache-dir d] [--parent-pid n]
+//	f50-proxy serve  --listen 127.0.0.1:17891 --token-file f [--log f] [--loglevel l] [--cache-dir d] [--parent-pid n] [--info-stdout]
 //	f50-proxy check  --links file [--mode proxy] [--port 17890]
 //	f50-proxy testserver   (loopback REALITY node for trying the engine, see internal/testserver)
 //	f50-proxy version
@@ -33,6 +33,7 @@ import (
 	"f50/proxy/internal/dailylog"
 	"f50/proxy/internal/engine"
 	"f50/proxy/internal/link"
+	"f50/proxy/internal/logtap"
 	"f50/proxy/internal/platform"
 	"f50/proxy/internal/probe"
 	"f50/proxy/internal/route"
@@ -70,18 +71,25 @@ func serve(args []string) {
 	parentPID := fs.Int("parent-pid", 0, "exit when this process is gone")
 	logPath := fs.String("log", "", "core and Xray logs: dir/core.log writes dir/core-<date>.log, last 7 days kept")
 	logLevel := fs.String("loglevel", "warning", "Xray log level")
+	infoStdout := fs.Bool("info-stdout", false, "log lines that are not trouble on stdout, trouble on stderr (procd: daemon.info / daemon.err)")
 	fs.StringVar(&route.CacheDir, "cache-dir", route.CacheDir, "remote rule sets are kept here (empty: memory only)")
 	_ = fs.Parse(args)
 
 	// Xray's lines reach the same logger through the tap (internal/logtap).
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	var info, trouble io.Writer = os.Stderr, os.Stderr
+	if *infoStdout {
+		info = os.Stdout
+	}
 	if *logPath != "" {
 		f, err := dailylog.Open(*logPath)
 		if err != nil {
 			fatal(err)
 		}
-		log.SetOutput(io.MultiWriter(os.Stderr, f))
+		info, trouble = io.MultiWriter(info, f), io.MultiWriter(trouble, f)
 	}
+	log.SetOutput(info)
+	logtap.SetTroubleOutput(trouble)
 	token := os.Getenv("F50PROXY_TOKEN")
 	if *tokenFile != "" {
 		raw, err := os.ReadFile(*tokenFile)

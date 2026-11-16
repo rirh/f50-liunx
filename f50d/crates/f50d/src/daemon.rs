@@ -30,7 +30,7 @@ pub fn run() -> ExitCode {
         match tokio::runtime::Builder::new_multi_thread().worker_threads(2).thread_name("f50d").enable_all().build() {
             Ok(rt) => rt,
             Err(e) => {
-                log::init(None);
+                log::init_service(None);
                 tracing::error!(error = %e, "no runtime");
                 return ExitCode::FAILURE;
             }
@@ -47,7 +47,7 @@ pub fn run() -> ExitCode {
 async fn daemon() -> Result<()> {
     let paths = Paths::device();
     let cfg = config::load(&Platform::new(paths.clone(), None)).await;
-    log::init(cfg.log.as_deref());
+    log::init_service(cfg.log.as_deref());
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "starting");
 
     let shutdown = CancellationToken::new();

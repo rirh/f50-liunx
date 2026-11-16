@@ -13,6 +13,13 @@ import (
 // A connection that sent data and heard nothing for this long is reported.
 const noReplyAfter = 2 * time.Second
 
+// A connection that carried nothing for this long before an error ended it
+// was idle: a client's pooled keep-alive connection that the client, the
+// server or Xray's idle timeout (connIdle, 300 s) closed. Nobody waited on
+// it, so it is not reported. Each one used to log a "conn cut off" line,
+// exactly 5 minutes after its last request.
+const idleEnd = 60 * time.Second
+
 // connError receives what an outbound says went wrong with one connection
 // (session.TrackedConnectionError).
 type connError struct {
@@ -69,7 +76,10 @@ func endLine(c Conn, err error) (line, key string) {
 	}
 	lived := time.Duration(c.End-c.Start) * time.Millisecond
 	tail := fmt.Sprintf("%s via %s from %s after %s, up %d B, down %d B", target, via, from, lived.Round(100*time.Millisecond), c.Up, c.Down)
+	idle := c.Last > 0 && time.Duration(c.End-c.Last)*time.Millisecond >= idleEnd
 	switch {
+	case err != nil && c.Down > 0 && idle:
+		return "", ""
 	case err != nil:
 		why := cause(err)
 		kind := "conn failed"
@@ -97,7 +107,7 @@ func (t *Tracker) reportEnd(c Conn, err error) {
 		t.totals.noReply.Add(1)
 	}
 	if write, suffix := logtap.AllowTrouble(key, time.Now()); write {
-		logtap.Note(line + suffix)
+		logtap.Warn(line + suffix)
 	}
 }
 

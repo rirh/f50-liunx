@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Terminal, TerminalButton } from "@/components/f50/terminal";
 import { t } from "@/i18n";
+import { copyText } from "@/lib/clipboard";
 import { useAtom } from "jotai";
 import { CopyIcon, EraserIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -29,7 +30,7 @@ export function AtTerminal() {
   }, [at.form]);
 
   const copy = () =>
-    navigator.clipboard.writeText(asText(entries)).then(
+    copyText(asText(entries)).then(
       () => toast.success(t("tools.at.output.copied")),
       () => toast.error(t("tools.at.output.copyFailed")),
     );

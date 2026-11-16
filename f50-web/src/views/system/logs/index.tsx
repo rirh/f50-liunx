@@ -8,6 +8,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLiveState } from "@/hooks/use-live";
 import { t } from "@/i18n";
+import { copyText } from "@/lib/clipboard";
 import { errorMessage } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -79,7 +80,7 @@ export default function Page() {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(text);
+      await copyText(text);
       toast.success(t("maintenance.logs.copied", { count: shown.length }));
     } catch {
       toast.error(t("maintenance.logs.copyFailed"));

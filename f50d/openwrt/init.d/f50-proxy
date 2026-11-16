@@ -18,8 +18,10 @@ start_service() {
 	mkdir -p /var/log/f50-proxy
 	procd_open_instance engine
 	procd_set_param command "$BIN" serve --listen 127.0.0.1:17891 --token-file "$DIR/token" \
-		--log /var/log/f50-proxy/core.log --loglevel "$level"
+		--log /var/log/f50-proxy/core.log --loglevel "$level" --info-stdout
 	procd_set_param respawn 3600 5 0
+	# --info-stdout: status and notes on stdout (daemon.info), trouble on stderr (daemon.err)
+	procd_set_param stdout 1
 	procd_set_param stderr 1
 	procd_close_instance
 }

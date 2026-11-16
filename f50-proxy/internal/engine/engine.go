@@ -111,7 +111,7 @@ func (e *Engine) Start(req StartRequest) (Status, error) {
 	began := time.Now()
 	st, err := e.start(req)
 	if err != nil {
-		logtap.Note(fmt.Sprintf("start %q failed after %s (mode %s, routing %s, port %d): %v",
+		logtap.Warn(fmt.Sprintf("start %q failed after %s (mode %s, routing %s, port %d): %v",
 			req.Name, time.Since(began).Round(time.Millisecond), req.Mode, req.Routing, req.Port, err))
 	}
 	return st, err
@@ -281,7 +281,7 @@ func (e *Engine) start(req StartRequest) (Status, error) {
 		logtap.Note(fmt.Sprintf("gateway: tproxy on [::]:%d, socket mark %#x, elevated %v", req.TProxyPort, req.Mark, platform.IsElevated()))
 	}
 	for _, w := range rt.Warnings {
-		logtap.Note("run: rules warning: " + w)
+		logtap.Warn("run: rules warning: " + w)
 	}
 	src := healthSources{NodeDown: &policy.NodeDown, traffic: func() (int64, int64) {
 		st := e.Status()
@@ -317,7 +317,7 @@ func (e *Engine) stopLocked() {
 		logtap.Note(fmt.Sprintf("stopped %q after %s (closing took %s), up %d B, down %d B, closed %d connections",
 			st.Node, time.Since(st.Since).Round(time.Second), time.Since(began).Round(time.Millisecond), st.Up, st.Down, closed))
 		if err != nil {
-			logtap.Note(fmt.Sprintf("stop: closing xray: %v", err))
+			logtap.Warn(fmt.Sprintf("stop: closing xray: %v", err))
 		}
 	}
 	if e.groups != nil {

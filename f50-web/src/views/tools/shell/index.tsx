@@ -4,6 +4,7 @@ import {
   TerminalButton,
 } from "@/components/f50/terminal";
 import { t } from "@/i18n";
+import { copyText } from "@/lib/clipboard";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
@@ -85,6 +86,22 @@ export default function ShellPage() {
 
     const shell = new ShellLink(term, setState);
     link.current = shell;
+    // Ctrl+Shift+C / Ctrl+Shift+V, as in a Linux terminal (Ctrl+C stays the interrupt). Copying goes through
+    // copyText: over plain http there is no navigator.clipboard. Pasting is left to the browser: its paste event
+    // works over http too, and xterm.js types what it carries (Cmd+V on a Mac is that already).
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type !== "keydown" || !e.ctrlKey || !e.shiftKey || e.altKey)
+        return true;
+      const key = e.code || `Key${e.key.toUpperCase()}`;
+      if (key === "KeyC") {
+        const sel = term.getSelection();
+        if (sel) void copyText(sel).catch(() => undefined);
+        e.preventDefault();
+        return false;
+      }
+      if (key === "KeyV") return false;
+      return true;
+    });
     const typed = term.onData((d) => shell.input(d));
     const binary = term.onBinary((d) => shell.input(d));
     const resized = term.onResize(() => shell.resize());

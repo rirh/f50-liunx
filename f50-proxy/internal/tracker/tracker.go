@@ -44,6 +44,9 @@ type Conn struct {
 	// Source is the client's address (IP only): a LAN device, or the router
 	// itself (its own address, or loopback through the mixed port).
 	Source string `json:"source"`
+	// Last is when a byte last went either way (Unix ms, 0: never), for the
+	// log: an error after a long silence is an idle connection's end.
+	Last int64 `json:"-"`
 }
 
 // liveConn is an open Conn with its byte counters and what ends it: the
@@ -54,6 +57,7 @@ type Conn struct {
 type liveConn struct {
 	Conn
 	up, down atomic.Int64
+	last     atomic.Int64 // Conn.Last
 	link     *xtransport.Link
 	cancel   context.CancelFunc
 	closed   atomic.Bool // ended by Close, not by itself
@@ -137,11 +141,11 @@ func (h *trackedHandler) Dispatch(ctx context.Context, link *xtransport.Link) {
 	ctx = session.TrackedConnectionError(ctx, failure)
 	c := h.tracker.add(ctx, h.Tag(), link, cancel)
 	defer func() { h.tracker.done(c, failure.get()) }()
-	reader := countReader(link.Reader, &c.up)
+	reader := countReader(link.Reader, &c.up, &c.last)
 	if h.sent != nil {
-		reader = countReader(reader, h.sent)
+		reader = countReader(reader, h.sent, nil)
 	}
-	h.Handler.Dispatch(ctx, &xtransport.Link{Reader: reader, Writer: &countedWriter{link.Writer, &c.down}})
+	h.Handler.Dispatch(ctx, &xtransport.Link{Reader: reader, Writer: &countedWriter{link.Writer, &c.down, &c.last}})
 }
 
 func (t *Tracker) add(ctx context.Context, tag string, link *xtransport.Link, cancel context.CancelFunc) *liveConn {
@@ -207,7 +211,7 @@ func (t *Tracker) done(c *liveConn, err error) {
 
 func (c *liveConn) snapshot() Conn {
 	s := c.Conn
-	s.Up, s.Down = c.up.Load(), c.down.Load()
+	s.Up, s.Down, s.Last = c.up.Load(), c.down.Load(), c.last.Load()
 	return s
 }
 
@@ -251,9 +255,10 @@ func (t *Tracker) CloseWhere(match func(*Conn) bool) int {
 }
 
 // Some outbounds type-assert buf.TimeoutReader, so the counted reader only
-// claims it when the wrapped one has it.
-func countReader(r buf.Reader, n *atomic.Int64) buf.Reader {
-	c := countedReader{r, n}
+// claims it when the wrapped one has it. last (may be nil) takes the time of
+// each read that carried bytes.
+func countReader(r buf.Reader, n, last *atomic.Int64) buf.Reader {
+	c := countedReader{r, n, last}
 	if tr, ok := r.(buf.TimeoutReader); ok {
 		return &countedTimeoutReader{c, tr}
 	}
@@ -262,12 +267,23 @@ func countReader(r buf.Reader, n *atomic.Int64) buf.Reader {
 
 type countedReader struct {
 	buf.Reader
-	n *atomic.Int64
+	n, last *atomic.Int64
+}
+
+// count adds k bytes and, when there were any, stamps last.
+func count(n, last *atomic.Int64, k int32) {
+	if k == 0 {
+		return
+	}
+	n.Add(int64(k))
+	if last != nil {
+		last.Store(time.Now().UnixMilli())
+	}
 }
 
 func (r *countedReader) ReadMultiBuffer() (buf.MultiBuffer, error) {
 	mb, err := r.Reader.ReadMultiBuffer()
-	r.n.Add(int64(mb.Len()))
+	count(r.n, r.last, mb.Len())
 	return mb, err
 }
 
@@ -282,17 +298,17 @@ type countedTimeoutReader struct {
 
 func (r *countedTimeoutReader) ReadMultiBufferTimeout(d time.Duration) (buf.MultiBuffer, error) {
 	mb, err := r.tr.ReadMultiBufferTimeout(d)
-	r.n.Add(int64(mb.Len()))
+	count(r.n, r.last, mb.Len())
 	return mb, err
 }
 
 type countedWriter struct {
 	buf.Writer
-	n *atomic.Int64
+	n, last *atomic.Int64
 }
 
 func (w *countedWriter) WriteMultiBuffer(mb buf.MultiBuffer) error {
-	w.n.Add(int64(mb.Len()))
+	count(w.n, w.last, mb.Len())
 	return w.Writer.WriteMultiBuffer(mb)
 }
 
