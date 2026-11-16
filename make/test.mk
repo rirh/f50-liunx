@@ -1,10 +1,13 @@
 # Tests and checks. `make test` is what a change must pass; test-installer runs the installer's and images' Python tests.
-.PHONY: test test-f50d test-web lint lint-f50d lint-web test-installer test-all
+.PHONY: test test-f50d test-proxy test-web lint lint-f50d lint-web test-installer test-all
 
-test: test-f50d lint test-web
+test: test-f50d test-proxy lint test-web
 
 test-f50d:
 	cd f50d && $(CARGO) test --workspace
+
+test-proxy:
+	$(MAKE) -C f50-proxy test
 
 lint: lint-f50d lint-web
 

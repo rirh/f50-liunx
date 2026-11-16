@@ -481,7 +481,7 @@ if [ $RESUME = 1 ]; then
 fi
 # the partitions, for a picture of the eMMC: "name:first sector:sectors" of each (the stream only; sysfs, read only)
 [ -z "$PROGRESS_FD" ] || info partitions "$(su_do 'for p in /sys/block/'"$IDISK/$IPART"'*; do echo $(sed -n s/^PARTNAME=//p $p/uevent):$(cat $p/start):$(cat $p/size); done' | tr '\n' ' ')"
-# What OpenWrt needs: the installed system measures ~320 MiB, and an update keeps the previous one as openwrt.old
+# What OpenWrt needs: the installed system measures ~350 MiB (~30 of it the proxy engine), and an update keeps the previous one as openwrt.old
 # while the new one is unpacked, so allow for two of it plus working room.
 NEED_OPENWRT=$((800 * 1024 * 1024))
 info need.openwrt $NEED_OPENWRT

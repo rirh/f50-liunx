@@ -116,6 +116,7 @@ dependencies = [
  "f50-hw",
  "f50-modem",
  "f50-net",
+ "f50-proxy",
  "f50-sms",
  "f50-system",
  "f50-update",
@@ -230,6 +231,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "f50-proxy"
+version = "0.1.0"
+dependencies = [
+ "f50-core",
+ "f50-platform",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "f50-sms"
 version = "0.1.0"
 dependencies = [
@@ -299,6 +313,7 @@ dependencies = [
  "f50-modem",
  "f50-net",
  "f50-platform",
+ "f50-proxy",
  "f50-sms",
  "f50-system",
  "f50-ubus",

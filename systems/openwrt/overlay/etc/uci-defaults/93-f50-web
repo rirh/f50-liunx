@@ -1,0 +1,17 @@
+#!/bin/sh
+# The web console's pages are at the site root (/, /sms, /system/overview: history routing); its files are in /www/f50
+# and /www/index.html links to f50/index.html (f50d/openwrt/install.sh). Every other path the server has no file for is
+# one of its pages, so uhttpd answers it with the console (error_page: the file, status 200), which shows its own
+# "not found" page for a path it does not know. LuCI (/cgi-bin/luci) and ubus (/ubus) are not files and not affected.
+#
+# Runs on the first boot of each image (the image brings this file again with every update) and removes itself.
+# Left alone: an image without the console, a uhttpd without its main section, an error_page the user set.
+# By hand on a running system: "sh 93-f50-web; /etc/init.d/uhttpd restart".
+page=/f50/index.html
+[ -f "/www$page" ] || exit 0
+uci -q get uhttpd.main >/dev/null || exit 0
+cur=$(uci -q get uhttpd.main.error_page)
+[ "$cur" = "$page" ] && exit 0
+[ -z "$cur" ] || exit 0
+uci set "uhttpd.main.error_page=$page" && uci commit uhttpd || exit 1
+exit 0

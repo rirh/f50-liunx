@@ -5,12 +5,13 @@
 
 ## 功能
 
-网页控制台（`http://192.168.77.1/f50/`，用 OpenWrt 的 root 账户登录）：
+网页控制台（`http://192.168.77.1/`，用 OpenWrt 的 root 账户登录）：
 
 - **仪表盘**：运营商、网络制式、实时网速、本期流量、信号，以及 CPU、内存、存储、温度；常用开关一页完成
 - **移动网络**：信号与小区（服务小区、邻区、载波聚合）、移动数据与 APN、流量统计与限额、SIM 卡、网络锁定（锁频/锁小区）
 - **短信**：收发与会话
 - **连接**：Wi-Fi 热点、Wi-Fi 上网（连接其他 Wi-Fi 作为上行）、局域网与 DHCP、USB 网络
+- **代理**：订阅与节点（VLESS、Hysteria2、Trojan、VMess、Shadowsocks、SOCKS5、HTTP）、策略组与测速、分流（智能分流 / 全局代理 / 全部直连，自定义规则与应用分流）、连接与日志；透明代理接管局域网设备和本机的流量，可指定设备不走代理
 - **系统**：系统信息、性能与温控、指示灯、系统设置、系统更新、启动
 - **工具**：AT 终端、后台任务、系统日志
 
@@ -22,6 +23,7 @@
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | [`f50d/`](f50d/README.md)           | 设备守护进程（Rust），以 ubus 对象 `f50.*` 提供全部功能，接口见 [`f50d/docs/API.md`](f50d/docs/API.md) |
 | `f50-web/`                          | 网页控制台（React + Vite），经 uhttpd 的 `/ubus` 调用 `f50d`                                           |
+| [`f50-proxy/`](f50-proxy/README.md) | 代理引擎（Go：Xray-core + 分流规则，移植自 one-node 的 onecore），由 `f50d` 的 `f50.proxy` 管理，设计见 [`DESIGN.md`](f50-proxy/DESIGN.md) |
 | `install.sh`、`installer/`、`boot/` | 从原厂 Android 首次安装：启动镜像、Linux 槽位、根文件系统                                              |
 | `uninstall.sh`                      | 卸载 Linux，恢复原厂 Android                                                                           |
 | `android/magisk/`                   | Android 里切回 Linux 用的 Magisk 模块                                                                  |
@@ -34,7 +36,7 @@
 在 macOS 或 Linux 上：
 
 - `adb`（macOS：`brew install android-platform-tools`）、Python 3、`lz4`、docker、Go 1.20+
-- Rust 工具链（`aarch64-unknown-linux-musl` 目标）和 Node.js + pnpm，用来构建 f50d 和网页
+- Rust 工具链（`aarch64-unknown-linux-musl` 目标）和 Node.js + pnpm，用来构建 f50d 和网页；Go 1.27+，用来构建代理引擎
 - 一根能传数据的 USB 线
 
 可选：复制 `make/local.mk.example` 为 `make/local.mk`，修改设备地址等设置。
@@ -52,7 +54,7 @@ make install    # 构建 f50d 和网页，开启 ADB，刷入 OpenWrt
 `make install` 会自己开启 ADB 并准备 root；如果失败，先在原厂管理页 `http://192.168.0.1` 用**管理密码**打开
 「ADB 调试」，或运行 `make adb`，再重试。只想检查空间、不写入：`make install-check`。
 
-安装完成后设备重启进入 OpenWrt：电脑通过 USB 网络连到 `192.168.77.1`，打开 `http://192.168.77.1/f50/` 登录。
+安装完成后设备重启进入 OpenWrt：电脑通过 USB 网络连到 `192.168.77.1`，打开 `http://192.168.77.1/` 登录。
 
 ## 在 Android 和 OpenWrt 之间切换
 

@@ -132,6 +132,15 @@ export default {
     uptime: "已运行 {time}",
     noUnread: "无未读",
   },
+  proxy: {
+    runningFor: "已运行 {time}",
+    down: "下行",
+    up: "上行",
+    total: "本次 {size}",
+    delay: "节点延迟",
+    traffic: "本次流量",
+    groups: "{n} 个策略组",
+  },
   quick: {
     data: "移动数据",
     wifi: "Wi-Fi 热点",

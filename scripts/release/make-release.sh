@@ -249,7 +249,7 @@ first with \`./install.sh --check\`.
 | file | contents |
 |---|---|
 | f50-kernel.tar.gz | Linux 5.4.254 \`Image\` and modules, with the patches of \`kernel/vendor/patches\` (among them: no panic when a network namespace goes away, #103, and the Wi-Fi driver's routine lines no longer at error level, #140), static busybox, logdw and e2fsck for the boot image, the installers' static password checker \`f50-pwcheck\`, and the generic boot ramdisk segment \`f50-update\` uses |
-| f50-openwrt-rootfs.tar.gz | OpenWrt 25.12.6 root filesystem with f50d and the web console (/f50/) |
+| f50-openwrt-rootfs.tar.gz | OpenWrt 25.12.6 root filesystem with f50d and the web console (/) |
 | f50-update | the on-device updater of this release (\`f50-update apply\` switches to it before it changes anything) |
 | f50-*-rootfs.diff-<tag>.tar.gz | an image without the files the image of release <tag> (one of the five before this one) had as they are: \`f50-update apply\` on a device that runs <tag> downloads it instead of the whole image, takes the rest from the installed system, and installs it only when the result is, file for file, the image this release's signed manifest describes (else it downloads the whole image) |
 | f50-*-rootfs.manifest.gz | the list of each image's files (type, mode, owner, size, sha256), which the image also carries: an update reads it to tell the image's files from yours, and carries yours over |

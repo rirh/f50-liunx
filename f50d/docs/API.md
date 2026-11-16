@@ -86,7 +86,7 @@ source: `crates/f50-api/src/live.rs`
   (`text/event-stream`). Each event's name is a topic, its data the envelope of the read method behind it, sent when it
   changed or at least every 15 s, and only while somebody is subscribed:
   `status` (`f50.status get`, 3 s), `system` (`f50.system status`, 2 s), `modem` (`f50.modem status`, 2 s),
-  `cells` (`f50.modem cells`, 5 s), `sms` (`f50.sms unread`, 5 s).
+  `cells` (`f50.modem cells`, 5 s), `sms` (`f50.sms unread`, 5 s), `proxy` (`f50.proxy status`, 2 s).
 
 ## `f50.lock`
 
@@ -128,6 +128,60 @@ source: `crates/f50-data/src/proto/mod.rs`
 - **renew** (write) — netifd's f50cell renew.
   - fields: `Field::req("config", Rule::Word { re: NAME_RE, max: 15 })`
 
+## `f50.proxy`
+
+source: `crates/f50-proxy/src/api.rs` (contract: `f50-proxy/DESIGN.md` §2)
+
+Proxy and split routing through the engine `/opt/f50/bin/f50-proxy` (its own procd service, loopback API
+`127.0.0.1:17891`). The profile is `<state>/proxy/profile.json` (0600: links are credentials); share links, subscription
+URLs and pasted text are secret fields. Engine errors come back as `failed` with the engine's message.
+
+- **status** (read) — The proxy's state, node, traffic counters and groups. Also the live topic `proxy` (2 s).
+  - returns `{enabled, state ("off"|"starting"|"running"|"error"), error|null, routing, config, node: {id, name}|null, since|null, up, down, mem, xray|null, engine|null, intercept_router, groups: [GroupStatus], health|null}`; `GroupStatus` `{name, type, selected, nodes: [{name, delay_ms|null, alive}]}` (the engine's while running, else from the active config's last check).
+- **profile** (write) — The whole profile: subscriptions, nodes, configs and settings.
+  - returns `{enabled, routing, selected, subscriptions: [{id, name, url, title, usage, updated_at, error, nodes}], local_nodes, configs (configs[0] the built-in "default"), active_config, group_selections, settings}`.
+- **set** (write) — Turns the proxy on or off, or changes its routing, node or config; applies at once.
+  - returns what `status` does; a start that fails (engine, routes, nft: each undoes the ones before) is `failed`.
+  - fields: `Field::opt("enabled", Rule::Bool), Field::opt("routing", Rule::Enum(Routing::WORDS)), Field::opt("selected", NODE_ID), Field::opt("active_config", CONFIG_ID),`
+- **settings_set** (write) — Changes the proxy's settings; absent fields are kept.
+  - returns `Profile.settings`; `bypass_macs` is a comma list (may be empty). A new `log_level` restarts the engine's service (it takes the level on its command line).
+  - fields: `Field::opt("intercept_router", Rule::Bool), Field::opt("bypass_macs", Rule::Word { re: r"[0-9A-Fa-f:, -]{0,1600}", max: 1600 }), Field::opt("probe_url", URL), Field::opt("subscription_refresh_hours", Rule::Int { min: 0, max: 168 }), Field::opt("rule_sets_url", URL), Field::opt("auto_failover", Rule::Bool), Field::opt("log_level", Rule::Enum(LOG_LEVELS)),`
+- **subscription_add** (write, job) — Adds a subscription and fetches its nodes as a job. Result `{"id", "nodes": n}`.
+  - fields: `Field::secret("url", URL, true), Field::opt("name", NAME)`
+- **subscription_update** (write, job) — Fetches one subscription or all again as a job. Result `{"updated": n, "failed": n}`; a failed one keeps its nodes and gets `error`. The selection and front nodes follow the nodes' names.
+  - fields: `Field::req("id", Rule::Word { re: r"all|s[0-9]{1,6}", max: 8 })`
+- **subscription_set** (write) — Renames a subscription or changes its address. Returns the profile.
+  - fields: `Field::req("id", SUB_ID), Field::opt("name", NAME), Field::secret("url", URL, false)`
+- **subscription_remove** (write) — Removes a subscription and its nodes. Returns the profile.
+  - fields: `Field::req("id", SUB_ID)`
+- **node_inspect** (write) — Reads share links without saving them: each node with its problem. Returns `{"nodes": [Node without id/via]}`.
+  - fields: `Field::secret("text", Rule::Body { max_chars: 200_000 }, true)`
+- **node_save** (write) — Adds a local node (no id) or replaces a node from its share link. Returns the `Node`; `via` "" clears the front node, a loop or a missing front node is refused (`field: via`).
+  - fields: `Field::opt("id", NODE_ID), Field::secret("link", LINK, true), Field::opt("name", NAME), Field::opt("via", Rule::Word { re: r"|s[0-9]{1,6}-[0-9]{1,6}|L[0-9]{1,6}", max: 16 }),`
+- **node_delete** (write) — Deletes a local node. Returns the profile.
+  - fields: `Field::req("id", Rule::Word { re: r"L[0-9]{1,6}", max: 8 })`
+- **probe** (write) — Times one request through a node (with its front nodes). Returns `{"ms": n}`; `failed` with the reason when it does not answer.
+  - fields: `Field::req("id", NODE_ID), Field::opt("method", Rule::Enum(&["url", "tcp", "icmp"]))`
+- **group_select** (write) — Points a select group at a node and remembers the pick. Returns `[GroupStatus]`.
+  - fields: `Field::req("group", NODE_NAME), Field::req("node", NODE_NAME)`
+- **group_test** (write) — Tests the delay of a group's nodes. Returns `[GroupStatus]`.
+  - fields: `Field::req("group", NODE_NAME)`
+- **config_save** (write) — Saves a rule config (no id: a new one) once its rules check. Returns the `Config`; `default` cannot be changed (`forbidden`).
+  - fields: `Field::opt("id", CONFIG_ID), Field::req("name", NAME), Field::req("text", Rule::Body { max_chars: 256_000 }), Field::opt("url", Rule::Word { re: r"|https?://[!-~]{1,2040}", max: 2048 }),`
+- **config_delete** (write) — Deletes a rule config; the active one falls back to the default. Returns the profile.
+  - fields: `Field::req("id", CONFIG_ID)`
+- **config_fetch** (write) — Downloads a rule config's text from its link. Returns `{"text"}`.
+  - fields: `Field::req("url", URL)`
+- **rules_check** (write) — Checks a route document: counts, groups and warnings, or the first error. Returns `{final, groups, source, rules, warnings}`.
+  - fields: `Field::req("text", Rule::Body { max_chars: 256_000 })`
+- **connections** (write) — The engine's open and recently closed connections. Returns `{epoch, active: [Conn], closed: [Conn]}`.
+- **connections_close** (write) — Closes one connection, or all (id 0). Returns `{"closed": n}`.
+  - fields: `Field::req("id", Rule::Int { min: 0, max: 9_007_199_254_740_991 })`
+- **logs** (write) — The engine's log lines after a sequence number. Returns `{epoch, next, lines: [{seq, time, run, level, text}]}`.
+  - fields: `Field::opt("epoch", Rule::Word { re: r"[0-9a-z]{0,32}", max: 32 }), Field::opt("after", Rule::Int { min: 0, max: 9_007_199_254_740_991 }),`
+- `URL` is `Rule::Word { re: r"https?://[!-~]{1,2040}", max: 2048 }`, `NAME` `Rule::Text { max_bytes: 192, max_chars: 64 }`, `NODE_ID` `s<n>-<n>|L<n>`, `SUB_ID` `s<n>`, `CONFIG_ID` `default|c<n>`, `LINK` one line of up to 16384 characters.
+- While on, the supervisor (every 5 s) starts the engine again when it is not running f50d's request, takes the interception down while the engine does not answer, refreshes subscriptions every `subscription_refresh_hours`, and (with `auto_failover`) moves off a node the engine reports down to the fastest other node of the same subscription.
+
 ## `f50.sim`
 
 source: `crates/f50-modem/src/objects/sim.rs`
@@ -143,6 +197,7 @@ source: `crates/f50-modem/src/objects/sim.rs`
 source: `crates/f50-sms/src/api.rs`
 
 - **list** (write) — Conversations newest first with unread counts, or one conversation's messages (peer).
+  - also returns `sim_storage` and `transport` (`{ims, cs, cs_stat, nas, ready, at}`, each `bool|null`; `ready: false` means the network currently gives the SIM no SMS path at all), as the last sync read them.
   - fields: `Field::opt("page", Rule::Int { min: 1, max: 100_000 }), Field::opt("per_page", Rule::Int { min: 1, max: 100 }), Field::opt("peer", Rule::Text { max_bytes: 64, max_chars: 32 }),`
 - **read** (write) — One message whole; a received one is marked read.
   - fields: `Field::req("id", Rule::WordNum { re: ID_RE, max: 9 })`
@@ -152,6 +207,15 @@ source: `crates/f50-sms/src/api.rs`
   - fields: `Field::req("id", Rule::WordNum { re: "all|[1-9][0-9]{0,8}", max: 9 }), Field::opt("sim", Rule::Bool)`
 - **sync** (write, job) — Restores SMS notifications and moves stored messages into the pool. Returns `{"job":"<id>","started":true}`; poll `f50.job status` for completion or failure.
 - **unread** (read) — How many messages the pool holds, and how many are unread.
+- **push** (write) — The Telegram push settings (never the token), the queue and the last outcome.
+  - returns `{enabled, token_set, token_hint ("<bot id>:…<last four>"|null), chat_id, api, default_api, proxy, proxy_running, queued, last: {at, ok, id?, error?}|null}`.
+- **push_set** (write) — Changes the Telegram push settings; absent fields are kept.
+  - an empty `api` is the default (`https://api.telegram.org`); `proxy` (default `true`) sends through the proxy engine's local SOCKS5 inbound (`socks5h://127.0.0.1:17890`) while `f50.proxy` runs, directly otherwise; `enabled: true` needs a token and a chat id. Returns what `push` does. Kept in `<state>/sms/telegram.json` (0600).
+  - fields: `Field::opt("enabled", Rule::Bool), Field::secret("token", TOKEN, false), Field::secret("chat_id", CHAT_ID, false), Field::opt("api", API), Field::opt("proxy", Rule::Bool)`
+- **push_test** (write) — Sends a Telegram test message with the saved settings changed by the given fields (not saved).
+  - returns `{"sent": true}`; a refusal (`failed`) carries Telegram's reason, the token redacted.
+  - fields: `Field::secret("token", TOKEN, false), Field::secret("chat_id", CHAT_ID, false), Field::opt("api", API), Field::opt("proxy", Rule::Bool)`
+- Every received message the pool takes is pushed (`sendMessage`, plain text: sender, time, hostname, text) while push is on. curl makes the request with the token and the body on its stdin (`-K -`); failures are retried after 5 s, 30 s, 2 min and 10 min, `429` after Telegram's `retry_after`, and `400/401/403/404` are not retried.
 
 ## `f50.status`
 

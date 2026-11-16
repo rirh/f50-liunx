@@ -5,6 +5,7 @@ const m: Messages["nav"] = {
     overview: "Everyday",
     mobile: "Mobile network",
     connect: "Connectivity",
+    proxy: "Proxy",
     device: "Device",
     advanced: "Advanced",
   },
@@ -29,6 +30,10 @@ const m: Messages["nav"] = {
     jobs: "Background jobs",
     logs: "System log",
     boot: "Boot",
+    proxy: "Proxy",
+    proxyRules: "Routing rules",
+    proxyData: "Traffic & logs",
+    proxySettings: "Proxy settings",
   },
 };
 export default m;

@@ -9,6 +9,14 @@ const m: Messages["sms"] = {
     pickDescription:
       "Pick a conversation on the left to read it, or click “New message”.",
   },
+  transport: {
+    title: "The network cannot carry SMS right now",
+    description:
+      "The SIM has no SMS path on the network: IMS {ims}, CS domain {cs}, 5G SMS over NAS {nas}. The modem's SMS settings are fine, yet nothing can be received or sent. IMS (VoLTE/VoNR) registration, or a switch to 4G/NSA mode, is usually needed.",
+    up: "up",
+    down: "down",
+    unknown: "unknown",
+  },
   toast: {
     syncStarted: "Syncing messages from the SIM card",
     synced: "SMS sync completed",
@@ -33,15 +41,14 @@ const m: Messages["sms"] = {
   actions: {
     unread: "{unread} unread / {total} total",
     storageTitle: "{store} storage, read {time}",
-    storage: "SIM storage {used}/{total} · {ago}",
+    storage: "SIM {used}/{total}",
     sync: "Sync",
-    syncing: "Syncing",
     deleteAll: "Delete all",
-    deleting: "Deleting",
     deleteAllTitle: "Delete all messages",
     deleteAllDescription:
       "Every message in the device's message store will be deleted. This cannot be undone.",
     new: "New message",
+    push: "Push",
   },
   list: {
     searchLabel: "Search conversations",
@@ -81,7 +88,6 @@ const m: Messages["sms"] = {
     parts: "{count} parts",
     incomplete: "Incomplete {have}/{total}",
     incompleteTitle: "Some parts of this long message have not arrived yet",
-    unread: "Unread",
     menu: "Message actions",
     copyText: "Copy text",
   },
@@ -99,6 +105,42 @@ const m: Messages["sms"] = {
       "Up to 10 parts: GSM-7 holds 160 characters per message (153 per part), text with Chinese or other characters 70 (67).",
     number: "Number",
     text: "Message",
+  },
+  push: {
+    loadFailed: "Could not read the push settings",
+    title: "Telegram push",
+    description:
+      "Every received SMS is forwarded to a chat by your Telegram bot.",
+    enabled: "Push received SMS",
+    enabledDescription:
+      "When off, nothing is pushed and anything still queued is dropped.",
+    token: "Bot token",
+    tokenHint:
+      "Send /newbot to @BotFather in Telegram to get one. The device keeps it and never shows it again.",
+    tokenKeep: "Set ({hint}); leave empty to keep it",
+    tokenInvalid: "Expected digits:letters, e.g. 123456789:AAH…",
+    tokenRequired: "Enter the bot token",
+    chat: "Chat ID",
+    chatHint:
+      "A user's or group's numeric ID (groups start with -100), or a public channel's @username. Message the bot first (or add it to the group or channel), or it cannot write to you.",
+    chatInvalid: "A numeric ID (may start with -) or an @channel",
+    chatRequired: "Enter the chat ID",
+    api: "API base",
+    apiHint:
+      "Leave empty for the official API. If Telegram cannot be reached directly, enter a self-hosted Bot API or a reverse proxy.",
+    apiInvalid: "An http(s):// address without a query",
+    proxy: "Send through the proxy",
+    proxyDescription:
+      "Reaches Telegram through the proxy while it runs; when off, always connects directly.",
+    proxyIdle:
+      "The proxy is not running, so this connects directly; once the proxy runs, pushes go through it.",
+    test: "Send test",
+    testSent: "Test message sent; check Telegram",
+    saved: "Push settings saved",
+    lastOk: "Last push succeeded · {ago}",
+    lastFailed: "Last push failed · {ago}",
+    queued: "{count} queued",
+    queued_one: "{count} queued",
   },
   deleteDialog: {
     alsoSim: "Also delete the copies on the SIM card",

@@ -20,6 +20,7 @@ import { f50 } from "@/lib/ubus";
 import { signalKeys } from "@/views/cellular/signal/api";
 import { STATUS_KEY } from "@/views/dashboard/api";
 import type { DashboardStatus } from "@/views/dashboard/types";
+import { proxyKeys } from "@/views/proxy/api";
 import { smsKeys } from "@/views/sms/api";
 import type { UnreadCounts } from "@/views/sms/types";
 import { logsAll, logsMarkKey } from "@/views/system/logs/api";
@@ -35,6 +36,7 @@ const TOPIC_KEYS: Record<string, readonly unknown[]> = {
   cells: signalKeys.cells,
   sms: smsKeys.unread,
   logs: logsMarkKey,
+  proxy: proxyKeys.status,
 };
 
 const BACKOFF_MIN = 1000;

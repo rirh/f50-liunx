@@ -1,0 +1,1084 @@
+{
+  "conns": [
+    {
+      "domain": "a.com",
+      "network": "tcp",
+      "port": 443,
+      "protocol": "tls"
+    },
+    {
+      "domain": "www.a.com",
+      "network": "tcp",
+      "port": 80,
+      "protocol": "http"
+    },
+    {
+      "domain": "xa.com",
+      "network": "udp",
+      "port": 443,
+      "protocol": "quic"
+    },
+    {
+      "domain": "b.com",
+      "network": "tcp",
+      "port": 443
+    },
+    {
+      "domain": "ad12.b.com",
+      "network": "udp",
+      "port": 53
+    },
+    {
+      "ip": "1.1.1.1",
+      "network": "tcp",
+      "port": 443
+    },
+    {
+      "ip": "10.1.2.3",
+      "network": "udp",
+      "port": 1500
+    },
+    {
+      "ip": "8.8.8.8",
+      "network": "udp",
+      "port": 53
+    },
+    {
+      "ip": "2001:db8::1",
+      "network": "tcp",
+      "port": 443
+    },
+    {
+      "domain": "a.com",
+      "resolved": [
+        "1.1.1.1"
+      ],
+      "network": "tcp",
+      "port": 443,
+      "protocol": "tls"
+    },
+    {
+      "domain": "c.org",
+      "resolved": [
+        "8.8.8.8",
+        "10.0.0.1"
+      ],
+      "network": "udp",
+      "port": 443,
+      "protocol": "quic"
+    },
+    {
+      "domain": "c.org",
+      "network": "tcp",
+      "port": 1000
+    },
+    {
+      "domain": "foo.org",
+      "ip": "10.0.0.5",
+      "network": "tcp",
+      "port": 443,
+      "protocol": "tls"
+    },
+    {
+      "domain": "A.COM",
+      "network": "tcp",
+      "port": 443
+    },
+    {
+      "ip": "192.168.1.1",
+      "network": "tcp",
+      "port": 80
+    },
+    {
+      "domain": "goo.gl",
+      "network": "udp",
+      "port": 2000,
+      "protocol": "quic"
+    },
+    {
+      "domain": "c.org",
+      "resolved": [],
+      "network": "tcp",
+      "port": 443
+    }
+  ],
+  "rule_sets": {
+    "set-merge": [
+      {
+        "domain_suffix": [
+          "b.com"
+        ],
+        "ip_cidr": [
+          "8.8.8.0/24"
+        ]
+      }
+    ],
+    "set-port": [
+      {
+        "port": [
+          443
+        ]
+      }
+    ],
+    "set-multi": [
+      {
+        "domain": [
+          "a.com"
+        ]
+      },
+      {
+        "port": [
+          53
+        ]
+      }
+    ],
+    "set-invert": [
+      {
+        "domain_suffix": [
+          "a.com"
+        ],
+        "invert": true
+      }
+    ],
+    "set-net": [
+      {
+        "network": [
+          "udp"
+        ],
+        "domain_suffix": [
+          "a.com"
+        ]
+      }
+    ],
+    "set-logical": [
+      {
+        "type": "logical",
+        "mode": "and",
+        "rules": [
+          {
+            "domain_suffix": [
+              "a.com"
+            ]
+          },
+          {
+            "network": [
+              "tcp"
+            ]
+          }
+        ]
+      }
+    ],
+    "set-ipmerge": [
+      {
+        "ip_cidr": [
+          "8.8.8.0/24"
+        ]
+      }
+    ]
+  },
+  "rules": [
+    {
+      "domain": [
+        "a.com"
+      ]
+    },
+    {
+      "domain_suffix": [
+        "a.com"
+      ]
+    },
+    {
+      "domain_suffix": [
+        ".a.com"
+      ]
+    },
+    {
+      "domain_keyword": [
+        "oo"
+      ]
+    },
+    {
+      "domain_regex": [
+        "^ad[0-9]+\\."
+      ]
+    },
+    {
+      "ip_cidr": [
+        "10.0.0.0/8",
+        "2001:db8::/32"
+      ]
+    },
+    {
+      "ip_is_private": true
+    },
+    {
+      "port": [
+        443
+      ]
+    },
+    {
+      "port_range": [
+        "1000:2000",
+        ":80"
+      ]
+    },
+    {
+      "network": [
+        "udp"
+      ]
+    },
+    {
+      "protocol": [
+        "quic",
+        "tls"
+      ]
+    },
+    {
+      "domain_suffix": [
+        "a.com"
+      ],
+      "ip_cidr": [
+        "1.1.1.0/24"
+      ]
+    },
+    {
+      "domain": [
+        "a.com"
+      ],
+      "port": [
+        443
+      ]
+    },
+    {
+      "domain_suffix": [
+        "a.com"
+      ],
+      "network": [
+        "tcp"
+      ],
+      "port": [
+        443,
+        80
+      ]
+    },
+    {
+      "ip_cidr": [
+        "10.0.0.0/8"
+      ],
+      "invert": true
+    },
+    {
+      "domain_suffix": [
+        "a.com"
+      ],
+      "invert": true
+    },
+    {
+      "rule_set": [
+        "set-merge"
+      ]
+    },
+    {
+      "rule_set": [
+        "set-merge"
+      ],
+      "domain": [
+        "a.com"
+      ]
+    },
+    {
+      "rule_set": [
+        "set-merge"
+      ],
+      "port": [
+        443
+      ]
+    },
+    {
+      "rule_set": [
+        "set-port"
+      ],
+      "domain_suffix": [
+        "a.com"
+      ]
+    },
+    {
+      "rule_set": [
+        "set-multi"
+      ]
+    },
+    {
+      "rule_set": [
+        "set-multi"
+      ],
+      "domain_suffix": [
+        "b.com"
+      ]
+    },
+    {
+      "rule_set": [
+        "set-merge",
+        "set-multi"
+      ]
+    },
+    {
+      "rule_set": [
+        "set-invert"
+      ]
+    },
+    {
+      "rule_set": [
+        "set-net"
+      ]
+    },
+    {
+      "rule_set": [
+        "set-net"
+      ],
+      "port": [
+        443
+      ]
+    },
+    {
+      "type": "logical",
+      "mode": "and",
+      "rules": [
+        {
+          "network": [
+            "udp"
+          ]
+        },
+        {
+          "port": [
+            443
+          ]
+        }
+      ]
+    },
+    {
+      "type": "logical",
+      "mode": "or",
+      "rules": [
+        {
+          "domain": [
+            "a.com"
+          ]
+        },
+        {
+          "ip_cidr": [
+            "1.1.1.0/24"
+          ]
+        }
+      ],
+      "invert": true
+    },
+    {
+      "type": "logical",
+      "mode": "and",
+      "rules": [
+        {
+          "rule_set": [
+            "set-merge"
+          ]
+        },
+        {
+          "type": "logical",
+          "mode": "or",
+          "rules": [
+            {
+              "protocol": [
+                "quic"
+              ]
+            },
+            {
+              "port": [
+                80
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ip_cidr": [
+        "1.1.1.0/24"
+      ],
+      "port": [
+        443
+      ],
+      "invert": true
+    },
+    {
+      "rule_set": [
+        "set-logical"
+      ]
+    },
+    {
+      "ip_is_private": true,
+      "domain_suffix": [
+        "a.com"
+      ]
+    },
+    {
+      "domain_regex": [
+        "^a"
+      ]
+    },
+    {
+      "rule_set": [
+        "set-ipmerge"
+      ],
+      "ip_cidr": [
+        "1.1.1.0/24"
+      ]
+    }
+  ],
+  "verdicts": [
+    [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ],
+    [
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ],
+    [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false
+    ],
+    [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    ],
+    [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false
+    ],
+    [
+      true,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true
+    ],
+    [
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false
+    ],
+    [
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ],
+    [
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false
+    ],
+    [
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ],
+    [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ],
+    [
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ],
+    [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true
+    ],
+    [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    [
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ],
+    [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ],
+    [
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ],
+    [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    [
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ],
+    [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true
+    ],
+    [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    [
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true
+    ],
+    [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    [
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ],
+    [
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false
+    ],
+    [
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ],
+    [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  ]
+}

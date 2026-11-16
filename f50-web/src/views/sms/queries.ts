@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { usePoll } from "@/hooks/use-live";
 import { t } from "@/i18n";
-import { errorMessage } from "@/lib/format";
+import { errorMessage, formatTime } from "@/lib/format";
 import { isJobStarted, JOB_STATE_LABEL, jobStatus } from "@/lib/jobs";
 import {
   useInfiniteQuery,
@@ -12,14 +12,17 @@ import {
 import { toast } from "sonner";
 import {
   deleteSms,
+  getPush,
   listConversations,
   listThread,
   readMessage,
+  setPush,
   smsKeys,
   syncSms,
+  testPush,
   unreadCounts,
 } from "./api";
-import type { SmsMessage } from "./types";
+import type { PushChange, SmsMessage } from "./types";
 
 const POLL_MS = 15_000;
 const LIST_PAGE = 50;
@@ -172,4 +175,47 @@ export function useDeleteConversation() {
     onError: (e) => toast.error(errorMessage(e)),
     onSettled: () => invalidate(),
   });
+}
+
+/** The Telegram push settings, read while the dialog is open (the last outcome moves with each received SMS). */
+export function usePush(enabled: boolean) {
+  return useQuery({
+    queryKey: smsKeys.push,
+    queryFn: getPush,
+    enabled,
+    refetchInterval: enabled ? POLL_MS : false,
+  });
+}
+
+export function useSetPush() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (change: PushChange) => setPush(change),
+    onSuccess: (v) => qc.setQueryData(smsKeys.push, v),
+  });
+}
+
+export function useTestPush() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (change: PushChange) => testPush(change),
+    onSettled: () => void qc.invalidateQueries({ queryKey: smsKeys.push }),
+  });
+}
+
+/** Unread / total and the SIM store's use, as one line for the title's tooltip. */
+export function useSmsStatusText(): string {
+  const unread = useUnread().data;
+  const storage = useConversations().data?.pages[0]?.sim_storage ?? null;
+  return [
+    unread &&
+      t("sms.actions.unread", { unread: unread.unread, total: unread.total }),
+    storage &&
+      `${t("sms.actions.storage", { used: storage.used, total: storage.total })} · ${t(
+        "sms.actions.storageTitle",
+        { store: storage.store, time: formatTime(storage.at) },
+      )}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }

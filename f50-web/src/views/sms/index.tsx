@@ -1,11 +1,15 @@
+import { useIsMobile } from "@/hooks/use-mobile";
 import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useAtom } from "jotai";
 import { MessageSquareTextIcon } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { ConversationList } from "./components/conversation-list";
 import { NewMessageDialog } from "./components/new-message-dialog";
 import { SmsActions } from "./components/sms-actions";
 import { ThreadView } from "./components/thread-view";
+import { TransportAlert } from "./components/transport-alert";
+import { useConversations, useSmsStatusText } from "./queries";
 import { selectedPeerAtom } from "./store/sms";
 
 /**
@@ -15,24 +19,43 @@ import { selectedPeerAtom } from "./store/sms";
  */
 export default function SmsPage() {
   const [peer, setPeer] = useAtom(selectedPeerAtom);
+  const conversations = useConversations();
+  const status = useSmsStatusText();
+  const isMobile = useIsMobile();
+  const firstPeer = conversations.data?.pages[0]?.conversations[0]?.peer;
+  const autoOpened = useRef(false);
+
+  // Side by side, open the newest conversation instead of an empty pane — once per visit, so closing or deleting
+  // the thread is not undone. A phone keeps starting from the list.
+  useEffect(() => {
+    if (autoOpened.current || isMobile || peer || !firstPeer) return;
+    autoOpened.current = true;
+    setPeer(firstPeer);
+  }, [isMobile, peer, firstPeer, setPeer]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
-        <MessageSquareTextIcon className="size-4 text-muted-foreground" />
-        <h1 className="text-sm font-semibold">{t("sms.page.title")}</h1>
-        <div className="ml-auto flex min-w-0 items-center gap-1 overflow-x-auto">
-          <SmsActions />
-        </div>
-      </div>
-      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[18rem_1fr] xl:grid-cols-[20rem_1fr]">
+      <TransportAlert transport={conversations.data?.pages[0]?.transport} />
+      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[19rem_1fr] xl:grid-cols-[21rem_1fr]">
         <div
           className={cn(
-            "min-h-0 border-r bg-muted/20",
-            peer ? "hidden md:block" : "block",
+            "min-h-0 flex-col bg-muted/40",
+            peer ? "hidden md:flex" : "flex",
           )}
         >
-          <ConversationList selected={peer} onSelect={setPeer} />
+          <div className="flex shrink-0 items-center gap-2 ps-5 pe-3 pt-4 pb-3">
+            <h1
+              className="text-xl font-bold tracking-tight"
+              title={status || undefined}
+            >
+              {t("sms.page.title")}
+            </h1>
+            <span className="ml-auto" />
+            <SmsActions />
+          </div>
+          <div className="min-h-0 flex-1">
+            <ConversationList selected={peer} onSelect={setPeer} />
+          </div>
         </div>
         <div className={cn("min-h-0", peer ? "block" : "hidden md:block")}>
           {peer ? (

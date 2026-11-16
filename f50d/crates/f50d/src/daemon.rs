@@ -99,7 +99,15 @@ async fn daemon() -> Result<()> {
         shutdown.clone(),
     )?;
 
-    let services = Services { at, jobs, paths, modem, data, sms, net, system, hw, update };
+    let proxy = f50_proxy::Proxy::start(
+        f50_proxy::ProxyConfig::default(),
+        platform.clone(),
+        jobs.clone(),
+        &tracker,
+        shutdown.clone(),
+    )?;
+
+    let services = Services { at, jobs, paths, modem, data, sms, net, system, hw, update, proxy };
     let acl = Arc::new(OnceLock::new());
     let internal =
         vec![services.data.proto_object(), internal::object(services.net.clone(), services.data.clone(), acl.clone())];
@@ -123,6 +131,8 @@ async fn daemon() -> Result<()> {
     if cfg.adbd {
         services.net.adbd_stop();
     }
+    // nothing stays intercepted without the daemon that supervises the proxy engine
+    services.proxy.shutdown().await;
     tracker.close();
     if tokio::time::timeout(DRAIN, tracker.wait()).await.is_err() {
         tracing::warn!("some tasks did not stop in time");

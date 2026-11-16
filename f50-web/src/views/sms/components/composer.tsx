@@ -7,9 +7,9 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group";
-import { SweepShine } from "@/components/ui/sweep-shine";
+import { Spinner } from "@/components/ui/spinner";
 import { t } from "@/i18n";
-import { SendIcon, XIcon } from "lucide-react";
+import { ArrowUpIcon, XIcon } from "lucide-react";
 import { SmsCounter } from "./sms-counter";
 import { useSendForm } from "./use-send-form";
 import { NUMBER_RE } from "../lib/encoding";
@@ -23,7 +23,7 @@ export function Composer({ peer }: { peer: string }) {
 
   if (!NUMBER_RE.test(peer)) {
     return (
-      <p className="border-t px-3 py-2 text-xs text-muted-foreground">
+      <p className="mx-auto mb-4 w-full max-w-3xl px-4 text-center text-xs text-muted-foreground sm:px-6">
         {t("sms.composer.notNumber")}
       </p>
     );
@@ -32,7 +32,7 @@ export function Composer({ peer }: { peer: string }) {
   return (
     <form
       onSubmit={submit}
-      className="flex shrink-0 flex-col gap-1.5 border-t p-2"
+      className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-1.5 px-4 pt-1 pb-4 sm:px-6"
     >
       {job && (
         <div className="flex items-start gap-2">
@@ -57,12 +57,12 @@ export function Composer({ peer }: { peer: string }) {
         </div>
       )}
       <Field data-invalid={!!error}>
-        <InputGroup>
+        <InputGroup className="min-h-9 rounded-[20px] border-transparent bg-foreground/[0.05] ps-1.5 pe-1 transition-colors has-[[data-slot=input-group-control]:focus-visible]:border-transparent has-[[data-slot=input-group-control]:focus-visible]:bg-foreground/[0.07] has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-foreground/10">
           <InputGroupTextarea
             aria-label={t("sms.composer.textLabel")}
             placeholder={t("sms.composer.placeholder")}
             rows={1}
-            className="field-sizing-content max-h-32 min-h-9 py-2 text-base sm:text-sm"
+            className="field-sizing-content max-h-40 min-h-9 py-2 text-[15px] leading-[1.35]"
             aria-invalid={!!error}
             disabled={pending}
             onKeyDown={(e) => {
@@ -73,24 +73,29 @@ export function Composer({ peer }: { peer: string }) {
             }}
             {...form.register("text")}
           />
-          <InputGroupAddon align="inline-end" className="self-end pb-1.5">
-            <SmsCounter text={text} className="hidden text-[11px] sm:inline" />
-            <InputGroupButton
-              type="submit"
-              variant="default"
-              size="xs"
-              title="Ctrl/⌘ + Enter"
-              disabled={pending}
-              aria-busy={pending}
+          {(text || pending) && (
+            <InputGroupAddon
+              align="inline-end"
+              className="gap-2 self-end pe-0 pb-1"
             >
-              <SendIcon data-icon="inline-start" />
-              {pending ? (
-                <SweepShine>{t("sms.composer.sending")}</SweepShine>
-              ) : (
-                t("sms.composer.send")
-              )}
-            </InputGroupButton>
-          </InputGroupAddon>
+              <SmsCounter
+                text={text}
+                className="hidden text-[11px] sm:inline"
+              />
+              <InputGroupButton
+                type="submit"
+                variant="default"
+                size="icon-sm"
+                className="size-7 rounded-full"
+                title={`${t("sms.composer.send")} (Ctrl/⌘ + Enter)`}
+                aria-label={t("sms.composer.send")}
+                disabled={pending}
+                aria-busy={pending}
+              >
+                {pending ? <Spinner /> : <ArrowUpIcon />}
+              </InputGroupButton>
+            </InputGroupAddon>
+          )}
         </InputGroup>
         <FieldError errors={[error]} />
       </Field>

@@ -19,7 +19,9 @@ export type LiveTopic =
   | "cells"
   | "sms"
   /** A fingerprint of the newest log lines (the logs are private); the log page reads them again on a change. */
-  | "logs";
+  | "logs"
+  /** `f50.proxy status`. */
+  | "proxy";
 
 export interface LiveEvent {
   topic: string;

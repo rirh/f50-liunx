@@ -1,8 +1,15 @@
 # Streams dist/ as a tar over one SSH connection into a directory beside the live copy, then swaps it in with one
 # rename: a half-copied console is never what the browser loads. No scp: OpenWrt's dropbear has no SFTP server, and
 # OpenSSH 10's legacy scp refuses `dist/.`. COPYFILE_DISABLE: macOS tar adds no ._ files or extended attributes.
+# Then the console's pages at the site root (history routing) on a device whose image predates that: the front page
+# becomes a link to its index.html and uhttpd answers every other path with it, as the image's uci-defaults 93-f50-web
+# does. An error_page the user set is left alone.
+root_pages = [ -L /www/index.html ] || ln -sf f50/index.html /www/index.html; \
+	if uci -q get uhttpd.main >/dev/null && [ -z "$$(uci -q get uhttpd.main.error_page)" ]; then \
+	uci set uhttpd.main.error_page=/f50/index.html && uci commit uhttpd && /etc/init.d/uhttpd restart; fi
+
 define push
-	COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -C dist -cf - . | ssh $(SSH_OPTS) $(1) 'set -e; rm -rf $(REMOTE_DIR).new; mkdir -p $(REMOTE_DIR).new; tar -C $(REMOTE_DIR).new -xf -; rm -rf $(REMOTE_DIR).old; if [ -d $(REMOTE_DIR) ]; then mv $(REMOTE_DIR) $(REMOTE_DIR).old; fi; mv $(REMOTE_DIR).new $(REMOTE_DIR); rm -rf $(REMOTE_DIR).old'
+	COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata -C dist -cf - . | ssh $(SSH_OPTS) $(1) 'set -e; rm -rf $(REMOTE_DIR).new; mkdir -p $(REMOTE_DIR).new; tar -C $(REMOTE_DIR).new -xf -; rm -rf $(REMOTE_DIR).old; if [ -d $(REMOTE_DIR) ]; then mv $(REMOTE_DIR) $(REMOTE_DIR).old; fi; mv $(REMOTE_DIR).new $(REMOTE_DIR); rm -rf $(REMOTE_DIR).old; $(root_pages)'
 	@echo "deployed to $(1):$(REMOTE_DIR)"
 endef
 

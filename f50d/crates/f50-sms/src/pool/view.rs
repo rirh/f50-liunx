@@ -65,6 +65,8 @@ pub(crate) struct Conversation {
     pub last_dir: Dir,
     pub last_status: Status,
     pub last_time: String,
+    /// The zone of `last_time`, minutes east of UTC, when the network sent it.
+    pub last_utc_offset: Option<i16>,
     pub preview: String,
 }
 
@@ -109,6 +111,7 @@ impl State {
                 last_dir: m.dir,
                 last_status: m.status,
                 last_time: m.time.clone(),
+                last_utc_offset: m.utc_offset,
                 preview: preview(&m.text),
             });
         }

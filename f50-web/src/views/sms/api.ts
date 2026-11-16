@@ -3,6 +3,8 @@ import { f50 } from "@/lib/ubus";
 import type {
   ConversationPage,
   DeleteResult,
+  PushChange,
+  PushSettings,
   SmsMessage,
   ThreadPage,
   UnreadCounts,
@@ -15,6 +17,7 @@ export const smsKeys = {
   conversations: ["sms", "conversations"] as const,
   thread: (peer: string) => ["sms", "thread", peer] as const,
   unread: ["sms", "unread"] as const,
+  push: ["sms", "push"] as const,
 };
 
 /** Conversations newest first (one page). */
@@ -41,3 +44,13 @@ export const deleteSms = (id: number, sim: boolean) =>
 export const syncSms = () => f50<JobStarted>(OBJ, "sync");
 
 export const unreadCounts = () => f50<UnreadCounts>(OBJ, "unread");
+
+/** The Telegram push settings (never the token). */
+export const getPush = () => f50<PushSettings>(OBJ, "push");
+
+export const setPush = (change: PushChange) =>
+  f50<PushSettings>(OBJ, "push_set", { ...change });
+
+/** A test message with the saved settings changed by `change` (not saved). */
+export const testPush = (change: PushChange) =>
+  f50<{ sent: boolean }>(OBJ, "push_test", { ...change });

@@ -11,17 +11,17 @@ make deploy         # 构建并经 SSH 复制到设备的 /www/f50（DEVICE=root
 make deploy-stage   # stage 构建，复制到 STAGE_DEVICE
 ```
 
-镜像构建时由 `f50d/openwrt/install.sh ROOT BINARY SRC dist` 安装到 `/www/f50`，设备首页跳转到这里；LuCI 仍在 `/cgi-bin/luci`。
+镜像构建时由 `f50d/openwrt/install.sh ROOT BINARY SRC dist` 安装到 `/www/f50`；页面在站点根路径（`/`、`/sms`），`/www/index.html` 链接到 `f50/index.html`。LuCI 仍在 `/cgi-bin/luci`。
 
 ### 与脚手架默认的不同
 
-- **使用 HashRouter**：uhttpd 没有把深层路径回退到 `index.html` 的功能，用 hash 路由刷新任何页面都不会 404。
+- **History 路由，页面在根路径**：文件在 `/www/f50`（构建的 `base` 是 `/f50/`），页面地址是 `/`、`/sms`。uhttpd 自身不会把深层路径回退到 `index.html`：uci-defaults `93-f50-web`（以及 `make deploy`）把 `uhttpd.main.error_page` 设为 `/f50/index.html`，没有对应文件的路径都交给控制台，由它显示自己的 404。旧的 `/f50/#/sms` 地址在启动时改写为 `/sms`。路由不能用 `/f50`、`/ubus`、`/cgi-bin`、`/luci-static` 开头。
 - **布局**：用 shadcn Sidebar 的管理后台布局取代了首页/关于的分段标签；去掉了 Cookie 提示（路由器管理页没有用）。
 - **请求**：`src/lib/request.ts` 是唯一的 fetch 封装；`src/lib/ubus.ts` 提供 `f50(object, method, args)`，解开 f50d 的 `{ok,data}` / `{ok:false,code,error,field}`，失败时抛出 `ApiError`。会话过期会回到登录页。
 - **后台任务**：返回 `{job}` 的方法用 `useJob` / `JobProgress` 跟踪（`src/hooks/use-job.ts`，`src/components/f50/job-progress.tsx`）。
 
 - **API 文档**：`public/api-docs/` 是 Swagger UI，读同目录的 `openapi.json`（由 `f50d/docs/api/generate.sh` 从设备生成）。设备上是
-  `/f50/api-docs/`，开发时打开 `/f50/api-docs/index.html`。“Try it out” 会把虚拟路径 `POST /{object}/{method}` 转成 `/ubus` 的
+  `/f50/api-docs/`，开发时打开 `/api-docs/index.html`。“Try it out” 会把虚拟路径 `POST /{object}/{method}` 转成 `/ubus` 的
   JSON-RPC 调用，并使用控制台当前的登录。
 
 ### 页面

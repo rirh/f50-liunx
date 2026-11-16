@@ -18,6 +18,9 @@ const LED_EVERY: Duration = Duration::from_secs(5);
 const BOOTED_AFTER: Duration = Duration::from_secs(60);
 
 pub fn start(s: &Services, platform: &Platform, cfg: &Config, tracker: &TaskTracker, shutdown: &CancellationToken) {
+    // the Telegram push goes through the proxy while it runs
+    let proxy = s.proxy.clone();
+    s.sms.set_local_proxy(Arc::new(move || proxy.local_proxy()));
     tracker.spawn(leds(s.clone(), platform.clone(), shutdown.clone()));
     tracker.spawn(keys(s.clone(), cfg.factory_reset, shutdown.clone()));
     tracker.spawn(net_boot(s.clone(), shutdown.clone()));

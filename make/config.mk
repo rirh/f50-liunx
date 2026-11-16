@@ -21,3 +21,4 @@ PM ?= pnpm
 -include make/local.mk
 
 F50D_BIN := f50d/target/aarch64-unknown-linux-musl/release/f50d
+F50_PROXY_BIN := f50-proxy/dist/f50-proxy-linux-arm64

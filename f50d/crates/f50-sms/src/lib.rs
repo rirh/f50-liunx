@@ -7,6 +7,8 @@
 //! - `pool`: messages on flash, conversations, deduplication, the parts of long messages;
 //! - `receiver`: the task that keeps the pool in step with the modem (`+CMT`, `+CMTI`, the periodic sync);
 //! - `sender`: a send, as a job;
+//! - `push`: received messages to a Telegram chat by a bot;
+//! - `transport`: whether the network gives the SIM any SMS path (IMS, CS/SGs, 5G SMS over NAS);
 //! - `api`: the `f50.sms` object.
 //!
 //! Readings never wait for the modem: `list`, `read` and `unread` are answered from the pool.
@@ -18,8 +20,11 @@ mod md5;
 mod modem;
 pub mod pdu;
 mod pool;
+mod push;
+pub use push::LocalProxy;
 mod receiver;
 mod sender;
+mod transport;
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -40,6 +45,7 @@ use tokio_util::task::TaskTracker;
 
 use crate::modem::Storage;
 use crate::pool::{MessageView, Page, Pool};
+use crate::transport::Transport;
 
 /// How SMS runs. [`Default`] is the F50's.
 #[derive(Debug, Clone)]
@@ -89,8 +95,11 @@ pub(crate) struct Inner {
     pub pool: Pool,
     /// The store as the last sync left it.
     pub storage: Mutex<Option<Storage>>,
+    /// The network's SMS paths as the last sync read them.
+    pub transport: Mutex<Option<Transport>>,
     pub sync_now: mpsc::Sender<oneshot::Sender<Result<()>>>,
     pub hooks: mpsc::Sender<hook::HookEvent>,
+    pub push: push::Push,
     /// The concatenation reference of the next long message.
     pub reference: AtomicU8,
 }
@@ -113,7 +122,8 @@ impl Sms {
         shutdown: CancellationToken,
     ) -> Result<Sms> {
         let dir = cfg.dir.clone().unwrap_or_else(|| paths.state().join("sms"));
-        let pool = Pool::open(dir, &paths.sys(&cfg.legacy_pool), cfg.partial_wait.as_secs())?;
+        let pool = Pool::open(dir.clone(), &paths.sys(&cfg.legacy_pool), cfg.partial_wait.as_secs())?;
+        let push = push::Push::start(dir, tracker, shutdown.clone());
         let hooks = hook::start(paths.sys(&cfg.hook), cfg.hook_timeout, tracker, shutdown.clone());
         let (sync_now, sync_requests) = mpsc::channel(1);
         let inner = Arc::new(Inner {
@@ -122,8 +132,10 @@ impl Sms {
             jobs,
             pool,
             storage: Mutex::new(None),
+            transport: Mutex::new(None),
             sync_now,
             hooks,
+            push,
             reference: AtomicU8::new((unix_now() % 256) as u8),
         });
         tracker.spawn(receiver::run(inner.clone(), sync_requests, shutdown));
@@ -138,6 +150,7 @@ impl Sms {
     /// Conversations, or the messages of one (`peer`), newest first.
     async fn list(&self, page: Page, peer: Option<String>) -> Result<Value> {
         let storage = self.inner.storage.lock().unwrap_or_else(PoisonError::into_inner).clone();
+        let transport = self.inner.transport.lock().unwrap_or_else(PoisonError::into_inner).clone();
         let mut v = self
             .inner
             .pool
@@ -149,6 +162,7 @@ impl Sms {
             })
             .await?;
         v["sim_storage"] = json!(storage);
+        v["transport"] = json!(transport);
         Ok(v)
     }
 
@@ -217,6 +231,15 @@ impl Sms {
             done.await.map_err(|_| Error::failed("the SMS receiver stopped before sync completed"))??;
             Ok(json!({ "synced": true }))
         })
+    }
+
+    /// Where the local proxy listens now (`None` while it does not run), for the Telegram push.
+    pub fn set_local_proxy(&self, f: push::LocalProxy) {
+        self.inner.push.set_local_proxy(f);
+    }
+
+    fn push(&self) -> &push::Push {
+        &self.inner.push
     }
 }
 

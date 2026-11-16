@@ -1,77 +1,79 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Spinner } from "@/components/ui/spinner";
-import { SweepShine } from "@/components/ui/sweep-shine";
 import { t } from "@/i18n";
-import { formatAgo, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useSetAtom } from "jotai";
-import { PlusIcon, RefreshCwIcon } from "lucide-react";
-import { useConversations, useSyncSms, useUnread } from "../queries";
-import { composeOpenAtom } from "../store/sms";
+import { useAtom, useSetAtom } from "jotai";
+import {
+  BellRingIcon,
+  ListFilterIcon,
+  PenSquareIcon,
+  RefreshCwIcon,
+} from "lucide-react";
+import { PushDialog } from "./push-dialog";
+import { useSyncSms } from "../queries";
+import { composeOpenAtom, filterAtom } from "../store/sms";
 
 /**
- * The toolbar's right side: counts and the SIM store's use as plain text, then sync and new message. There is no
- * "delete all": messages are deleted one at a time (each message's menu) or a conversation at once (its header).
+ * The list column's header actions, icons only (their names in the tooltip): unread only, sync, Telegram push, new
+ * message. There is no "delete all": messages are deleted one at a time or a conversation at once (its header).
  */
 export function SmsActions() {
-  const unread = useUnread();
-  const storage = useConversations().data?.pages[0]?.sim_storage ?? null;
   const sync = useSyncSms();
   const setCompose = useSetAtom(composeOpenAtom);
+  const [pushOpen, setPushOpen] = useState(false);
+  const [filter, setFilter] = useAtom(filterAtom);
+  const unreadOnly = filter === "unread";
 
   return (
-    <>
-      <span className="hidden shrink-0 items-center gap-2 text-xs text-muted-foreground tabular-nums sm:flex">
-        {unread.isPending ? (
-          <Spinner className="size-3" />
-        ) : unread.data ? (
-          <span
-            className={cn(unread.data.unread > 0 && "font-medium text-primary")}
-          >
-            {t("sms.actions.unread", {
-              unread: unread.data.unread,
-              total: unread.data.total,
-            })}
-          </span>
-        ) : null}
-        {storage && (
-          <span
-            title={t("sms.actions.storageTitle", {
-              store: storage.store,
-              time: formatTime(storage.at),
-            })}
-          >
-            {t("sms.actions.storage", {
-              used: storage.used,
-              total: storage.total,
-              ago: formatAgo(storage.at),
-            })}
-          </span>
-        )}
-      </span>
-      <Separator orientation="vertical" className="mx-1 hidden h-4 sm:block" />
+    <div className="flex shrink-0 items-center">
       <Button
         variant="ghost"
-        size="xs"
+        size="icon-sm"
+        className={cn(
+          "rounded-full",
+          unreadOnly &&
+            "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
+        )}
+        title={t("sms.list.unread")}
+        aria-label={t("sms.list.unread")}
+        aria-pressed={unreadOnly}
+        onClick={() => setFilter(unreadOnly ? "all" : "unread")}
+      >
+        <ListFilterIcon />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="rounded-full"
         title={t("sms.actions.sync")}
+        aria-label={t("sms.actions.sync")}
         disabled={sync.isPending}
         aria-busy={sync.isPending}
         onClick={() => sync.mutate()}
       >
-        <RefreshCwIcon data-icon="inline-start" />
-        <span className="hidden sm:inline">
-          {sync.isPending ? (
-            <SweepShine>{t("sms.actions.syncing")}</SweepShine>
-          ) : (
-            t("sms.actions.sync")
-          )}
-        </span>
+        <RefreshCwIcon className={cn(sync.isPending && "animate-spin")} />
       </Button>
-      <Button size="xs" onClick={() => setCompose(true)}>
-        <PlusIcon data-icon="inline-start" />
-        {t("sms.actions.new")}
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="rounded-full"
+        title={t("sms.actions.push")}
+        aria-label={t("sms.actions.push")}
+        onClick={() => setPushOpen(true)}
+      >
+        <BellRingIcon />
       </Button>
-    </>
+      <PushDialog open={pushOpen} onOpenChange={setPushOpen} />
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="rounded-full text-primary hover:text-primary"
+        title={t("sms.actions.new")}
+        aria-label={t("sms.actions.new")}
+        onClick={() => setCompose(true)}
+      >
+        <PenSquareIcon />
+      </Button>
+    </div>
   );
 }

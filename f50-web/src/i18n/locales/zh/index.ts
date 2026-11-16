@@ -9,6 +9,7 @@ import dashboard from "./dashboard";
 import maintenance from "./maintenance";
 import nav from "./nav";
 import network from "./network";
+import proxy from "./proxy";
 import sms from "./sms";
 import system from "./system";
 import tools from "./tools";
@@ -21,6 +22,7 @@ const zh = {
   cellular,
   sms,
   network,
+  proxy,
   system,
   maintenance,
   tools,

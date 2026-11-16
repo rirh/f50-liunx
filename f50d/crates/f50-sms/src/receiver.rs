@@ -10,7 +10,8 @@
 //!   messages, so nothing is left on it once the pool has it (FINDINGS 35, 39).
 //! - Every `sync_interval`, and on request: the whole store listed and moved into the pool (a missed announcement,
 //!   a message the modem kept anyway), the parts waiting past the partial wait pooled, and direct routing checked
-//!   (the modem drops it by itself after an acknowledgement that never came).
+//!   (the modem drops it by itself after an acknowledgement that never came). The network's SMS paths are read too
+//!   (`transport`): with none of them up the modem is set up right and still nothing ever arrives.
 //!
 //! The order is always the same: parked on the disk first (file and directory entry fsynced), then the SIM slot
 //! deleted or the network told; a power cut loses neither copy.
@@ -31,6 +32,7 @@ use crate::hook;
 use crate::modem::{self, Slot};
 use crate::pdu::{Decoded, decode};
 use crate::pool::Absorbed;
+use crate::transport;
 
 /// Failed `+CMT` rounds in a row before direct delivery is given up.
 const MAX_FAILURES: u32 = 3;
@@ -303,10 +305,28 @@ pub(crate) async fn sync(svc: &Inner) -> Result<()> {
     .await;
     // the waiting parts are looked at whatever the modem did
     let absorbed = absorb(svc).await;
+    refresh_transport(svc).await;
     let storage = listed?;
     absorbed?;
     *svc.storage.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(storage);
     Ok(())
+}
+
+/// Reads the network's SMS paths; a change of readiness is logged once (the inbox otherwise just stays empty).
+async fn refresh_transport(svc: &Inner) {
+    let now = transport::read(&svc.at).await;
+    let before = svc.transport.lock().unwrap_or_else(std::sync::PoisonError::into_inner).replace(now.clone());
+    if before.as_ref().map(|t| t.ready) != Some(now.ready) {
+        match now.ready {
+            Some(false) => {
+                tracing::warn!(
+                    "the network gives this SIM no way to carry SMS: nothing can be received or sent; {}",
+                    now.describe()
+                );
+            }
+            _ => tracing::info!(ready = ?now.ready, "{}", now.describe()),
+        }
+    }
 }
 
 async fn sync_logged(svc: &Inner) {
@@ -327,6 +347,7 @@ async fn absorb(svc: &Inner) -> Result<()> {
     if !new.is_empty() {
         tracing::info!(new = new.len(), waiting, "SMS pooled");
         hook::offer(&svc.hooks, &new);
+        svc.push.offer(&new);
     }
     Ok(())
 }

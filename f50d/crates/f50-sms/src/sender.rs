@@ -7,7 +7,7 @@
 //! half way would leave a long message half sent, and nothing ever submits a part twice by itself.
 //! The number and the text never go into the job's log or result.
 
-use std::sync::Arc;
+use std::sync::{Arc, PoisonError};
 use std::time::Duration;
 
 use f50_core::jobs::JobCtx;
@@ -19,6 +19,7 @@ use crate::Inner;
 use crate::modem::{self, final_text, parse_cmgs};
 use crate::pdu::{Coding, Submit};
 use crate::pool::{Dir, NewMessage, Status, fingerprint};
+use crate::transport;
 
 /// The longest wait for the control channel before the send gives up.
 const SESSION_WAIT: Duration = Duration::from_secs(30);
@@ -35,6 +36,20 @@ pub(crate) struct Outgoing {
 }
 
 pub(crate) async fn run(svc: Arc<Inner>, ctx: JobCtx, out: Outgoing) -> Result<Value> {
+    // the network's SMS paths first: a send without any fails however right the PDU is (transport.rs)
+    let paths = transport::read(&svc.at).await;
+    ctx.log(paths.describe());
+    *svc.transport.lock().unwrap_or_else(PoisonError::into_inner) = Some(paths.clone());
+    submit(svc, &ctx, out).await.map_err(|e| {
+        if paths.ready == Some(false) {
+            e.context("the network gives this SIM no SMS path (IMS, CS, 5G NAS all down)")
+        } else {
+            e
+        }
+    })
+}
+
+async fn submit(svc: Arc<Inner>, ctx: &JobCtx, out: Outgoing) -> Result<Value> {
     let n = out.parts.len();
     let mut s = svc.at.session("sms", SESSION_WAIT).await?;
     ctx.log(modem::smsc_refresh(&mut s).await);

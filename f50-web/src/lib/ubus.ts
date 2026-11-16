@@ -90,8 +90,26 @@ let rpcId = 0;
 
 function sessionExpired() {
   writeSession(null);
-  if (!window.location.hash.startsWith("#/login"))
-    window.location.hash = "#/login";
+  if (window.location.pathname === "/login") return;
+  // outside React: the router follows a history entry it is told about with popstate
+  window.history.pushState(null, "", "/login");
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+/** A read method every login is granted, in every f50d: answers while the session is alive. */
+const ALIVE_CHECK = ["f50.sms", "unread"] as const;
+
+async function sessionAlive(session: string): Promise<boolean> {
+  if (session === ANONYMOUS_SESSION) return false;
+  try {
+    await ubusCall(ALIVE_CHECK[0], ALIVE_CHECK[1], {}, session, {
+      probe: true,
+    });
+    return true;
+  } catch (e) {
+    // only a refused session is dead; a check that failed some other way (a timeout) says nothing
+    return !(e instanceof ApiError && e.code === "unauthorized");
+  }
 }
 
 /**
@@ -125,6 +143,15 @@ export async function ubusCall<T = unknown>(
   if (response.error) {
     // -32002: the session is unknown or has no access
     if (response.error.code === -32002) {
+      // rpcd says the same for an expired session and for a method this session was never granted (a daemon older
+      // than the console, or a session from before an update added the method: rpcd fixes a session's ACL at
+      // login). Only an expired session ends the login.
+      if (!probe && (await sessionAlive(session))) {
+        throw new ApiError(
+          "forbidden",
+          t("app.error.noAccess", { method: `${object}.${method}` }),
+        );
+      }
       if (!probe) sessionExpired();
       throw new ApiError("unauthorized", t("app.error.sessionExpired"));
     }

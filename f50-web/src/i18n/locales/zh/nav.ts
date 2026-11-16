@@ -4,6 +4,7 @@ export default {
     overview: "常用",
     mobile: "移动网络",
     connect: "连接",
+    proxy: "代理",
     device: "设备",
     advanced: "高级",
   },
@@ -28,5 +29,9 @@ export default {
     jobs: "后台任务",
     logs: "系统日志",
     boot: "启动",
+    proxy: "代理",
+    proxyRules: "分流",
+    proxyData: "流量与日志",
+    proxySettings: "代理设置",
   },
 };

@@ -16,7 +16,8 @@ f50d (bin) ─────────► f50-api ─┬─► f50-modem ─┬�
    │ boot stages               ├─► f50-net ─────────┐            │
    │                           ├─► f50-system ──────┤            │
    └─► f50-ubus                ├─► f50-hw ──────────┼─► f50-platform ─► f50-ubus
-                               └─► f50-update ──────┘
+                               ├─► f50-update ──────┤
+                               └─► f50-proxy ───────┘
 ```
 
 | crate | owns | ports (shell it replaces) |
@@ -32,6 +33,7 @@ f50d (bin) ─────────► f50-api ─┬─► f50-modem ─┬�
 | `f50-system` | device facts and live figures, CPU profiles, the thermal guard, LEDs, buttons, zram, hostname/time/password, reboot (`f50.system`, `f50.cpu`) | `dashboard-info`, `f50-device`, `f50-cpu`, `thermal-guard`, `f50-led`, `f50-buttons`, `f50-zram`, `zram-start` |
 | `f50-hw` | boot-time bring-up: kernel modules, device permissions, the vendor daemons the modem needs, Wi-Fi/Bluetooth firmware, boot success marks | `init.d/f50-{hw,vendor,post,accounts}`, `android-vendor-start`, `android-run`, `sipa-dele-start`, `ueventd-perms.sh`, `extra-modules`, `f50-modprobe-guard`, `wcn-reopen`, `regdb-load`, `10-f50-wcn`, `bootmark`, `f50-next-boot`, `early-recorder`, `kmsg-forward` |
 | `f50-update` | release check, download, signature, apply, rollback for F50 OpenWrt (`f50.update`) | `f50-update`, `unisoc-modem/update` |
+| `f50-proxy` | proxy and split routing (`f50.proxy`): the engine's loopback client and token, the profile (subscriptions, nodes, rule configs, group picks, settings), the supervisor (restart, subscription refresh, auto failover), the tproxy firewall (`inet f50_proxy`, fwmark 1 → table 117) | one-node's PC shell (`pc/src-tauri`); the contract is `../f50-proxy/DESIGN.md` §2 |
 | `f50-api` | assembles every object, the aggregate `f50.status`, the ACL file and API reference generated from the method table | `f50-api`, `f50dash` |
 | `f50d` | the binary: configuration, wiring, lifecycle and shutdown, the ubus server, the CLI, the boot stages procd runs | the init scripts' logic |
 
@@ -94,6 +96,7 @@ One binary, several roles (`f50d <role>`, see `crates/f50d/src/cli.rs`):
 | `boot hardware` | `/etc/init.d/f50d-hw` (S12) | modules, regdb, board, the module helper |
 | `boot post` | `/etc/init.d/f50d-post` (S99) | marks the boot good (the A/B fallback) |
 | `boot early` | preinit `05_f50_early_recorder` | the early boot recorder |
+| (not f50d) `/opt/f50/bin/f50-proxy serve` | `/etc/init.d/f50-proxy` (S20) | the proxy engine (Go, `../f50-proxy`), idle until `f50.proxy` starts it over `127.0.0.1:17891`; skipped until f50d has written its token (`/etc/f50d/proxy/token`), then started by f50d's supervisor |
 | `boot trial` | f50-update | arms a trial boot of a new boot image |
 | `proto setup/teardown/renew` | netifd (`proto f50cell`) | forwards to `f50.proto` |
 | `hotplug iface/net/ntp/wcn` | hotplug.d | forwards to `f50.daemon` (wcn runs itself) |
@@ -123,12 +126,16 @@ device itself and are in no ACL.
 ## OpenWrt integration
 
 The web console (`../f50-web`, React) is installed by the same script when its build is given as the fourth
-argument: `install.sh ROOT BINARY SRC f50-web/dist` puts it in `/www/f50` and points the device's front page there.
+argument: `install.sh ROOT BINARY SRC f50-web/dist` puts it in `/www/f50`, its pages at the site root
+(`/www/index.html` links to `f50/index.html`; uhttpd's `error_page`, set by uci-defaults `93-f50-web`, answers every
+other path with it).
 
 `openwrt/` holds what the image installs beside the binary: the procd init scripts, the hotplug hooks, the netifd
 protocol handler (`f50cell`) and `/etc/config/f50d`. `openwrt/install.sh ROOT BINARY` installs them and takes the shell
 programs of the image's overlay that f50d replaces out of the root; `systems/openwrt/build-rootfs.sh` runs it after
-everything else is installed.
+everything else is installed. With `F50_PROXY_BIN=f50-proxy/dist/f50-proxy-linux-arm64` it installs the proxy engine
+as `/opt/f50/bin/f50-proxy` too (its service, `init.d/f50-proxy`, is installed and enabled either way and starts
+nothing without the binary).
 
 Kept from /opt/f50: the programs that are not shell (busybox, adbd, logdw, the carry helper...), the vendor chroot
 (`/opt/f50/android`, where the installer puts it), the release key, and the helpers preinit's early USB DHCP still

@@ -87,6 +87,8 @@ export default {
       noConnection: "无法连接设备上的服务",
       other: "ubus 错误 {status}",
     },
+    noAccess:
+      "当前登录没有 {method} 的权限：设备上的 f50d 版本较旧，或更新后需要重新登录",
     sessionExpired: "登录已过期，请重新登录",
     missingMethod: "设备上没有 {method}：f50d 未安装或未运行",
     unreadable: "设备返回了无法识别的数据",
@@ -98,6 +100,17 @@ export default {
     withDetail: "{label}：{detail}",
   },
   format: {
+    relative: {
+      now: "刚刚",
+      minutes: "{count} 分钟前",
+      minutes_one: "{count} 分钟前",
+      hours: "{count} 小时前",
+      hours_one: "{count} 小时前",
+      days: "{count} 天前",
+      days_one: "{count} 天前",
+      monthDay: "M月d日",
+      yearMonthDay: "yyyy年M月d日",
+    },
     duration: {
       dh: "{d} 天 {h} 小时",
       hm: "{h} 小时 {m} 分",

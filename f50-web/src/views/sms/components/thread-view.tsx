@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { UserAvatar } from "@/components/f50/user-avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BubbleGroup } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,19 @@ import { ArrowLeftIcon, MessagesSquareIcon, Trash2Icon } from "lucide-react";
 import { Composer } from "./composer";
 import { DeleteDialog } from "./delete-dialog";
 import { MessageBubble } from "./message-bubble";
+import { smsDate, smsFullTime, smsShortTime, useMinuteTick } from "../lib/time";
 import { useDeleteConversation, useDeleteSms, useThread } from "../queries";
 import type { SmsMessage } from "../types";
+
+/** A time separator goes between two messages more than 30 minutes apart (as Messages does). */
+const SEPARATE_MS = 30 * 60_000;
+
+function separated(a: SmsMessage, b: SmsMessage): boolean {
+  const da = smsDate(a.time, a.utc_offset);
+  const db = smsDate(b.time, b.utc_offset);
+  if (!da || !db) return a.time.slice(0, 10) !== b.time.slice(0, 10);
+  return Math.abs(db.getTime() - da.getTime()) > SEPARATE_MS;
+}
 
 /** The open conversation: its messages oldest first (older pages on demand), delete, and the reply box. */
 export function ThreadView({
@@ -27,6 +39,7 @@ export function ThreadView({
   const del = useDeleteSms();
   const delConv = useDeleteConversation();
   const [toDelete, setToDelete] = useState<SmsMessage | null>(null);
+  const now = useMinuteTick();
   const total = thread.data?.pages[0]?.total ?? 0;
 
   // keep the newest message in view when one arrives (not when older pages load above)
@@ -39,62 +52,61 @@ export function ThreadView({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b px-2">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="md:hidden"
-          aria-label={t("sms.thread.back")}
-          onClick={onBack}
+      <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center px-3 pt-3 pb-2">
+        <div className="flex">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="rounded-full md:hidden"
+            aria-label={t("sms.thread.back")}
+            onClick={onBack}
+          >
+            <ArrowLeftIcon />
+          </Button>
+        </div>
+        <div
+          className="flex min-w-0 flex-col items-center gap-1"
+          title={
+            thread.isPending
+              ? undefined
+              : t("sms.thread.count", { count: total })
+          }
         >
-          <ArrowLeftIcon />
-        </Button>
-        <div className="flex min-w-0 flex-1 items-baseline gap-2">
-          <span className="truncate text-sm font-semibold tabular-nums">
+          <UserAvatar name={peer} className="size-10" />
+          <span className="max-w-60 truncate text-xs font-medium tabular-nums">
             {peer}
           </span>
-          <span className="shrink-0 text-[11px] text-muted-foreground">
-            {thread.isPending
-              ? t("sms.thread.loading")
-              : t("sms.thread.count", { count: total })}
-            {thread.isFetching &&
-              !thread.isPending &&
-              ` · ${t("common.action.refreshing")}`}
-          </span>
         </div>
-        <DeleteDialog
-          title={t("sms.thread.deleteConversationTitle")}
-          description={t("sms.thread.deleteConversationDescription", {
-            peer,
-            count: total,
-          })}
-          onConfirm={(sim) =>
-            delConv.mutate({ peer, sim }, { onSuccess: onBack })
-          }
-          trigger={
-            <Button
-              variant="ghost"
-              size="xs"
-              title={t("sms.thread.deleteConversation")}
-              disabled={delConv.isPending || total === 0}
-              aria-busy={delConv.isPending}
-            >
-              <Trash2Icon data-icon="inline-start" />
-              {delConv.isPending ? (
-                <SweepShine>{t("sms.actions.deleting")}</SweepShine>
-              ) : (
-                <span className="hidden sm:inline">
-                  {t("sms.thread.deleteConversation")}
-                </span>
-              )}
-            </Button>
-          }
-        />
+        <div className="flex justify-end">
+          <DeleteDialog
+            title={t("sms.thread.deleteConversationTitle")}
+            description={t("sms.thread.deleteConversationDescription", {
+              peer,
+              count: total,
+            })}
+            onConfirm={(sim) =>
+              delConv.mutate({ peer, sim }, { onSuccess: onBack })
+            }
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="rounded-full text-muted-foreground hover:text-destructive"
+                title={t("sms.thread.deleteConversation")}
+                aria-label={t("sms.thread.deleteConversation")}
+                disabled={delConv.isPending || total === 0}
+                aria-busy={delConv.isPending}
+              >
+                <Trash2Icon />
+              </Button>
+            }
+          />
+        </div>
       </div>
 
       <div
         ref={scroller}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-muted/20 px-3 py-2"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-2 pb-4 sm:px-6"
       >
         {thread.isPending ? (
           <div className="flex flex-col gap-1.5">
@@ -123,7 +135,7 @@ export function ThreadView({
             <span className="text-xs">{t("sms.thread.emptyDescription")}</span>
           </div>
         ) : (
-          <BubbleGroup className="gap-1.5">
+          <BubbleGroup className="mx-auto w-full max-w-3xl gap-0.5">
             {thread.hasNextPage && (
               <Button
                 variant="ghost"
@@ -143,14 +155,29 @@ export function ThreadView({
                 )}
               </Button>
             )}
-            {messages.map((m) => (
-              <MessageBubble
-                key={m.id}
-                message={m}
-                deleting={del.isPending && del.variables?.id === m.id}
-                onDelete={setToDelete}
-              />
-            ))}
+            {messages.map((m, i) => {
+              const prev = messages[i - 1];
+              const gap = !prev || separated(prev, m);
+              return (
+                <Fragment key={m.id}>
+                  {gap && (
+                    <div
+                      className="self-center pt-4 pb-1.5 text-[11px] font-medium text-muted-foreground tabular-nums"
+                      title={smsFullTime(m.time, m.utc_offset)}
+                    >
+                      {smsShortTime(m.time, m.utc_offset, now)}
+                    </div>
+                  )}
+                  <MessageBubble
+                    message={m}
+                    // a new sender or a pause starts a new run, with air above it
+                    spaced={!gap && prev.dir !== m.dir}
+                    deleting={del.isPending && del.variables?.id === m.id}
+                    onDelete={setToDelete}
+                  />
+                </Fragment>
+              );
+            })}
           </BubbleGroup>
         )}
       </div>

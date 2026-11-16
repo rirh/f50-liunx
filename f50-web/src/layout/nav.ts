@@ -3,8 +3,10 @@ import {
   ActivityIcon,
   ArrowUpDownIcon,
   CardSimIcon,
+  ChartNoAxesColumnIcon,
   CpuIcon,
   GaugeIcon,
+  GlobeLockIcon,
   HardDriveDownloadIcon,
   InfoIcon,
   LayoutDashboardIcon,
@@ -17,6 +19,8 @@ import {
   PowerIcon,
   ScrollTextIcon,
   SettingsIcon,
+  SlidersHorizontalIcon,
+  SplitIcon,
   SignalIcon,
   TerminalIcon,
   UsbIcon,
@@ -83,6 +87,24 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    title: "nav.group.proxy",
+    items: [
+      { title: "nav.page.proxy", path: "/proxy", icon: GlobeLockIcon },
+      { title: "nav.page.proxyRules", path: "/proxy/rules", icon: SplitIcon },
+      {
+        title: "nav.page.proxyData",
+        path: "/proxy/data",
+        icon: ChartNoAxesColumnIcon,
+        fullBleed: true,
+      },
+      {
+        title: "nav.page.proxySettings",
+        path: "/proxy/settings",
+        icon: SlidersHorizontalIcon,
+      },
+    ],
+  },
+  {
     title: "nav.group.device",
     items: [
       {
@@ -121,13 +143,20 @@ export const NAV: NavGroup[] = [
   },
 ];
 
-/** The group and the page a path belongs to (null for a path the sidebar does not list). */
+/**
+ * The group and the page a path belongs to: the page itself, or for a page the sidebar does not list (/proxy/node)
+ * the listed page it sits under; null otherwise.
+ */
 export function locate(
   pathname: string,
 ): { group: NavGroup; item: NavItem } | null {
   for (const group of NAV)
     for (const item of group.items)
       if (item.path === pathname) return { group, item };
+  for (const group of NAV)
+    for (const item of group.items)
+      if (item.path !== "/" && pathname.startsWith(`${item.path}/`))
+        return { group, item };
   return null;
 }
 

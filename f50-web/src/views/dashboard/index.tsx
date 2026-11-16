@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { STATUS_KEY, getStatus } from "./api";
 import { DeviceCard } from "./components/device-card";
+import { ProxyCard } from "./components/proxy-card";
 import { ServiceList } from "./components/service-list";
 import { Shortcuts } from "./components/shortcuts";
 import { SystemCard } from "./components/system-card";
@@ -123,6 +124,9 @@ export default function DashboardPage() {
             </div>
             <div data-reveal>
               <SystemCard s={s} />
+            </div>
+            <div data-reveal>
+              <ProxyCard />
             </div>
           </div>
           <div className="flex flex-col gap-4">

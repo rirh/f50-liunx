@@ -133,6 +133,15 @@ const m: Messages["dashboard"] = {
     uptime: "Up {time}",
     noUnread: "No unread",
   },
+  proxy: {
+    runningFor: "Up {time}",
+    down: "Download",
+    up: "Upload",
+    total: "{size} this run",
+    delay: "Node delay",
+    traffic: "Traffic this run",
+    groups: "{n} policy groups",
+  },
   quick: {
     data: "Mobile data",
     wifi: "Wi-Fi hotspot",

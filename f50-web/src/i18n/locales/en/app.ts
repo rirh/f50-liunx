@@ -95,6 +95,8 @@ const m: Messages["app"] = {
       noConnection: "Cannot reach the service on the device",
       other: "ubus error {status}",
     },
+    noAccess:
+      "This login has no access to {method}: f50d on the device is older, or sign in again after an update",
     sessionExpired: "Your session expired, please sign in again",
     missingMethod:
       "The device has no {method}: f50d is not installed or not running",
@@ -106,6 +108,17 @@ const m: Messages["app"] = {
     withDetail: "{label}: {detail}",
   },
   format: {
+    relative: {
+      now: "Just now",
+      minutes: "{count} min ago",
+      minutes_one: "{count} min ago",
+      hours: "{count} h ago",
+      hours_one: "{count} h ago",
+      days: "{count} days ago",
+      days_one: "{count} day ago",
+      monthDay: "MMM d",
+      yearMonthDay: "MMM d, yyyy",
+    },
     duration: {
       dh: "{d} d {h} h",
       hm: "{h} h {m} min",

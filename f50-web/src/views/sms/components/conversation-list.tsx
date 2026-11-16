@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { UserAvatar } from "@/components/f50/user-avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,16 +10,15 @@ import {
 } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SweepShine } from "@/components/ui/sweep-shine";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useAtom } from "jotai";
-import { InboxIcon, SearchIcon, UserRoundIcon, XIcon } from "lucide-react";
-import { smsShortTime } from "../lib/time";
+import { InboxIcon, SearchIcon, XIcon } from "lucide-react";
+import { smsFullTime, smsShortTime, useMinuteTick } from "../lib/time";
 import { useConversations } from "../queries";
 import { filterAtom, searchAtom } from "../store/sms";
-import type { ListFilter, SmsConversation } from "../types";
+import type { SmsConversation } from "../types";
 
 /** Conversations newest first, searchable by number or preview, with an unread-only filter. */
 export function ConversationList({
@@ -30,7 +30,7 @@ export function ConversationList({
 }) {
   const query = useConversations();
   const [search, setSearch] = useAtom(searchAtom);
-  const [filter, setFilter] = useAtom(filterAtom);
+  const [filter] = useAtom(filterAtom);
 
   const all = useMemo(
     () => query.data?.pages.flatMap((p) => p.conversations) ?? [],
@@ -46,19 +46,19 @@ export function ConversationList({
           c.preview.toLowerCase().includes(q)),
     );
   }, [all, search, filter]);
-  const totalConvs = query.data?.pages[0]?.conversations_total ?? 0;
+  const now = useMinuteTick();
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-10 shrink-0 items-center gap-1.5 border-b px-2">
-        <InputGroup className="h-7 min-w-0 flex-1">
+      <div className="shrink-0 px-3 pb-2">
+        <InputGroup className="h-8 rounded-lg border-transparent bg-foreground/[0.06] has-[[data-slot=input-group-control]:focus-visible]:border-transparent has-[[data-slot=input-group-control]:focus-visible]:ring-2 has-[[data-slot=input-group-control]:focus-visible]:ring-primary/30 dark:bg-foreground/10">
           <InputGroupAddon>
             <SearchIcon className="size-3.5" />
           </InputGroupAddon>
           <InputGroupInput
             aria-label={t("sms.list.searchLabel")}
             placeholder={t("sms.list.searchPlaceholder")}
-            className="text-base sm:text-xs"
+            className="text-base sm:text-[13px]"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -66,6 +66,7 @@ export function ConversationList({
             <InputGroupAddon align="inline-end">
               <InputGroupButton
                 size="icon-xs"
+                className="rounded-full"
                 aria-label={t("sms.list.clearSearch")}
                 onClick={() => setSearch("")}
               >
@@ -74,28 +75,13 @@ export function ConversationList({
             </InputGroupAddon>
           )}
         </InputGroup>
-        <ToggleGroup
-          type="single"
-          size="sm"
-          variant="outline"
-          className="shrink-0"
-          value={filter}
-          onValueChange={(v) => v && setFilter(v as ListFilter)}
-        >
-          <ToggleGroupItem value="all" className="h-7 px-2 text-xs">
-            {t("sms.list.all")}
-          </ToggleGroupItem>
-          <ToggleGroupItem value="unread" className="h-7 px-2 text-xs">
-            {t("sms.list.unread")}
-          </ToggleGroupItem>
-        </ToggleGroup>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {query.isPending ? (
           <div className="flex flex-col gap-1 p-2">
             {Array.from({ length: 8 }, (_, i) => (
-              <Skeleton key={i} className="h-9 w-full" />
+              <Skeleton key={i} className="h-14 w-full rounded-[10px]" />
             ))}
           </div>
         ) : query.isError ? (
@@ -127,20 +113,21 @@ export function ConversationList({
             </span>
           </div>
         ) : (
-          <ul className="divide-y">
+          <ul className="flex flex-col gap-px px-2 pb-2">
             {shown.map((c) => (
               <li key={c.peer}>
                 <ConversationItem
                   conv={c}
                   active={c.peer === selected}
                   onSelect={onSelect}
+                  now={now}
                 />
               </li>
             ))}
           </ul>
         )}
         {query.hasNextPage && (
-          <div className="flex justify-center border-t p-1.5">
+          <div className="flex justify-center p-1.5">
             <Button
               variant="ghost"
               size="xs"
@@ -157,14 +144,6 @@ export function ConversationList({
           </div>
         )}
       </div>
-
-      <div className="flex h-6 shrink-0 items-center border-t px-2 text-[11px] text-muted-foreground">
-        {query.isFetching && !query.isPending ? (
-          <SweepShine>{t("common.action.refreshing")}</SweepShine>
-        ) : (
-          t("sms.list.count", { count: totalConvs })
-        )}
-      </div>
     </div>
   );
 }
@@ -173,10 +152,12 @@ function ConversationItem({
   conv,
   active,
   onSelect,
+  now,
 }: {
   conv: SmsConversation;
   active: boolean;
   onSelect: (peer: string) => void;
+  now: Date;
 }) {
   const unread = conv.unread > 0;
   return (
@@ -184,59 +165,46 @@ function ConversationItem({
       type="button"
       aria-current={active || undefined}
       className={cn(
-        "relative flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left outline-none hover:bg-muted/60 focus-visible:bg-muted",
-        active && "bg-primary/10 hover:bg-primary/15",
+        "relative flex w-full cursor-pointer items-start gap-3 rounded-[10px] py-2.5 ps-4 pe-3 text-left transition-colors outline-none hover:bg-foreground/[0.04] focus-visible:bg-foreground/[0.06]",
+        active &&
+          "bg-primary text-primary-foreground hover:bg-primary focus-visible:bg-primary",
       )}
       onClick={() => onSelect(conv.peer)}
     >
-      {active && (
-        <span className="absolute inset-y-0 left-0 w-0.5 bg-primary" />
+      {unread && (
+        <span
+          aria-hidden
+          className={cn(
+            "absolute top-1/2 left-1 size-2 -translate-y-1/2 rounded-full",
+            active ? "bg-primary-foreground" : "bg-primary",
+          )}
+        />
       )}
-      <span
-        className={cn(
-          "relative flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium",
-          active
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-muted-foreground",
-        )}
-        aria-hidden
-      >
-        {/^\+?\d/.test(conv.peer) ? (
-          <UserRoundIcon className="size-4" />
-        ) : (
-          conv.peer.slice(0, 1).toUpperCase()
-        )}
-        {unread && (
-          <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border-2 border-background bg-primary" />
-        )}
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex w-full items-center gap-2">
-          <span
-            className={cn(
-              "min-w-0 truncate text-sm tabular-nums",
-              unread ? "font-semibold" : "font-medium",
-            )}
-          >
+      <UserAvatar name={conv.peer} className="size-10" />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="flex w-full items-baseline gap-2">
+          <span className="min-w-0 truncate text-[14px] font-semibold tabular-nums">
             {conv.peer}
           </span>
           <span
-            className="ml-auto shrink-0 text-[11px] text-muted-foreground tabular-nums"
-            title={conv.last_time}
+            className={cn(
+              "ml-auto shrink-0 text-xs tabular-nums",
+              active ? "text-primary-foreground/75" : "text-muted-foreground",
+            )}
+            title={smsFullTime(conv.last_time, conv.last_utc_offset)}
           >
-            {smsShortTime(conv.last_time)}
+            {smsShortTime(conv.last_time, conv.last_utc_offset, now)}
           </span>
         </span>
-        <span className="flex w-full items-center gap-2 text-xs text-muted-foreground">
-          <span className="min-w-0 flex-1 truncate">
-            {conv.last_dir === "out" && t("sms.list.me")}
-            {conv.preview || t("sms.list.blank")}
-          </span>
-          {unread && (
-            <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] leading-4 font-medium text-primary-foreground tabular-nums">
-              {conv.unread}
-            </span>
+        <span
+          className={cn(
+            "line-clamp-2 text-[13px] leading-snug wrap-anywhere",
+            active ? "text-primary-foreground/80" : "text-muted-foreground",
+            unread && !active && "text-foreground",
           )}
+        >
+          {conv.last_dir === "out" && t("sms.list.me")}
+          {conv.preview || t("sms.list.blank")}
         </span>
       </span>
     </button>

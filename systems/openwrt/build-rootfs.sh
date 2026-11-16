@@ -98,6 +98,13 @@ command -v cargo >/dev/null || { echo "f50d needs Rust (cargo)" >&2; exit 1; }
 # argument, spaces and all
 set -- -v "$TOP/f50d/target/aarch64-unknown-linux-musl/release/f50d":/in/f50d:ro \
     -v "$TOP/f50d/openwrt":/in/f50d-openwrt:ro
+# the proxy engine (f50-proxy/: Xray-core and the split-routing rules, Go), built here like f50d and installed by
+# install.sh as /opt/f50/bin/f50-proxy; F50_PROXY=0 builds the image without it (f50.proxy then reports it missing)
+if [ "${F50_PROXY:-1}" != 0 ]; then
+    command -v go >/dev/null || { echo "the proxy engine needs Go (F50_PROXY=0 builds without it)" >&2; exit 1; }
+    make -C "$TOP/f50-proxy" device VERSION="${F50_VERSION:-dev}" >/dev/null || exit 1
+    set -- "$@" -v "$TOP/f50-proxy/dist/f50-proxy-linux-arm64":/in/f50-proxy:ro
+fi
 # the web console (f50-web's build, `make web`), served as /www/f50; F50_WEB= builds the image without it
 F50_WEB=${F50_WEB-$TOP/f50-web/dist}
 if [ -n "$F50_WEB" ]; then
@@ -316,7 +323,7 @@ rm -rf $R/lib/modules/6.* $R/boot
 # f50d in place of the shell layer of the overlays (before the manifest: it changes the image)
 [ -x /in/f50d ] || { echo "f50d is not built" >&2; exit 1; }
 apk add coreutils-install >/dev/null
-sh /in/f50d-openwrt/install.sh $R /in/f50d /in/f50d-openwrt $([ -f /in/f50-web/index.html ] && echo /in/f50-web)
+F50_PROXY_BIN=$([ -f /in/f50-proxy ] && echo /in/f50-proxy) sh /in/f50d-openwrt/install.sh $R /in/f50d /in/f50d-openwrt $([ -f /in/f50-web/index.html ] && echo /in/f50-web)
 # The manifest of the image: every file it holds, with type, mode, owner, size and sha256 (scripts/release/image-manifest.py has
 # the format and makes the same lines from the tarball; make-release.sh holds the two against each other). The next
 # update reads it to tell the files of the image from those of the user. Last, when nothing in $R changes any more.

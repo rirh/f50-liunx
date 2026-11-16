@@ -13,22 +13,25 @@ help:
 	  '  make reset-password  从 Android 重置 OpenWrt 的 root 密码' \
 	  '' \
 	  '构建' \
-	  '  make build           f50d（aarch64 静态）和网页' \
+	  '  make build           f50d（aarch64 静态）、代理引擎和网页' \
 	  '  make f50d            只构建 f50d' \
+	  '  make proxy           只构建代理引擎 f50-proxy（Go，linux/arm64）' \
 	  '  make web             只构建网页（f50-web/dist）' \
 	  '  make kernel          用 docker 构建 5.4 内核和模块到 out/（install 需要）' \
-	  '  make clean           清理 f50d 和网页的构建产物' \
+	  '  make clean           清理 f50d、代理引擎和网页的构建产物' \
 	  '' \
 	  '测试' \
-	  '  make test            f50d 单元测试 + 格式和 clippy + 网页 lint 和类型检查' \
+	  '  make test            f50d 和代理引擎的单元测试 + 格式和 clippy + 网页 lint 和类型检查' \
 	  '  make test-f50d       只跑 f50d 单元测试' \
+	  '  make test-proxy      只跑代理引擎的 Go 测试' \
 	  '  make lint            只做格式、clippy 和网页 lint' \
 	  '  make test-installer  安装器和镜像的 Python 测试' \
 	  '  make test-all        以上全部' \
 	  '' \
 	  '部署（设备已运行 OpenWrt + f50d，通过 SSH，不重刷）' \
-	  '  make deploy          部署 f50d 和网页' \
+	  '  make deploy          部署 f50d、代理引擎和网页' \
 	  '  make deploy-f50d     只换 f50d 并重启守护进程' \
+	  '  make deploy-proxy    只换代理引擎并重启它' \
 	  '  make deploy-web      只部署网页到 /www/f50' \
 	  '  make deploy-reboot   部署后整机重启（AT 通道进程也换成新版本）' \
 	  '' \

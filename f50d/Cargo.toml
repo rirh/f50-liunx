@@ -16,6 +16,7 @@ members = [
     "crates/f50-system",
     "crates/f50-hw",
     "crates/f50-update",
+    "crates/f50-proxy",
     "crates/f50-api",
     "crates/f50d",
 ]
@@ -41,6 +42,7 @@ f50-net = { path = "crates/f50-net" }
 f50-system = { path = "crates/f50-system" }
 f50-hw = { path = "crates/f50-hw" }
 f50-update = { path = "crates/f50-update" }
+f50-proxy = { path = "crates/f50-proxy" }
 f50-api = { path = "crates/f50-api" }
 
 libc = "0.2.191"

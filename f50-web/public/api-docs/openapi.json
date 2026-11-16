@@ -219,6 +219,54 @@
         }
       }
     },
+    "/f50.boot/android": {
+      "post": {
+        "description": "Makes the next boot Android's (the initramfs' Android block, written and read back) and reboots in two seconds. The device stays in Android until Linux is started from there.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.boot` `android`.",
+        "operationId": "boot.android",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Makes the next boot Android's (the initramfs' Android block, written and read back) and reboots in two seconds",
+        "tags": [
+          "f50.boot"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "android",
+          "object": "f50.boot"
+        }
+      }
+    },
     "/f50.boot/get": {
       "post": {
         "description": "The slot Linux runs from, the default boot, the failed boots allowed before Android, whether Linux is locked, the boot control block, and the last result of every boot stage.\n\n**Access:** read (rpcd ACL group `f50-read`). **ubus:** `f50.boot` `get`.",
@@ -709,7 +757,8 @@
                               "type": "string"
                             },
                             "dns": {
-                              "description": "Only seen as null."
+                              "items": {},
+                              "type": "array"
                             },
                             "error": {
                               "description": "Only seen as null."
@@ -739,7 +788,7 @@
                               "type": "boolean"
                             },
                             "since_s": {
-                              "description": "Only seen as null."
+                              "type": "integer"
                             },
                             "slot": {
                               "type": "integer"
@@ -1211,17 +1260,11 @@
                                     },
                                     "type": "array"
                                   },
-                                  "reply_lines": {
-                                    "items": {
-                                      "type": "string"
-                                    },
-                                    "type": "array"
-                                  },
                                   "restarted": {
                                     "type": "boolean"
                                   },
-                                  "status": {
-                                    "type": "string"
+                                  "synced": {
+                                    "type": "boolean"
                                   },
                                   "value": {
                                     "type": "string"
@@ -1866,7 +1909,38 @@
                                           "type": "object"
                                         },
                                         "neigh": {
-                                          "description": "Only seen as null."
+                                          "items": {
+                                            "properties": {
+                                              "arfcn": {
+                                                "type": "integer"
+                                              },
+                                              "band": {
+                                                "type": "integer"
+                                              },
+                                              "pci": {
+                                                "type": "integer"
+                                              },
+                                              "rat": {
+                                                "type": "string"
+                                              },
+                                              "rsrp": {
+                                                "type": "number"
+                                              },
+                                              "rsrq": {
+                                                "type": "number"
+                                              }
+                                            },
+                                            "required": [
+                                              "arfcn",
+                                              "band",
+                                              "pci",
+                                              "rat",
+                                              "rsrp",
+                                              "rsrq"
+                                            ],
+                                            "type": "object"
+                                          },
+                                          "type": "array"
                                         },
                                         "nr": {
                                           "description": "Only seen as null."
@@ -2062,6 +2136,29 @@
                               ],
                               "type": "object"
                             },
+                            "logs": {
+                              "properties": {
+                                "data": {
+                                  "properties": {
+                                    "mark": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "mark"
+                                  ],
+                                  "type": "object"
+                                },
+                                "ok": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "data",
+                                "ok"
+                              ],
+                              "type": "object"
+                            },
                             "modem": {
                               "properties": {
                                 "data": {
@@ -2223,7 +2320,8 @@
                                               "type": "string"
                                             },
                                             "dns": {
-                                              "description": "Only seen as null."
+                                              "items": {},
+                                              "type": "array"
                                             },
                                             "error": {
                                               "description": "Only seen as null."
@@ -2253,7 +2351,7 @@
                                               "type": "boolean"
                                             },
                                             "since_s": {
-                                              "description": "Only seen as null."
+                                              "type": "integer"
                                             },
                                             "slot": {
                                               "type": "integer"
@@ -3228,7 +3326,7 @@
                                               "type": "string"
                                             },
                                             "channel_live": {
-                                              "description": "Only seen as null."
+                                              "type": "integer"
                                             },
                                             "channels": {
                                               "properties": {
@@ -3255,7 +3353,25 @@
                                               "type": "boolean"
                                             },
                                             "clients": {
-                                              "items": {},
+                                              "items": {
+                                                "properties": {
+                                                  "ip": {
+                                                    "type": "string"
+                                                  },
+                                                  "mac": {
+                                                    "type": "string"
+                                                  },
+                                                  "name": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "ip",
+                                                  "mac",
+                                                  "name"
+                                                ],
+                                                "type": "object"
+                                              },
                                               "type": "array"
                                             },
                                             "country": {
@@ -3280,7 +3396,7 @@
                                               "type": "string"
                                             },
                                             "status": {
-                                              "description": "Only seen as null."
+                                              "type": "string"
                                             }
                                           },
                                           "required": [
@@ -3336,6 +3452,12 @@
                                             "saved": {
                                               "description": "Only seen as null."
                                             },
+                                            "scan_armed": {
+                                              "type": "boolean"
+                                            },
+                                            "scan_until": {
+                                              "description": "Only seen as null."
+                                            },
                                             "signal": {
                                               "description": "Only seen as null."
                                             },
@@ -3351,6 +3473,8 @@
                                             "firewall_ok",
                                             "mode",
                                             "saved",
+                                            "scan_armed",
+                                            "scan_until",
                                             "signal",
                                             "ssid"
                                           ],
@@ -3579,6 +3703,7 @@
                           },
                           "required": [
                             "cells",
+                            "logs",
                             "modem",
                             "sms",
                             "status",
@@ -4193,7 +4318,38 @@
                                   "type": "object"
                                 },
                                 "neigh": {
-                                  "description": "Only seen as null."
+                                  "items": {
+                                    "properties": {
+                                      "arfcn": {
+                                        "type": "integer"
+                                      },
+                                      "band": {
+                                        "type": "integer"
+                                      },
+                                      "pci": {
+                                        "type": "integer"
+                                      },
+                                      "rat": {
+                                        "type": "string"
+                                      },
+                                      "rsrp": {
+                                        "type": "number"
+                                      },
+                                      "rsrq": {
+                                        "type": "number"
+                                      }
+                                    },
+                                    "required": [
+                                      "arfcn",
+                                      "band",
+                                      "pci",
+                                      "rat",
+                                      "rsrp",
+                                      "rsrq"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "type": "array"
                                 },
                                 "nr": {
                                   "description": "Only seen as null."
@@ -4455,6 +4611,81 @@
           "access": "write",
           "job": false,
           "method": "identity",
+          "object": "f50.modem"
+        }
+      }
+    },
+    "/f50.modem/own_number": {
+      "post": {
+        "description": "Writes the SIM's own number to the card (its own-number phonebook, read by AT+CNUM; a job).\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.modem` `own_number`. Long work: answers `{job}`; poll `f50.job status`.",
+        "operationId": "modem.own_number",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "number": {
+                    "maxLength": 16,
+                    "pattern": "^(?:\\+?[0-9]{3,15})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "number"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/JobStarted"
+                            },
+                            {}
+                          ],
+                          "description": "The result, or `{job}` when the work runs as a job."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Writes the SIM's own number to the card (its own-number phonebook, read by AT+CNUM; a job)",
+        "tags": [
+          "f50.modem"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": true,
+          "method": "own_number",
           "object": "f50.modem"
         }
       }
@@ -5324,7 +5555,7 @@
     },
     "/f50.sms/sync": {
       "post": {
-        "description": "Moves what the modem's store holds into the pool, in the background.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.sms` `sync`.",
+        "description": "Restores SMS notifications and moves stored messages into the pool as a job.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.sms` `sync`. Long work: answers `{job}`; poll `f50.job status`.",
         "operationId": "sms.sync",
         "responses": {
           "200": {
@@ -5336,7 +5567,13 @@
                       "additionalProperties": false,
                       "properties": {
                         "data": {
-                          "description": "Not sampled: see the method's description."
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/JobStarted"
+                            },
+                            {}
+                          ],
+                          "description": "The result, or `{job}` when the work runs as a job."
                         },
                         "ok": {
                           "const": true
@@ -5358,13 +5595,13 @@
             "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
           }
         },
-        "summary": "Moves what the modem's store holds into the pool, in the background",
+        "summary": "Restores SMS notifications and moves stored messages into the pool as a job",
         "tags": [
           "f50.sms"
         ],
         "x-ubus": {
           "access": "write",
-          "job": false,
+          "job": true,
           "method": "sync",
           "object": "f50.sms"
         }
@@ -5480,7 +5717,8 @@
                                       "type": "string"
                                     },
                                     "dns": {
-                                      "description": "Only seen as null."
+                                      "items": {},
+                                      "type": "array"
                                     },
                                     "error": {
                                       "description": "Only seen as null."
@@ -5510,7 +5748,7 @@
                                       "type": "boolean"
                                     },
                                     "since_s": {
-                                      "description": "Only seen as null."
+                                      "type": "integer"
                                     },
                                     "slot": {
                                       "type": "integer"
@@ -6485,7 +6723,7 @@
                                       "type": "string"
                                     },
                                     "channel_live": {
-                                      "description": "Only seen as null."
+                                      "type": "integer"
                                     },
                                     "channels": {
                                       "properties": {
@@ -6512,7 +6750,25 @@
                                       "type": "boolean"
                                     },
                                     "clients": {
-                                      "items": {},
+                                      "items": {
+                                        "properties": {
+                                          "ip": {
+                                            "type": "string"
+                                          },
+                                          "mac": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "ip",
+                                          "mac",
+                                          "name"
+                                        ],
+                                        "type": "object"
+                                      },
                                       "type": "array"
                                     },
                                     "country": {
@@ -6537,7 +6793,7 @@
                                       "type": "string"
                                     },
                                     "status": {
-                                      "description": "Only seen as null."
+                                      "type": "string"
                                     }
                                   },
                                   "required": [
@@ -6593,6 +6849,12 @@
                                     "saved": {
                                       "description": "Only seen as null."
                                     },
+                                    "scan_armed": {
+                                      "type": "boolean"
+                                    },
+                                    "scan_until": {
+                                      "description": "Only seen as null."
+                                    },
                                     "signal": {
                                       "description": "Only seen as null."
                                     },
@@ -6608,6 +6870,8 @@
                                     "firewall_ok",
                                     "mode",
                                     "saved",
+                                    "scan_armed",
+                                    "scan_until",
                                     "signal",
                                     "ssid"
                                   ],
@@ -7070,6 +7334,62 @@
           "access": "write",
           "job": false,
           "method": "logs",
+          "object": "f50.system"
+        }
+      }
+    },
+    "/f50.system/logs_mark": {
+      "post": {
+        "description": "A fingerprint of the newest log lines; changes when the logs do, reveals nothing of them.\n\n**Access:** read (rpcd ACL group `f50-read`). **ubus:** `f50.system` `logs_mark`.",
+        "operationId": "system.logs_mark",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "properties": {
+                            "mark": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "mark"
+                          ],
+                          "type": "object"
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "A fingerprint of the newest log lines; changes when the logs do, reveals nothing of them",
+        "tags": [
+          "f50.system"
+        ],
+        "x-ubus": {
+          "access": "read",
+          "job": false,
+          "method": "logs_mark",
           "object": "f50.system"
         }
       }
@@ -8212,7 +8532,9 @@
                                       "type": "boolean"
                                     },
                                     "systems": {
-                                      "items": {},
+                                      "items": {
+                                        "type": "string"
+                                      },
                                       "type": "array"
                                     },
                                     "tag": {
@@ -9331,6 +9653,54 @@
         }
       }
     },
+    "/f50.wifi/credentials": {
+      "post": {
+        "description": "The saved hotspot's name, password, security and hidden flag for sharing (administrator only).\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.wifi` `credentials`.",
+        "operationId": "wifi.credentials",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "The saved hotspot's name, password, security and hidden flag for sharing (administrator only)",
+        "tags": [
+          "f50.wifi"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "credentials",
+          "object": "f50.wifi"
+        }
+      }
+    },
     "/f50.wifi/get": {
       "post": {
         "description": "The hotspot: name, band, channel, country, security, clients (never the password).\n\n**Access:** read (rpcd ACL group `f50-read`). **ubus:** `f50.wifi` `get`.",
@@ -9353,7 +9723,7 @@
                               "type": "string"
                             },
                             "channel_live": {
-                              "description": "Only seen as null."
+                              "type": "integer"
                             },
                             "channels": {
                               "properties": {
@@ -9380,7 +9750,25 @@
                               "type": "boolean"
                             },
                             "clients": {
-                              "items": {},
+                              "items": {
+                                "properties": {
+                                  "ip": {
+                                    "type": "string"
+                                  },
+                                  "mac": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "ip",
+                                  "mac",
+                                  "name"
+                                ],
+                                "type": "object"
+                              },
                               "type": "array"
                             },
                             "country": {
@@ -9405,7 +9793,7 @@
                               "type": "string"
                             },
                             "status": {
-                              "description": "Only seen as null."
+                              "type": "string"
                             }
                           },
                           "required": [
@@ -9895,6 +10283,54 @@
         }
       }
     },
+    "/f50.wificlient/scan_reboot": {
+      "post": {
+        "description": "Reboots with the hotspot off for ten minutes so the radio can scan (it cannot while it is the hotspot).\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.wificlient` `scan_reboot`.",
+        "operationId": "wificlient.scan_reboot",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Reboots with the hotspot off for ten minutes so the radio can scan (it cannot while it is the hotspot)",
+        "tags": [
+          "f50.wificlient"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "scan_reboot",
+          "object": "f50.wificlient"
+        }
+      }
+    },
     "/f50.wificlient/status": {
       "post": {
         "description": "The Wi-Fi uplink: mode, network, signal, address, firewall, saved network.\n\n**Access:** read (rpcd ACL group `f50-read`). **ubus:** `f50.wificlient` `status`.",
@@ -9931,6 +10367,12 @@
                             "saved": {
                               "description": "Only seen as null."
                             },
+                            "scan_armed": {
+                              "type": "boolean"
+                            },
+                            "scan_until": {
+                              "description": "Only seen as null."
+                            },
                             "signal": {
                               "description": "Only seen as null."
                             },
@@ -9946,6 +10388,8 @@
                             "firewall_ok",
                             "mode",
                             "saved",
+                            "scan_armed",
+                            "scan_until",
                             "signal",
                             "ssid"
                           ],
