@@ -58,6 +58,13 @@ pub struct SmsConfig {
     pub hook: PathBuf,
     pub hook_timeout: Duration,
     /// Ask for direct delivery (`+CMT`, FINDINGS 51); otherwise messages are stored and announced (`+CMTI`).
+    ///
+    /// Off by default: with direct delivery every message waits for our `AT+CNMA`, which only goes out after the
+    /// PDU is on flash and the control lane is free; a late or lost acknowledgement leaves the network to retry, or
+    /// the modem to drop the routing. In stored mode the modem acknowledges the network itself once the message is on
+    /// the SIM, and the receiver moves it into the pool within a second or two (measured on the F50 over CS/SGs).
+    /// A part missing from a long message is not this: China Mobile was seen dropping the one part that carried a
+    /// link, the same part every time, in both modes.
     pub direct: bool,
     /// The safety-net sync of the modem's store.
     pub sync_interval: Duration,
@@ -77,9 +84,10 @@ impl Default for SmsConfig {
             legacy_pool: "/etc/f50/sms-pool".into(),
             hook: "/etc/f50/sms-hook".into(),
             hook_timeout: Duration::from_secs(60),
-            direct: true,
+            direct: false,
             sync_interval: Duration::from_secs(60),
-            partial_wait: Duration::from_secs(3600),
+            // the parts of a long message come within seconds; one the network lost must not hold the rest back
+            partial_wait: Duration::from_secs(180),
             send_timeout: Duration::from_secs(200),
             rx_wait: Duration::from_secs(8),
         }

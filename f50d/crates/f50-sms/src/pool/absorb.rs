@@ -1,7 +1,7 @@
 //! Parked parts into messages: decoded, grouped, deduplicated, pooled, and the parts let go.
 //!
 //! A long message waits for its parts on the disk. Parts whose siblings never come (a part the network lost) would
-//! wait for ever: after the partial wait (an hour) the parts that did arrive are pooled as one message, "[...]" where
+//! wait for ever: after the partial wait (three minutes) the parts that did arrive are pooled as one message, "[...]" where
 //! a part is missing, marked incomplete. A part that arrives after that is pooled at once as a message of its own
 //! (the rest of one already pooled: the same sender, reference and total, within ten minutes). A part delivered once
 //! more (an acknowledgement that did not reach the network) is known by its PDU and dropped (FINDINGS 39, 63).

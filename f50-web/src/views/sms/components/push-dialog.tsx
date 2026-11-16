@@ -31,7 +31,10 @@ const CHAT_ID = /^(-?\d{1,20}|@[A-Za-z][A-Za-z0-9_]{3,31})$/;
 const API =
   /^https?:\/\/[A-Za-z0-9.-]{1,253}(:\d{1,5})?(\/[A-Za-z0-9._~%/-]{0,200})?$/;
 
-const pushSchema = (tokenSet: boolean) =>
+/** The bot's own id: the token's part before the colon (a chat id equal to it is the bot itself). */
+const botId = (token: string) => token.split(":")[0] || null;
+
+const pushSchema = (tokenSet: boolean, savedBot: string | null) =>
   z
     .object({
       enabled: z.boolean(),
@@ -62,6 +65,16 @@ const pushSchema = (tokenSet: boolean) =>
           code: "custom",
           path: ["chat_id"],
           message: t("sms.push.chatRequired"),
+        });
+    })
+    .superRefine((v, ctx) => {
+      // whether push is on or not: a test checks it too
+      const bot = v.token ? botId(v.token) : savedBot;
+      if (bot && v.chat_id === bot)
+        ctx.addIssue({
+          code: "custom",
+          path: ["chat_id"],
+          message: t("sms.push.chatIsBot"),
         });
     });
 type PushValues = z.infer<ReturnType<typeof pushSchema>>;
@@ -145,7 +158,14 @@ function PushPanel({
   const testPush = useTestPush();
   const form = useForm<PushValues>({
     resolver: zodResolver(
-      useMemo(() => pushSchema(settings.token_set), [settings.token_set]),
+      useMemo(
+        () =>
+          pushSchema(
+            settings.token_set,
+            settings.token_hint ? botId(settings.token_hint) : null,
+          ),
+        [settings.token_set, settings.token_hint],
+      ),
     ),
     defaultValues: valuesOf(settings),
   });

@@ -224,6 +224,9 @@ impl Push {
         if next.enabled && next.chat_id.is_empty() {
             return Err(Error::bad_value("chat_id"));
         }
+        if is_own_bot(&next) {
+            return Err(Error::bad_value("chat_id"));
+        }
         let data = serde_json::to_vec_pretty(&next).map_err(|e| Error::failed(e.to_string()))?;
         let path = self.path.clone();
         tokio::task::spawn_blocking(move || fsx::write_atomic(&path, &data, 0o600))
@@ -239,7 +242,7 @@ impl Push {
         if cfg.token.is_empty() {
             return Err(Error::bad_value("token"));
         }
-        if cfg.chat_id.is_empty() {
+        if cfg.chat_id.is_empty() || is_own_bot(&cfg) {
             return Err(Error::bad_value("chat_id"));
         }
         let text = format!("✅ F50 Telegram push works\n{}", host_line());
@@ -395,6 +398,11 @@ fn redact(s: &str, token: &str) -> String {
     if token.is_empty() { s.to_owned() } else { s.replace(token, "***") }
 }
 
+/// The chat is the bot itself (the token's `<bot id>`): Telegram refuses it with 403.
+fn is_own_bot(c: &PushConfig) -> bool {
+    c.token.split_once(':').is_some_and(|(bot, _)| !bot.is_empty() && c.chat_id == bot)
+}
+
 /// The token as `<bot id>:…<last four>`, for recognising which bot is set.
 fn token_hint(token: &str) -> Option<String> {
     let (bot, secret) = token.split_once(':')?;
@@ -431,6 +439,13 @@ mod tests {
         assert_eq!(curl_quote("x\ny"), r#""x\ny""#);
         let q = curl_quote(&json!({"text": "line1\nline2 \"q\""}).to_string());
         assert!(!q.contains('\n'));
+    }
+
+    #[test]
+    fn the_bot_is_not_a_chat() {
+        let c = PushConfig { token: "8520551697:AAAA".into(), chat_id: "8520551697".into(), ..Default::default() };
+        assert!(is_own_bot(&c));
+        assert!(!is_own_bot(&PushConfig { chat_id: "42".into(), ..c }));
     }
 
     #[test]

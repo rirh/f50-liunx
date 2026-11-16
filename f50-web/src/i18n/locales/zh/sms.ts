@@ -118,6 +118,8 @@ export default {
       "个人或群组的数字 ID（群组以 -100 开头），或公开频道的 @用户名。先给机器人发一条消息（或把它加入群组/频道），否则它无法发消息给你。",
     chatInvalid: "应为数字 ID（可带 -）或 @频道名",
     chatRequired: "请填写 Chat ID",
+    chatIsBot:
+      "这是机器人自己的 ID（Token 冒号前的数字）。请填你自己或群组的 Chat ID：先给机器人发一条消息，再从 getUpdates 或 @userinfobot 获取。",
     api: "API 地址",
     apiHint:
       "留空使用官方地址。无法直连 Telegram 时，可填自建的 Bot API 或反向代理地址。",

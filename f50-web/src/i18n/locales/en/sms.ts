@@ -125,6 +125,8 @@ const m: Messages["sms"] = {
       "A user's or group's numeric ID (groups start with -100), or a public channel's @username. Message the bot first (or add it to the group or channel), or it cannot write to you.",
     chatInvalid: "A numeric ID (may start with -) or an @channel",
     chatRequired: "Enter the chat ID",
+    chatIsBot:
+      "This is the bot's own ID (the digits before the token's colon). Enter your own or a group's chat ID: message the bot first, then read it from getUpdates or @userinfobot.",
     api: "API base",
     apiHint:
       "Leave empty for the official API. If Telegram cannot be reached directly, enter a self-hosted Bot API or a reverse proxy.",
