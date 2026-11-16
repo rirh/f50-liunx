@@ -17,6 +17,16 @@ const m: Messages["app"] = {
   },
   notFound: { title: "404 · Page not found", back: "Back to the dashboard" },
   login: {
+    title: "Sign in",
+    tagline: "The console of a 5G pocket router on OpenWrt",
+    feature: {
+      cellular: "Signal, data usage and SMS at a glance",
+      proxy: "Transparent proxy with smart routing",
+      shell: "A root shell in the browser",
+    },
+    photo: "Photo: {author}",
+    photoLoading: "Loading a background…",
+    shuffle: "Another background",
     description:
       "Sign in with the device's system account (OpenWrt's root password)",
     username: "Username",

@@ -79,18 +79,22 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  /* Apple's radius ladder: controls ~10, tiles ~14, cards ~20, sheets ~26 (scaled up where corners are continuous). */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-3xl: calc(var(--radius) * 2.6);
+  --radius-4xl: calc(var(--radius) * 3.2);
 }
 
 :root {
-  /* Teal: the primary is a deep teal that keeps white text readable (AA); neutrals carry a slight cool tint. */
-  --background: oklch(0.985 0.004 220);
+  /*
+   * Surfaces step by shade, never by outline (Apple's grouped style): the page is a cool grey, a card is white on it,
+   * and a tile inside a card is grey again (muted). Borders are only hairline dividers between rows.
+   */
+  --background: oklch(0.968 0.004 240);
   --foreground: oklch(0.21 0.02 245);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.02 245);
@@ -98,15 +102,15 @@
   --popover-foreground: oklch(0.21 0.02 245);
   --primary: oklch(0.52 0.105 205);
   --primary-foreground: oklch(0.985 0.005 200);
-  --secondary: oklch(0.955 0.012 215);
+  --secondary: oklch(0.95 0.008 230);
   --secondary-foreground: oklch(0.27 0.035 235);
-  --muted: oklch(0.96 0.007 225);
+  --muted: oklch(0.95 0.006 240);
   --muted-foreground: oklch(0.5 0.022 245);
   --accent: oklch(0.945 0.03 200);
   --accent-foreground: oklch(0.32 0.07 210);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.91 0.011 230);
-  --input: oklch(0.9 0.012 230);
+  --border: oklch(0.21 0.02 245 / 8%);
+  --input: oklch(0.21 0.02 245 / 6%);
   --ring: oklch(0.6 0.11 200);
   /* charts: teal, blue, violet, amber, rose */
   --chart-1: oklch(0.6 0.12 200);
@@ -115,47 +119,48 @@
   --chart-4: oklch(0.76 0.15 75);
   --chart-5: oklch(0.64 0.19 15);
   --radius: 0.625rem;
-  --sidebar: oklch(0.97 0.008 220);
+  --sidebar: oklch(0.94 0.007 240);
   --sidebar-foreground: oklch(0.25 0.025 245);
   --sidebar-primary: oklch(0.52 0.105 205);
   --sidebar-primary-foreground: oklch(0.985 0.005 200);
-  --sidebar-accent: oklch(0.93 0.035 202);
-  --sidebar-accent-foreground: oklch(0.3 0.07 210);
-  --sidebar-border: oklch(0.91 0.011 230);
+  --sidebar-accent: oklch(0.21 0.02 245 / 6%);
+  --sidebar-accent-foreground: oklch(0.21 0.02 245);
+  --sidebar-border: oklch(0.21 0.02 245 / 7%);
   --sidebar-ring: oklch(0.6 0.11 200);
 }
 
 .dark {
-  --background: oklch(0.17 0.015 240);
+  /* Near-black page, cards lifted a step, tiles in a card a step further (iOS dark elevated surfaces). */
+  --background: oklch(0.15 0.008 250);
   --foreground: oklch(0.955 0.006 220);
-  --card: oklch(0.21 0.018 240);
+  --card: oklch(0.205 0.01 250);
   --card-foreground: oklch(0.955 0.006 220);
-  --popover: oklch(0.21 0.018 240);
+  --popover: oklch(0.235 0.011 250);
   --popover-foreground: oklch(0.955 0.006 220);
   --primary: oklch(0.74 0.12 195);
   --primary-foreground: oklch(0.18 0.03 220);
-  --secondary: oklch(0.27 0.022 240);
+  --secondary: oklch(0.27 0.012 250);
   --secondary-foreground: oklch(0.955 0.006 220);
-  --muted: oklch(0.255 0.02 240);
-  --muted-foreground: oklch(0.71 0.022 230);
-  --accent: oklch(0.3 0.045 210);
+  --muted: oklch(0.255 0.011 250);
+  --muted-foreground: oklch(0.71 0.018 235);
+  --accent: oklch(0.3 0.04 210);
   --accent-foreground: oklch(0.955 0.006 220);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 13%);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 8%);
   --ring: oklch(0.62 0.1 200);
   --chart-1: oklch(0.74 0.12 195);
   --chart-2: oklch(0.7 0.14 258);
   --chart-3: oklch(0.7 0.15 300);
   --chart-4: oklch(0.8 0.14 75);
   --chart-5: oklch(0.72 0.17 15);
-  --sidebar: oklch(0.19 0.017 240);
+  --sidebar: oklch(0.12 0.006 250);
   --sidebar-foreground: oklch(0.955 0.006 220);
   --sidebar-primary: oklch(0.74 0.12 195);
   --sidebar-primary-foreground: oklch(0.18 0.03 220);
-  --sidebar-accent: oklch(0.27 0.035 215);
+  --sidebar-accent: oklch(1 0 0 / 8%);
   --sidebar-accent-foreground: oklch(0.955 0.006 220);
-  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-border: oklch(1 0 0 / 6%);
   --sidebar-ring: oklch(0.62 0.1 200);
 }
 
@@ -172,9 +177,29 @@
   }
 }
 
-/* Create Web Kit global styles */
-:root {
-  --radius: 0.5rem;
+/*
+ * Continuous ("squircle") corners, as Apple draws them: the curve eases out of the straight edge instead of meeting it
+ * at a hard tangent. A squircle with the same radius looks tighter, so the radius scale grows to keep the same feel.
+ * Circles and pills (rounded-full, the badge's rounded-4xl) stay round. Browsers without corner-shape keep plain arcs.
+ */
+@supports (corner-shape: squircle) {
+  :root {
+    --radius: 0.8rem;
+  }
+  :where(*) {
+    corner-shape: squircle;
+  }
+  :where(
+    .rounded-full,
+    [class*="rounded-full"],
+    [class*="rounded-4xl"],
+    [data-slot="switch"],
+    [data-slot="switch-thumb"],
+    [data-slot="avatar"],
+    .tags-view-chrome *
+  ) {
+    corner-shape: round;
+  }
 }
 
 :root[data-color] {
@@ -217,27 +242,6 @@
 
 :root[data-color="violet"] {
   --primary: hsl(262 83% 58%);
-}
-
-/* 圆角（shadcn 默认用 --radius 作基准） */
-:root[data-radius="0"] {
-  --radius: 0rem;
-}
-
-:root[data-radius="0.25"] {
-  --radius: 0.25rem;
-}
-
-:root[data-radius="0.5"] {
-  --radius: 0.5rem;
-}
-
-:root[data-radius="0.75"] {
-  --radius: 0.75rem;
-}
-
-:root[data-radius="1"] {
-  --radius: 1rem;
 }
 
 /* 布局示例：你可以自己按需求调整 */
@@ -393,7 +397,11 @@ body {
     --tags-chrome-wing-half: 7px;
     --tags-chrome-wing-half-negative: -7px;
     --tags-ruoyi-primary: var(--primary);
-    --tags-chrome-track-bg: color-mix(in srgb, var(--muted) 76%, var(--border));
+    --tags-chrome-track-bg: color-mix(
+      in oklch,
+      var(--background),
+      var(--foreground) 4.5%
+    );
     --tags-chrome-active-bg: color-mix(
       in srgb,
       var(--tags-ruoyi-primary) 15%,
@@ -409,7 +417,6 @@ body {
     min-width: 0;
     overflow: visible;
     background: var(--tags-chrome-track-bg);
-    border-bottom: 1px solid var(--border);
   }
 
   .tags-view-chrome__nav,

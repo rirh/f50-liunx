@@ -39,7 +39,7 @@ export function OfferItem({
     status.disk.free_kb < status.disk.need_all_kb;
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border p-3">
+    <div className="flex flex-col gap-2 rounded-xl bg-muted/70 p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-1">
           <span className="flex flex-wrap items-center gap-2">

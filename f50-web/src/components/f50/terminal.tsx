@@ -19,6 +19,7 @@ export function Terminal({
   prompt,
   follow,
   flush,
+  bare,
   children,
   className,
 }: {
@@ -33,6 +34,8 @@ export function Terminal({
   follow?: unknown;
   /** Edge to edge in the content area: no frame, no rounded corners, so it reads as part of the app. */
   flush?: boolean;
+  /** The content scrolls and pads itself (a terminal emulator): the body is only the space for it. */
+  bare?: boolean;
   children: ReactNode;
   className?: string;
 }) {
@@ -66,19 +69,26 @@ export function Terminal({
           </div>
         )}
       </header>
-      <div
-        ref={box}
-        onScroll={(e) => {
-          const el = e.currentTarget;
-          atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
-        }}
-        role="log"
-        aria-live="off"
-        tabIndex={0}
-        className="min-h-0 flex-1 overflow-auto px-3 py-2 leading-5 outline-none selection:bg-[#264f78] focus-visible:ring-1 focus-visible:ring-[#58a6ff]/50 focus-visible:ring-inset"
-      >
-        {children}
-      </div>
+      {bare ? (
+        <div className="min-h-0 flex-1 overflow-hidden ps-3 pt-2 pb-1">
+          {children}
+        </div>
+      ) : (
+        <div
+          ref={box}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            atEnd.current =
+              el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+          }}
+          role="log"
+          aria-live="off"
+          tabIndex={0}
+          className="min-h-0 flex-1 overflow-auto px-3 py-2 leading-5 outline-none selection:bg-[#264f78] focus-visible:ring-1 focus-visible:ring-[#58a6ff]/50 focus-visible:ring-inset"
+        >
+          {children}
+        </div>
+      )}
       {prompt && (
         <div className="shrink-0 border-t border-white/10 bg-[#0d1117]">
           {prompt}

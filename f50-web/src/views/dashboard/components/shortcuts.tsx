@@ -50,7 +50,7 @@ const LINKS: { to: string; icon: LucideIcon; title: Key }[] = [
 
 export function Shortcuts() {
   return (
-    <section className="rounded-2xl border bg-card px-2 pt-3.5 pb-2">
+    <section className="rounded-2xl bg-card px-2 pt-3.5 pb-2">
       <h2 className="px-2 pb-1.5 text-sm font-semibold text-muted-foreground">
         {t("dashboard.panel.more")}
       </h2>

@@ -16,6 +16,16 @@ export default {
   },
   notFound: { title: "404 · 页面不存在", back: "返回仪表盘" },
   login: {
+    title: "登录",
+    tagline: "OpenWrt 上的 5G 随身路由控制台",
+    feature: {
+      cellular: "信号、流量、短信一目了然",
+      proxy: "透明代理与智能分流",
+      shell: "浏览器里的 root 命令行",
+    },
+    photo: "照片：{author}",
+    photoLoading: "正在加载背景…",
+    shuffle: "换一张背景",
     description: "使用设备的系统账户登录（OpenWrt 的 root 密码）",
     username: "用户名",
     password: "密码",

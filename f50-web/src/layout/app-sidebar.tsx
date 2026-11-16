@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { BrandMark } from "@/components/f50/brand-mark";
 import { LiveIndicator } from "@/components/f50/live-indicator";
 import { UserAvatar } from "@/components/f50/user-avatar";
 import {
@@ -54,7 +55,6 @@ import {
   EllipsisVerticalIcon,
   LogOutIcon,
   RotateCwIcon,
-  RouterIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -303,7 +303,7 @@ export function AppSidebar({
             to="/"
             className="flex min-w-0 items-center gap-2 rounded-md outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
           >
-            <RouterIcon className="size-5 shrink-0 text-primary" />
+            <BrandMark className="size-6" />
             <span className="truncate text-base font-semibold">
               {t("app.brand")}
             </span>

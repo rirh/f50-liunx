@@ -182,6 +182,24 @@ URLs and pasted text are secret fields. Engine errors come back as `failed` with
 - `URL` is `Rule::Word { re: r"https?://[!-~]{1,2040}", max: 2048 }`, `NAME` `Rule::Text { max_bytes: 192, max_chars: 64 }`, `NODE_ID` `s<n>-<n>|L<n>`, `SUB_ID` `s<n>`, `CONFIG_ID` `default|c<n>`, `LINK` one line of up to 16384 characters.
 - While on, the supervisor (every 5 s) starts the engine again when it is not running f50d's request, takes the interception down while the engine does not answer, refreshes subscriptions every `subscription_refresh_hours`, and (with `auto_failover`) moves off a node the engine reports down to the fastest other node of the same subscription.
 
+## `f50.shell`
+
+source: `crates/f50-system/src/objects.rs`, `crates/f50-system/src/shell/`
+
+Root login shells on a pseudo-terminal for the web console's terminal page. Bytes cross as base64; `read` is a long
+poll from an offset in the session's scrollback (256 KiB), so a reloaded page attaches again. A session nobody reads for
+15 minutes is hung up; every session is hung up when f50d stops. Only `f50-admin` is granted these methods.
+
+- **open** (write) — Starts a root login shell on a new terminal. Returns `{id, shell, pid}`.
+  - fields: `Field::opt("cols", Rule::Int { min: 2, max: 1000 }), Field::opt("rows", Rule::Int { min: 2, max: 500 })`
+- **read** (write) — A shell's output from an offset on (base64), waiting up to `wait` ms (at most 20000) for some.
+  Returns `{data, offset, lost, ended, code}`; without `offset`, from the start of the scrollback.
+  - fields: `id` (16 hex), `Field::opt("offset", Rule::Int { .. })`, `Field::opt("wait", Rule::Int { min: 0, max: 20000 })`
+- **write** (write) — Types input (base64) into a shell. `data` is a secret field: never logged.
+- **resize** (write) — Sets a shell's terminal size (`id`, `cols`, `rows`).
+- **close** (write) — Hangs a shell up (`id`).
+- **list** (write) — The open shells: `{sessions: [{id, shell, pid, started, idle, ended, code}], max}`.
+
 ## `f50.sim`
 
 source: `crates/f50-modem/src/objects/sim.rs`

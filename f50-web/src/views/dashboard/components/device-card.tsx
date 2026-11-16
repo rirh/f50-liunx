@@ -195,7 +195,7 @@ export function DeviceCard({ s }: { s: DashboardStatus }) {
 
   return (
     <article
-      className="flex h-full flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground"
+      className="flex h-full flex-col overflow-hidden rounded-2xl bg-card text-card-foreground"
       data-state={data?.state}
     >
       {/* 1 · the network: carrier, generation, state, bars */}
@@ -304,7 +304,7 @@ export function DeviceCard({ s }: { s: DashboardStatus }) {
         <section className="border-t px-4 py-2.5">
           <Link
             to="/cellular/traffic"
-            className="relative block overflow-hidden rounded-lg border border-foreground/5 bg-muted/25 px-3 py-2 transition-colors hover:bg-muted/40"
+            className="relative block overflow-hidden rounded-xl bg-muted/80 px-3 py-2 transition-colors hover:bg-muted"
           >
             {fill != null && fill > 0 && (
               <span

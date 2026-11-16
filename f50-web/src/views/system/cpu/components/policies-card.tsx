@@ -50,7 +50,7 @@ function Cluster({ p, all }: { p: CpuPolicy; all: CpuPolicy[] }) {
   const cap =
     p.max != null && p.hwmax != null && p.max < p.hwmax ? at(p.max) : null;
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-foreground/5 bg-muted/25 p-3">
+    <div className="flex flex-col gap-2 rounded-xl bg-muted/80 p-3">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-sm font-medium">{name}</span>
         <span className="text-xs text-muted-foreground tabular-nums">

@@ -27,7 +27,7 @@ function Group({
       <h3 className="px-4 text-[13px] text-muted-foreground uppercase">
         {title}
       </h3>
-      <div className="divide-y divide-border/70 overflow-hidden rounded-xl bg-card ring-1 ring-border/60">
+      <div className="divide-y divide-border overflow-hidden rounded-2xl bg-card">
         {children}
       </div>
       {footer && (

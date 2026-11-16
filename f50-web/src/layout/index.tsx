@@ -172,14 +172,13 @@ export function AppLayout() {
       >
         <AppSidebar active={active} username={session.username} />
         <SidebarInset className="h-svh min-h-0 overflow-hidden md:h-[calc(100svh-1rem)]">
-          <header className="flex h-(--header-height) shrink-0 items-center border-b bg-background">
+          <header className="flex h-(--header-height) shrink-0 items-center bg-background">
             <div className="flex h-full w-full min-w-0 items-center gap-3 px-3 lg:px-4">
               <SidebarTrigger className="-ml-1 size-8" />
-              <div aria-hidden className="h-full w-px shrink-0 bg-border" />
               <Crumbs pathname={pathname} />
               <div className="ml-auto flex shrink-0 items-center gap-1.5">
                 <LanguageSwitcher />
-                <ThemeToggleButton variant="outline" />
+                <ThemeToggleButton variant="ghost" />
               </div>
             </div>
           </header>

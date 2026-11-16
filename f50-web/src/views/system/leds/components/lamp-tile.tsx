@@ -74,7 +74,7 @@ export function LampTile({
           "--halo": `${Math.round(glow * 40)}px`,
         } as CSSProperties
       }
-      className="relative isolate flex flex-col gap-4 overflow-hidden rounded-2xl border bg-card p-5 transition-colors"
+      className="relative isolate flex flex-col gap-4 overflow-hidden rounded-2xl bg-card p-5 transition-colors"
     >
       {/* the lamp's light: a wash from the icon's corner, its strength the brightness */}
       <div

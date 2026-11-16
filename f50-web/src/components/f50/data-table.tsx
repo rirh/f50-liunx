@@ -40,7 +40,7 @@ export function DataTable<T extends RowData>({
   });
   const rows = table.getRowModel().rows;
   return (
-    <div className="overflow-x-auto rounded-md border">
+    <div className="overflow-x-auto rounded-xl bg-muted/50">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((hg) => (

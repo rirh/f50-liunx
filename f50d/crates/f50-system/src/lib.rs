@@ -1,5 +1,6 @@
 //! The ZTE F50 as a system: facts and live figures, CPU profiles, the thermal guard, the LEDs, the buttons, zram,
-//! hostname/time zone/password, reboot and power-off. Publishes `f50.system`, `f50.cpu` and `f50.led`.
+//! hostname/time zone/password, reboot and power-off, root shells for the web terminal ([`shell`]). Publishes
+//! `f50.system`, `f50.cpu`, `f50.led` and `f50.shell`.
 //!
 //! [`System::start`] refuses any board but the F50 ([`device`]), applies the saved CPU profile, and starts the
 //! background parts on the caller's [`TaskTracker`], each stopped by its [`CancellationToken`]:
@@ -25,6 +26,7 @@ mod info;
 pub mod led;
 mod objects;
 mod settings;
+mod shell;
 mod thermal;
 mod zram;
 
@@ -55,6 +57,7 @@ struct Inner {
     leds: led::LedHandle,
     alarm: watch::Sender<bool>,
     buttons: broadcast::Sender<ButtonAction>,
+    shell: shell::Shell,
 }
 
 impl System {
@@ -73,6 +76,7 @@ impl System {
                 leds: led::LedHandle::load(&platform),
                 alarm: watch::Sender::new(false),
                 buttons: broadcast::Sender::new(8),
+                shell: shell::Shell::start(tracker, shutdown.clone()),
                 cpu,
                 platform,
                 cfg,
@@ -119,7 +123,7 @@ impl System {
         Ok(sys)
     }
 
-    /// `f50.system`, `f50.cpu`, `f50.led`.
+    /// `f50.system`, `f50.cpu`, `f50.led`, `f50.shell`.
     pub fn objects(&self) -> Vec<Object> {
         objects::objects(self)
     }

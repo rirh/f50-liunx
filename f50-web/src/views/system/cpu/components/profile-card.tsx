@@ -106,10 +106,8 @@ export function ProfileCard({ data }: { data: CpuStatus }) {
                 disabled={apply.isPending}
                 onClick={() => p !== data.profile && apply.mutate(p)}
                 className={cn(
-                  "flex items-start gap-3 rounded-xl border p-3 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default",
-                  on
-                    ? "border-primary bg-primary/6 ring-1 ring-primary"
-                    : "hover:bg-muted/60",
+                  "flex items-start gap-3 rounded-xl p-3 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default",
+                  on ? "bg-primary/12" : "bg-muted/70 hover:bg-muted",
                 )}
               >
                 <span
@@ -117,7 +115,7 @@ export function ProfileCard({ data }: { data: CpuStatus }) {
                     "flex size-8 shrink-0 items-center justify-center rounded-lg",
                     on
                       ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground",
+                      : "bg-foreground/[0.06] text-muted-foreground",
                   )}
                 >
                   <Icon aria-hidden className="size-4" />

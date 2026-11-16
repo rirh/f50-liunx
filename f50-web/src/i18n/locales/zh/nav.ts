@@ -26,6 +26,7 @@ export default {
     cpu: "性能与温控",
     locks: "网络锁定",
     at: "AT 终端",
+    shell: "命令行",
     jobs: "后台任务",
     logs: "系统日志",
     boot: "启动",

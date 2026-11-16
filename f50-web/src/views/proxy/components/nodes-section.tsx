@@ -51,7 +51,7 @@ export function NodesSection({ profile }: { profile: Profile }) {
 
   if (!profile.subscriptions.length && !profile.local_nodes.length) {
     return (
-      <Empty className="rounded-xl border">
+      <Empty className="rounded-2xl bg-card">
         <EmptyHeader>
           <EmptyTitle>{t("proxy.nodes.emptyTitle")}</EmptyTitle>
           <EmptyDescription>{t("proxy.nodes.emptyBody")}</EmptyDescription>

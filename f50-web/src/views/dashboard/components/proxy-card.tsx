@@ -79,7 +79,7 @@ export function ProxyCard() {
 
   const dash = "—";
   return (
-    <article className="flex flex-col gap-3 rounded-2xl border bg-card p-4 text-card-foreground">
+    <article className="flex flex-col gap-3 rounded-2xl bg-card p-4 text-card-foreground">
       <div className="flex min-w-0 items-center gap-2">
         <Link
           to="/proxy"

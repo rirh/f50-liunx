@@ -129,7 +129,7 @@ export function TrendCard() {
             </LineChart>
           </ChartContainer>
         ) : (
-          <div className="flex h-52 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+          <div className="flex h-52 items-center justify-center rounded-xl bg-muted/60 text-sm text-muted-foreground">
             {t("cellular.signal.trend.waiting")}
           </div>
         )}

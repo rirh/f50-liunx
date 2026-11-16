@@ -1,5 +1,26 @@
-/** `tools` messages: the AT terminal and background jobs. */
+/** `tools` messages: the AT terminal, the shell and background jobs. */
 export default {
+  shell: {
+    title: "命令行",
+    status: {
+      connecting: "正在连接…",
+      live: "{shell} · root",
+      retrying: "连接中断，正在重试…",
+      ended: "已结束（退出码 {code}）",
+      endedPlain: "已结束",
+      failed: "无法打开命令行：{error}",
+    },
+    action: {
+      restart: "新会话",
+      close: "结束会话",
+      paste: "粘贴",
+    },
+    note: {
+      skipped: "跳过了 {count} 字节输出",
+      ended: "会话已结束，按 Enter 开始新会话",
+      closedElsewhere: "会话已在别处结束",
+    },
+  },
   at: {
     page: {
       title: "AT 终端",

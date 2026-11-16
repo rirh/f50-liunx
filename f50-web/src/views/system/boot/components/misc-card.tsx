@@ -90,7 +90,7 @@ export function MiscCard({
                   : t("maintenance.boot.misc.crcBad")}
               </Badge>
             </div>
-            <div className="overflow-x-auto rounded-md border">
+            <div className="overflow-x-auto rounded-xl bg-muted/50">
               <Table>
                 <TableHeader>
                   <TableRow>

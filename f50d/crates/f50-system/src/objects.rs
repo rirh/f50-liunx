@@ -1,4 +1,4 @@
-//! The method tables: `f50.system`, `f50.cpu`, `f50.led`. Fields are checked by f50-core before a handler runs.
+//! The method tables: `f50.system`, `f50.cpu`, `f50.led`, `f50.shell`. Fields are checked by f50-core before a handler runs.
 
 use std::future::Future;
 
@@ -15,6 +15,24 @@ const ZONE: &[Field] = &[Field::req("zone", Rule::Word { re: ZONE_RE, max: 64 })
 const PASSWORD: &[Field] = &[Field::secret("password", Rule::Text { max_bytes: 128, max_chars: 128 }, true)];
 const LOGS: &[Field] = &[Field::opt("lines", Rule::Int { min: 10, max: 2000 })];
 const PROFILE: &[Field] = &[Field::req("name", Rule::Enum(crate::cpu::PROFILES))];
+const SHELL_ID: Field = Field::req("id", Rule::Word { re: "[0-9a-f]{16}", max: 16 });
+const SHELL_OPEN: &[Field] =
+    &[Field::opt("cols", Rule::Int { min: 2, max: 1000 }), Field::opt("rows", Rule::Int { min: 2, max: 500 })];
+const SHELL_SESSION: &[Field] = &[SHELL_ID];
+const SHELL_READ: &[Field] = &[
+    SHELL_ID,
+    // up to JavaScript's largest exact integer: a page keeps the offset as a number
+    Field::opt("offset", Rule::Int { min: 0, max: 9_007_199_254_740_991 }),
+    Field::opt("wait", Rule::Int { min: 0, max: crate::shell::WAIT_MAX_MS }),
+];
+// typed input may be a password: a secret, never logged
+const SHELL_WRITE: &[Field] =
+    &[SHELL_ID, Field::secret("data", Rule::Word { re: "[A-Za-z0-9+/]*={0,2}", max: 65536 }, true)];
+const SHELL_RESIZE: &[Field] = &[
+    SHELL_ID,
+    Field::req("cols", Rule::Int { min: 2, max: 1000 }),
+    Field::req("rows", Rule::Int { min: 2, max: 500 }),
+];
 const LED_SET: &[Field] = &[
     Field::req("key", Rule::Enum(crate::led::settings::KEYS)),
     Field::req("value", Rule::WordNum { re: "[a-z0-9]{1,8}", max: 8 }),
@@ -123,7 +141,60 @@ pub(crate) fn objects(s: &System) -> Vec<Object> {
             h(s, |s, p| async move { s.inner.leds.set(p.need_str("key")?, p.need_str("value")?) }),
         )
         .build();
-    vec![system, cpu, led]
+    vec![system, cpu, led, shell(s)]
+}
+
+/// A terminal dimension the field rules already bounded.
+fn dim(p: &Params, name: &str, default: u16) -> u16 {
+    p.int(name).and_then(|n| u16::try_from(n).ok()).unwrap_or(default)
+}
+
+fn shell(s: &System) -> Object {
+    Object::builder("f50.shell")
+        .method(
+            "open",
+            Access::Write,
+            SHELL_OPEN,
+            "Starts a root login shell on a new terminal.",
+            h(s, |s, p| async move { s.inner.shell.open(dim(&p, "cols", 80), dim(&p, "rows", 24)) }),
+        )
+        .method(
+            "read",
+            Access::Write,
+            SHELL_READ,
+            "A shell's output from an offset on (base64), waiting up to `wait` ms for some.",
+            h(s, |s, p| async move {
+                let offset = p.int("offset").and_then(|n| u64::try_from(n).ok());
+                let wait = p.int("wait").and_then(|n| u64::try_from(n).ok()).unwrap_or(0);
+                s.inner.shell.read(p.need_str("id")?, offset, std::time::Duration::from_millis(wait)).await
+            }),
+        )
+        .method(
+            "write",
+            Access::Write,
+            SHELL_WRITE,
+            "Types input (base64) into a shell.",
+            h(s, |s, p| async move { s.inner.shell.write(p.need_str("id")?, p.need_str("data")?).await }),
+        )
+        .method(
+            "resize",
+            Access::Write,
+            SHELL_RESIZE,
+            "Sets a shell's terminal size.",
+            h(
+                s,
+                |s, p| async move { s.inner.shell.resize(p.need_str("id")?, dim(&p, "cols", 80), dim(&p, "rows", 24)) },
+            ),
+        )
+        .method(
+            "close",
+            Access::Write,
+            SHELL_SESSION,
+            "Hangs a shell up.",
+            h(s, |s, p| async move { s.inner.shell.close(p.need_str("id")?) }),
+        )
+        .method("list", Access::Write, NONE, "The open shells.", h(s, |s, _| async move { Ok(s.inner.shell.list()) }))
+        .build()
 }
 
 #[cfg(test)]

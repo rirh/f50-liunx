@@ -96,7 +96,7 @@ export function NeighbourTable({ rows }: { rows: Neighbour[] }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div className="overflow-x-auto rounded-xl bg-muted/50">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((g) => (

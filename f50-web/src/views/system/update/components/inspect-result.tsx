@@ -83,7 +83,7 @@ export function InspectResult({
   });
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border p-3">
+    <div className="flex flex-col gap-3 rounded-xl bg-muted/70 p-3">
       <KvList
         items={[
           {

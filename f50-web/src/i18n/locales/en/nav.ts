@@ -27,6 +27,7 @@ const m: Messages["nav"] = {
     cpu: "Performance & thermal",
     locks: "Network locks",
     at: "AT terminal",
+    shell: "Shell",
     jobs: "Background jobs",
     logs: "System log",
     boot: "Boot",

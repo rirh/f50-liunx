@@ -27,7 +27,7 @@ export function LiveIndicator() {
     <Tooltip>
       <TooltipTrigger asChild>
         <span
-          className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs text-muted-foreground"
+          className="inline-flex items-center gap-1.5 rounded-full bg-foreground/[0.06] px-2 py-0.5 text-xs text-muted-foreground"
           aria-label={`${text.label}: ${text.hint}`}
         >
           <span className="relative flex size-2">

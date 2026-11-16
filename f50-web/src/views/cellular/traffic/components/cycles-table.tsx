@@ -60,7 +60,7 @@ export function CyclesTable({ cycles }: { cycles: CycleUsage[] }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-x-auto rounded-xl bg-muted/50">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((g) => (

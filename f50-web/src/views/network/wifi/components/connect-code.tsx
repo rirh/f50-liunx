@@ -34,7 +34,7 @@ function Details({ credentials }: { credentials: WifiCredentials }) {
   const value = wifiCode(credentials);
   return (
     <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
-      <div className="shrink-0 rounded-xl border bg-white p-3 shadow-xs">
+      <div className="shrink-0 rounded-2xl bg-white p-3">
         {value ? (
           <QRCodeSVG
             value={value}

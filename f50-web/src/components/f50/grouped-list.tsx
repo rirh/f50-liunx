@@ -17,7 +17,7 @@ export function Group({
           {title}
         </h3>
       )}
-      <div className="divide-y divide-border/60 overflow-hidden rounded-xl bg-muted/40">
+      <div className="divide-y divide-border/60 overflow-hidden rounded-xl bg-muted/70">
         {children}
       </div>
     </section>

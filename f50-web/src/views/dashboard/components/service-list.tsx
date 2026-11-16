@@ -136,7 +136,7 @@ export function ServiceList({
       : label(USB_ROLE_LABEL, usb.role));
 
   return (
-    <section className="overflow-hidden rounded-2xl border bg-card">
+    <section className="overflow-hidden rounded-2xl bg-card">
       <div className="flex min-h-11 items-center justify-between gap-2 px-4 pt-3 pb-1">
         <h2 className="text-sm font-semibold text-muted-foreground">
           {t("dashboard.panel.services")}

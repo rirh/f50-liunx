@@ -1,6 +1,27 @@
 import type { Messages } from "../zh";
 
 const m: Messages["tools"] = {
+  shell: {
+    title: "Shell",
+    status: {
+      connecting: "Connecting…",
+      live: "{shell} · root",
+      retrying: "Connection lost, retrying…",
+      ended: "Ended (exit code {code})",
+      endedPlain: "Ended",
+      failed: "Cannot open a shell: {error}",
+    },
+    action: {
+      restart: "New session",
+      close: "End session",
+      paste: "Paste",
+    },
+    note: {
+      skipped: "{count} bytes of output skipped",
+      ended: "The session has ended. Press Enter for a new one",
+      closedElsewhere: "The session was ended elsewhere",
+    },
+  },
   at: {
     page: {
       title: "AT terminal",

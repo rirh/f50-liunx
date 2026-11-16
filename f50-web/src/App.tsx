@@ -31,6 +31,7 @@ const V21 = lazy(() => import("@/views/proxy/node"));
 const V22 = lazy(() => import("@/views/proxy/rules"));
 const V23 = lazy(() => import("@/views/proxy/data"));
 const V24 = lazy(() => import("@/views/proxy/settings"));
+const V25 = lazy(() => import("@/views/tools/shell"));
 
 export function App() {
   return (
@@ -56,6 +57,7 @@ export function App() {
         <Route path="system/boot" element={<V16 />} />
         <Route path="system/logs" element={<V17 />} />
         <Route path="tools/at" element={<V18 />} />
+        <Route path="tools/shell" element={<V25 />} />
         <Route path="tools/jobs" element={<V19 />} />
         <Route path="proxy" element={<V20 />} />
         <Route path="proxy/node" element={<V21 />} />

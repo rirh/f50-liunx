@@ -151,7 +151,7 @@ export function AnimatedSegmentedTabs<TValue extends string = string>({
         aria-label={label}
         data-slot="animated-segmented-tabs-list"
         className={cn(
-          "relative inline-flex h-8 w-fit items-center justify-center rounded-lg bg-muted p-[3px] text-muted-foreground",
+          "relative inline-flex h-8 w-fit items-center justify-center rounded-lg bg-foreground/[0.06] p-[3px] text-muted-foreground",
           listClassName,
         )}
       >
@@ -160,7 +160,7 @@ export function AnimatedSegmentedTabs<TValue extends string = string>({
           aria-hidden="true"
           data-slot="animated-segmented-tabs-highlight"
           className={cn(
-            "pointer-events-none absolute left-0 top-0 z-0 rounded-md bg-background opacity-0 shadow-sm ring-1 ring-foreground/5 will-change-transform",
+            "pointer-events-none absolute left-0 top-0 z-0 rounded-md bg-card opacity-0 shadow-sm shadow-black/10 will-change-transform dark:bg-foreground/15",
             highlightClassName,
           )}
         />

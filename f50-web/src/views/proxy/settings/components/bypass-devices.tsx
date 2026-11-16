@@ -78,7 +78,7 @@ export function BypassDevices({ macs }: { macs: string[] }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {macs.length ? (
-          <ul className="divide-y rounded-lg border">
+          <ul className="divide-y divide-border overflow-hidden rounded-xl bg-muted/70">
             {macs.map((mac) => {
               const c = known.get(mac);
               return (

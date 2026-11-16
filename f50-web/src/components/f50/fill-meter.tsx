@@ -29,7 +29,7 @@ export function FillMeter({
   return (
     <div
       className={cn(
-        "relative min-w-0 overflow-hidden rounded-lg border border-foreground/5 bg-muted/25 px-3 py-2",
+        "relative min-w-0 overflow-hidden rounded-xl bg-muted/80 px-3 py-2",
         className,
       )}
     >
