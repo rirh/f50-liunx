@@ -54,6 +54,11 @@ pub(crate) async fn hotspot_disabled(net: &Net) -> bool {
     radio::ap_disabled(net).await
 }
 
+/// A scan-mode boot is over (the hotspot was turned back on another way).
+pub(crate) fn end_scan_mode(net: &Net) {
+    radio::end_scan_mode(net);
+}
+
 /// See [`Net::boot_wifi_client`].
 pub(crate) async fn boot(net: &Net) -> Result<()> {
     // the hotspot off for this boot (scan mode, a saved network) leaves no interface once netifd set the radio up

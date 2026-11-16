@@ -154,6 +154,10 @@ pub(crate) async fn ap_set(net: &Net, on: bool) -> Result<&'static str> {
     if !on && cur_off {
         return Ok("unchanged");
     }
+    // the hotspot back by hand ends a scan-mode boot, as the scan card's "restore hotspot" does
+    if on {
+        client::end_scan_mode(net);
+    }
     // (on with nothing to write still reloads: an access point that did not come up gets another start)
     if cur_off == on || radio_too {
         let mut changes = vec![set(iface, "disabled", if on { "0" } else { "1" })];
