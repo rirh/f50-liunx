@@ -9,7 +9,6 @@
 //! - [`system`]: hostname, timezone, a user's password, reboot, sysctl;
 //! - [`sysfs`]: small attribute files under the root (`/sys`, `/proc`);
 //! - [`modules`]: kernel modules;
-//! - [`fetch`]: HTTP(S) downloads through the image's `uclient-fetch`;
 //! - calls to any other ubus object ([`Platform::call`], `hostapd.wlan0 get_status`), with ubus failures mapped to
 //!   f50d's codes.
 //!
@@ -17,7 +16,6 @@
 
 mod bus;
 mod check;
-pub mod fetch;
 pub mod modules;
 pub mod netifd;
 pub mod services;
@@ -80,9 +78,5 @@ impl Platform {
 
     pub fn modules(&self) -> modules::Modules {
         modules::Modules::new(self.clone())
-    }
-
-    pub fn fetch(&self) -> fetch::Fetch {
-        fetch::Fetch::new(self.clone())
     }
 }

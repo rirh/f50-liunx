@@ -21,7 +21,6 @@ const V11 = lazy(() => import("@/views/system/overview"));
 const V12 = lazy(() => import("@/views/system/settings"));
 const V13 = lazy(() => import("@/views/system/cpu"));
 const V14 = lazy(() => import("@/views/system/leds"));
-const V15 = lazy(() => import("@/views/system/update"));
 const V16 = lazy(() => import("@/views/system/boot"));
 const V17 = lazy(() => import("@/views/system/logs"));
 const V18 = lazy(() => import("@/views/tools/at"));
@@ -53,7 +52,6 @@ export function App() {
         <Route path="system/settings" element={<V12 />} />
         <Route path="system/cpu" element={<V13 />} />
         <Route path="system/leds" element={<V14 />} />
-        <Route path="system/update" element={<V15 />} />
         <Route path="system/boot" element={<V16 />} />
         <Route path="system/logs" element={<V17 />} />
         <Route path="tools/at" element={<V18 />} />

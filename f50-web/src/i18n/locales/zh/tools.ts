@@ -114,18 +114,12 @@ export default {
     kind: {
       at: "AT 命令",
       sms: "短信",
-      update: "系统更新",
       wifi: "Wi-Fi 客户端",
       radio: "射频",
     },
     method: {
       atSend: "发送 AT 命令",
       smsSend: "发送短信",
-      updateApply: "安装更新",
-      updateApplyFile: "安装上传的固件",
-      updateCheck: "检查更新",
-      updateRollback: "回滚",
-      updateUploadDone: "校验上传的固件",
       wifiJoin: "连接 Wi-Fi",
       wifiLeave: "断开 Wi-Fi",
       wifiScan: "扫描 Wi-Fi",

@@ -22,7 +22,6 @@ const m: Messages["nav"] = {
     lan: "LAN",
     usb: "USB",
     settings: "Settings",
-    update: "Updates",
     leds: "LEDs",
     cpu: "Performance & thermal",
     locks: "Network locks",

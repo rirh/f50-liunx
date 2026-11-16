@@ -92,8 +92,6 @@ pub struct SystemConfig {
     pub wifi_device: String,
     /// dnsmasq's leases.
     pub leases_file: PathBuf,
-    /// The note of a newer release (a line holding its tag, `vYYYY.MM.DD[.N]`), as the update service leaves it.
-    pub update_notice: PathBuf,
     /// Where the key reader looks for input devices.
     pub input_dir: PathBuf,
     pub thermal: ThermalConfig,
@@ -112,7 +110,6 @@ impl Default for SystemConfig {
         SystemConfig {
             wifi_device: "wlan0".into(),
             leases_file: "/tmp/dhcp.leases".into(),
-            update_notice: "/var/run/f50d/update-notice.json".into(),
             input_dir: "/dev/input".into(),
             thermal: ThermalConfig::default(),
             keys: KeyConfig::default(),

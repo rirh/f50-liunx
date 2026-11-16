@@ -56,7 +56,6 @@ impl System {
             "lan_leases": leases.len(),
             "conns": dash::conntrack(p).await,
             "usb_link": dash::usb_link(p),
-            "update": dash::update_tag(&p.paths().sys(&cfg.update_notice)),
         }))
     }
 

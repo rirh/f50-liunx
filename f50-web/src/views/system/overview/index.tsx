@@ -1,13 +1,11 @@
-import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/f50/page-header";
 import { PendingButton } from "@/components/f50/pending-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { useLiveState } from "@/hooks/use-live";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpCircleIcon, FlameIcon, RefreshCwIcon } from "lucide-react";
+import { FlameIcon, RefreshCwIcon } from "lucide-react";
 import { getInfo, systemKeys } from "./api";
 import { AboutCard } from "./components/about-card";
 import { ClientsCard } from "./components/clients-card";
@@ -63,22 +61,6 @@ export default function Page() {
           <AlertTitle>{t("system.overview.live.heatTitle")}</AlertTitle>
           <AlertDescription>
             {t("system.overview.live.heatDescription")}
-          </AlertDescription>
-        </Alert>
-      )}
-      {s?.update && (
-        <Alert>
-          <ArrowUpCircleIcon />
-          <AlertTitle>
-            {t("system.overview.live.updateTitle", { version: s.update })}
-          </AlertTitle>
-          <AlertDescription className="flex flex-wrap items-center gap-2">
-            {t("system.overview.live.updateDescription")}
-            <Button asChild size="xs" variant="outline">
-              <Link to="/system/update">
-                {t("system.overview.live.updateAction")}
-              </Link>
-            </Button>
           </AlertDescription>
         </Alert>
       )}

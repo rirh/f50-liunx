@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 import {
   ChevronRightIcon,
   GlobeIcon,
-  HardDriveDownloadIcon,
   type LucideIcon,
   MessageSquareIcon,
   RadioTowerIcon,
@@ -126,7 +125,6 @@ export function ServiceList({
   const up = ok(s.wificlient);
   const usb = ok(s.usb);
   const sms = ok(s.sms);
-  const update = ok(s.update);
   const readFailed = t("common.state.readFailed");
 
   const usbRole =
@@ -247,32 +245,6 @@ export function ServiceList({
             )
           }
           to="/sms"
-        />
-        <Row
-          icon={HardDriveDownloadIcon}
-          color="bg-[#636366]"
-          title={t("dashboard.update.title")}
-          detail={
-            update?.job
-              ? t("dashboard.update.jobRunning")
-              : update?.restart_pending
-                ? t("dashboard.update.restartPending")
-                : undefined
-          }
-          value={
-            update ? (
-              update.notice ? (
-                <span className="rounded-full bg-[#FF9500]/15 px-2 py-0.5 text-xs font-semibold text-[#C93400] dark:text-[#FF9F0A]">
-                  {update.notice.tag}
-                </span>
-              ) : (
-                (update.installed ?? t("dashboard.update.unknownVersion"))
-              )
-            ) : (
-              "—"
-            )
-          }
-          to="/system/update"
         />
       </ul>
     </section>

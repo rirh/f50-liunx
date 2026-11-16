@@ -21,7 +21,6 @@ export default {
     lan: "局域网",
     usb: "USB",
     settings: "系统设置",
-    update: "系统更新",
     leds: "指示灯",
     cpu: "性能与温控",
     locks: "网络锁定",

@@ -1,7 +1,7 @@
 # f50d
 
 The ZTE F50 device daemon for OpenWrt, in Rust. One process owns the modem's AT channels, the radio, mobile data,
-SMS, Wi-Fi/LAN/USB, the system and updates, and publishes them as **ubus objects**. A web frontend reaches them
+SMS, Wi-Fi/LAN/USB, the system, and publishes them as **ubus objects**. A web frontend reaches them
 through uhttpd's `/ubus` JSON-RPC endpoint, where rpcd's login sessions and ACLs decide who may call what.
 
 It replaces the shell layer this repository grew (`/opt/f50/bin/*`, `f50-api`, the LuCI backend `f50dash` and
@@ -16,7 +16,6 @@ f50d (bin) ─────────► f50-api ─┬─► f50-modem ─┬�
    │ boot stages               ├─► f50-net ─────────┐            │
    │                           ├─► f50-system ──────┤            │
    └─► f50-ubus                ├─► f50-hw ──────────┼─► f50-platform ─► f50-ubus
-                               ├─► f50-update ──────┤
                                └─► f50-proxy ───────┘
 ```
 
@@ -32,7 +31,6 @@ f50d (bin) ─────────► f50-api ─┬─► f50-modem ─┬�
 | `f50-net` | the Wi-Fi hotspot, the Wi-Fi client uplink, the LAN, the USB port's role and network function, adbd (`f50.wifi`, `f50.wificlient`, `f50.lan`, `f50.usb`) | `wifi-client`, `hotspot-*`, `openwrt-wifi-*`, `f50-wifi-band`, `wifi-start`, `wifi-ready`, `f50-lan-ip`, `f50-usb*`, `device-usb`, `usb-host.sh`, `10-f50-usb`, `f50-adbd` |
 | `f50-system` | device facts and live figures, CPU profiles, the thermal guard, LEDs, buttons, zram, hostname/time/password, reboot, root shells for the web terminal (`f50.system`, `f50.cpu`, `f50.led`, `f50.shell`) | `dashboard-info`, `f50-device`, `f50-cpu`, `thermal-guard`, `f50-led`, `f50-buttons`, `f50-zram`, `zram-start` |
 | `f50-hw` | boot-time bring-up: kernel modules, device permissions, the vendor daemons the modem needs, Wi-Fi/Bluetooth firmware, boot success marks | `init.d/f50-{hw,vendor,post,accounts}`, `android-vendor-start`, `android-run`, `sipa-dele-start`, `ueventd-perms.sh`, `extra-modules`, `f50-modprobe-guard`, `wcn-reopen`, `regdb-load`, `10-f50-wcn`, `bootmark`, `f50-next-boot`, `early-recorder`, `kmsg-forward` |
-| `f50-update` | release check, download, signature, apply, rollback for F50 OpenWrt (`f50.update`) | `f50-update`, `unisoc-modem/update` |
 | `f50-proxy` | proxy and split routing (`f50.proxy`): the engine's loopback client and token, the profile (subscriptions, nodes, rule configs, group picks, settings), the supervisor (restart, subscription refresh, auto failover), the tproxy firewall (`inet f50_proxy`, fwmark 1 → table 117) | one-node's PC shell (`pc/src-tauri`); the contract is `../f50-proxy/DESIGN.md` §2 |
 | `f50-api` | assembles every object, the aggregate `f50.status`, the ACL file and API reference generated from the method table | `f50-api`, `f50dash` |
 | `f50d` | the binary: configuration, wiring, lifecycle and shutdown, the ubus server, the CLI, the boot stages procd runs | the init scripts' logic |

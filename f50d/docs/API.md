@@ -267,24 +267,6 @@ source: `crates/f50-data/src/objects.rs`
 - **set** (write) — A data usage setting, or clear the count.
   - fields: `Field::req("key", Rule::Enum(&["reset_day", "cap", "warn", "cut", "plan", "clear"])), Field::req("value", Rule::Text { max_bytes: 96, max_chars: 96 }),`
 
-## `f50.update`
-
-source: `crates/f50-update/src/object.rs`
-
-- **status** (read) — What is installed, what is kept for a rollback, free space, the lock, the running job, the notice.
-- **releases** (read) — The releases the last check found, and its age.
-- **check** (write) — Asks for the newest release (a job).
-- **apply** (write) — Installs the release the last check offered (a job; not cancellable).
-  - fields: `Field::opt("tag", Rule::Word { re: TAG_RE, max: 16 }), Field::req("confirm", Rule::Enum(&["apply"]))`
-- **rollback** (write) — Goes back to the kept system, or (what=boot) boot image (a job).
-  - fields: `Field::req("confirm", Rule::Enum(&["rollback"])), Field::opt("what", Rule::Enum(&["system", "boot"]))`
-- **upload_begin** (write) — Makes room for an offline bundle of that size and hash; the path to upload it to.
-  - fields: `Field::req("size", Rule::Int { min: 1, max: 2047 << 20 }), Field::req("sha256", Rule::Word { re: SHA_RE, max: 64 }),`
-- **upload_done** (write) — Takes the upload and looks at it (a job; its result is what the file is).
-- **upload_cancel** (write) — Deletes the upload.
-- **apply_file** (write) — Installs the uploaded bundle that upload_done showed (a job; not cancellable).
-  - fields: `Field::req("sha256", Rule::Word { re: SHA_RE, max: 64 }), Field::req("confirm", Rule::Enum(&["apply"])), Field::opt("unsigned", Rule::Bool), Field::opt("downgrade", Rule::Bool),`
-
 ## `f50.usb`
 
 source: `crates/f50-net/src/objects.rs`

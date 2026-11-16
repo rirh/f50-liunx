@@ -1,5 +1,5 @@
 //! The home page's non-modem figures (dashboard-info): Wi-Fi clients, DHCP leases, tracked connections, the
-//! USB-C link and the update notice. Every list is bounded; every external ask has a hard timeout.
+//! USB-C link. Every list is bounded; every external ask has a hard timeout.
 
 use std::path::Path;
 use std::time::Duration;
@@ -208,22 +208,6 @@ pub(crate) fn usb_link(platform: &Platform) -> Option<UsbLink> {
         .map(|(m, s)| UsbLink { role: "host", speed: Some(s), mbps: Some(m), max: None, max_mbps: None })
 }
 
-/// A release tag (docs/research/FINDINGS.md 125): `vYYYY.MM.DD`, or `vYYYY.MM.DD.N`.
-pub(crate) fn is_release_tag(s: &str) -> bool {
-    f50_core::rpc::matches(r"v[0-9]{4}\.(0[1-9]|1[0-2])\.(0[1-9]|[12][0-9]|3[01])(\.[1-9][0-9]?)?", s)
-}
-
-/// The tag of a newer release, from the update service's note (the first word that is a tag).
-/// The newer release's tag from f50-update's notice (`{"tag":...,"installed":...,"at":...}`), or the first tag on a
-/// plain text first line.
-pub(crate) fn update_tag(path: &Path) -> Option<String> {
-    let t = std::fs::read_to_string(path).ok()?;
-    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&t) {
-        return v.get("tag").and_then(|x| x.as_str()).filter(|w| is_release_tag(w)).map(str::to_owned);
-    }
-    t.lines().next()?.split_whitespace().find(|w| is_release_tag(w)).map(str::to_owned)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -258,8 +242,6 @@ mod tests {
             }
         );
         assert_eq!((l[1].host.clone(), l[1].left), (None, 0));
-        assert!(is_release_tag("v2026.10.27.1") && is_release_tag("v2026.10.27"));
-        assert!(!is_release_tag("v2026.13.01") && !is_release_tag("v2026.10.27.0"));
         assert_eq!(usb_mbps("high-speed"), Some(480));
     }
 }

@@ -168,11 +168,4 @@ export default {
       "此控制台将不再响应。要回到 Linux：在 Android 中打开 Magisk → 模块 → F50 Linux switch → 操作。",
     toLogin: "返回登录页",
   },
-  update: {
-    title: "系统更新",
-    unknownVersion: "未知版本",
-    jobRunning: "更新任务进行中",
-    available: "有新版本",
-    restartPending: "更新已安装，等待重启",
-  },
 };

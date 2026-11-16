@@ -166,21 +166,12 @@ export interface SystemStatusInfo {
     speed: string | null;
     mbps: number | null;
   } | null;
-  update: string | null;
 }
 
 /** `f50.sms unread` (f50-sms/src/api.rs). */
 export interface SmsUnread {
   total: number;
   unread: number;
-}
-
-/** The part of `f50.update status` the dashboard shows (f50-update/src/status.rs). */
-export interface UpdateBrief {
-  installed: string | null;
-  restart_pending: boolean;
-  job: string | null;
-  notice: { tag: string; installed: string | null; at: number } | null;
 }
 
 export interface DashboardStatus {
@@ -193,7 +184,6 @@ export interface DashboardStatus {
   usb?: Part<UsbInfo>;
   system?: Part<SystemStatusInfo>;
   sms?: Part<SmsUnread>;
-  update?: Part<UpdateBrief>;
 }
 
 export type OnOff = "on" | "off";

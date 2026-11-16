@@ -15,7 +15,6 @@ export function issuesOf(s: DashboardStatus): Issue[] {
   const data = s.data?.ok ? s.data.data : null;
   const traffic = s.traffic?.ok ? s.traffic.data : null;
   const system = s.system?.ok ? s.system.data : null;
-  const update = s.update?.ok ? s.update.data : null;
 
   if (modem) {
     if (!modem.radio_allowed) add(t("dashboard.hero.radioOff"), true);
@@ -33,7 +32,5 @@ export function issuesOf(s: DashboardStatus): Issue[] {
     const temp = system?.temperatures.hottest ?? system?.temperatures.cpu;
     if (temp != null && temp >= 70) add(t("dashboard.health.warm"));
   }
-  if (update?.restart_pending) add(t("dashboard.update.restartPending"));
-  else if (update?.notice) add(t("dashboard.update.available"));
   return out;
 }

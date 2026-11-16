@@ -41,9 +41,6 @@ const m: Messages["system"] = {
       heatTitle: "Overheating",
       heatDescription:
         "The device is too hot and the CPU is throttled. Improve cooling or reduce the load.",
-      updateTitle: "New version {version}",
-      updateDescription: "The update service found a newer system version.",
-      updateAction: "Go to update",
       usbDevice: "Device mode",
       usbHost: "Host mode",
       speedUnknown: "Speed unknown",

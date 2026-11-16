@@ -37,7 +37,6 @@ pub struct Services {
     pub net: f50_net::Net,
     pub system: f50_system::System,
     pub hw: f50_hw::Hw,
-    pub update: f50_update::Update,
     pub proxy: f50_proxy::Proxy,
 }
 
@@ -47,7 +46,6 @@ pub struct Api {
     public: Arc<Vec<Object>>,
     internal: Arc<Vec<Object>>,
     all: Arc<Vec<Object>>,
-    uploads: Arc<Vec<String>>,
     /// The public objects the live topics read (everything but `f50.live` itself).
     readable: Arc<Vec<Object>>,
 }
@@ -62,7 +60,6 @@ impl Api {
         public.extend(s.net.objects());
         public.extend(s.system.objects());
         public.extend(s.hw.objects());
-        public.extend(s.update.objects());
         public.extend(s.proxy.objects());
         public.push(s.jobs.object());
         public.push(f50_at::terminal::object(s.at.clone(), s.jobs.clone(), &s.paths));
@@ -75,14 +72,7 @@ impl Api {
         let described = public.clone();
         public.push(meta::object(described));
         let all = public.iter().chain(internal.iter()).cloned().collect();
-        let uploads = vec![s.update.upload_path().to_string_lossy().into_owned()];
-        Api {
-            public: Arc::new(public),
-            internal: Arc::new(internal),
-            all: Arc::new(all),
-            uploads: Arc::new(uploads),
-            readable,
-        }
+        Api { public: Arc::new(public), internal: Arc::new(internal), all: Arc::new(all), readable }
     }
 
     pub fn public(&self) -> &[Object] {
@@ -116,6 +106,6 @@ impl Api {
 
     /// The rpcd ACL for the public objects.
     pub fn acl(&self) -> Value {
-        acl::generate(&self.public, &self.uploads)
+        acl::generate(&self.public)
     }
 }

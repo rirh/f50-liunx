@@ -91,13 +91,6 @@ async fn daemon() -> Result<()> {
     let system =
         f50_system::System::start(f50_system::SystemConfig::default(), platform.clone(), &tracker, shutdown.clone())?;
     let hw = f50_hw::Hw::new(f50_hw::HwConfig::default(), platform.clone());
-    let update = f50_update::Update::start(
-        f50_update::UpdateConfig::default(),
-        platform.clone(),
-        jobs.clone(),
-        &tracker,
-        shutdown.clone(),
-    )?;
 
     let proxy = f50_proxy::Proxy::start(
         f50_proxy::ProxyConfig::default(),
@@ -107,7 +100,7 @@ async fn daemon() -> Result<()> {
         shutdown.clone(),
     )?;
 
-    let services = Services { at, jobs, paths, modem, data, sms, net, system, hw, update, proxy };
+    let services = Services { at, jobs, paths, modem, data, sms, net, system, hw, proxy };
     let acl = Arc::new(OnceLock::new());
     let internal =
         vec![services.data.proto_object(), internal::object(services.net.clone(), services.data.clone(), acl.clone())];

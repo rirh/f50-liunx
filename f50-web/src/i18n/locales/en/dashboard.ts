@@ -170,12 +170,5 @@ const m: Messages["dashboard"] = {
       "This console will stop answering. To return to Linux: in Android open Magisk → Modules → F50 Linux switch → Action.",
     toLogin: "Back to the login",
   },
-  update: {
-    title: "Updates",
-    unknownVersion: "Unknown version",
-    jobRunning: "Update in progress",
-    available: "Update available",
-    restartPending: "Installed; waiting for a reboot",
-  },
 };
 export default m;

@@ -121,18 +121,12 @@ const m: Messages["tools"] = {
     kind: {
       at: "AT command",
       sms: "SMS",
-      update: "System update",
       wifi: "Wi-Fi client",
       radio: "Radio",
     },
     method: {
       atSend: "Send AT command",
       smsSend: "Send SMS",
-      updateApply: "Install update",
-      updateApplyFile: "Install uploaded firmware",
-      updateCheck: "Check for updates",
-      updateRollback: "Roll back",
-      updateUploadDone: "Verify uploaded firmware",
       wifiJoin: "Join Wi-Fi",
       wifiLeave: "Leave Wi-Fi",
       wifiScan: "Scan Wi-Fi",
