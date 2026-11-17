@@ -32,6 +32,32 @@ pub(crate) async fn write(inner: &Inner, cmd: &str, ctx: &JobCtx) -> Result<()> 
     Ok(())
 }
 
+/// The work mode written with the slot 1 and primary-SIM fields as the modem reported them, and once more without
+/// the primary field when the modem refuses that. Measured on the F50 (2026-11-17): `AT+SPTESTMODE=131,134,0` was
+/// taken in the morning and from then on every three-field write answered `+CME ERROR: 4`, whatever the mode, across
+/// a stack restart, a reboot and with the radio off, while `AT+SPTESTMODE=131,254` was taken at once. What made the
+/// modem stop taking the third field is not known. `false` when neither form was taken.
+pub(crate) async fn write_mode(
+    inner: &Inner,
+    m0: u32,
+    m1: &str,
+    prim: &str,
+    secs: u64,
+    log: &(dyn Fn(&str) + Sync),
+) -> bool {
+    let full = format!("AT+SPTESTMODE={m0},{m1},{prim}");
+    let Some(why) = refused(&inner.ctl(&full, secs).await) else { return true };
+    log(&format!("the modem refused {full}: {why}; writing it without the primary-SIM field"));
+    let short = format!("AT+SPTESTMODE={m0},{m1}");
+    match refused(&inner.ctl(&short, secs).await) {
+        None => true,
+        Some(why) => {
+            log(&format!("the modem refused {short}: {why}"));
+            false
+        }
+    }
+}
+
 /// The bands kept of a requested list; refused when none is supported, the left-out ones logged.
 fn kept(kind: &str, want: &[u32], supported: &[u32], ctx: &JobCtx) -> Result<Vec<u32>> {
     let k = filter(want, supported);
@@ -91,7 +117,9 @@ async fn write_setting(inner: &Arc<Inner>, kind: Kind, value: &str, ctx: &JobCtx
             let m1 = digits(f.get(1)).unwrap_or_else(|| "134".into());
             let prim = digits(f.get(2)).unwrap_or_else(|| "0".into());
             write(inner, &format!("AT+SP5GRAN={gran}"), ctx).await?;
-            write(inner, &format!("AT+SPTESTMODE={m0},{m1},{prim}"), ctx).await?;
+            if !write_mode(inner, m0, &m1, &prim, 6, &|l: &str| ctx.log(l)).await {
+                return Err(Error::failed(format!("The modem refused a write (AT+SPTESTMODE={m0},{m1})")));
+            }
             ctx.log(format!("network mode -> {value} (SPTESTMODE {m0}, SP5GRAN {gran})"));
             state::save(p, kind, value)?;
             Ok((value.to_owned(), true))

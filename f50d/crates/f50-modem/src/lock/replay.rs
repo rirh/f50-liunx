@@ -64,7 +64,10 @@ async fn write_quiet(inner: &Inner, kind: Kind, val: &str) {
             let f: Vec<&str> = tm.split(',').collect();
             let pick = |i: usize, d: &str| f.get(i).filter(|v| !v.is_empty()).map_or(d.to_owned(), |v| (*v).to_owned());
             boot_write(inner, &format!("AT+SP5GRAN={gran}")).await;
-            boot_write(inner, &format!("AT+SPTESTMODE={m0},{},{}", pick(1, "134"), pick(2, "0"))).await;
+            super::apply::write_mode(inner, m0, &pick(1, "134"), &pick(2, "0"), 2, &|l: &str| {
+                tracing::warn!("lock replay: {l}");
+            })
+            .await;
         }
         Kind::Endc => boot_write(inner, if val == "on" { "AT+SPENDC=1" } else { "AT+SPENDC=2" }).await,
         Kind::Lte => boot_write(inner, &lte_write(&filter(&bands(val), LTE_TABLE))).await,

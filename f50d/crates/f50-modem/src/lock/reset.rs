@@ -128,16 +128,15 @@ async fn run(inner: &Arc<Inner>, t0: u64, ctx: &JobCtx) -> Result<Value> {
     let (Some(_), Some(m1), Some(prim)) = (digits(0, 3), digits(1, 3), digits(2, 1)) else {
         return Err(failed(inner, t0, ctx, "The modem did not answer the mode query; nothing was sent", None, None));
     };
-    let mode = format!("AT+SPTESTMODE=134,{m1},{prim}");
-    for cmd in [
-        "AT+SP5GRAN=1",
-        mode.as_str(),
-        "AT+SPENDC=1",
-        "AT+SPLBAND=1,0,0,0,0,0",
-        "AT+SPLBAND=2,0,0,0,0",
-        "AT+SPFORCEFRQ=12,4",
-        "AT+SPFORCEFRQ=16,4",
-    ] {
+    if write(inner, "AT+SP5GRAN=1", ctx).await.is_err() {
+        return Err(failed(inner, t0, ctx, "The modem refused a write", None, Some("AT+SP5GRAN=1")));
+    }
+    if !super::apply::write_mode(inner, 134, m1, prim, 6, &|l: &str| ctx.log(l)).await {
+        return Err(failed(inner, t0, ctx, "The modem refused a write", None, Some("AT+SPTESTMODE")));
+    }
+    for cmd in
+        ["AT+SPENDC=1", "AT+SPLBAND=1,0,0,0,0,0", "AT+SPLBAND=2,0,0,0,0", "AT+SPFORCEFRQ=12,4", "AT+SPFORCEFRQ=16,4"]
+    {
         if write(inner, cmd, ctx).await.is_err() {
             return Err(failed(inner, t0, ctx, "The modem refused a write", None, Some(cmd)));
         }

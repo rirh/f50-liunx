@@ -9,7 +9,9 @@ const toggleVariants = cva(
     variants: {
       variant: {
         default: "bg-transparent",
-        outline: "bg-input hover:bg-foreground/10",
+        // the chosen item must read at a glance: muted on the input tint was the same grey as its neighbours
+        outline:
+          "bg-input hover:bg-foreground/10 aria-pressed:bg-primary aria-pressed:text-primary-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary/90 data-[state=on]:hover:text-primary-foreground",
       },
       size: {
         default:
