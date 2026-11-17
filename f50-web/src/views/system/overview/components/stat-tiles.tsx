@@ -2,7 +2,7 @@ import { AnimatedNumber } from "@/components/f50/animated-number";
 import { FillMeter } from "@/components/f50/fill-meter";
 import { t } from "@/i18n";
 import { formatBytes } from "@/lib/format";
-import { tempShare } from "@/lib/utils";
+import { tempShare, tempTone } from "@/lib/utils";
 import {
   CpuIcon,
   HardDriveIcon,
@@ -88,6 +88,7 @@ export function StatTiles({
         label={t("system.overview.live.hottest")}
         value={<AnimatedNumber value={hottest} format={formatCelsius} />}
         percent={tempShare(hottest)}
+        tone={tempTone(hottest)}
         hint={
           temps
             ? `SoC ${formatCelsius(temps.soc)} · ${t("system.overview.zone.modem")} ${formatCelsius(temps.modem)}`

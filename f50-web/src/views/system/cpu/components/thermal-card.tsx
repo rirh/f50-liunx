@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/collapsible";
 import { type Key, t } from "@/i18n";
 import { type TableColumn, columnHelper } from "@/lib/table";
-import { cn } from "@/lib/utils";
+import { cn, tempShare, tempTone } from "@/lib/utils";
 import { ChevronDownIcon, ThermometerIcon } from "lucide-react";
 import type { ThermalZone } from "../types";
 
@@ -159,7 +159,7 @@ function headroom(zones: ThermalZone[]): number | null {
 
 /**
  * The answer first: the hottest reading, whether that is fine, and how far the CPU is from being slowed down. Then
- * each part's temperature as a filled bar (amber from 70 °C, red from 90 °C), hottest first; the kernel's trip points
+ * each part's temperature as a filled bar (coloured by `tempTone`), hottest first; the kernel's trip points
  * and cooling devices are folded away for whoever needs them.
  */
 export function ThermalCard({
@@ -240,7 +240,8 @@ export function ThermalCard({
                   key={`${z.zone}-${i}`}
                   label={zoneName(z.zone)}
                   value={z.temp == null ? "—" : deg(z.temp)}
-                  percent={z.temp == null ? null : z.temp / 1000}
+                  percent={z.temp == null ? null : tempShare(z.temp / 1000)}
+                  tone={z.temp == null ? undefined : tempTone(z.temp / 1000)}
                   hint={z.zone}
                 />
               ))}

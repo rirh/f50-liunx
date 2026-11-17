@@ -4,7 +4,7 @@ import { FillMeter } from "@/components/f50/fill-meter";
 import { t } from "@/i18n";
 import { formatBytes, formatDuration } from "@/lib/format";
 import { useSeries } from "@/lib/series";
-import { cn, tempShare } from "@/lib/utils";
+import { tempShare, tempTone } from "@/lib/utils";
 import { getInfo, systemKeys } from "@/views/system/overview/api";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -124,12 +124,9 @@ export function SystemCard({ s }: { s: DashboardStatus }) {
         <FillMeter
           icon={ThermometerIcon}
           label={t("system.overview.live.hottest")}
-          value={
-            <span className={cn(hot && "text-destructive")}>
-              <AnimatedNumber value={hottest} format={celsius} />
-            </span>
-          }
+          value={<AnimatedNumber value={hottest} format={celsius} />}
           percent={hot ? 100 : tempShare(hottest)}
+          tone={hot ? "danger" : tempTone(hottest)}
           hint={temps ? `SoC ${celsius(temps.soc)}` : undefined}
         />
       </div>
