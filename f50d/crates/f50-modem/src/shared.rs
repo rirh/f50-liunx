@@ -3,7 +3,7 @@
 use std::fmt;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use f50_at::{At, Final, Reply, SendOpts};
 use f50_core::jobs::Jobs;
@@ -36,6 +36,12 @@ pub(crate) struct Inner {
     /// The card this boot uses (pinned at start; FINDINGS 74: reopening the SIPC channels is not a hot switch).
     pub slot: Slot,
     pub snap_tx: watch::Sender<Arc<RadioSnapshot>>,
+    /// When a reading was last asked for (`f50.modem status`/`cells`): the collector keeps its fast pace for a
+    /// while after it, and its idle pace otherwise.
+    pub watched: Mutex<Option<Instant>>,
+    /// The collector is at its idle pace: the next reading asked for wakes it.
+    pub idle: AtomicBool,
+    pub wake: Notify,
     /// The radio lock itself and the name of its holder (for the `busy` message).
     pub radio: Arc<tokio::sync::Mutex<()>>,
     pub radio_owner: Arc<Mutex<Option<&'static str>>>,
@@ -79,6 +85,9 @@ impl Inner {
             shutdown,
             slot,
             snap_tx,
+            watched: Mutex::new(None),
+            idle: AtomicBool::new(false),
+            wake: Notify::new(),
             radio: Arc::new(tokio::sync::Mutex::new(())),
             radio_owner: Arc::new(Mutex::new(None)),
             restarting: AtomicUsize::new(0),
@@ -95,6 +104,15 @@ impl Inner {
 
     pub fn paths(&self) -> &Paths {
         self.platform.paths()
+    }
+
+    /// The latest reading, for somebody who asked for it: the collector reads at its fast pace while that goes on.
+    pub fn watched_snapshot(&self) -> Arc<RadioSnapshot> {
+        *lock(&self.watched) = Some(Instant::now());
+        if self.idle.load(Ordering::Relaxed) {
+            self.wake.notify_one();
+        }
+        self.snap_tx.borrow().clone()
     }
 
     /// One command on the control lane (user actions and radio sequences).

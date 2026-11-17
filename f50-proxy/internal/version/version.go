@@ -2,12 +2,16 @@
 // built from it.
 package version
 
+import "runtime"
+
 // Version is the release version, stamped by the Makefile via
 // -ldflags "-X f50/proxy/internal/version.Version=…".
 var Version = "dev"
 
-// ClientUA names this engine to rule catalogues and 配置 hosts.
-var ClientUA = "F50Proxy/" + Version
+// ClientUA names this engine to rule catalogues and 配置 hosts, in the shape of
+// One Node PC's ("OneNodePC/<ver> <arch>"): the gateway records the
+// architecture token with the device.
+var ClientUA = "F50Proxy/" + Version + " " + runtime.GOARCH
 
 // SubscriptionUA makes subscription panels answer with base64 share links:
 // they negotiate by the first product token, and nearly all know v2rayN. The

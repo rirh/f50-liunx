@@ -45,17 +45,22 @@ fn network_led(snap: &RadioSnapshot, sim: Option<SimState>) -> NetworkLed {
     }
 }
 
-/// The LEDs follow the modem's snapshot (as it changes) and the links (every few seconds).
+/// The LEDs follow the modem's snapshot (as it changes) and the links (every few seconds). A new snapshot alone
+/// does not ask netifd and hostapd again: the collector publishes one every round.
 async fn leds(s: Services, platform: Platform, shutdown: CancellationToken) {
     let started = tokio::time::Instant::now();
     let mut snap = s.modem.snapshot();
     let mut tick = tokio::time::interval(LED_EVERY);
+    let (mut data_up, mut wifi_on) = (false, false);
+    let mut links_due = true;
     loop {
         let current: Arc<RadioSnapshot> = snap.borrow_and_update().clone();
-        let data_up = platform.netifd().is_up("wan").await.unwrap_or(false);
-        // hostapd's word, not wlan0's operstate: the F50's driver need not report a running access point "up", and
-        // the Wi-Fi client's station is "up" too
-        let wifi_on = s.net.hotspot_up().await;
+        if links_due {
+            data_up = platform.netifd().is_up("wan").await.unwrap_or(false);
+            // hostapd's word, not wlan0's operstate: the F50's driver need not report a running access point "up",
+            // and the Wi-Fi client's station is "up" too
+            wifi_on = s.net.hotspot_up().await;
+        }
         s.system.set_led_inputs(LedInputs {
             network: network_led(&current, s.modem.sim_state()),
             bars: current.signal.as_ref().map(|x| x.bars),
@@ -65,11 +70,16 @@ async fn leds(s: Services, platform: Platform, shutdown: CancellationToken) {
             idle: false,
             booted: started.elapsed() >= BOOTED_AFTER,
         });
-        tokio::select! {
+        links_due = tokio::select! {
             () = shutdown.cancelled() => return,
-            r = snap.changed() => if r.is_err() { return },
-            _ = tick.tick() => {}
-        }
+            r = snap.changed() => {
+                if r.is_err() {
+                    return;
+                }
+                false
+            }
+            _ = tick.tick() => true,
+        };
     }
 }
 

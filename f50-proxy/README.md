@@ -59,7 +59,7 @@ a child process, `testserver`) are in `internal/engine`.
   instances, resolving node servers) carry the running gateway's mark too, and resolve through `223.5.5.5` /
   `119.29.29.29` directly instead of dnsmasq, whose upstream queries the nftables rules send back to the engine.
 - **`Conn.source`**: the client's IP (from the inbound's source; IPv4-mapped addresses written as IPv4).
-- **Subscription headers**: `User-Agent: v2rayN/7.15 F50Proxy/<ver>`, `X-Device-OS: OpenWrt`,
+- **Subscription headers**: `User-Agent: v2rayN/7.15 F50Proxy/<ver> <arch>`, `X-Device-OS: OpenWrt`,
   `X-Ver-OS` (`DISTRIB_RELEASE` of `/etc/openwrt_release`), `X-Device-Model: ZTE F50`, and `X-HWID`: `/etc/machine-id`, else the eMMC CID
   (`/sys/block/mmcblk0/device/cid`), hashed. The One Node gateway shows the router as client `One Node F50`
   (policy id `one-node-f50`) and requires the HWID under its client policy.

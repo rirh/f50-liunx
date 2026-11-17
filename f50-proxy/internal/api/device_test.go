@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -100,7 +101,7 @@ func TestFetchSendsDeviceAndExplainsGatewayRefusal(t *testing.T) {
 	if err != nil || sub.Body == "" {
 		t.Fatalf("fetch: %v", err)
 	}
-	if got.Get("User-Agent") != "v2rayN/7.15 F50Proxy/"+version.Version {
+	if got.Get("User-Agent") != "v2rayN/7.15 F50Proxy/"+version.Version+" "+runtime.GOARCH {
 		t.Fatalf("user agent %q", got.Get("User-Agent"))
 	}
 	if d := thisDevice(); d.ID != "" && got.Get("X-HWID") != d.ID {

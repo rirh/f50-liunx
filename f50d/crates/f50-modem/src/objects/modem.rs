@@ -19,7 +19,7 @@ const RADIO: &[Field] = &[Field::req("state", Rule::Enum(&["on", "off"]))];
 const OWN_NUMBER: &[Field] = &[Field::req("number", Rule::Word { re: r"\+?[0-9]{3,15}", max: 16 })];
 
 fn status(inner: &Inner) -> Value {
-    let s = inner.snap_tx.borrow().clone();
+    let s = inner.watched_snapshot();
     json!({
         "registered": s.registered,
         "roaming": s.roaming,
@@ -38,7 +38,7 @@ fn status(inner: &Inner) -> Value {
 }
 
 fn cells(inner: &Inner) -> Value {
-    let s = inner.snap_tx.borrow().clone();
+    let s = inner.watched_snapshot();
     json!({ "age_ms": s.taken.map(age_ms), "detail": s.detail })
 }
 

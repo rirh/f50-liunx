@@ -6,6 +6,9 @@
 //! reader ever waits for the modem: methods serve the latest snapshot with its age. Two tiers share one loop: the
 //! fast round (CFUN, CEREG, C5GREG, CESQ and the two SPENGMD serving reads) every `fast_interval`, the full round
 //! (also the operator, the neighbours, the bearer's QoS, the identity and the own number) every `full_interval`.
+//! That pace is for somebody watching: while the modem is registered and nobody has asked for a reading for
+//! `watched_for`, a round runs only every `idle_interval` (the modem is otherwise asked 7 commands every 2 s all
+//! day), and the next reading asked for brings the fast pace back at once.
 //! A round has a deadline: a modem that stopped answering used to hold a collector for minutes. The loop pauses
 //! while a radio sequence of ours runs (`restarting`): mid-restart the modem answers garbage (and the shell's
 //! readers once crashed rpcd on such output).
@@ -92,13 +95,17 @@ impl Collector {
     async fn run(mut self) {
         let inner = self.inner.clone();
         let mut ready = inner.at.ready();
-        let mut tick = tokio::time::interval(inner.cfg.fast_interval);
-        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        let mut next = tokio::time::Instant::now();
         loop {
             tokio::select! {
                 () = inner.shutdown.cancelled() => break,
-                _ = tick.tick() => {}
+                () = tokio::time::sleep_until(next) => {}
+                () = inner.wake.notified() => {}
             }
+            // from the start of this round; a round that overran is followed by the next at once
+            let pace = self.pace();
+            next = tokio::time::Instant::now() + pace;
+            inner.idle.store(pace > inner.cfg.fast_interval, Ordering::Relaxed);
             if inner.is_restarting() {
                 continue;
             }
@@ -121,6 +128,14 @@ impl Collector {
                 crate::lock::read::spawn_refresh(&inner);
             }
         }
+    }
+
+    /// The time to the next round: the idle pace only while registered (a search, a boot and a lost network are
+    /// followed closely) and unwatched.
+    fn pace(&self) -> Duration {
+        let cfg = &self.inner.cfg;
+        let watched = crate::shared::lock(&self.inner.watched).is_some_and(|t| t.elapsed() < cfg.watched_for);
+        if watched || !self.inner.snap_tx.borrow().registered { cfg.fast_interval } else { cfg.idle_interval }
     }
 
     fn publish(&self, snap: RadioSnapshot) {

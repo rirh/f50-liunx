@@ -111,6 +111,11 @@ pub struct ModemConfig {
     pub fast_interval: Duration,
     /// How often it reads everything else (neighbours, operator, QoS).
     pub full_interval: Duration,
+    /// How often it reads (a full round) while registered and nobody asks for the readings: the LEDs and the
+    /// first answer to a console are all that use them then.
+    pub idle_interval: Duration,
+    /// How long after a reading was last asked for the fast pace is kept.
+    pub watched_for: Duration,
     /// The whole of a fast round at most (the shell's 12 s): past it every further command is skipped.
     pub fast_deadline: Duration,
     /// The whole of a full round at most (the shell's 25 s).
@@ -134,6 +139,8 @@ impl Default for ModemConfig {
         ModemConfig {
             fast_interval: Duration::from_secs(2),
             full_interval: Duration::from_secs(10),
+            idle_interval: Duration::from_secs(30),
+            watched_for: Duration::from_secs(30),
             fast_deadline: Duration::from_secs(12),
             full_deadline: Duration::from_secs(25),
             data_interface: "wan".into(),
