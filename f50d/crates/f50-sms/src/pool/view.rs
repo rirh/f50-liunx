@@ -176,6 +176,7 @@ mod tests {
             incomplete: None,
             partial: None,
             part_ids: vec![],
+            fragments: Default::default(),
             text: text.into(),
             fingerprint: fingerprint(peer, "2026-10-01 09:00:00", text),
         }

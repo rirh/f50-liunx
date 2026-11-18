@@ -2,9 +2,8 @@
 //!
 //! A long message waits for its parts on the disk. Parts whose siblings never come (a part the network lost) would
 //! wait for ever: after the partial wait (three minutes) the parts that did arrive are pooled as one message, "[...]" where
-//! a part is missing, marked incomplete. A part that arrives after that is pooled at once as a message of its own
-//! (the rest of one already pooled: the same sender, reference and total, within ten minutes). A part delivered once
-//! more (an acknowledgement that did not reach the network) is known by its PDU and dropped (FINDINGS 39, 63).
+//! a part is missing, marked incomplete. Late parts can repair a uniquely matching message in place. A part delivered
+//! once more (an acknowledgement that did not reach the network) is known by its PDU and dropped (FINDINGS 39, 63).
 
 use std::collections::{BTreeMap, HashSet};
 
@@ -12,7 +11,7 @@ use f50_core::Result;
 
 use super::store::{Dir, Message, Parked, Status};
 use super::{NewMessage, State};
-use crate::group::{Rec, group, ts_near};
+use crate::group::{GROUP_WINDOW, Rec, group, ts_near, ts_secs};
 use crate::md5;
 use crate::pdu::{Coding, Decoded, Deliver, decode};
 
@@ -45,7 +44,7 @@ struct Assembled {
     utc_offset: Option<i16>,
     coding: Coding,
     total: u8,
-    have: u8,
+    fragments: BTreeMap<u8, String>,
     /// The text with "[...]" for each missing part (the whole text when none is missing).
     text: String,
     unread: bool,
@@ -56,12 +55,20 @@ struct Assembled {
 }
 
 impl Assembled {
+    fn have(&self) -> u8 {
+        u8::try_from(self.fragments.len()).unwrap_or(u8::MAX)
+    }
+
     fn complete(&self) -> bool {
-        self.have >= self.total
+        self.have() == self.total
     }
     fn fingerprint(&self) -> String {
         fingerprint(&self.peer, &self.time, &self.text)
     }
+}
+
+fn joined_text(total: u8, fragments: &BTreeMap<u8, String>) -> String {
+    (1..=total).map(|n| fragments.get(&n).map(String::as_str).unwrap_or("[...]")).collect()
 }
 
 /// Groups decoded parts and assembles each group. `meta[i]` is (unread, first seen, pdu) of `parts[i]`.
@@ -77,11 +84,11 @@ fn assemble(parts: &[Deliver], meta: &[(bool, u64, &str)]) -> Vec<Assembled> {
             // the first part dates the message
             let dating = g.members.iter().map(|&i| &parts[i]).find(|d| d.concat.is_some_and(|c| c.part == 1));
             let dating = dating.unwrap_or(first);
-            let mut body: BTreeMap<u8, &str> = BTreeMap::new();
+            let mut fragments = BTreeMap::new();
             for &i in &g.members {
-                body.entry(parts[i].concat.map_or(1, |c| c.part)).or_insert(&parts[i].text);
+                fragments.entry(parts[i].concat.map_or(1, |c| c.part)).or_insert_with(|| parts[i].text.clone());
             }
-            let text: String = (1..=g.total).map(|p| body.get(&p).copied().unwrap_or("[...]")).collect();
+            let text = joined_text(g.total, &fragments);
             let coding =
                 if g.members.iter().any(|&i| parts[i].coding == Coding::Ucs2) { Coding::Ucs2 } else { first.coding };
             Some(Assembled {
@@ -90,7 +97,7 @@ fn assemble(parts: &[Deliver], meta: &[(bool, u64, &str)]) -> Vec<Assembled> {
                 utc_offset: dating.timestamp.offset_min,
                 coding,
                 total: g.total,
-                have: u8::try_from(body.len()).unwrap_or(u8::MAX),
+                fragments,
                 text,
                 unread: g.members.iter().any(|&i| meta[i].0),
                 first_seen: g.members.iter().map(|&i| meta[i].1).min().unwrap_or(0),
@@ -124,8 +131,86 @@ pub(crate) fn sim_messages(slots: &[(u32, String)]) -> Vec<(String, Vec<u32>)> {
 }
 
 impl State {
+    /// Build a repair only when the late parts identify a single incomplete message.
+    fn repair(&self, incoming: &Assembled, key: &str, decoded: &[Deliver]) -> Option<Message> {
+        let times = incoming
+            .members
+            .iter()
+            .map(|&i| {
+                let t = &decoded[i].timestamp;
+                Some((ts_secs(&t.local)?, t.offset_min))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let candidates: Vec<_> = self
+            .msgs
+            .values()
+            .filter(|m| {
+                if m.dir != Dir::In
+                    || m.peer != incoming.peer
+                    || m.partial.as_deref() != Some(key)
+                    || !m.incomplete.is_some_and(|(_, total)| total == incoming.total)
+                {
+                    return false;
+                }
+                let Some(at) = ts_secs(&m.time) else { return false };
+                if !times.iter().all(|&(t, offset)| {
+                    let shift = offset.zip(m.utc_offset).map_or(0, |(new, old)| (i64::from(new) - i64::from(old)) * 60);
+                    (t - at - shift).abs() <= GROUP_WINDOW
+                }) {
+                    return false;
+                }
+                if m.fragments.is_empty() {
+                    // Legacy rows have placeholder text but no trustworthy fragment boundaries.
+                    incoming.complete()
+                        && !m.part_ids.is_empty()
+                        && m.part_ids.iter().all(|p| incoming.part_ids.contains(p))
+                } else {
+                    // A new complete message with a reused reference can have the same surrounding text.
+                    (!incoming.complete() || m.part_ids.iter().any(|p| incoming.part_ids.contains(p)))
+                        && incoming.fragments.iter().all(|(n, text)| m.fragments.get(n).is_none_or(|old| old == text))
+                }
+            })
+            .collect();
+        let mut overlapping = candidates
+            .iter()
+            .copied()
+            .filter(|m| m.part_ids.iter().any(|p| incoming.part_ids.contains(p)));
+        let old = match (overlapping.next(), overlapping.next(), candidates.as_slice()) {
+            (Some(m), None, _) => m,
+            (None, None, [m]) => *m,
+            _ => return None,
+        };
+        if incoming.fragments.keys().all(|n| old.fragments.contains_key(n)) {
+            return None;
+        }
+
+        let mut repaired = (*old).clone();
+        if !repaired.fragments.contains_key(&1) && incoming.fragments.contains_key(&1) {
+            repaired.time = incoming.time.clone();
+            repaired.utc_offset = incoming.utc_offset;
+        }
+        repaired.fragments.extend(incoming.fragments.iter().map(|(&n, text)| (n, text.clone())));
+        let have = u8::try_from(repaired.fragments.len()).ok()?;
+        repaired.text = joined_text(incoming.total, &repaired.fragments);
+        repaired.fingerprint = fingerprint(&repaired.peer, &repaired.time, &repaired.text);
+        if incoming.coding == Coding::Ucs2 {
+            repaired.coding = Coding::Ucs2;
+        }
+        for id in &incoming.part_ids {
+            if !repaired.part_ids.contains(id) {
+                repaired.part_ids.push(id.clone());
+            }
+        }
+        repaired.incomplete = (have < incoming.total).then_some((have, incoming.total));
+        if repaired.incomplete.is_none() {
+            repaired.partial = None;
+            repaired.fragments.clear();
+        }
+        Some(repaired)
+    }
+
     /// Every parked part into the pool that can go there now; the parts the pool took, or knew, are let go once the
-    /// new messages are on the disk.
+    /// new and repaired messages are on the disk.
     pub fn absorb(&mut self, now: u64) -> Result<Absorbed> {
         self.parts.sort_by(|a, b| (a.first_seen, &a.name).cmp(&(b.first_seen, &b.name)));
         let mut decoded = Vec::new();
@@ -145,11 +230,11 @@ impl State {
 
         let mut known: HashSet<String> = self.msgs.values().map(|m| m.fingerprint.clone()).collect();
         let dead: HashSet<&str> = self.tombs.iter().map(String::as_str).collect();
-        let pooled_parts: HashSet<&str> = self
+        let mut pooled_parts: HashSet<String> = self
             .msgs
             .values()
-            .flat_map(|m| m.part_ids.iter().map(String::as_str))
-            .chain(dead.iter().copied())
+            .flat_map(|m| m.part_ids.iter().cloned())
+            .chain(self.tombs.iter().cloned())
             .collect();
         let mut new = Vec::new();
         let mut done: Vec<String> = undecodable;
@@ -157,26 +242,43 @@ impl State {
         for a in groups {
             let names = a.members.iter().map(|&i| owners[i].name.clone());
             let fp = a.fingerprint();
-            if dead.contains(fp.as_str()) || known.contains(&fp) {
+            // Exact PDU identities also cover a replay after a repair whose displayed time changed.
+            let all_known = !a.part_ids.is_empty() && a.part_ids.iter().all(|p| pooled_parts.contains(p));
+            if dead.contains(fp.as_str()) || (!a.complete() && all_known) {
+                done.extend(names);
+                continue;
+            }
+            let partial = a.base.as_deref().map(|b| md5::hex(b.as_bytes()));
+            if let Some(repaired) = partial.as_deref().and_then(|key| self.repair(&a, key, &decoded)) {
+                let original = &self.msgs[&repaired.id];
+                if !dead.contains(repaired.fingerprint.as_str())
+                    && (repaired.fingerprint == original.fingerprint || !known.contains(&repaired.fingerprint))
+                {
+                    self.dirs.write_message(&repaired)?;
+                    self.dirs.sync_messages()?;
+                    known.insert(repaired.fingerprint.clone());
+                    pooled_parts.extend(repaired.part_ids.iter().cloned());
+                    self.msgs.insert(repaired.id, repaired);
+                }
+                done.extend(names);
+                continue;
+            }
+            if known.contains(&fp) || all_known {
                 done.extend(names);
                 continue;
             }
             let mut extra = None;
             if !a.complete() {
-                // parts of a message the pool has whole (or was told to forget), delivered once more
-                if !a.part_ids.is_empty() && a.part_ids.iter().all(|p| pooled_parts.contains(p.as_str())) {
-                    done.extend(names);
-                    continue;
-                }
-                let ph = a.base.as_deref().map(|b| md5::hex(b.as_bytes()));
-                let rest_of_pooled = ph.as_deref().is_some_and(|h| {
-                    self.msgs.values().any(|m| m.partial.as_deref() == Some(h) && ts_near(&m.time, &a.time))
+                let legacy = partial.as_deref().is_some_and(|key| {
+                    self.msgs.values().any(|m| {
+                        m.fragments.is_empty() && m.partial.as_deref() == Some(key) && ts_near(&m.time, &a.time)
+                    })
                 });
-                if now.saturating_sub(a.first_seen) < self.partial_wait && !rest_of_pooled {
+                if now.saturating_sub(a.first_seen) < self.partial_wait && !legacy {
                     waiting += 1;
                     continue;
                 }
-                extra = Some(((a.have, a.total), ph));
+                extra = Some((a.have(), a.total));
             }
             done.extend(names);
             known.insert(fp.clone());
@@ -189,15 +291,22 @@ impl State {
                 utc_offset: a.utc_offset,
                 coding: a.coding,
                 parts: a.total,
-                incomplete: extra.as_ref().map(|e| e.0),
-                partial: extra.and_then(|e| e.1),
+                incomplete: extra,
+                partial: if extra.is_some() { partial } else { None },
                 part_ids: a.part_ids,
+                fragments: if extra.is_some() { a.fragments } else { BTreeMap::new() },
                 text: a.text,
                 fingerprint: fp,
             });
         }
         // the messages on the disk first, then the parts they came from may go
         let stored = self.store(new, now)?;
+        for m in &stored {
+            if let Some((have, total)) = m.incomplete {
+                let missing: Vec<_> = (1..=total).filter(|n| !m.fragments.contains_key(n)).collect();
+                tracing::info!(have, total, ?missing, "an incomplete SMS was pooled");
+            }
+        }
         if !done.is_empty() {
             for name in &done {
                 self.dirs.remove_part(name)?;
@@ -279,7 +388,7 @@ mod tests {
     }
 
     #[test]
-    fn parts_that_never_complete_are_pooled_after_the_wait_and_the_rest_at_once() {
+    fn partial_messages_are_pooled_after_the_wait_and_repaired_in_place() {
         with_pool("partial", 3600, |st| {
             let at = "2026-10-12 08:00:00";
             st.park(&test_part(7, 3, 1, "first ", at), true, "air", 100).expect("park");
@@ -289,10 +398,22 @@ mod tests {
             assert_eq!(a.new.len(), 1);
             assert_eq!((a.new[0].text.as_str(), a.new[0].incomplete), ("first [...] third", Some((2, 3))));
             assert!(a.new[0].partial.is_some());
-            // the missing part comes later: pooled at once, as a message of its own
-            st.park(&test_part(7, 3, 2, "second", "2026-10-12 08:00:05"), true, "air", 5000).expect("park");
+            let id = a.new[0].id;
+            st.mark(id, true).expect("read");
+            // The missing part comes later and completes the existing read message.
+            let middle = test_part(7, 3, 2, "second", "2026-10-12 08:00:05");
+            st.park(&middle, true, "air", 5000).expect("park");
             let a = st.absorb(5000).expect("absorb");
-            assert_eq!((a.new.len(), a.new[0].text.as_str()), (1, "[...]second[...]"));
+            assert!(a.new.is_empty());
+            let message = st.get(id).expect("same message");
+            assert_eq!(
+                (message.text.as_str(), message.incomplete, message.status),
+                ("first second third", None, Status::Read)
+            );
+            assert_eq!(st.counts(), (1, 0));
+            st.park(&middle, true, "air", 5001).expect("park retry");
+            assert!(st.absorb(5001).expect("absorb retry").new.is_empty());
+            assert!(st.parts.is_empty());
             // a later message under the same reference (a day later) waits for its own parts
             st.park(&test_part(7, 3, 1, "x", "2026-10-13 08:00:00"), true, "air", 6000).expect("park");
             assert_eq!(st.absorb(6000).expect("absorb").waiting, 1);

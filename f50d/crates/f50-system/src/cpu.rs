@@ -1,13 +1,13 @@
 //! CPU performance profiles (`f50.cpu`): a governor and a per-cluster scaling_min/max, inside the hardware table.
 //!
-//! - `saving`: every cluster capped at the highest table step at or below 60 % of its maximum, schedutil;
+//! - `saving` (default): every cluster capped at the highest table step at or below 60 % of its maximum, schedutil;
 //! - `balanced`: schedutil over the full range (the stock behaviour);
 //! - `performance`: the performance governor.
 //!
 //! A profile never touches voltage or the kernel's trips. The cap it sets is the *ceiling* the thermal guard never
 //! lifts a policy above on cool-down, so `saving` stays capped; the kernel's own cap is a frequency QoS request under
 //! scaling_max_freq, so the lower of the two wins (docs/research/FINDINGS.md 48). The saved profile lives in
-//! `/etc/f50d/cpu.conf` (`PROFILE=`); without a saved one nothing is applied at start (init.d/f50-cpu).
+//! `/etc/f50d/cpu.conf` (`PROFILE=`); without a saved one, startup applies `saving`.
 //! Core hotplug, CPU0's low latency, the services' cpuset and the voltage offset were removed with the shell layer.
 
 use std::collections::BTreeMap;
@@ -20,10 +20,10 @@ use f50_platform::Platform;
 use serde_json::{Value, json};
 
 use crate::settings::{self, ConfFile};
-use crate::thermal;
+use crate::{guard, thermal};
 
 pub(crate) const PROFILES: &[&str] = &["saving", "balanced", "performance"];
-const DEFAULT_PROFILE: &str = "balanced";
+const DEFAULT_PROFILE: &str = "saving";
 const SAVING_PERCENT: u64 = 60;
 
 /// The cpufreq policies (one per cluster: policy0, policy4, policy7 on the UMS9620), in order.
@@ -99,17 +99,18 @@ impl Cpu {
         set.or_else(|| read_num(&policy.join("cpuinfo_max_freq")))
     }
 
-    /// The saved profile, at start; nothing without one.
-    pub(crate) fn apply_saved(&self) {
-        if let Some(p) = self.saved()
-            && let Err(e) = self.apply(&p)
-        {
+    /// Applies the saved profile or the default at startup.
+    pub(crate) fn apply_at_start(&self) {
+        let p = self.profile();
+        // A daemon restart can leave the guard's cap in effect. Keep it until the guard lifts it.
+        let keep_cap = self.platform.paths().run().join(guard::CAP_MARKER).exists();
+        if let Err(e) = self.apply(&p, keep_cap) {
             tracing::warn!("cpu profile {p}: {e}");
         }
     }
 
     /// Applies `name` to every policy (best effort per attribute, as the shell did).
-    pub(crate) fn apply(&self, name: &str) -> Result<()> {
+    fn apply(&self, name: &str, keep_cap: bool) -> Result<()> {
         if !PROFILES.contains(&name) {
             return Err(Error::bad_value("name"));
         }
@@ -133,9 +134,15 @@ impl Cpu {
                 "performance" => (pick_governor(&pol, "performance"), hwmax),
                 _ => (pick_governor(&pol, "schedutil"), hwmax),
             };
+            let max_attr = pol.join("scaling_max_freq");
+            let limit = if keep_cap {
+                read_num::<u64>(&max_attr).map_or(max, |current| current.min(max))
+            } else {
+                max
+            };
             // order matters: min first (never above the current max), then max, then the governor
             let _ = std::fs::write(pol.join("scaling_min_freq"), hwmin.to_string());
-            let _ = std::fs::write(pol.join("scaling_max_freq"), max.to_string());
+            let _ = std::fs::write(max_attr, limit.to_string());
             if let Some(g) = gov {
                 let _ = std::fs::write(pol.join("scaling_governor"), g);
             }
@@ -146,7 +153,7 @@ impl Cpu {
 
     /// `f50.cpu profile`: apply, then save.
     pub(crate) fn set_profile(&self, name: &str) -> Result<()> {
-        self.apply(name)?;
+        self.apply(name, false)?;
         self.conf.put("PROFILE", Some(name))
     }
 
@@ -222,7 +229,7 @@ mod tests {
         assert_eq!(std::fs::read_to_string(pol.join("scaling_governor")).expect("gov"), "schedutil");
         assert_eq!(cpu.ceiling(&pol), Some(1_200_000));
         assert_eq!(cpu.saved().as_deref(), Some("saving"));
-        assert_eq!(cpu.apply("turbo").map_err(|e| e.code()), Err(f50_core::Code::BadValue));
+        assert_eq!(cpu.apply("turbo", false).map_err(|e| e.code()), Err(f50_core::Code::BadValue));
         let _ = std::fs::remove_dir_all(&r);
     }
 }

@@ -5,7 +5,7 @@
 //! (docs/research/FINDINGS.md 39). Nothing is written unless something changed: a sync of an unchanged SIM writes
 //! nothing at all.
 
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -57,12 +57,15 @@ pub(crate) struct Message {
     /// Parts that arrived and the total, for a long message pooled without all of them.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub incomplete: Option<(u8, u8)>,
-    /// md5 of `multi:SENDER:REF:TOTAL` of a message pooled incomplete: a later part of it is pooled at once.
+    /// md5 of `multi:SENDER:REF:TOTAL` of a message pooled incomplete, used to match late parts.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub partial: Option<String>,
     /// md5 of each part's PDU: a part delivered again is known as one of this message.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub part_ids: Vec<String>,
+    /// The numbered text of each part in a repairable incomplete message.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub fragments: BTreeMap<u8, String>,
     pub text: String,
 }
 
@@ -244,6 +247,7 @@ mod tests {
             incomplete: Some((1, 2)),
             partial: None,
             part_ids: vec![],
+            fragments: BTreeMap::new(),
             text: "a\nb".into(),
         };
         d.write_message(&m).expect("write");

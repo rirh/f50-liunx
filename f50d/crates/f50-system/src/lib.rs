@@ -2,7 +2,7 @@
 //! hostname/time zone/password, reboot and power-off, root shells for the web terminal ([`shell`]). Publishes
 //! `f50.system`, `f50.cpu`, `f50.led` and `f50.shell`.
 //!
-//! [`System::start`] refuses any board but the F50 ([`device`]), applies the saved CPU profile, and starts the
+//! [`System::start`] refuses any board but the F50 ([`device`]), applies the CPU profile, and starts the
 //! background parts on the caller's [`TaskTracker`], each stopped by its [`CancellationToken`]:
 //!
 //! - zram setup, once ([`zram`]);
@@ -61,7 +61,7 @@ struct Inner {
 }
 
 impl System {
-    /// Checks the device, applies the saved CPU profile and starts the background parts. Must run inside the
+    /// Checks the device, applies the CPU profile and starts the background parts. Must run inside the
     /// Tokio runtime.
     pub fn start(
         cfg: SystemConfig,
@@ -84,7 +84,7 @@ impl System {
         };
         let i = &sys.inner;
         if i.cfg.cpu_profile_at_start {
-            i.cpu.apply_saved();
+            i.cpu.apply_at_start();
         }
         if i.cfg.zram {
             let p = i.platform.clone();

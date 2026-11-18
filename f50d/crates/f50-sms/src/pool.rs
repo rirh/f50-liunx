@@ -100,6 +100,7 @@ pub(crate) struct NewMessage {
     pub incomplete: Option<(u8, u8)>,
     pub partial: Option<String>,
     pub part_ids: Vec<String>,
+    pub fragments: BTreeMap<u8, String>,
     pub text: String,
     pub fingerprint: String,
 }
@@ -125,6 +126,7 @@ impl State {
                 incomplete: n.incomplete,
                 partial: n.partial,
                 part_ids: n.part_ids,
+                fragments: n.fragments,
                 text: n.text,
             };
             self.dirs.write_message(&m)?;
@@ -243,6 +245,7 @@ mod tests {
             incomplete: None,
             partial: None,
             part_ids: vec![],
+            fragments: BTreeMap::new(),
             text: text.into(),
             fingerprint: fingerprint("10086", "2026-10-03 11:00:00", text),
         }

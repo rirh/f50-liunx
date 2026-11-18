@@ -111,8 +111,7 @@ pub struct ModemConfig {
     pub fast_interval: Duration,
     /// How often it reads everything else (neighbours, operator, QoS).
     pub full_interval: Duration,
-    /// How often it reads (a full round) while registered and nobody asks for the readings: the LEDs and the
-    /// first answer to a console are all that use them then.
+    /// How often it reads the serving cell while registered and nobody asks for the readings.
     pub idle_interval: Duration,
     /// How long after a reading was last asked for the fast pace is kept.
     pub watched_for: Duration,

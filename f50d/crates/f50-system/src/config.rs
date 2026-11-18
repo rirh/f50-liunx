@@ -96,7 +96,7 @@ pub struct SystemConfig {
     pub input_dir: PathBuf,
     pub thermal: ThermalConfig,
     pub keys: KeyConfig,
-    /// Apply the saved CPU profile at start (init.d/f50-cpu).
+    /// Apply the saved or default CPU profile at start.
     pub cpu_profile_at_start: bool,
     /// Set up zram swap at start (zram-start).
     pub zram: bool,

@@ -130,11 +130,16 @@ async fn guarded(shutdown: &CancellationToken, work: impl Future<Output = ()>) {
 
 async fn setup(svc: &Inner, rx: &mut Rx) -> Result<()> {
     rx.configured = false;
+    let prepared = modem::prepare_receiving_store(&svc.at).await;
     modem::notification_mode(&svc.at, false).await?;
     rx.direct = false;
     rx.ack_pending = false;
+    // Already stored parts can still be recovered if the receiving store could not be configured.
     let synced = sync(svc).await;
-    rx.direct = modem::notification_mode(&svc.at, svc.cfg.direct).await?;
+    prepared?;
+    if svc.cfg.direct {
+        rx.direct = modem::notification_mode(&svc.at, true).await?;
+    }
     rx.configured = true;
     rx.failures = 0;
     tracing::info!(direct = rx.direct, "SMS receiving is set up");
@@ -159,9 +164,11 @@ async fn manual_sync(svc: &Inner, rx: &mut Rx) -> Result<()> {
     let synced = sync(svc).await;
     if !modem::notifications_still_on(&svc.at, rx.direct).await? {
         rx.configured = false;
+        let prepared = modem::prepare_receiving_store(&svc.at).await;
         rx.direct = modem::notification_mode(&svc.at, rx.direct).await?;
-        rx.configured = true;
         rx.ack_pending = false;
+        prepared?;
+        rx.configured = true;
         tracing::warn!(direct = rx.direct, "the modem had dropped SMS notifications; restored");
     }
     synced

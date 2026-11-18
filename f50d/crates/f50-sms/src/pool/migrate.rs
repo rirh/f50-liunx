@@ -105,6 +105,7 @@ fn parse_message(id: u64, s: &str) -> Option<Message> {
         incomplete,
         partial: field("partial"),
         part_ids,
+        fragments: Default::default(),
         text,
     })
 }

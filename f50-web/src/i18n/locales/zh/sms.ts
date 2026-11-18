@@ -81,8 +81,8 @@ export default {
   bubble: {
     coding8bit: "8 位",
     parts: "{count} 条拼接",
-    incomplete: "不完整 {have}/{total}",
-    incompleteTitle: "长短信的部分分段尚未收到",
+    incomplete: "已收到 {have}/{total} 段",
+    incompleteTitle: "缺失的短信分段用 [...] 标出",
     menu: "短信操作",
     copyText: "复制内容",
   },

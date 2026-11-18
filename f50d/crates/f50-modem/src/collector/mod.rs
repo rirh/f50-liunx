@@ -4,11 +4,11 @@
 //! The one hard rule the V50 panel learned in the field: a synchronous AT round inside a web request starves the AT
 //! channel, the dial watchdog then sees a dead modem and the box reboots itself (FINDINGS, V50 archive "45g"). So no
 //! reader ever waits for the modem: methods serve the latest snapshot with its age. Two tiers share one loop: the
-//! fast round (CFUN, CEREG, C5GREG, CESQ and the two SPENGMD serving reads) every `fast_interval`, the full round
+//! fast round (CFUN, CEREG, C5GREG, CESQ and the serving cell reads) every `fast_interval`, the full round
 //! (also the operator, the neighbours, the bearer's QoS, the identity and the own number) every `full_interval`.
 //! That pace is for somebody watching: while the modem is registered and nobody has asked for a reading for
-//! `watched_for`, a round runs only every `idle_interval` (the modem is otherwise asked 7 commands every 2 s all
-//! day), and the next reading asked for brings the fast pace back at once.
+//! `watched_for`, a round runs only every `idle_interval`, with at least two minutes between full rounds. The
+//! next request for a reading brings the active pace back at once.
 //! A round has a deadline: a modem that stopped answering used to hold a collector for minutes. The loop pauses
 //! while a radio sequence of ours runs (`restarting`): mid-restart the modem answers garbage (and the shell's
 //! readers once crashed rpcd on such output).
@@ -29,6 +29,8 @@ use serde_json::{Value, json};
 
 use crate::RadioSnapshot;
 use crate::shared::Inner;
+
+const IDLE_FULL_INTERVAL: Duration = Duration::from_secs(120);
 
 /// What the full tier read last; a fast round shows it beside its own readings.
 #[derive(Debug, Clone)]
@@ -105,7 +107,8 @@ impl Collector {
             // from the start of this round; a round that overran is followed by the next at once
             let pace = self.pace();
             next = tokio::time::Instant::now() + pace;
-            inner.idle.store(pace > inner.cfg.fast_interval, Ordering::Relaxed);
+            let idle = pace > inner.cfg.fast_interval;
+            inner.idle.store(idle, Ordering::Relaxed);
             if inner.is_restarting() {
                 continue;
             }
@@ -114,7 +117,12 @@ impl Collector {
                 self.publish_down("the modem is not answering (radio off, modem restarting, or no AT channel)");
                 continue;
             }
-            let full = self.last_full.is_none_or(|t| t.elapsed() >= inner.cfg.full_interval);
+            let full_interval = if idle {
+                inner.cfg.full_interval.max(IDLE_FULL_INTERVAL)
+            } else {
+                inner.cfg.full_interval
+            };
+            let full = self.last_full.is_none_or(|t| t.elapsed() >= full_interval);
             let limit = if full { inner.cfg.full_deadline } else { inner.cfg.fast_deadline };
             tokio::select! {
                 () = inner.shutdown.cancelled() => break,

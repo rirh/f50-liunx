@@ -23,8 +23,10 @@ pub(crate) const STORED_CNMI: &str = "AT+CNMI=2,1,0,0,0";
 pub(crate) const DIRECT_CNMI: &str = "AT+CNMI=3,2,2,0,1";
 
 const T_SHORT: Duration = Duration::from_secs(8);
+const T_STORE: Duration = Duration::from_secs(10);
 /// AT+CMGL walks the whole store.
 const T_LIST: Duration = Duration::from_secs(30);
+const STORES: [&str; 2] = ["SM", "ME"];
 
 /// The message store as the last listing found it (the page's capacity line, read without asking the modem).
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -66,26 +68,82 @@ pub(crate) async fn pdu_mode(s: &mut AtSession) -> Result<()> {
     need_ok(s.send("AT+CMGF=0", T_SHORT).await?, "PDU mode").map(|_| ())
 }
 
-/// Selects `mem` for reading, writing and receiving: the three-argument `AT+CPMS`, else the one-argument form some
-/// firmwares want. The `+CPMS:` answer's used and total, when it gave them.
-async fn select_store(s: &mut AtSession, mem: &str) -> Result<Option<(u32, u32)>> {
-    for cmd in [format!("AT+CPMS=\"{mem}\",\"{mem}\",\"{mem}\""), format!("AT+CPMS=\"{mem}\"")] {
-        let r = s.send(&cmd, Duration::from_secs(10)).await?;
-        if r.is_ok() {
-            return Ok(r.value("+CPMS").and_then(parse_cpms));
+/// Selects the store for reads and deletes (`mem1`). The receive store (`mem3`) must keep its capacity even
+/// while we check an empty store such as ME on the F50.
+async fn select_read_store(s: &mut AtSession, mem: &str) -> Result<Option<(u32, u32)>> {
+    let r = s.send(&format!("AT+CPMS=\"{mem}\""), T_STORE).await?;
+    if r.is_ok() {
+        return Ok(r.value("+CPMS").and_then(|v| parse_cpms(v, 0)));
+    }
+
+    // A modem requiring all three arguments can repeat its current write and receive stores.
+    let current = query_stores(s).await?;
+    let Some([(read, used, total), (write, ..), (receive, _, capacity)]) = cpms_stores(&current) else {
+        return Err(Error::failed("the modem's SMS stores could not be read"));
+    };
+    if read == mem {
+        return Ok(Some((used, total)));
+    }
+    if capacity == 0 {
+        return Err(Error::failed("no usable receiving store to preserve while selecting the read store"));
+    }
+    let r = need_ok(
+        s.send(&format!("AT+CPMS=\"{mem}\",\"{write}\",\"{receive}\""), T_STORE).await?,
+        "selecting the SMS read store",
+    )?;
+    Ok(r.value("+CPMS").and_then(|v| parse_cpms(v, 0)))
+}
+
+/// Sets a receiving store with known capacity. A modem supporting only `mem1` must already report a usable
+/// `mem3` in its query response.
+pub(crate) async fn prepare_receiving_store(at: &At) -> Result<()> {
+    let mut s = at.session("sms", T_SHORT).await?;
+    let current = query_stores(&mut s).await.ok();
+    let stores = current.as_ref().and_then(cpms_stores);
+    if stores.is_some_and(|[_, _, (name, _, total)]| name == "SM" && total != 0) {
+        return Ok(());
+    }
+
+    for mem in STORES {
+        let mut capacity = stores.iter().flatten().find(|(name, ..)| *name == mem).map(|(_, _, total)| *total);
+        if capacity.is_none() {
+            capacity = select_read_store(&mut s, mem).await.ok().flatten().map(|(_, total)| total);
+        }
+        // When a three-argument-only modem is already set to a zero-capacity store, setup may try the SIM
+        // to recover it. Read-only operations never make that change.
+        let recover_to_sim = mem == "SM" && stores.is_some_and(|[_, _, (_, _, total)]| total == 0);
+        if !capacity.map_or(recover_to_sim, |total| total != 0) {
+            continue;
+        }
+
+        let r = s.send(&format!("AT+CPMS=\"{mem}\",\"{mem}\",\"{mem}\""), T_STORE).await?;
+        if !r.is_ok() {
+            continue;
+        }
+        let usable = match r.value("+CPMS").and_then(|v| parse_cpms(v, 2)) {
+            Some((_, total)) => total != 0,
+            None => {
+                let checked = query_stores(&mut s).await.ok();
+                checked.as_ref().and_then(cpms_stores).is_some_and(|stores| stores[2].2 != 0)
+            }
+        };
+        if usable {
+            return Ok(());
         }
     }
-    Err(Error::failed(format!("the modem refused the {mem} message store")))
+
+    if cpms_stores(&query_stores(&mut s).await?).is_some_and(|stores| stores[2].2 != 0) {
+        return Ok(());
+    }
+    Err(Error::failed("the modem has no confirmed SMS receiving store with capacity"))
 }
 
 /// The store to list, SIM (SM) first, then the modem's own (ME): one that holds anything, else one that can hold
-/// anything. The choice is left selected, receiving included: on the F50 ME has no room at all ("ME",0,0), and a
-/// modem left on it has nowhere to put an incoming message.
+/// anything. Only the read store is selected.
 async fn pick_store(s: &mut AtSession) -> Result<Storage> {
-    const STORES: [&str; 2] = ["SM", "ME"];
     let mut seen: Vec<Storage> = Vec::new();
     for mem in STORES {
-        let Ok(cap) = select_store(s, mem).await else { continue };
+        let Ok(cap) = select_read_store(s, mem).await else { continue };
         let (used, total) = cap.unwrap_or((0, 0));
         seen.push(Storage { store: mem.into(), used, total, at: unix_now() });
         if used != 0 {
@@ -95,7 +153,7 @@ async fn pick_store(s: &mut AtSession) -> Result<Storage> {
     let last = seen.last().map(|st| st.store.clone());
     let chosen = choose_store(seen).ok_or_else(|| Error::failed("the modem accepted neither SM nor ME storage"))?;
     if last.as_deref() != Some(chosen.store.as_str()) {
-        select_store(s, &chosen.store).await?;
+        select_read_store(s, &chosen.store).await?;
     }
     Ok(chosen)
 }
@@ -119,7 +177,7 @@ pub(crate) async fn list(s: &mut AtSession) -> Result<(Storage, Vec<Slot>)> {
 /// One slot (`AT+CMGR`), after selecting `mem` (the store a `+CMTI` named). `None` for an empty slot.
 pub(crate) async fn read_slot(s: &mut AtSession, mem: Option<&str>, index: u32) -> Result<Option<Slot>> {
     if let Some(mem) = mem {
-        select_store(s, mem).await?;
+        select_read_store(s, mem).await?;
     }
     pdu_mode(s).await?;
     let r = s.send(&format!("AT+CMGR={index}"), Duration::from_secs(10)).await?;
@@ -221,10 +279,28 @@ pub(crate) fn parse_cmgr(lines: &[String], index: u32) -> Option<Slot> {
     Some(Slot { index, unread, pdu: pdu.to_ascii_uppercase() })
 }
 
-/// Used and total from a `+CPMS:` value: `4,50,4,50,4,50` (set) or `"SM",4,50,...` (query).
-pub(crate) fn parse_cpms(v: &str) -> Option<(u32, u32)> {
+/// Used and total for a store in a `+CPMS:` value: `4,50,4,50,4,50` (set) or `"SM",4,50,...` (query).
+fn parse_cpms(v: &str, slot: usize) -> Option<(u32, u32)> {
     let mut nums = v.split(',').map(str::trim).filter(|f| !f.starts_with('"')).map(|f| f.parse::<u32>());
-    Some((nums.next()?.ok()?, nums.next()?.ok()?))
+    Some((nums.nth(slot * 2)?.ok()?, nums.next()?.ok()?))
+}
+
+async fn query_stores(s: &mut AtSession) -> Result<Reply> {
+    need_ok(s.send("AT+CPMS?", T_SHORT).await?, "reading the SMS stores")
+}
+
+/// The names and capacities of the three stores from `AT+CPMS?`.
+fn cpms_stores(reply: &Reply) -> Option<[(&str, u32, u32); 3]> {
+    let v = reply.value("+CPMS")?;
+    let mut fields = v.split(',').map(str::trim);
+    let mut next = || {
+        let name = fields.next()?.strip_prefix('"')?.strip_suffix('"')?;
+        if name.len() != 2 || !name.bytes().all(|b| b.is_ascii_uppercase()) {
+            return None;
+        }
+        Some((name, fields.next()?.parse().ok()?, fields.next()?.parse().ok()?))
+    };
+    Some([next()?, next()?, next()?])
 }
 
 /// `"ADDRESS",TYPE`: `+` and digits, or hexadecimal (CSCS "HEX"), at most 64; a type of 1-3 digits.
@@ -296,9 +372,9 @@ mod tests {
 
     #[test]
     fn answers() {
-        assert_eq!(parse_cpms("4,50,4,50,4,50"), Some((4, 50)));
-        assert_eq!(parse_cpms("\"SM\",4,50,\"SM\",4,50"), Some((4, 50)));
-        assert_eq!(parse_cpms("x"), None);
+        assert_eq!(parse_cpms("4,50,4,50,4,50", 0), Some((4, 50)));
+        assert_eq!(parse_cpms("\"SM\",4,50,\"SM\",4,50", 0), Some((4, 50)));
+        assert_eq!(parse_cpms("x", 0), None);
         assert_eq!(parse_csca("\"2B38363133383030\",145"), Some(("2B38363133383030".into(), 145)));
         assert_eq!(parse_csca("\"+8613800\",145"), Some(("+8613800".into(), 145)));
         for bad in ["\"\",145", "\"+86\"", "+86,145", "\"+86;AT\",145", "\"+86\",1450", "\"+86\",x"] {

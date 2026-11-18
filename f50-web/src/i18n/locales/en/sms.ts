@@ -86,8 +86,8 @@ const m: Messages["sms"] = {
   bubble: {
     coding8bit: "8-bit",
     parts: "{count} parts",
-    incomplete: "Incomplete {have}/{total}",
-    incompleteTitle: "Some parts of this long message have not arrived yet",
+    incomplete: "Received {have}/{total} parts",
+    incompleteTitle: "Missing SMS parts are shown as [...]",
     menu: "Message actions",
     copyText: "Copy text",
   },

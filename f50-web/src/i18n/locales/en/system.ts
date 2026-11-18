@@ -182,7 +182,7 @@ const m: Messages["system"] = {
     profile: {
       title: "CPU performance mode",
       saved: "Saved; applied at boot",
-      unsaved: "Never saved; using the default balanced mode",
+      unsaved: "Using the default mode ({profile})",
       throttling: "Throttling",
       notThrottling: "Not throttled",
       switched: "Switched to {profile} mode",
@@ -193,14 +193,14 @@ const m: Messages["system"] = {
       },
       short: {
         saving: "Frequency capped: coolest, least power",
-        balanced: "Scales with load (default)",
+        balanced: "Scales with load",
         performance: "Always at full speed: fastest, hottest",
       },
       text: {
         saving:
           "schedutil governor, maximum frequency capped at the step within about 60% of the hardware maximum; least heat and power.",
         balanced:
-          "schedutil governor, scales with load, no cap on the maximum frequency. The default.",
+          "schedutil governor, scales with load, no cap on the maximum frequency.",
         performance:
           "performance governor, always at the maximum frequency; fastest response but the most heat.",
       },

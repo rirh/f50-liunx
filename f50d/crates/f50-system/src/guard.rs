@@ -27,6 +27,8 @@ use crate::config::ThermalConfig;
 use crate::cpu::{self, Cpu};
 use crate::thermal;
 
+pub(crate) const CAP_MARKER: &str = "thermal-capped";
+
 /// What a round does to the policies (decided by [`decide`], a pure function).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Step {
@@ -91,7 +93,7 @@ impl std::fmt::Debug for Guard {
 
 impl Guard {
     pub(crate) fn new(platform: Platform, cfg: ThermalConfig, cpu: Cpu, alarm: watch::Sender<bool>) -> Self {
-        let capped = platform.paths().run().join("thermal-capped");
+        let capped = platform.paths().run().join(CAP_MARKER);
         Guard { platform, cfg, cpu, alarm, capped, native_was: None, first: true, blind: false, powering_off: false }
     }
 

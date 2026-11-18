@@ -174,20 +174,20 @@ export default {
     profile: {
       title: "CPU 性能模式",
       saved: "已保存，开机时自动应用",
-      unsaved: "未保存过，使用默认的均衡模式",
+      unsaved: "当前使用默认的{profile}模式",
       throttling: "正在限频",
       notThrottling: "未限频",
       switched: "已切换到{profile}模式",
       label: { saving: "省电", balanced: "均衡", performance: "性能" },
       short: {
         saving: "频率封顶，最凉快、最省电",
-        balanced: "按负载自动升降频（默认）",
+        balanced: "按负载自动升降频",
         performance: "始终满频，最快也最热",
       },
       text: {
         saving:
           "schedutil 调度，最高频率限制在硬件最高频率约 60% 以内的档位，发热和功耗最低。",
-        balanced: "schedutil 调度，按负载升降频，不限制最高频率。默认配置。",
+        balanced: "schedutil 调度，按负载升降频，不限制最高频率。",
         performance:
           "performance 调度，始终运行在最高频率，响应最快但发热最大。",
       },

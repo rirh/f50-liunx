@@ -90,6 +90,7 @@ async fn submit(svc: Arc<Inner>, ctx: &JobCtx, out: Outgoing) -> Result<Value> {
         incomplete: None,
         partial: None,
         part_ids: Vec::new(),
+        fragments: Default::default(),
         text: out.text,
     };
     let stored = svc.pool.with(move |st| st.store(vec![msg], now)).await;

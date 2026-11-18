@@ -27,15 +27,21 @@ pub(crate) fn ts_secs(s: &str) -> Option<i64> {
     }
     let n = |r: std::ops::Range<usize>| s.get(r).and_then(|v| v.parse::<i64>().ok());
     let (y, m, d) = (n(2..4)?, n(5..7)?, n(8..10)?);
+    let (hour, minute, second) = (n(11..13)?, n(14..16)?, n(17..19)?);
     if !(1..=12).contains(&m) {
         return None;
     }
-    const BEFORE: [i64; 12] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-    let mut days = y * 365 + (y + 3) / 4 + BEFORE[(m - 1) as usize] + d - 1;
+    const BEFORE: [i64; 13] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365];
+    let month = (m - 1) as usize;
+    let month_days = BEFORE[month + 1] - BEFORE[month] + i64::from(m == 2 && y % 4 == 0);
+    if !(1..=month_days).contains(&d) || hour >= 24 || minute >= 60 || second >= 60 {
+        return None;
+    }
+    let mut days = y * 365 + (y + 3) / 4 + BEFORE[month] + d - 1;
     if m > 2 && y % 4 == 0 {
         days += 1;
     }
-    Some(days * 86400 + n(11..13)? * 3600 + n(14..16)? * 60 + n(17..19)?)
+    Some(days * 86400 + hour * 3600 + minute * 60 + second)
 }
 
 /// Two timestamps within [`GROUP_WINDOW`]; one that cannot be read is near everything (the other things a group is
@@ -106,7 +112,8 @@ mod tests {
         assert!(!ts_near("2026-10-13 09:41:07", "2026-10-14 09:41:07"));
         assert_eq!(ts_secs("2000-01-01 00:00:00"), Some(0));
         // a timestamp that cannot be read is near everything, and decides nothing
-        for bad in ["", "2026-13-01 00:00:00", "20:6-10-13 09:41:07", "x"] {
+        for bad in ["", "2026-13-01 00:00:00", "2025-02-29 00:00:00", "2026-10-13 24:00:00", "20:6-10-13 09:41:07", "x"] {
+            assert!(ts_secs(bad).is_none());
             assert!(ts_near(bad, "2026-10-13 09:41:07"));
         }
     }

@@ -70,7 +70,9 @@ export function ProfileCard({ data }: { data: CpuStatus }) {
         <CardDescription>
           {data.saved
             ? t("system.cpu.profile.saved")
-            : t("system.cpu.profile.unsaved")}
+            : t("system.cpu.profile.unsaved", {
+                profile: t(PROFILE_TEXT[data.profile].label),
+              })}
         </CardDescription>
         <CardAction>
           {data.throttling ? (

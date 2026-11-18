@@ -4,8 +4,8 @@
 //! these channels (bash's and busybox ash's `read -t`, docs/research/FINDINGS.md 13c); epoll's edge-triggered mode on
 //! this vendor driver and its handling of `O_NONBLOCK` are not measured, and a read that ends up in `sbuf_read`
 //! blocks the calling thread until the modem talks. A thread of its own (taken from the runtime's blocking pool
-//! through the daemon's `TaskTracker`) runs exactly the measured `poll(POLLIN, 250 ms)` + `read` loop, can never stall
-//! an async worker, and checks its stop token between polls, so shutdown and a reopen end it within a quarter second.
+//! through the daemon's `TaskTracker`) waits in `poll(POLLIN)` and reads as soon as data arrives. In a quiet channel,
+//! the one-second timeout limits how often the reader wakes to check for shutdown or a reopen.
 //!
 //! The lines go to the channel task over a bounded queue (`blocking_send`: when the task is behind, the bytes wait in
 //! the modem's sbuf ring rather than being dropped). Nothing is ever discarded here: a URC that arrives mid-command
@@ -24,7 +24,7 @@ use crate::sys::{self, Ready};
 /// The longest line kept; a longer run of bytes without an end of line is passed on in pieces.
 const LINE_MAX: usize = 8 * 1024;
 /// How often the stop token is looked at while the channel is quiet.
-const POLL_SLICE: Duration = Duration::from_millis(250);
+const POLL_SLICE: Duration = Duration::from_secs(1);
 /// Read errors in a row after which the channel is reported closed.
 const ERRORS_MAX: u32 = 25;
 

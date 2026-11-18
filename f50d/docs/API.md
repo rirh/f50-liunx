@@ -229,6 +229,8 @@ source: `crates/f50-sms/src/api.rs`
 
 - **list** (write) — Conversations newest first with unread counts, or one conversation's messages (peer).
   - also returns `sim_storage` and `transport` (`{ims, cs, cs_stat, nas, ready, at}`, each `bool|null`; `ready: false` means the network currently gives the SIM no SMS path at all), as the last sync read them.
+  - Long messages missing parts are returned with `incomplete: {have, total}` and `[...]` in the missing positions.
+    A matching late part can update the same message ID and fill its gap while preserving its read status.
   - fields: `Field::opt("page", Rule::Int { min: 1, max: 100_000 }), Field::opt("per_page", Rule::Int { min: 1, max: 100 }), Field::opt("peer", Rule::Text { max_bytes: 64, max_chars: 32 }),`
 - **list_unread** (write) — Unread incoming messages across all conversations, newest first. Leaves read status unchanged.
   - fields: `page` (1–100,000, default 1), `per_page` (1–100, default 20)
