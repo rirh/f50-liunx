@@ -79,7 +79,7 @@ function RecipientHistory({
       disabled={disabled}
       autoHighlight
       onValueChange={(number) => {
-        if (number) onSelect(number);
+        if (number) onSelect(number + "");
       }}
     >
       <ComboboxTrigger
