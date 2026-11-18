@@ -99,6 +99,17 @@ export default {
     description:
       "最多 10 条拼接发送：GSM-7 每条 160 字（拼接时 153），含中文等字符时每条 70 字（67）。",
     number: "号码",
+    numberPlaceholder: "输入号码",
+    callingCode: "国家或地区区号，{code}",
+    callingCodeSearch: "搜索国家、地区或区号",
+    callingCodeEmpty: "没有匹配的国家或区号",
+    localNumber: "本地号码 / 短号",
+    fullNumber: "完整号码",
+    recipientHistory: "发送历史",
+    recipientHistorySearch: "搜索历史收件人号码",
+    recipientHistoryEmpty: "暂无发送过的号码",
+    recipientHistoryNoMatch: "没有匹配的号码",
+    recipientHistoryFailed: "无法读取发送历史",
     text: "内容",
   },
   push: {

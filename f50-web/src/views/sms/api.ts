@@ -16,6 +16,7 @@ const OBJ = "f50.sms";
 export const smsKeys = {
   all: ["sms"] as const,
   conversations: ["sms", "conversations"] as const,
+  recipients: ["sms", "recipients"] as const,
   thread: (peer: string) => ["sms", "thread", peer] as const,
   unread: ["sms", "unread"] as const,
   push: ["sms", "push"] as const,
@@ -24,6 +25,9 @@ export const smsKeys = {
 /** Conversations newest first (one page). */
 export const listConversations = (page: number, perPage: number) =>
   f50<ConversationPage>(OBJ, "list", { page, per_page: perPage });
+
+export const listRecipients = (signal?: AbortSignal) =>
+  f50<{ recipients: string[] }>(OBJ, "recipients", {}, { signal });
 
 /** One conversation's messages, newest first (one page). Nothing is marked read. */
 export const listThread = (peer: string, page: number, perPage: number) =>

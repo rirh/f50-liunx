@@ -1,6 +1,6 @@
 //! The `f50.sms` object.
 //!
-//! Message text and phone numbers are private: every method that returns them (`list`, `list_unread`, `read`) is
+//! Message text and phone numbers are private: methods that return them (`list`, `list_unread`, `recipients`, `read`) are
 //! `Access::Write`, as is everything that changes the pool or the modem. `unread` returns counts alone and is
 //! `Access::Read`.
 //!
@@ -9,6 +9,7 @@
 //!   modem store's capacity and the network's SMS paths (`transport`: IMS, CS, 5G SMS over NAS, `ready`) as the last
 //!   sync saw them; with `peer`, that conversation's messages whole, newest first.
 //!   Nothing is marked read.
+//! - `recipients {}`: up to 100 distinct numbers from outgoing messages, most recently sent first.
 //! - `list_unread {page, per_page}`: unread incoming messages across all peers, newest first. Nothing is marked read.
 //! - `read {id}`: one message whole; a received one is marked read.
 //! - `send {number, text}`: starts a send job, `{"job": id}`; the job's result is `{"id", "parts", "references"}`.
@@ -88,7 +89,7 @@ fn page(p: &Params) -> Page {
 
 pub(crate) fn object(sms: Sms) -> Object {
     let (a, b, c, d, e, f) = (sms.clone(), sms.clone(), sms.clone(), sms.clone(), sms.clone(), sms.clone());
-    let (g, h, i, unread) = (sms.clone(), sms.clone(), sms.clone(), sms);
+    let (g, h, i, unread, recipients) = (sms.clone(), sms.clone(), sms.clone(), sms.clone(), sms);
     Object::builder("f50.sms")
         .method(
             "list",
@@ -98,6 +99,16 @@ pub(crate) fn object(sms: Sms) -> Object {
             move |p: Params| {
                 let s = a.clone();
                 async move { s.list(page(&p), p.str("peer").map(str::to_owned)).await }
+            },
+        )
+        .method(
+            "recipients",
+            Access::Write,
+            &[],
+            "Up to 100 distinct numbers from outgoing messages, most recently sent first, as {recipients}.",
+            move |_p: Params| {
+                let s = recipients.clone();
+                async move { s.recipients().await }
             },
         )
         .method(

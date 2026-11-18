@@ -174,6 +174,10 @@ impl Sms {
         Ok(v)
     }
 
+    async fn recipients(&self) -> Result<Value> {
+        self.inner.pool.with(|st| Ok(json!({ "recipients": st.recipients() }))).await
+    }
+
     async fn list_unread(&self, page: Page) -> Result<Value> {
         self.inner.pool.with(move |st| Ok(st.unread_messages(page))).await
     }

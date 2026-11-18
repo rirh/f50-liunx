@@ -104,6 +104,17 @@ const m: Messages["sms"] = {
     description:
       "Up to 10 parts: GSM-7 holds 160 characters per message (153 per part), text with Chinese or other characters 70 (67).",
     number: "Number",
+    numberPlaceholder: "Enter number",
+    callingCode: "Country or region calling code, {code}",
+    callingCodeSearch: "Search countries or calling codes",
+    callingCodeEmpty: "No matching countries or calling codes",
+    localNumber: "Local number / short code",
+    fullNumber: "Full number",
+    recipientHistory: "Recent recipients",
+    recipientHistorySearch: "Search previous recipients",
+    recipientHistoryEmpty: "No previous recipients",
+    recipientHistoryNoMatch: "No matching numbers",
+    recipientHistoryFailed: "Could not load previous recipients",
     text: "Message",
   },
   push: {

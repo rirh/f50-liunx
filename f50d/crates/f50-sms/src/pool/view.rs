@@ -1,6 +1,8 @@
 //! What the API shows of the pool: conversations (one per peer, newest first, with unread counts), the messages of
 //! one conversation, all unread messages, and one message whole.
 
+use std::collections::HashSet;
+
 use serde::Serialize;
 
 use super::State;
@@ -9,6 +11,7 @@ use crate::pdu::Coding;
 
 /// The first line of a text, at most this many characters (the shell list's 44 bytes, in characters).
 const PREVIEW_CHARS: usize = 44;
+const MAX_RECENT_RECIPIENTS: usize = 100;
 
 /// One message as the API shows it (never its fingerprint or part ids).
 #[derive(Debug, Clone, Serialize)]
@@ -92,6 +95,22 @@ fn preview(text: &str) -> String {
 }
 
 impl State {
+    /// Distinct numbers in outgoing messages, ordered by their most recent send.
+    pub fn recipients(&self) -> Vec<String> {
+        let mut seen = HashSet::new();
+        self.messages()
+            .rev()
+            .filter(|m| m.dir == Dir::Out)
+            .map(|m| m.peer.as_str())
+            .filter(|&peer| {
+                let digits = peer.strip_prefix('+').unwrap_or(peer);
+                (1..=20).contains(&digits.len()) && digits.bytes().all(|b| b.is_ascii_digit()) && seen.insert(peer)
+            })
+            .take(MAX_RECENT_RECIPIENTS)
+            .map(str::to_owned)
+            .collect()
+    }
+
     pub fn unread_messages(&self, page: Page) -> serde_json::Value {
         let (_, unread) = self.counts();
         let messages = self.messages().rev().filter(|m| m.dir == Dir::In && m.status == Status::Unread);

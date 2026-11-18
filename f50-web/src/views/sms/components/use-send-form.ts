@@ -12,9 +12,15 @@ import { sendSms, smsKeys } from "../api";
 import { NUMBER_RE, smsTextProblem } from "../lib/encoding";
 import type { SendResult } from "../types";
 
-const schema = () =>
+const schema = (callingCode: string) =>
   z.object({
-    number: z.string().trim().regex(NUMBER_RE, t("sms.form.numberInvalid")),
+    number: z
+      .string()
+      .trim()
+      .transform((number) =>
+        number && !number.startsWith("+") ? callingCode + number : number,
+      )
+      .pipe(z.string().regex(NUMBER_RE, t("sms.form.numberInvalid"))),
     text: z.string().superRefine((v, ctx) => {
       const p = smsTextProblem(v);
       if (p) ctx.addIssue({ code: "custom", message: p });
@@ -26,10 +32,14 @@ export type SendValues = z.infer<ReturnType<typeof schema>>;
  * The send form both the composer and the new-message dialog use: validation as f50d checks it, the send job's
  * id while it runs, f50d's field errors on their fields.
  */
-export function useSendForm(number: string, onSent?: (number: string) => void) {
+export function useSendForm(
+  number: string,
+  onSent?: (number: string) => void,
+  callingCode = "",
+) {
   const qc = useQueryClient();
   const form = useForm<SendValues>({
-    resolver: zodResolver(useMemo(() => schema(), [])),
+    resolver: zodResolver(useMemo(() => schema(callingCode), [callingCode])),
     defaultValues: { number, text: "" },
   });
   const [job, setJob] = useState<{ id: string; number: string } | null>(null);

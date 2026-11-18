@@ -232,6 +232,7 @@ source: `crates/f50-sms/src/api.rs`
   - Long messages missing parts are returned with `incomplete: {have, total}` and `[...]` in the missing positions.
     A matching late part can update the same message ID and fill its gap while preserving its read status.
   - fields: `Field::opt("page", Rule::Int { min: 1, max: 100_000 }), Field::opt("per_page", Rule::Int { min: 1, max: 100 }), Field::opt("peer", Rule::Text { max_bytes: 64, max_chars: 32 }),`
+- **recipients** (write) — Up to 100 distinct numbers from outgoing messages, most recently sent first. Returns `{recipients: string[]}`.
 - **list_unread** (write) — Unread incoming messages across all conversations, newest first. Leaves read status unchanged.
   - fields: `page` (1–100,000, default 1), `per_page` (1–100, default 20)
   - returns `{unread, page, pages, per_page, messages}` with the same message fields as `list {peer}`.
