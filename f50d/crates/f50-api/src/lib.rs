@@ -5,7 +5,8 @@
 //!   the same dispatch path a client uses (so it never reaches into a crate's internals);
 //! - [`meta`]: `f50.meta`, the method table itself (objects, methods, access, fields and their rules), for a
 //!   frontend to discover the API and for the generated reference;
-//! - [`live`]: `f50.live`, the read methods a page shows live, pushed to subscribers while there are any;
+//! - [`live`]: `f50.live`, the read methods a page shows live, pushed to subscribers while a page wants them;
+//! - [`samples`]: the readings behind the live topics, shared by the topics and `f50.status`;
 //! - [`acl`]: the rpcd ACL generated from the same table, so access can never drift from the code.
 //!
 //! Objects that are only for the device itself (netifd's protocol handler, hotplug) are kept apart in
@@ -15,6 +16,7 @@ pub mod acl;
 pub mod live;
 pub mod meta;
 pub mod openapi;
+pub mod samples;
 pub mod status;
 
 use std::sync::Arc;
@@ -46,8 +48,8 @@ pub struct Api {
     public: Arc<Vec<Object>>,
     internal: Arc<Vec<Object>>,
     all: Arc<Vec<Object>>,
-    /// The public objects the live topics read (everything but `f50.live` itself).
-    readable: Arc<Vec<Object>>,
+    /// The live topics (their producers start in [`Api::run_live`]).
+    live: live::Live,
 }
 
 impl Api {
@@ -64,15 +66,17 @@ impl Api {
         public.push(s.jobs.object());
         public.push(f50_at::terminal::object(s.at.clone(), s.jobs.clone(), &s.paths));
         let snapshot = Arc::new(public.clone());
-        public.push(status::object(snapshot));
-        // the live topics read through the same table, f50.status included
-        let readable = Arc::new(public.clone());
-        public.push(live::object(readable.clone()));
+        let samples = samples::Samples::default();
+        public.push(status::object(snapshot, samples.clone()));
+        // the live topics read through the same table, f50.status included, and the same readings
+        let live = live::Live::new(Arc::new(public.clone()), samples);
+        public.push(live.object());
+        public.push(live.topics_object());
         // last, so the description covers every public object (itself included)
         let described = public.clone();
         public.push(meta::object(described));
         let all = public.iter().chain(internal.iter()).cloned().collect();
-        Api { public: Arc::new(public), internal: Arc::new(internal), all: Arc::new(all), readable }
+        Api { public: Arc::new(public), internal: Arc::new(internal), all: Arc::new(all), live }
     }
 
     pub fn public(&self) -> &[Object] {
@@ -93,15 +97,15 @@ impl Api {
         f50_core::rpc::envelope(&f50_core::rpc::dispatch(&self.all, object, method, req).await)
     }
 
-    /// Publishes the live topics while `subscribed` (see [`live::run`]).
+    /// Publishes live topics to the subscribed streams (see [`live::Live::run`]).
     pub fn run_live(
         &self,
         publish: live::Publish,
-        subscribed: tokio::sync::watch::Receiver<bool>,
+        subscribed: [tokio::sync::watch::Receiver<bool>; live::STREAMS.len()],
         tracker: &tokio_util::task::TaskTracker,
         shutdown: tokio_util::sync::CancellationToken,
     ) {
-        live::run(self.readable.clone(), publish, subscribed, tracker, shutdown);
+        self.live.run(publish, subscribed, tracker, shutdown);
     }
 
     /// The rpcd ACL for the public objects.

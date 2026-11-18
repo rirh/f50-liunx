@@ -150,7 +150,7 @@ Access: `R` = `f50-read`, `W` = admin. Everything that shows links, hosts or cli
 | `node_delete` | W | `id` (local nodes only) | `Profile` |
 | `probe` | W | `id`, `method?` `url`/`tcp`/`icmp` | `{"ms":n}` (`failed` with the reason when it does not answer) |
 | `group_select` | W | `group`, `node` | `[GroupStatus]` (remembered in `group_selections`) |
-| `group_test` | W | `group` | `[GroupStatus]` |
+| `group_test` | W | `group` | `[GroupStatus]`, or `{job}` for a group of more than 4 members while the engine is off. When off, one group is tested at a time with up to 2 probes in flight. |
 | `config_save` | W | `id?`, `name`, `text` (Body ≤ 256000), `url?` | `Config` (refused with the engine's error when the rules do not check) |
 | `config_delete` | W | `id` (not `default`; the active one falls back to `default`) | `Profile` |
 | `config_fetch` | W | `url` | `{"text"}` |

@@ -13,6 +13,7 @@ const JOB_KIND_LABEL: Record<string, Key> = {
 /** What started a job, by its method. */
 const JOB_METHOD_LABEL: Record<string, Key> = {
   "f50.at send": "tools.jobs.method.atSend",
+  "f50.modem set_imei": "cellular.sim.imei.write",
   "f50.sms send": "tools.jobs.method.smsSend",
   "f50.sms sync": "sms.actions.sync",
   "f50.wificlient join": "tools.jobs.method.wifiJoin",

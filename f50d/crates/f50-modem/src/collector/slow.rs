@@ -15,8 +15,6 @@ use super::{Collector, Round};
 use crate::shared::lock;
 
 #[allow(clippy::expect_used)]
-static IMEI_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new("^[0-9]{15,17}$").expect("valid pattern"));
-#[allow(clippy::expect_used)]
 static IMSI_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new("^[0-9]{6,15}$").expect("valid pattern"));
 #[allow(clippy::expect_used)]
 static ICCID_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new("^[0-9A-Fa-f]{18,22}$").expect("valid pattern"));
@@ -77,10 +75,11 @@ impl Collector {
         if same { qos(Some(&v)) } else { Value::Null }
     }
 
-    /// The identity: a fresh complete one is kept; a partial or expired one is asked again after `ident_retry`; the
-    /// flash cache is served while it is fresh; an expired complete one stays shown until a new one is complete.
+    /// Read the active slot once after start. A fresh complete reading is kept, and a partial or expired one is
+    /// asked again after `ident_retry`. Keep cached SIM details when only the modem's IMEI answers.
     pub(super) async fn identity(&self, r: &Round<'_>) {
         let (inner, cfg) = (&self.inner, &self.inner.cfg);
+        let Ok(_update) = inner.ident_update.try_lock() else { return };
         let fresh = |id: &Identity| unix_now().saturating_sub(id.ts) <= cfg.ident_max_age.as_secs();
         {
             let st = lock(&inner.ident);
@@ -92,41 +91,39 @@ impl Collector {
             }
         }
         let cached = ident::load_cache(inner.paths(), inner.slot);
-        if let Some((id, age)) = &cached
-            && age <= &cfg.ident_max_age.as_secs()
-        {
-            let mut st = lock(&inner.ident);
-            st.shown = Some(id.clone());
-            st.read_at = Some(Instant::now());
-            return;
-        }
         let first = |rep: Option<f50_at::Reply>| rep.and_then(|x| x.lines.into_iter().next());
         let mut id = Identity {
             ts: unix_now(),
             slot: inner.slot.number(),
+            imei: r.send("AT+CGSN", 2).await.as_ref().and_then(ident::modem_imei),
             mfg: first(r.send("AT+CGMI", 2).await),
             model: first(r.send("AT+CGMM", 2).await),
             fw: first(r.send("AT+CGMR", 2).await),
             ..Identity::default()
         };
-        // fifteen zeros is no IMEI (FINDINGS 220); the U30 Air's diag fallback (imei-diag) is not carried over
-        id.imei = r
-            .send("AT+CGSN", 2)
-            .await
-            .and_then(|x| ident_token(&x.lines, &IMEI_RE))
-            .map(|v| v[..15].to_owned())
-            .filter(|v| v != "000000000000000");
+        if let Some(imei) = id.imei.as_deref()
+            && let Err(e) = ident::save_original_imei(inner.paths(), inner.slot, imei)
+        {
+            tracing::warn!(error = %e, slot = inner.slot.number(), "could not keep the original IMEI");
+        }
         id.imsi = r.send("AT+CIMI", 2).await.and_then(|x| ident_token(&x.lines, &IMSI_RE));
         id.iccid =
             r.send("AT+CCID", 2).await.and_then(|x| ident_token(&x.lines, &ICCID_RE)).and_then(|v| iccid_value(&v));
         let shown = if id.complete() {
             ident::save_cache(inner.paths(), inner.slot, &id);
             Some(id)
-        } else if let Some((old, _)) = cached {
+        } else if let Some(mut old) = cached.as_ref().filter(|id| id.complete()).cloned() {
+            if id.imei.is_some() && id.imei != old.imei {
+                old.imei = id.imei;
+                ident::save_cache(inner.paths(), inner.slot, &old);
+            }
             Some(old)
         } else if id.empty() {
             None
         } else {
+            if id.imei.is_some() && id.imei.as_ref() != cached.as_ref().and_then(|old| old.imei.as_ref()) {
+                ident::save_cache(inner.paths(), inner.slot, &id);
+            }
             Some(id)
         };
         let mut st = lock(&inner.ident);

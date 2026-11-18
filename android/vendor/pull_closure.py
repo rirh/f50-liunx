@@ -172,14 +172,11 @@ def main():
                 todo.append(hit)
             else:
                 missing.append(lib)
-    print('pulled', len(seen) - len(missing))
-    print('missing', sorted(set(missing)))
-    # a requested file that is not there means the device does not have what was asked for: say so loudly,
-    # the caller decides what to do about it
-    gone = [r for r in roots if not (ROOT / r.lstrip('/')).is_file()]
-    if gone:
-        print('could not pull ' + ' '.join(gone), file=sys.stderr)
-    return 1 if gone else 0
+    if missing:
+        print('could not pull the complete set: ' + ' '.join(sorted(set(missing))), file=sys.stderr)
+        return 1
+    print('pulled', len(seen))
+    return 0
 
 
 if __name__ == '__main__':

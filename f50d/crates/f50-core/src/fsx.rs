@@ -51,6 +51,11 @@ pub fn write_atomic(path: &Path, data: &[u8], mode: u32) -> Result<()> {
     })
 }
 
+/// Makes changes to a directory's entries durable.
+pub fn sync_dir(dir: &Path) -> Result<()> {
+    fs::File::open(dir).and_then(|f| f.sync_all()).map_err(|e| Error::io(format!("sync {}", dir.display()), &e))
+}
+
 /// The file's contents, or `None` when it does not exist.
 pub fn read_opt(path: &Path) -> Result<Option<String>> {
     match fs::read_to_string(path) {

@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/f50/page-header";
 import { PendingButton } from "@/components/f50/pending-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useLiveState } from "@/hooks/use-live";
+import { useLiveTopic } from "@/hooks/use-live";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
@@ -21,7 +21,7 @@ import { useLiveStatus } from "./hooks/use-live-status";
 export default function Page() {
   const info = useQuery({ queryKey: systemKeys.info, queryFn: getInfo });
   const status = useLiveStatus();
-  const live = useLiveState() === "live";
+  const live = useLiveTopic("system");
   const s = status.data?.status;
   const failed = info.error ?? status.error;
   return (

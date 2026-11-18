@@ -54,6 +54,8 @@ android_state() {
 # ask the running Linux to boot Android next and reboot; then wait for adb
 linux_mode_to_android() {
     say "$(t 'The device is running F50 Linux, not Android')"
+    [ "${1:-}" != check ] ||
+        die "$(t 'boot Android yourself (on the device: sudo f50-next-boot android && sudo reboot)')"
     echo "  $(t 'Installing and uninstalling happen from Android, so the device has to reboot first.')"
     ask go "$(t 'Reboot the device into Android now? (yes/no)')" yes F50_ANS_REBOOT_ANDROID
     [ "$go" = yes ] || die "$(t 'boot Android yourself (on the device: sudo f50-next-boot android && sudo reboot)')"
@@ -162,11 +164,14 @@ target_attached() { android_lines | grep -q -E "$TARGET_RE"; }
 require_android() {
     # ANDROID_SERIAL naming the device in Linux: that is the one to send back to Android, not one to work on
     # (kept in LINUX_WANTED: with two boards in Linux it is the one that is rebooted, never the other)
-    case ${ANDROID_SERIAL:-} in F50LINUX*) LINUX_WANTED=$ANDROID_SERIAL; unset ANDROID_SERIAL ;; esac
+    case ${ANDROID_SERIAL:-} in F50LINUX*)
+        [ "${1:-}" != check ] || linux_mode_to_android check
+        LINUX_WANTED=$ANDROID_SERIAL; unset ANDROID_SERIAL ;;
+    esac
     # The device in Linux, and only a phone or tablet in Android: that is not the one to install to - offer to
     # send the device back to Android first
     if [ -z "${ANDROID_SERIAL:-}" ] && ! target_attached && { linux_adb_listed || linux_mode_running; }; then
-        linux_mode_to_android && return 0
+        linux_mode_to_android "$@" && return 0
     fi
     select_device
     if [ "$(android_state)" = device ]; then
@@ -181,6 +186,6 @@ require_android() {
         done
         return 0
     fi
-    { linux_adb_listed || linux_mode_running; } && linux_mode_to_android && return 0
+    { linux_adb_listed || linux_mode_running; } && linux_mode_to_android "$@" && return 0
     die "$(t 'no adb device (boot Android, enable USB debugging)')"
 }

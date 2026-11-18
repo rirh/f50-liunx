@@ -1,4 +1,5 @@
 import * as React from "react";
+import "@/hooks/use-motion";
 import { cn } from "@/lib/utils";
 import { gsap } from "gsap";
 import { Tabs as TabsPrimitive } from "radix-ui";
@@ -97,8 +98,8 @@ export function AnimatedSegmentedTabs<TValue extends string = string>({
 
       gsap.to(highlight, {
         ...nextState,
-        duration: 0.24,
-        ease: "power3.out",
+        duration: 0.42,
+        ease: "apple",
       });
     },
     [],

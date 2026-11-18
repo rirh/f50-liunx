@@ -4,10 +4,16 @@
 //! dispatch a client uses: each part is that method's envelope, so one failing part (the modem restarting) never
 //! hides the others, and the aggregate cannot drift from what the parts report. Only read methods are used, so the
 //! aggregate is itself a read: nothing private (SMS text, identities, client lists) is in it.
+//!
+//! A part that is also a live topic (the modem, the system meters, the unread count) is read through the shared
+//! [`Samples`]: a reading the topic took within its period is reused rather than taken again.
 
 use std::sync::Arc;
 
 use f50_core::rpc::{Access, Object, Params, dispatch, envelope};
+
+use crate::live;
+use crate::samples::Samples;
 use serde_json::{Map, Value, json};
 
 /// The parts: the key in the reply, and the read method it comes from.
@@ -23,20 +29,32 @@ pub const PARTS: &[(&str, &str, &str)] = &[
     ("sms", "f50.sms", "unread"),
 ];
 
-pub(crate) fn object(objects: Arc<Vec<Object>>) -> Object {
+pub(crate) fn object(objects: Arc<Vec<Object>>, samples: Samples) -> Object {
     Object::builder("f50.status")
         .method("get", Access::Read, &[], "The dashboard: every part's read method in one call.", move |_p: Params| {
             let objs = objects.clone();
-            async move { Ok(collect(&objs).await) }
+            let samples = samples.clone();
+            async move { Ok(collect(&objs, &samples).await) }
         })
         .build()
 }
 
-async fn collect(objects: &[Object]) -> Value {
+/// How old a shared reading of a part may be: its live topic's period; `None` for a part no topic reads.
+fn shared_age(object: &str, method: &str) -> Option<std::time::Duration> {
+    live::TOPICS.iter().find(|t| t.object == object && t.method == method).map(|t| t.every)
+}
+
+async fn collect(objects: &[Object], samples: &Samples) -> Value {
     let empty = json!({});
     let calls = PARTS.iter().filter(|(_, o, m)| is_read(objects, o, m)).map(|(key, o, m)| {
         let req = &empty;
-        async move { (*key, envelope(&dispatch(objects, o, m, req).await)) }
+        async move {
+            let v = match shared_age(o, m) {
+                Some(age) => samples.read(objects, o, m, age).await,
+                None => envelope(&dispatch(objects, o, m, req).await),
+            };
+            (*key, v)
+        }
     });
     let parts = join_all(calls).await;
     let mut out = Map::new();

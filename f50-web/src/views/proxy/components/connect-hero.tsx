@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AnimatedSegmentedTabs } from "@/components/ui/animated-segmented-tabs";
 import { Card } from "@/components/ui/card";
 import { SweepShine } from "@/components/ui/sweep-shine";
 import { Switch } from "@/components/ui/switch";
+import { prefersReducedMotion } from "@/hooks/use-motion";
 import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
+import { useGSAP } from "@gsap/react";
+import { gsap } from "gsap";
 import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon } from "lucide-react";
 import { NodeFlag } from "./node-flag";
 import { probeNode } from "../api";
@@ -29,34 +32,133 @@ type Probe =
   | { state: "fail"; error: string }
   | null;
 
-/** The last minute of download as a faint area behind the status: the traffic, without a chart of its own. */
+/**
+ * A smooth path through points one unit apart from `x0`: monotone cubic segments (Fritsch–Carlson, as d3's
+ * curveMonotoneX), so the curve never swings past its neighbours or below the baseline.
+ */
+function smoothPath(ys: number[], x0: number): string {
+  const n = ys.length;
+  if (n < 2) return "";
+  const d = ys.slice(1).map((y, i) => y - ys[i]);
+  const m = ys.map((_, i) => {
+    if (i === 0) return d[0];
+    if (i === n - 1) return d[n - 2];
+    const a = d[i - 1];
+    const b = d[i];
+    return a * b <= 0
+      ? 0
+      : Math.sign(a) *
+          Math.min(Math.abs(a), Math.abs(b), Math.abs(a + b) / 4) *
+          2;
+  });
+  let p = `M${x0},${ys[0]}`;
+  for (let i = 0; i < n - 1; i++) {
+    const x = x0 + i;
+    p += `C${x + 1 / 3},${ys[i] + m[i] / 3},${x + 2 / 3},${ys[i + 1] - m[i + 1] / 3},${x + 1},${ys[i + 1]}`;
+  }
+  return p;
+}
+
+const SPARK_W = 60;
+const SPARK_H = 20;
+
+/**
+ * The last minute of traffic as a faint area behind the status: the traffic, without a chart of its own. It moves
+ * as a stream rather than in steps: each new sample comes in from the right and GSAP slides the whole curve one
+ * place left over the time to the next sample, while the scale eases to the new peak. Frames are drawn straight
+ * into the paths (no React render per frame).
+ */
 function Sparkline({ rates }: { rates: Rate[] }) {
+  const area = useRef<SVGPathElement>(null);
+  const down = useRef<SVGPathElement>(null);
+  const up = useRef<SVGPathElement>(null);
+  const view = useRef({ shift: 0, max: 0 });
+  const data = useRef(rates);
+  const lastT = useRef<number | null>(null);
+
+  useGSAP(
+    () => {
+      const prevT = lastT.current;
+      const latest = rates.at(-1)?.t ?? null;
+      data.current = rates;
+      lastT.current = latest;
+      const v = view.current;
+      const peak = Math.max(1, ...rates.map((r) => Math.max(r.down, r.up)));
+
+      const draw = () => {
+        const rs = data.current;
+        const el = [area.current, down.current, up.current];
+        if (rs.length < 2 || el.some((e) => !e)) return;
+        const max = Math.max(1, v.max);
+        const y = (n: number) =>
+          SPARK_H - (Math.min(n, max) / max) * (SPARK_H - 2);
+        const x0 = SPARK_W - (rs.length - 1) + v.shift;
+        const dl = smoothPath(
+          rs.map((r) => y(r.down)),
+          x0,
+        );
+        area.current!.setAttribute(
+          "d",
+          `${dl}L${x0 + rs.length - 1},${SPARK_H}L${x0},${SPARK_H}Z`,
+        );
+        down.current!.setAttribute("d", dl);
+        up.current!.setAttribute(
+          "d",
+          smoothPath(
+            rs.map((r) => y(r.up)),
+            x0,
+          ),
+        );
+      };
+
+      if (prefersReducedMotion() || prevT == null || v.max === 0) {
+        gsap.killTweensOf(v);
+        v.shift = 0;
+        v.max = peak;
+        draw();
+        return;
+      }
+      if (latest != null && latest !== prevT) {
+        // the new sample starts one place to the right, and the curve slides in until the next is due
+        const gap = Math.min(5, Math.max(0.5, (latest - prevT) / 1000));
+        v.shift += 1;
+        gsap.to(v, {
+          shift: 0,
+          duration: gap,
+          ease: "none",
+          overwrite: "auto",
+          onUpdate: draw,
+        });
+      }
+      gsap.to(v, {
+        max: peak,
+        duration: 0.6,
+        ease: "power2.out",
+        overwrite: "auto",
+        onUpdate: draw,
+      });
+      draw();
+    },
+    { dependencies: [rates] },
+  );
+
   if (rates.length < 2) return null;
-  const max = Math.max(1, ...rates.map((r) => Math.max(r.down, r.up)));
-  const w = 60;
-  const x = (i: number) => w - (rates.length - 1 - i);
-  const y = (v: number) => 20 - (v / max) * 18;
-  const line = (k: "down" | "up") =>
-    rates.map((r, i) => `${i ? "L" : "M"}${x(i)},${y(r[k])}`).join("");
   return (
     <svg
       aria-hidden
-      viewBox={`0 0 ${w} 20`}
+      viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}
       preserveAspectRatio="none"
       className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 w-full"
     >
+      <path ref={area} className="fill-primary/[0.07]" />
       <path
-        d={`${line("down")}L${x(rates.length - 1)},20L${x(0)},20Z`}
-        className="fill-primary/[0.07]"
-      />
-      <path
-        d={line("down")}
+        ref={down}
         className="fill-none stroke-primary/40"
         strokeWidth={1}
         vectorEffect="non-scaling-stroke"
       />
       <path
-        d={line("up")}
+        ref={up}
         className="fill-none stroke-chart-3/40"
         strokeWidth={1}
         vectorEffect="non-scaling-stroke"

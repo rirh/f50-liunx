@@ -9,7 +9,7 @@
 //! - Request bodies come from the field rules exactly as the validation applies them.
 //! - Response `data` schemas are inferred ([`infer`]) from replies sampled on a device: shapes and types only, never
 //!   values. A method that was not sampled (it writes, or needs arguments) has `data` left open.
-//! - The live event stream (`GET /ubus/subscribe/f50.live`) is a real path and is described as one.
+//! - The live event streams under `/ubus/subscribe/` are real paths and are described as such.
 
 use std::collections::BTreeMap;
 
@@ -170,24 +170,27 @@ pub fn generate(describe: &Value, samples: &BTreeMap<String, Value>, version: &s
             paths.insert(format!("/{object}/{method}"), json!({ "post": op }));
         }
     }
-    paths.insert(
-        "/ubus/subscribe/f50.live".into(),
-        json!({ "get": {
-        "tags": ["f50.live"],
-        "operationId": "live.subscribe",
-        "summary": "The live event stream",
-        "description": "A real uhttpd path (not a virtual one): `text/event-stream` of `f50.live` notifications while \
-                        subscribed. Each event's name is a topic (`status`, `system`, `modem`, `cells`, `sms`) and its \
-                        data the envelope of the read method behind it. Needs `:subscribe` on `f50.live` \
-                        (in `f50-read`). The session goes in `Authorization: Bearer <session>`.",
-        "x-real-path": true,
-        "responses": {
-            "200": { "description": "The event stream.",
-                     "content": { "text/event-stream": { "schema": { "type": "string" },
-                       "example": "event: modem\ndata: {\"ok\":true,\"data\":{...}}\n\n" } } },
-        },
-    } }),
-    );
+    for (object, operation, topics) in [
+        (crate::live::OBJECT, "live.subscribe", "Publishes every topic while subscribed."),
+        (crate::live::TOPICS_OBJECT, "live.topics.subscribe", "Publishes topics named by current `f50.live.topics want` leases."),
+    ] {
+        paths.insert(
+            format!("/ubus/subscribe/{object}"),
+            json!({ "get": {
+                "tags": [object],
+                "operationId": operation,
+                "summary": "The live event stream",
+                "description": format!("{topics} Each event's name is its topic, with the read method's response envelope as data. \
+                    Send `Authorization: Bearer <session>` with the `:subscribe` grant on `{object}` (in `f50-read`)."),
+                "x-real-path": true,
+                "responses": {
+                    "200": { "description": "The event stream.",
+                        "content": { "text/event-stream": { "schema": { "type": "string" },
+                            "example": "event: modem\ndata: {\"ok\":true,\"data\":{...}}\n\n" } } },
+                },
+            } }),
+        );
+    }
 
     json!({
         "openapi": "3.1.0",

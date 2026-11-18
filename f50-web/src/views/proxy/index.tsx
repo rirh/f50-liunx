@@ -4,6 +4,7 @@ import { PendingButton } from "@/components/f50/pending-button";
 import { QueryState } from "@/components/f50/query-state";
 import { Button } from "@/components/ui/button";
 import { t } from "@/i18n";
+import { cn } from "@/lib/utils";
 import { PlusIcon, RefreshCwIcon } from "lucide-react";
 import { ConnectHero } from "./components/connect-hero";
 import { GroupsStatus } from "./components/groups-status";
@@ -30,9 +31,14 @@ export default function ProxyPage() {
                 variant="outline"
                 size="sm"
                 pending={update.isPending}
+                icon={
+                  <RefreshCwIcon
+                    data-icon="inline-start"
+                    className={cn(update.isPending && "animate-spin")}
+                  />
+                }
                 onClick={() => update.mutate("all")}
               >
-                <RefreshCwIcon data-icon="inline-start" />
                 {t("proxy.page.updateAll")}
               </PendingButton>
             )}

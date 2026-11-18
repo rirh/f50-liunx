@@ -1,7 +1,8 @@
 import { type ReactNode, useLayoutEffect, useRef } from "react";
+import "@/hooks/use-motion";
 import { gsap } from "gsap";
 
-/** The page's scroll area; a new route fades and rises in (one-template's DashboardPageTransition). */
+/** The page's scroll area; a new route fades and rises in on Apple's ease (one-template's DashboardPageTransition). */
 export function PageTransition({
   children,
   routeKey,
@@ -21,12 +22,12 @@ export function PageTransition({
     const ctx = gsap.context(() => {
       gsap.fromTo(
         el,
-        { autoAlpha: 0.5, y: 7 },
+        { autoAlpha: 0, y: 10 },
         {
           autoAlpha: 1,
           y: 0,
-          duration: 0.24,
-          ease: "power2.out",
+          duration: 0.5,
+          ease: "apple",
           clearProps: "transform,opacity,visibility",
         },
       );

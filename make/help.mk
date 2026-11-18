@@ -4,8 +4,9 @@ help:
 	@printf '%s\n' \
 	  '首次安装（macOS + 原厂 Android 的 F50；安装/维护命令会显式准备 ADB 与 root）' \
 	  '  make install         构建 f50d 和网页，开启 ADB，刷入 OpenWrt（本地构建，不下载上游镜像）' \
-	  '  make install-check   只检查设备空闲区域，不写入' \
+	  '  make install-check   只读：检查设备空闲区域；不开启 ADB、不准备 root、不改 USB 功能' \
 	  '  make adb             USB ADB 已连接则提示成功并退出；未连接时恢复，需 F50 Wi-Fi 和 Go' \
+	  '  make adb-root        准备 root 通道（install-check 提示没有 root shell 时先运行）' \
 	  '  make uninstall       卸载 Linux，恢复原厂 Android' \
 	  '  make backup          备份不可替代分区；BACKUP_DIR=... 指定目录' \
 	  '  make backup-full     全分区备份（大）' \

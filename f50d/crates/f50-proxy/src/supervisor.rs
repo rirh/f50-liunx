@@ -10,8 +10,8 @@
 //!   30 minutes).
 //! - Auto failover (one-node's `failover.rs`): the engine's health says the network is up and the selected node
 //!   down (two missed checks in a row, the engine's own rule): the other nodes of the same subscription (the local
-//!   nodes for a local one) are probed at once and the fastest that answers is selected. The next attempt waits
-//!   60 s after a switch and 120 s when none answered.
+//!   nodes for a local one) are probed in parallel with the supervisor and the fastest that answers is selected.
+//!   The next attempt waits 60 s after a switch and 120 s when none answered.
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -26,7 +26,9 @@ use tokio_util::sync::CancellationToken;
 use crate::Proxy;
 use crate::client::is_unreachable;
 use crate::nodes::{self, Candidate};
-use crate::request::{self, PROBE_TIMEOUT_MS};
+use crate::probes::PROBE_CONCURRENCY;
+use crate::profile::Profile;
+use crate::request;
 use crate::service::{Phase, SHORT};
 
 /// Ticks without an answer before the engine's service is started.
@@ -34,6 +36,7 @@ const UNREACHABLE_TICKS: u32 = 3;
 /// And between two such starts.
 const SERVICE_START_EVERY: Duration = Duration::from_secs(300);
 const REFRESH_RETRY_SECS: u64 = 1800;
+const FAILOVER_PROBE_WAIT: Duration = Duration::from_secs(25);
 const FAILOVER_AFTER_SWITCH: Duration = Duration::from_secs(60);
 const FAILOVER_AFTER_NONE: Duration = Duration::from_secs(120);
 
@@ -44,13 +47,19 @@ struct Watch {
     /// The last refresh attempt of each subscription (Unix seconds).
     refresh_tried: HashMap<String, u64>,
     failover_after: Instant,
+    failover: JoinSet<Option<Instant>>,
 }
 
 pub(crate) async fn run(proxy: Proxy, shutdown: CancellationToken) {
     let mut tick = tokio::time::interval(proxy.inner.cfg.supervise_every);
     tick.set_missed_tick_behavior(MissedTickBehavior::Delay);
-    let mut w =
-        Watch { unreachable: 0, service_started: None, refresh_tried: HashMap::new(), failover_after: Instant::now() };
+    let mut w = Watch {
+        unreachable: 0,
+        service_started: None,
+        refresh_tried: HashMap::new(),
+        failover_after: Instant::now(),
+        failover: JoinSet::new(),
+    };
     loop {
         tokio::select! {
             () = shutdown.cancelled() => return,
@@ -68,6 +77,9 @@ pub(crate) async fn run(proxy: Proxy, shutdown: CancellationToken) {
 }
 
 async fn once(proxy: &Proxy, w: &mut Watch) {
+    if let Some(Ok(Some(after))) = w.failover.try_join_next() {
+        w.failover_after = after;
+    }
     let inner = &proxy.inner;
     let status = inner.engine_status(SHORT).await;
     // a change under way holds ops: this tick leaves it alone
@@ -118,7 +130,10 @@ async fn once(proxy: &Proxy, w: &mut Watch) {
             return;
         }
         drop(ops);
-        failover(proxy, w, &status).await;
+        if w.failover.is_empty() && Instant::now() >= w.failover_after && node_down(&status) {
+            let proxy = proxy.clone();
+            w.failover.spawn(async move { failover(&proxy, &status).await });
+        }
     } else if running || firewall || phase != Phase::Off {
         let _ = inner.apply(&ops).await;
     }
@@ -166,22 +181,30 @@ async fn refresh_due(proxy: &Proxy, w: &mut Watch) {
     }
 }
 
-/// The fastest of the candidates that answers, all probed at once.
+/// The fastest reply within the recovery budget, including time spent waiting for a probe slot.
 async fn fastest(proxy: &Proxy, url: &str, candidates: Vec<Candidate>) -> Option<(Candidate, i64)> {
+    let mut candidates = candidates.into_iter();
     let mut set = JoinSet::new();
-    for c in candidates {
-        let engine = proxy.inner.engine.clone();
-        let body = request::probe_body(&c.link, &c.via, "url", url);
-        set.spawn(async move {
-            let r = engine.post("/v1/probe", &body, Duration::from_millis(PROBE_TIMEOUT_MS + 4000)).await;
-            let ms = r.ok().and_then(|v| v["ms"].as_i64()).filter(|ms| *ms > 0);
-            (c, ms)
-        });
-    }
+    let deadline = Instant::now() + FAILOVER_PROBE_WAIT;
     let mut best: Option<(Candidate, i64)> = None;
-    while let Some(r) = set.join_next().await {
+    loop {
+        for c in candidates.by_ref().take(PROBE_CONCURRENCY - set.len()) {
+            let inner = proxy.inner.clone();
+            let body = request::probe_body(&c.link, &c.via, "url", url);
+            set.spawn(async move {
+                let ms = inner.probes.ms(&inner.engine, &body).await;
+                (c, ms)
+            });
+        }
+        let Ok(Some(r)) = tokio::time::timeout_at(deadline, set.join_next()).await else { break };
         let Ok((c, ms)) = r else { continue };
-        proxy.inner.record_delay(&c.name, ms);
+        {
+            let mut st = proxy.inner.lock();
+            if st.profile.settings.probe_url != url || !same_node(&st.profile, &c) {
+                continue;
+            }
+            st.delays.insert(c.name.clone(), ms);
+        }
         if let Some(ms) = ms
             && best.as_ref().is_none_or(|(_, b)| ms < *b)
         {
@@ -191,56 +214,76 @@ async fn fastest(proxy: &Proxy, url: &str, candidates: Vec<Candidate>) -> Option
     best
 }
 
-async fn failover(proxy: &Proxy, w: &mut Watch, status: &Value) {
+fn node_down(status: &Value) -> bool {
     let health = &status["health"];
-    let down = health["online"] == Value::Bool(true) && health["node_ok"] == Value::Bool(false);
-    if !down || Instant::now() < w.failover_after {
-        return;
-    }
+    status["running"] == Value::Bool(true)
+        && health["online"] == Value::Bool(true)
+        && health["node_ok"] == Value::Bool(false)
+}
+
+fn same_node(p: &Profile, candidate: &Candidate) -> bool {
+    p.node(&candidate.id).filter(|n| n.usable()).and_then(|n| nodes::candidate(p, n)).as_ref() == Some(candidate)
+}
+
+async fn failover(proxy: &Proxy, status: &Value) -> Option<Instant> {
     let (current, others, url) = {
+        let mut st = proxy.inner.lock();
+        let p = &st.profile;
+        if !p.enabled || !p.settings.auto_failover {
+            return None;
+        }
+        let current = nodes::candidate(p, request::selected(p).ok()?)?;
+        if status["node"].as_str() != Some(current.name.as_str()) {
+            return None;
+        }
+        let others = nodes::candidates(p, &current.id, &st.delays);
+        let url = p.settings.probe_url.clone();
+        st.delays.insert(current.name.clone(), None);
+        (current, others, url)
+    };
+    if others.is_empty() {
+        return Some(Instant::now() + FAILOVER_AFTER_NONE);
+    }
+    tracing::warn!(node = %current.name, others = others.len(), "failover: the node does not answer; testing the others");
+    let Some((pick, ms)) = fastest(proxy, &url, others).await else {
+        tracing::warn!(node = %current.name, "failover: no other node answered in time; staying");
+        return Some(Instant::now() + FAILOVER_AFTER_NONE);
+    };
+
+    let ops = proxy.inner.ops.lock().await;
+    {
         let st = proxy.inner.lock();
         let p = &st.profile;
-        if !p.settings.auto_failover {
-            return;
+        if !p.enabled
+            || !p.settings.auto_failover
+            || p.settings.probe_url != url
+            || p.selected.as_deref() != Some(current.id.as_str())
+            || !same_node(p, &current)
+            || !same_node(p, &pick)
+        {
+            return None;
         }
-        let Some(cur) = p.selected.clone() else { return };
-        let name = p.node(&cur).map(|n| n.name.clone()).unwrap_or_default();
-        ((cur.clone(), name), nodes::candidates(p, &cur, &st.delays), p.settings.probe_url.clone())
-    };
-    proxy.inner.record_delay(&current.1, None);
-    if others.is_empty() {
-        w.failover_after = Instant::now() + FAILOVER_AFTER_NONE;
-        return;
     }
-    tracing::warn!(node = %current.1, others = others.len(), "failover: the node does not answer; testing the others");
-    let Some((pick, ms)) = fastest(proxy, &url, others).await else {
-        tracing::warn!(node = %current.1, "failover: no other node answers; staying");
-        w.failover_after = Instant::now() + FAILOVER_AFTER_NONE;
-        return;
-    };
-    w.failover_after = Instant::now() + FAILOVER_AFTER_SWITCH;
-    let ops = proxy.inner.ops.lock().await;
+    let latest = proxy.inner.engine_status(SHORT).await.ok()?;
+    if !node_down(&latest) || latest["node"] != status["node"] || latest["since"] != status["since"] {
+        return None;
+    }
     let before = proxy.inner.fingerprint();
-    let r = proxy
+    let saved = proxy
         .inner
         .commit(&ops, |p| {
-            // the user may have picked another node, or turned it off, meanwhile
-            if p.enabled && p.selected.as_deref() == Some(current.0.as_str()) && p.node(&pick.id).is_some() {
-                p.selected = Some(pick.id.clone());
-                Ok(true)
-            } else {
-                Ok(false)
-            }
+            p.selected = Some(pick.id.clone());
+            Ok(())
         })
         .await;
-    match r {
-        Ok(true) => {
-            tracing::warn!(from = %current.1, to = %pick.name, ms, "failover: switched node");
+    match saved {
+        Ok(()) => {
+            tracing::warn!(from = %current.name, to = %pick.name, ms, "failover: switched node");
             if let Err(e) = proxy.inner.reapply(&ops, &before).await {
                 tracing::warn!(error = %e, "failover: the proxy did not restart on the new node");
             }
         }
-        Ok(false) => {}
         Err(e) => tracing::warn!(error = %e, "failover: the new selection was not saved"),
     }
+    Some(Instant::now() + FAILOVER_AFTER_SWITCH)
 }

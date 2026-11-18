@@ -227,9 +227,15 @@ pub(crate) fn object(proxy: &Proxy) -> Object {
         "Points a select group at a node and remembers the pick.",
         |x, p| async move { x.group_select(p.need_str("group")?, p.need_str("node")?).await },
     );
-    let b = m(b, proxy, "group_test", Write, GROUP_TEST, "Tests the delay of a group's nodes.", |x, p| async move {
-        x.group_test(p.need_str("group")?).await
-    });
+    let b = m(
+        b,
+        proxy,
+        "group_test",
+        Write,
+        GROUP_TEST,
+        "Tests the delay of a group's nodes: the groups, or `{job}` for a large group while the proxy is off.",
+        |x, p| async move { x.group_test(p.need_str("group")?).await },
+    );
     let b = m(
         b,
         proxy,

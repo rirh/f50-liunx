@@ -6,7 +6,7 @@
 
 use std::time::Duration;
 
-use f50_core::{Error, Result};
+use f50_core::{Code, Error, Result};
 use f50_platform::services::Action;
 use serde_json::{Value, json};
 
@@ -14,7 +14,7 @@ use crate::Proxy;
 use crate::firewall::mac_ok;
 use crate::nodes;
 use crate::profile::{BUILTIN_ID, Config, Node, Routing, next_id};
-use crate::request::{self, PROBE_TIMEOUT_MS};
+use crate::request;
 use crate::service::SHORT;
 
 const INSPECT_TIMEOUT: Duration = Duration::from_secs(15);
@@ -257,9 +257,9 @@ impl Proxy {
             let body = request::probe(&st.profile, id, method)?;
             (body, st.profile.node(id).map(|n| n.name.clone()).unwrap_or_default())
         };
-        let r = self.inner.engine.post("/v1/probe", &body, Duration::from_millis(PROBE_TIMEOUT_MS + 4000)).await;
+        let r = self.inner.probes.run(&self.inner.engine, &body).await;
         let ms = r.as_ref().ok().and_then(|v| v["ms"].as_i64()).filter(|ms| *ms > 0);
-        if method == "url" {
+        if method == "url" && !r.as_ref().is_err_and(|e| e.code() == Code::Busy) {
             self.inner.record_delay(&name, ms);
         }
         match (r, ms) {

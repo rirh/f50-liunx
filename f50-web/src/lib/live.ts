@@ -1,5 +1,5 @@
 /**
- * `f50.live` over uhttpd's `/ubus/subscribe/<object>`: an event stream that f50d fills while somebody listens.
+ * Live events over uhttpd's `/ubus/subscribe/<object>`: f50.live.topics for leases, or f50.live for all topics.
  *
  * `EventSource` cannot send headers and uhttpd takes the rpcd session only as `Authorization: Bearer <session>`, so
  * the stream is read with `fetch`. Each event is named after a topic (`status`, `system`, `modem`, `cells`, `sms`)
@@ -11,6 +11,7 @@
 import { t } from "@/i18n";
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "/ubus";
+export const LIVE_TOPICS_OBJECT = "f50.live.topics";
 
 export type LiveTopic =
   | "status"
@@ -71,10 +72,11 @@ export async function readLive(
   signal: AbortSignal,
   onOpen: () => void,
   onEvent: (e: LiveEvent) => void,
+  object = "f50.live",
 ): Promise<StreamEnd> {
   let res: Response;
   try {
-    res = await fetch(`${BASE}/subscribe/f50.live`, {
+    res = await fetch(`${BASE}/subscribe/${object}`, {
       headers: {
         Authorization: `Bearer ${session}`,
         Accept: "text/event-stream",

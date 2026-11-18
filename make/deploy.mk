@@ -19,4 +19,6 @@ deploy-proxy: proxy
 deploy-web: web-deps
 	$(MAKE) -C f50-web deploy DEVICE=$(SSH_TARGET) SSH_OPTS="$(SSH_OPTS)"
 
-deploy-reboot: deploy reboot
+# deploy first, then the reboot: a chain, not two prerequisites (make -j would run those side by side)
+deploy-reboot: deploy
+	@$(MAKE) --no-print-directory reboot

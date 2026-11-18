@@ -52,6 +52,8 @@ pub(crate) struct Inner {
     pub sim_state: Mutex<Option<SimState>>,
     pub sim_check: Notify,
     pub ident: Mutex<IdentState>,
+    /// Keeps an identity poll from publishing a reading while the IMEI is being changed.
+    pub ident_update: tokio::sync::Mutex<()>,
     pub operator: Mutex<OperatorCache>,
     pub lock_cache: Mutex<Option<Arc<LockReading>>>,
     pub lock_refreshing: AtomicBool,
@@ -95,6 +97,7 @@ impl Inner {
             sim_state: Mutex::new(None),
             sim_check: Notify::new(),
             ident: Mutex::new(IdentState::default()),
+            ident_update: tokio::sync::Mutex::new(()),
             operator: Mutex::new(OperatorCache::default()),
             lock_cache: Mutex::new(None),
             lock_refreshing: AtomicBool::new(false),

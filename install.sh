@@ -64,6 +64,9 @@
 # Build:    needs adb, docker, python3, lz4 and the kernel outputs in $F50_KERNEL_OUT (default: out/, kernel/vendor/build-all.sh).
 # The images contain no proprietary files from this repository: Wi-Fi/Bluetooth firmware and the Android modem/GPU
 # userspace are pulled from *your* device into $F50_WORK (default: work/), never leave the host except to your device.
+# $F50_WORK/vendor.key ties them to that device and its firmware: another device or firmware pulls them again.
+# F50_PREBUILT=1 (set by make install, after make build): systems/openwrt/build-rootfs.sh takes f50d and the proxy
+# engine as built instead of building them a second time; run on its own, the installer has them built there.
 set -eu
 TOP=$(cd "$(dirname "$0")" && pwd)
 KOUT=${F50_KERNEL_OUT:-$TOP/out}
@@ -103,6 +106,7 @@ if [ $ANSWERS_MODE = 1 ]; then
     case $F50_LANG in en|zh) ;; *) die "no answer to the language question: set F50_LANG to en or zh" ;; esac
 fi
 choose_language
+[ $CHECK_ONLY = 0 ] || [ $BACKUP_ONLY = 0 ] || die "$(t '--check and --backup cannot be combined')"
 progress hello script install.sh version 1 mode "$([ $CHECK_ONLY = 1 ] && echo check || { [ $BACKUP_ONLY = 1 ] && echo backup || echo $MODE; })"
 # su_do: installer/lib/host-tools.sh (a root adb shell as stock F50 has it, or su)
 
@@ -120,6 +124,16 @@ dev_pull() {  # dev_pull DEVICE_PATH LOCAL_PATH   (DEVICE_PATH may be a block de
     adb pull /data/local/tmp/f50-pull.bin "$2" >/dev/null 2>&1 || true
     su_do 'rm -f /data/local/tmp/f50-pull.bin' >/dev/null
     [ -s "$2" ] || die "$(t 'could not read {1} from the device' "$1")"
+}
+
+# Read fixed-size blocks without creating a device-side file. Hex survives the CRLF conversion of some root shells.
+read_device_blocks() {  # DEVICE_PATH BLOCK_SIZE SKIP COUNT LOCAL_PATH
+    su_do "dd if=$1 bs=$2 skip=$3 count=$4 2>/dev/null | od -An -tx1 -v" |
+        python3 -c 'import sys; from pathlib import Path
+data = bytes.fromhex(sys.stdin.read())
+if len(data) != int(sys.argv[1]):
+    sys.exit("incomplete block read")
+Path(sys.argv[2]).write_bytes(data)' "$(( $2 * $4 ))" "$5"
 }
 
 sha256_of() { (shasum -a 256 "$1" 2>/dev/null || sha256sum "$1" 2>/dev/null) | cut -d' ' -f1; }
@@ -163,7 +177,7 @@ if [ $CHECK_ONLY = 0 ]; then
 fi
 . "$TOP/installer/lib/linux-mode.sh"
 . "$TOP/installer/lib/usb-adb.sh"
-require_android
+if [ $CHECK_ONLY = 1 ]; then require_android check; else require_android; fi
 # make adb may have seen Linux before require_android rebooted into Android.
 # Installation can prepare the root channel here; read-only modes keep their existing boundary.
 if [ $CHECK_ONLY = 0 ] && [ $BACKUP_ONLY = 0 ] && [ "$(su_do 'id -u' 2>/dev/null)" != 0 ]; then
@@ -196,7 +210,9 @@ if [ -n "$PROGRESS_FD" ]; then
     fi
 fi
 [ "$(su_do 'id -u')" = 0 ] || die "$(t 'no root shell on the device: turn on USB debugging first (make adb, or http://192.168.0.1/index.html#usb_port), see README')"
-usb_adb_only        # adb alone on USB for this run, no MTP (installer/lib/usb-adb.sh); back at the end while in Android
+# adb alone on USB for this run, no MTP (installer/lib/usb-adb.sh); back at the end while in Android. --check changes
+# nothing on the device, not even its USB functions for a while.
+[ $CHECK_ONLY = 1 ] || usb_adb_only
 model="$(su_do 'getprop ro.product.model') / $(su_do 'getprop ro.product.device')"
 echo "$(t 'device: {1}' "$model")"
 [ $BL_STATE != locked ] || echo "$(t 'WARNING: {1}' "$BL_WARN")"
@@ -268,9 +284,11 @@ bootchain_plan() {
     if [ "${MODEL_KNOWN:-1}" = 0 ]; then
         SYNC_BOOTCHAIN=0; BC_LINE=$(t 'boot chain:     not synced (the model is not recognised)'); return 0
     fi
+    if [ $CHECK_ONLY = 1 ]; then
+        BC_LINE=$(t 'boot chain:     not checked in read-only mode'); return 0
+    fi
     adb push "$TOP/installer/android/android-bootchain.sh" $T/android-bootchain.sh >/dev/null 2>&1 || BC_REFUSED=$(t 'no answer from the device')
     bootchain_line "$(su_do "sh $T/android-bootchain.sh check")" && return 0
-    if [ $CHECK_ONLY = 1 ]; then BC_LINE="$(t 'boot chain:     cannot be synced: {1}' "$BC_REFUSED")"; return 0; fi
     die "$(t 'the boot chain cannot be copied to the Linux slot: {1}' "$BC_REFUSED")
 $(t 'Nothing was changed. Experts can skip this step with F50_SYNC_BOOTCHAIN=0.')"
 }
@@ -305,11 +323,17 @@ offer_repartition() {
     say "$(t 'Not enough free space - this looks like the 32 GB variant')"
     mkdir -p "$WORK/gpt"
     internal_disk
-    su_do "dd if=/dev/block/$IDISK bs=512 count=$GPT_HEAD 2>/dev/null > /data/local/tmp/gpt.head" >/dev/null
-    su_do "dd if=/dev/block/$IDISK bs=512 skip=$((disk - GPT_TAIL)) count=$GPT_TAIL 2>/dev/null > /data/local/tmp/gpt.tail" >/dev/null
-    adb pull /data/local/tmp/gpt.head "$WORK/gpt/gpt.head" >/dev/null 2>&1 || true
-    adb pull /data/local/tmp/gpt.tail "$WORK/gpt/gpt.tail" >/dev/null 2>&1 || true
-    su_do 'rm -f /data/local/tmp/gpt.head /data/local/tmp/gpt.tail' >/dev/null
+    if [ $CHECK_ONLY = 1 ]; then
+        read_device_blocks "/dev/block/$IDISK" 512 0 "$GPT_HEAD" "$WORK/gpt/gpt.head" &&
+            read_device_blocks "/dev/block/$IDISK" 512 "$((disk - GPT_TAIL))" "$GPT_TAIL" "$WORK/gpt/gpt.tail" ||
+            die "$(t 'could not read the partition table')"
+    else
+        su_do "dd if=/dev/block/$IDISK bs=512 count=$GPT_HEAD 2>/dev/null > /data/local/tmp/gpt.head" >/dev/null
+        su_do "dd if=/dev/block/$IDISK bs=512 skip=$((disk - GPT_TAIL)) count=$GPT_TAIL 2>/dev/null > /data/local/tmp/gpt.tail" >/dev/null
+        adb pull /data/local/tmp/gpt.head "$WORK/gpt/gpt.head" >/dev/null 2>&1 || true
+        adb pull /data/local/tmp/gpt.tail "$WORK/gpt/gpt.tail" >/dev/null 2>&1 || true
+        su_do 'rm -f /data/local/tmp/gpt.head /data/local/tmp/gpt.tail' >/dev/null
+    fi
     [ -s "$WORK/gpt/gpt.head" ] && [ -s "$WORK/gpt/gpt.tail" ] || die "$(t 'could not read the partition table')"
 
     # resize-last-partition.py validates both GPT copies and every CRC before it says anything
@@ -358,6 +382,8 @@ $(t 'and Android needs at least {1} of it. Nothing is changed.' "$(gib $((MIN_AN
         echo "    keep   $(t "Android keeps its data (apps, files, accounts, settings): its filesystem is shrunk while Android runs,")"
         echo "           $(t "by Android's own kernel, then the partition table is written and Android restarts once. {1} of it is" "$(gib "$ON_USED")")"
         echo "           $(t 'in use now. Method: dikeckaan; implementation: kanoqwq.')"
+    elif [ "$ONLINE" = unknown ]; then
+        echo "    keep   $ONLINE_REASON"
     else
         echo "    keep   $(t "not possible on this device: {1}" "$ONLINE_REASON")"
     fi
@@ -704,6 +730,25 @@ if [ -n "$NEW_PW_OSES" ]; then
 fi
 
 # ---------------------------------------------------------------- pull vendor data from the device
+# What $WORK keeps from one run to the next (the vendor subsets, the firmware, cltest built against the device's GPU
+# libraries, an F50_REUSE_BUILD rootfs that holds them) belongs to one device and one firmware: $WORK/vendor.key
+# names them (the serial and Android's build, as preflight reads them, the vendor build and the slot). Another device
+# or another firmware (an OTA) drops all of it and pulls again; so does a key that cannot be read. The key is written
+# once everything is pulled: an interrupted run leaves none, and the next one starts over.
+vendor_key() {
+    _vs=$(adb_prop ro.serialno); _vb=$(adb_prop ro.build.display.id)
+    [ -n "$_vs" ] && [ -n "$_vb" ] || return 0
+    printf 'serial=%s build=%s vendor=%s slot=%s\n' "$_vs" "$_vb" "$(adb_prop ro.vendor.build.fingerprint)" "$ANDROID_SLOT"
+}
+VENDOR_KEY=$(vendor_key)
+if [ -z "$VENDOR_KEY" ] || [ "$(cat "$WORK/vendor.key" 2>/dev/null)" != "$VENDOR_KEY" ]; then
+    [ ! -e "$WORK/vendor.key" ] && [ ! -d "$WORK/android-subset" ] ||
+        say "$(t 'The vendor files in {1} are of another device or firmware: pulling them again' "$WORK")"
+    rm -rf "$WORK/vendor.key" "$WORK/android-subset" "$WORK/android-gpu-subset" "$WORK/android-gpu.key" "$WORK/firmware" "$WORK/device-tools/gpu" \
+        "$WORK/f50-openwrt.tar.gz" "$WORK/f50-openwrt.key"
+fi
+# the GPU answer decides all three: pulled, cltest built, and packed (build-rootfs.sh reads F50_GPU)
+GPU=0; [ "$gpu" = yes ] && GPU=1
 mkdir -p "$WORK/dumps" "$WORK/firmware"
 step pull 15
 say "$(t 'Pulling device data into {1} (stays on this computer)' "$WORK")"
@@ -728,9 +773,22 @@ for f in wcnmodem.bin gnssmodem.bin wifi_board_config.ini wifi_board_config_ab.i
 done
 [ -z "$missing" ] || die "$(t 'these firmware files could not be read from the device:{1}' "$missing")
 $(t 'Wi-Fi and Bluetooth need them; without them the system installs and boots but has no hotspot.')"
-if [ "$gpu" = yes ] && [ ! -d "$WORK/android-gpu-subset" ]; then
-    sh "$TOP/android/vendor/extract-gpu-subset.sh" "$WORK/android-gpu-subset"
+# Publish the GPU cache only after the complete closure is present. Older partial directories have no key.
+if [ $GPU = 1 ]; then
+    GPU_KEY="$(sha256_of "$TOP/android/vendor/extract-gpu-subset.sh") $(sha256_of "$TOP/android/vendor/pull_closure.py")"
+    if [ ! -d "$WORK/android-gpu-subset" ] || [ "$(cat "$WORK/android-gpu.key" 2>/dev/null)" != "$GPU_KEY" ]; then
+        (
+            stage=$(mktemp -d "$WORK/android-gpu.XXXXXX")
+            trap 'rm -rf "$stage"' EXIT
+            sh "$TOP/android/vendor/extract-gpu-subset.sh" "$stage/subset"
+            printf '%s\n' "$GPU_KEY" > "$stage/key"
+            rm -rf "$WORK/android-gpu.key" "$WORK/android-gpu-subset"
+            mv "$stage/subset" "$WORK/android-gpu-subset"
+            mv "$stage/key" "$WORK/android-gpu.key"
+        )
+    fi
 fi
+[ -z "$VENDOR_KEY" ] || printf '%s\n' "$VENDOR_KEY" > "$WORK/vendor.key"
 
 # ---------------------------------------------------------------- build
 say "$(t 'Building helper binaries')"
@@ -749,7 +807,9 @@ docker run --rm -v "$TOP/device-tools":/src:ro -v "$WORK/device-tools":/o f50-kb
   gcc -O2 -static -o /o/bt-init/f50-bt-init /src/bt-init/f50-bt-init.c &&
   mkdir -p /o/keys && gcc -O2 -static -o /o/keys/f50-keys /src/keys/f50-keys.c &&
   mkdir -p /o/carry && gcc -O2 -static -o /o/carry/f50-carry /src/carry/f50-carry.c'
-if [ -d "$WORK/android-gpu-subset" ]; then
+# cltest only with the GPU (built against its libraries); without it no cltest of an earlier run is left to pack
+rm -f "$WORK/device-tools/gpu/cltest"
+if [ $GPU = 1 ]; then
     L=$(mktemp -d "$WORK/cllibs.XXXX")
     cp "$WORK/android-gpu-subset/vendor/lib64/libOpenCL.so" "$WORK/android-subset/apex/com.android.runtime/lib64/bionic/libc.so" \
        "$WORK/android-subset/apex/com.android.runtime/lib64/bionic/libdl.so" "$L/"
@@ -758,12 +818,10 @@ if [ -d "$WORK/android-gpu-subset" ]; then
     rm -rf "$L"
 fi
 
-# F50_REUSE_BUILD=1 keeps rootfs tarballs from an earlier run of this script
-reuse() { [ "${F50_REUSE_BUILD:-0}" = 1 ] && [ -s "$WORK/f50-$1.tar.gz" ] && echo "reusing $WORK/f50-$1.tar.gz"; }
-reuse openwrt || {
-    say "$(t 'Building the OpenWrt root filesystem')"
-    F50_SYSTEM=openwrt F50_INPUTS="$WORK" sh "$TOP/systems/openwrt/build-rootfs.sh" f50-openwrt-rootfs.tar.gz >/dev/null
-    mv "$TOP/systems/openwrt/f50-openwrt-rootfs.tar.gz" "$WORK/f50-openwrt.tar.gz"; }
+say "$(t 'Building the OpenWrt root filesystem')"
+# The builder hashes the actual inputs when F50_REUSE_BUILD=1, including binaries built there for standalone installs.
+F50_SYSTEM=openwrt F50_INPUTS="$(cd "$WORK" && pwd)" F50_GPU=$GPU \
+    sh "$TOP/systems/openwrt/build-rootfs.sh" "$(cd "$WORK" && pwd)/f50-openwrt.tar.gz" >/dev/null
 BUSYBOX=$WORK/busybox; LOGDW=$WORK/device-tools/logdw/logdw
 PWHASH=; [ -z "$pw1" ] || PWHASH=$(printf '%s' "$pw1" | docker run --rm -i f50-ubuntu:24.04 openssl passwd -6 -stdin)
 

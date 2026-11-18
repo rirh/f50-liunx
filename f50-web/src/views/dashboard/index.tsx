@@ -7,7 +7,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useLiveState, usePoll } from "@/hooks/use-live";
+import { useLiveTopic, usePoll } from "@/hooks/use-live";
 import { useStaggerIn } from "@/hooks/use-motion";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
@@ -24,6 +24,7 @@ import { ProxyCard } from "./components/proxy-card";
 import { ServiceList } from "./components/service-list";
 import { Shortcuts } from "./components/shortcuts";
 import { SystemCard } from "./components/system-card";
+import { UnreadSms } from "./components/unread-sms";
 import { issuesOf } from "./health";
 import type { DashboardStatus } from "./types";
 
@@ -72,7 +73,7 @@ function Health({ s }: { s: DashboardStatus }) {
 /**
  * The device on one screen, each fact said once, with no page title (the breadcrumb names it). Left, the wider column:
  * the network card (carrier, speed, usage, signal), what the page is opened to see, and under it the device's own
- * resources. Right: the service list (data, hotspot, uplink, USB, messages, version: one row each, switches in place),
+ * resources. Right: the newest unread messages (only while there are any), the service list (data, hotspot, uplink, USB, messages, version: one row each, switches in place),
  * with the health and, while polling, a refresh button in its heading; then the shortcuts.
  */
 export default function DashboardPage() {
@@ -81,7 +82,7 @@ export default function DashboardPage() {
     queryFn: getStatus,
     refetchInterval: usePoll(POLL_MS, "status"),
   });
-  const live = useLiveState() === "live";
+  const live = useLiveTopic("status");
   const s = query.data;
   const page = useRef<HTMLDivElement>(null);
   useStaggerIn(page, !!s, "[data-reveal]");
@@ -130,6 +131,9 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex flex-col gap-4">
+            {s.sms?.ok && s.sms.data.unread > 0 && (
+              <UnreadSms unread={s.sms.data.unread} />
+            )}
             <div data-reveal>
               <ServiceList s={s} aside={aside} />
             </div>

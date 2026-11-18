@@ -7,14 +7,25 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use f50_core::jobs::{JobCtx, JobSpec};
 use f50_core::{Error, Result};
 use serde_json::{Value, json};
 use tokio::task::JoinSet;
 
 use crate::Proxy;
 use crate::nodes;
+use crate::probes::GROUP_PROBE_CONCURRENCY;
 use crate::profile::Profile;
 use crate::request::{self, PROBE_TIMEOUT_MS};
+
+/// With the engine off, a group of more members than this is tested as a background job rather than inside the
+/// request (each member is a temporary Xray instance in the engine, a few at a time).
+pub(crate) const GROUP_TEST_INLINE_MAX: usize = 4;
+/// The engine status call can take another 5 seconds within the 30-second ubus request.
+const GROUP_TEST_INLINE_WAIT: Duration = Duration::from_secs(22);
+
+/// The job of a large group's test: its own kind, so it never waits on (or blocks) a subscription update.
+const GROUP_TEST_JOB: JobSpec = JobSpec::new("f50.proxy group_test", "proxy-probe", Duration::from_secs(300));
 
 /// The active config's checked groups.
 fn checked(p: &Profile) -> Vec<Value> {
@@ -102,7 +113,9 @@ impl Proxy {
         Ok(if groups.is_array() { groups } else { self.idle_groups() })
     }
 
-    /// Tests a group's members: the engine's own test while it runs, else a probe through each member here.
+    /// Tests a group's members: the engine's own test while it runs, else a probe through each member here,
+    /// a few at a time ([`crate::probes`]). A group of more than [`GROUP_TEST_INLINE_MAX`] members is then tested
+    /// as a job (`{"job": id}`, its result the groups) instead of holding the request for the whole run.
     pub(crate) async fn group_test(&self, group: &str) -> Result<Value> {
         if self.inner.engine_running().await {
             return self
@@ -111,42 +124,72 @@ impl Proxy {
                 .post("/v1/groups/test", &json!({ "group": group }), Duration::from_millis(PROBE_TIMEOUT_MS + 15_000))
                 .await;
         }
-        let bodies: Vec<(String, Value)> = {
-            let st = self.inner.lock();
-            let p = &st.profile;
-            let g = checked(p)
-                .into_iter()
-                .find(|g| g["name"] == json!(group))
-                .ok_or_else(|| Error::not_found(format!("group {group}")))?;
-            let names = members(&g);
-            p.nodes()
-                .filter(|n| n.usable() && names.contains(&n.name))
-                .filter_map(|n| {
-                    let via = nodes::via_links(p, n).ok()?;
-                    Some((n.name.clone(), request::probe_body(&n.link, &via, "url", &p.settings.probe_url)))
-                })
-                .collect()
-        };
-        let mut set = JoinSet::new();
-        for (name, body) in bodies {
-            let engine = self.inner.engine.clone();
-            set.spawn(async move {
-                let wait = Duration::from_millis(PROBE_TIMEOUT_MS + 4000);
-                let ms = engine
-                    .post("/v1/probe", &body, wait)
-                    .await
-                    .ok()
-                    .and_then(|r| r["ms"].as_i64())
-                    .filter(|ms| *ms > 0);
-                (name, ms)
-            });
+        let bodies = self.member_probes(group)?;
+        let permit = self.inner.probes.begin_idle_group()?;
+        if bodies.len() <= GROUP_TEST_INLINE_MAX {
+            tokio::time::timeout(GROUP_TEST_INLINE_WAIT, self.probe_members(bodies, None))
+                .await
+                .map_err(|_| Error::timeout("the group test"))?;
+            return Ok(self.idle_groups());
         }
-        while let Some(r) = set.join_next().await {
+        let me = self.clone();
+        let job = self.inner.jobs.start(GROUP_TEST_JOB, move |ctx: JobCtx| async move {
+            let _permit = permit;
+            ctx.log(format!("testing {} nodes, {GROUP_PROBE_CONCURRENCY} at a time", bodies.len()));
+            me.probe_members(bodies, Some(&ctx)).await;
+            Ok(me.idle_groups())
+        })?;
+        Ok(json!({ "job": job }))
+    }
+
+    /// The probe request of each usable member of `group` in the active config, by node name.
+    fn member_probes(&self, group: &str) -> Result<Vec<(String, Value)>> {
+        let st = self.inner.lock();
+        let p = &st.profile;
+        let g = checked(p)
+            .into_iter()
+            .find(|g| g["name"] == json!(group))
+            .ok_or_else(|| Error::not_found(format!("group {group}")))?;
+        let names = members(&g);
+        Ok(p.nodes()
+            .filter(|n| n.usable() && names.contains(&n.name))
+            .filter_map(|n| {
+                let via = nodes::via_links(p, n).ok()?;
+                Some((n.name.clone(), request::probe_body(&n.link, &via, "url", &p.settings.probe_url)))
+            })
+            .collect())
+    }
+
+    /// Keeps only the next few members in the shared probe queue, leaving room for other callers.
+    async fn probe_members(&self, bodies: Vec<(String, Value)>, job: Option<&JobCtx>) {
+        let mut bodies = bodies.into_iter();
+        let mut set = JoinSet::new();
+        loop {
+            for (name, body) in bodies.by_ref().take(GROUP_PROBE_CONCURRENCY - set.len()) {
+                let inner = self.inner.clone();
+                set.spawn(async move {
+                    let ms = inner.probes.ms(&inner.engine, &body).await;
+                    (name, ms)
+                });
+            }
+            let next = match job {
+                Some(ctx) => tokio::select! {
+                    () = ctx.cancelled() => break,
+                    r = set.join_next() => r,
+                },
+                None => set.join_next().await,
+            };
+            let Some(r) = next else { break };
             if let Ok((name, ms)) = r {
                 self.inner.record_delay(&name, ms);
+                if let Some(ctx) = job {
+                    ctx.log(match ms {
+                        Some(ms) => format!("{name}: {ms} ms"),
+                        None => format!("{name}: no answer"),
+                    });
+                }
             }
         }
-        Ok(self.idle_groups())
     }
 }
 

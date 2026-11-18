@@ -42,7 +42,7 @@
 | **系统**     | 系统信息、性能与温控、指示灯、系统设置、系统更新、启动                                                                                                                               |
 | **工具**     | 命令行（浏览器里的 root shell，刷新页面不断开）、AT 终端、后台任务、系统日志                                                                                                         |
 
-页面数据通过 `f50.live` 实时推送（标题栏显示「实时」）；推送不可用时自动改为定时刷新。
+页面数据通过 `f50.live.topics` 实时推送（标题栏显示「实时」），旧固件可用 `f50.live`。推送不可用时自动改为定时刷新。
 
 ## 快速开始
 
@@ -90,8 +90,17 @@ make kernel     # 构建内核（只需一次）
 make install    # 构建 f50d 和网页，开启 ADB，刷入 OpenWrt
 ```
 
-`make install` 会自己开启 ADB 并准备 root。如果失败，先在原厂管理页 `http://192.168.0.1` 用**管理密码**打开
-「ADB 调试」，或运行 `make adb`，再重试。只想检查空间、不写入：`make install-check`。
+`make install` 依次构建 f50d、代理引擎和网页，开启 ADB 并准备 root，再运行安装器；根文件系统直接使用这次构建的
+f50d 和代理引擎，不再重复编译（单独运行 `./install.sh` 或 `systems/openwrt/build-rootfs.sh` 时由脚本自己构建）。
+如果开启 ADB 失败，先在原厂管理页 `http://192.168.0.1` 用**管理密码**打开「ADB 调试」，或运行 `make adb`，再重试。
+
+只想检查空间、不写入：`make install-check`。它是只读的：不开启 ADB、不准备 root、不改 USB 功能，所以需要设备已经
+通过 USB ADB 连接，已启动 Android 并有 root shell。缺少 root shell 时可先运行 `make adb-root`。
+启动链和需要上传辅助程序的在线缩容能力会标记为未检查。
+
+从设备拉取的厂商文件（Android 厂商子集、GPU 子集、Wi-Fi/蓝牙固件）缓存在 `work/`，并用 `work/vendor.key`
+记下设备序列号和固件版本：换了设备或固件（含 OTA）会自动丢弃旧缓存重新拉取。安装时回答不要 GPU，则 GPU 子集
+既不拉取、`cltest` 也不编译，镜像里也不打包。设置 `F50_REUSE_BUILD=1` 时，只在本地打包输入一致时复用此前用该选项生成的 rootfs。
 
 安装完成后设备重启进入 OpenWrt：电脑通过 USB 网络连到 `192.168.77.1`，打开 `http://192.168.77.1/` 登录。
 
@@ -129,6 +138,7 @@ make test           # f50d 和代理引擎的测试，网页 lint 和类型检�
 make deploy         # 通过 SSH 部署 f50d、代理引擎和网页到运行中的设备
 make deploy-f50d    # 只换 f50d 并重启守护进程
 make deploy-web     # 只部署网页
+make deploy-reboot  # 部署完成后再整机重启（make -j 下也保持先部署后重启）
 make ssh            # 登录设备
 make status         # 内核、版本、内存和 f50d 状态
 make logs           # 跟踪系统日志

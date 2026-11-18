@@ -7,8 +7,17 @@
 import { type RefObject, useRef } from "react";
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
+import { CustomEase } from "gsap/CustomEase";
 
-gsap.registerPlugin(useGSAP);
+gsap.registerPlugin(useGSAP, CustomEase);
+
+/**
+ * Apple's ease-out (the curve UIKit sheets settle on, `--ease-apple` in CSS): it leaves at once and spends its
+ * second half settling, so things glide to rest instead of stopping. `appleInOut` is for size changes, which
+ * should start gently too.
+ */
+CustomEase.create("apple", "0.32,0.72,0,1");
+CustomEase.create("appleInOut", "0.65,0,0.35,1");
 
 export function prefersReducedMotion() {
   return (
@@ -25,7 +34,7 @@ export function useTweenedText(
   ref: RefObject<HTMLElement | null>,
   value: number | null | undefined,
   format: (n: number | null) => string,
-  duration = 0.6,
+  duration = 0.8,
 ) {
   const shown = useRef<{ v: number | null }>({ v: null });
   useGSAP(
@@ -43,7 +52,7 @@ export function useTweenedText(
       gsap.to(shown.current, {
         v: target,
         duration,
-        ease: "power2.out",
+        ease: "apple",
         overwrite: true,
         onUpdate: () => {
           el.textContent = format(shown.current.v);
@@ -71,10 +80,11 @@ export function useStaggerIn(
       if (prefersReducedMotion()) return;
       gsap.from(ref.current.querySelectorAll(selector), {
         opacity: 0,
-        y: 12,
-        duration: 0.45,
-        ease: "power2.out",
-        stagger: 0.05,
+        y: 10,
+        scale: 0.985,
+        duration: 0.7,
+        ease: "apple",
+        stagger: { amount: 0.3 },
         clearProps: "opacity,transform",
       });
     },

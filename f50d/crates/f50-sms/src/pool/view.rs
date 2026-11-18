@@ -1,5 +1,5 @@
 //! What the API shows of the pool: conversations (one per peer, newest first, with unread counts), the messages of
-//! one conversation, and one message whole.
+//! one conversation, all unread messages, and one message whole.
 
 use serde::Serialize;
 
@@ -92,6 +92,19 @@ fn preview(text: &str) -> String {
 }
 
 impl State {
+    pub fn unread_messages(&self, page: Page) -> serde_json::Value {
+        let (_, unread) = self.counts();
+        let messages = self.messages().rev().filter(|m| m.dir == Dir::In && m.status == Status::Unread);
+        let messages: Vec<MessageView> = page.take(messages).into_iter().map(MessageView::from).collect();
+        serde_json::json!({
+            "unread": unread,
+            "page": page.page,
+            "pages": page.pages(unread),
+            "per_page": page.per_page,
+            "messages": messages,
+        })
+    }
+
     /// Conversations newest first (by their newest message), with the pool's totals.
     pub fn conversations(&self, page: Page) -> serde_json::Value {
         let mut convs: Vec<Conversation> = Vec::new();

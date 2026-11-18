@@ -16,7 +16,7 @@ fn methods(objects: &[Object], only_read: bool) -> BTreeMap<&'static str, Vec<&'
             o.methods.iter().filter(|x| !only_read || x.access == Access::Read).map(|x| x.name).collect();
         let mut names = names;
         // a subscription (uhttpd's /ubus/subscribe) is a read: it only ever receives what the read methods return
-        if o.name == crate::live::OBJECT {
+        if crate::live::STREAMS.contains(&o.name) {
             names.push(":subscribe");
         }
         if !names.is_empty() {
@@ -47,9 +47,10 @@ mod tests {
 
     #[test]
     fn a_live_subscription_is_a_read() {
-        let objs = vec![crate::live::object(std::sync::Arc::new(Vec::new()))];
+        let live = crate::live::Live::new(std::sync::Arc::new(Vec::new()), crate::samples::Samples::default());
+        let objs = vec![live.object(), live.topics_object()];
         let acl = generate(&objs);
         assert_eq!(acl["f50-read"]["read"]["ubus"]["f50.live"], json!(["get", ":subscribe"]));
-        assert_eq!(acl["f50-admin"]["write"]["ubus"]["f50.live"], json!(["get", ":subscribe"]));
+        assert_eq!(acl["f50-read"]["read"]["ubus"]["f50.live.topics"], json!(["want", ":subscribe"]));
     }
 }

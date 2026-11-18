@@ -3,6 +3,7 @@ import { QueryState } from "@/components/f50/query-state";
 import { t } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { getSim, simKeys } from "./api";
+import { ImeiCard } from "./components/imei-card";
 import { CardRadioCard } from "./components/radio-card";
 import { SlotCard } from "./components/slot-card";
 
@@ -23,6 +24,7 @@ export default function SimPage() {
           <div className="grid gap-4 lg:grid-cols-2">
             <SlotCard key={sim.default} sim={sim} />
             <CardRadioCard sim={sim} />
+            <ImeiCard sim={sim} />
           </div>
         )}
       </QueryState>

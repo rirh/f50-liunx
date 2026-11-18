@@ -17,7 +17,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useLiveState } from "@/hooks/use-live";
+import { useLiveTopic } from "@/hooks/use-live";
 import { t } from "@/i18n";
 import { formatDuration } from "@/lib/format";
 import { type TableColumn, columnHelper } from "@/lib/table";
@@ -101,7 +101,7 @@ export function ClientsCard() {
   });
   const [filter, setFilter] = useState("");
   // the list refreshes itself every 15 s; a manual refresh only while the page is not live
-  const live = useLiveState() === "live";
+  const live = useLiveTopic("system");
   return (
     <Card>
       <CardHeader>

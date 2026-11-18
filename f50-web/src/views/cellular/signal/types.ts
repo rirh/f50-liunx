@@ -141,6 +141,10 @@ export interface Identity {
 export interface ModemIdentity {
   slot: 1 | 2;
   ident: Identity | null;
+  /** The last IMEI read for SIM1 and SIM2. Older daemons omit this. */
+  imeis?: [string | null, string | null];
+  /** The first IMEI saved for SIM1 and SIM2. Older daemons omit this. */
+  original_imeis?: [string | null, string | null];
   msisdn: string | null;
   msisdn_src: "sim" | "ims" | null;
 }

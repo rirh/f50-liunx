@@ -6,7 +6,7 @@ import {
   TerminalSelect,
 } from "@/components/f50/terminal";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLiveState } from "@/hooks/use-live";
+import { useLiveTopic } from "@/hooks/use-live";
 import { t } from "@/i18n";
 import { copyText } from "@/lib/clipboard";
 import { errorMessage } from "@/lib/format";
@@ -47,13 +47,13 @@ export default function Page() {
   const [lines, setLines] = useAtom(linesAtom);
   const [auto, setAuto] = useAtom(autoRefreshAtom);
   const [filter, setFilter] = useAtom(filterAtom);
-  // the stream only counts once it has pushed a log fingerprint (an older f50d has no `logs` topic)
+  // wants the `logs` topic while open; it only counts once a fingerprint came (an older f50d has no `logs` topic)
   const mark = useQuery({
     queryKey: logsMarkKey,
     queryFn: getLogsMark,
     enabled: false,
   });
-  const live = useLiveState() === "live" && !!mark.data;
+  const live = useLiveTopic("logs") && !!mark.data;
   const query = useQuery({
     queryKey: logsKey(lines),
     queryFn: () => getLogs(lines),

@@ -277,3 +277,7 @@ Installing OpenWrt {1} (router, LuCI web UI) with the 5.4 vendor kernel	安装 O
 Password for "root" (OpenWrt)	"root"（OpenWrt）的密码
 back to Android: f50-next-boot android	回到 Android：f50-next-boot android
 which adb device is the F50?	哪个 adb 设备是 F50？
+The vendor files in {1} are of another device or firmware: pulling them again	{1} 中的厂商文件属于另一台设备或另一版固件：重新拉取
+boot chain:     not checked in read-only mode	启动链：只读模式下未检查
+online shrink: not checked in read-only mode	在线缩小：只读模式下未检查
+--check and --backup cannot be combined	--check 和 --backup 不能同时使用

@@ -130,6 +130,18 @@ export default {
       internal: "SIM2 内置",
       hint: "仅保存选择；需要手动重启设备才会切换。",
     },
+    imei: {
+      description:
+        "原始 IMEI 是每个卡槽首次留存的基带读数。要编辑另一卡槽，请先切换卡槽并重启。",
+      unknown: "未读取",
+      lastRead: "上次读取",
+      original: "原始 IMEI",
+      originalUnknown: "未留存",
+      edit: "编辑 {slot} 的 IMEI",
+      confirm: "确认将这个 IMEI 写入所选卡槽。写入后会回读核对。",
+      write: "写入 IMEI",
+      invalid: "请输入校验通过的 15 位 IMEI。",
+    },
     radio: {
       title: "射频开关",
       description: "每张卡的射频设置单独保存",

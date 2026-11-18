@@ -65,10 +65,24 @@ func Node(ctx context.Context, shareLink string, opts Options) (int64, error) {
 	}
 }
 
+// MaxURLProbes caps the URL probes running at once in this process: each
+// one is a whole temporary Xray instance, and a group test or a failover
+// may ask for dozens together. The rest wait for a turn (within their own
+// deadline). f50d keeps to the same number on its side.
+const MaxURLProbes = 3
+
+var urlSlots = make(chan struct{}, MaxURLProbes)
+
 // URL opens a fresh connection through the node and times one HTTP(S)
 // request, handshakes included, like the delay tests in Clash-style clients.
 // Any reply below 400 counts; redirects are not followed.
 func URL(ctx context.Context, shareLink string, via []string, target string) (int64, error) {
+	select {
+	case urlSlots <- struct{}{}:
+		defer func() { <-urlSlots }()
+	case <-ctx.Done():
+		return 0, errors.New("timeout")
+	}
 	_, outbounds, err := link.ChainOutbounds(shareLink, via, "proxy")
 	if err != nil {
 		return 0, err

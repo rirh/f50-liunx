@@ -119,6 +119,10 @@
   --chart-4: oklch(0.76 0.15 75);
   --chart-5: oklch(0.64 0.19 15);
   --radius: 0.625rem;
+  /* Apple's ease-out (UIKit sheets and springs at rest): quick to move, long and soft to settle. */
+  --ease-apple: cubic-bezier(0.32, 0.72, 0, 1);
+  /* A white tile under the pointer: a breath of the accent, so it stays apart from the grey page. */
+  --tile-hover: color-mix(in oklab, var(--card), var(--primary) 5%);
   --sidebar: oklch(0.94 0.007 240);
   --sidebar-foreground: oklch(0.25 0.025 245);
   --sidebar-primary: oklch(0.52 0.105 205);
@@ -199,6 +203,35 @@
     .tags-view-chrome *
   ) {
     corner-shape: round;
+  }
+}
+
+/*
+ * The same continuous corner where corner-shape is missing (Safari, Firefox): `.squircle` clips the box to a
+ * superellipse-like outline drawn with `shape()`. Each corner starts 1.7×r along the edge and eases in on one cubic
+ * whose middle sits where a plain r arc would, so the size reads the same and only the shoulder softens. `--squircle-r`
+ * is the box's radius (the tile radius by default). It is an @utility, so `md:squircle` works. A clip cuts outside
+ * shadows and rings, so only flat boxes take this class.
+ */
+@utility squircle {
+  @supports (not (corner-shape: squircle)) and
+    (clip-path: shape(from 0 0, hline to 1px, close)) {
+    --sq-p: min(calc(var(--squircle-r, var(--radius-xl)) * 1.7), 50%);
+    --sq-a: calc(var(--squircle-r, var(--radius-xl)) * 0.27);
+    clip-path: shape(
+      from 0 var(--sq-p),
+      curve to var(--sq-p) 0 with 0 var(--sq-a) / var(--sq-a) 0,
+      hline to calc(100% - var(--sq-p)),
+      curve to 100% var(--sq-p) with calc(100% - var(--sq-a)) 0 / 100%
+        var(--sq-a),
+      vline to calc(100% - var(--sq-p)),
+      curve to calc(100% - var(--sq-p)) 100% with 100%
+        calc(100% - var(--sq-a)) / calc(100% - var(--sq-a)) 100%,
+      hline to var(--sq-p),
+      curve to 0 calc(100% - var(--sq-p)) with var(--sq-a) 100% / 0
+        calc(100% - var(--sq-a)),
+      close
+    );
   }
 }
 

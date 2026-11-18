@@ -151,11 +151,11 @@ impl Dirs {
 
     /// The new names in the message directory on the disk.
     pub fn sync_messages(&self) -> Result<()> {
-        sync_dir(&self.msg)
+        fsx::sync_dir(&self.msg)
     }
 
     pub fn sync_parts(&self) -> Result<()> {
-        sync_dir(&self.parts)
+        fsx::sync_dir(&self.parts)
     }
 
     fn next_id_file(&self) -> PathBuf {
@@ -211,11 +211,6 @@ pub(crate) fn regular_files(dir: &Path, want: impl Fn(&str) -> bool) -> Vec<Path
         .collect();
     out.sort();
     out
-}
-
-/// A directory's entries on the disk (an fsync of the directory alone).
-pub(crate) fn sync_dir(dir: &Path) -> Result<()> {
-    fs::File::open(dir).and_then(|f| f.sync_all()).map_err(|e| Error::io(format!("sync {}", dir.display()), &e))
 }
 
 #[cfg(test)]

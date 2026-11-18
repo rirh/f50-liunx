@@ -174,6 +174,10 @@ impl Sms {
         Ok(v)
     }
 
+    async fn list_unread(&self, page: Page) -> Result<Value> {
+        self.inner.pool.with(move |st| Ok(st.unread_messages(page))).await
+    }
+
     /// One message whole; a received one is marked read.
     async fn read(&self, id: u64) -> Result<MessageView> {
         self.inner.pool.with(move |st| st.mark(id, true).map(|m| MessageView::from(&m))).await

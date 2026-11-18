@@ -9,6 +9,7 @@
 //! - `request`: the engine's start request (mode `gateway`) and the other request bodies;
 //! - `firewall`: the nft table `inet f50_proxy` (tproxy) and the policy routing, only while running;
 //! - `service`: the shared state and the on/off transitions; `status`: the `status` reply;
+//! - `probes`: delay probes through the engine, a few at a time and identical ones shared;
 //! - `ops`, `subs`, `groups`: the methods; `supervisor`: the 5 s loop (restart, refresh, failover);
 //! - `api`: the `f50.proxy` object.
 //!
@@ -21,6 +22,7 @@ mod firewall;
 mod groups;
 mod nodes;
 mod ops;
+mod probes;
 mod profile;
 mod request;
 mod service;
@@ -130,6 +132,7 @@ impl Proxy {
                 retry_at: None,
             }),
             ops: tokio::sync::Mutex::new(()),
+            probes: probes::Probes::default(),
         });
         let proxy = Proxy { inner };
         tracker.spawn(supervisor::run(proxy.clone(), shutdown));

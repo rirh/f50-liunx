@@ -3,8 +3,9 @@ import { useEffect } from "react";
 import { usePoll } from "@/hooks/use-live";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
+import { ApiError } from "@/lib/ubus";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSetAtom } from "jotai";
+import { useSetAtom, useStore } from "jotai";
 import { toast } from "sonner";
 import {
   addSubscription,
@@ -29,7 +30,7 @@ import {
   updateSubscription,
 } from "./api";
 import { recordStatus } from "./lib/rates";
-import { latencyAtom } from "./store";
+import { type Latency, latencyAtom } from "./store";
 import type {
   Connections,
   GroupStatus,
@@ -111,25 +112,43 @@ export function useSetSettings() {
 
 /** Delay tests: one real request through each node; results go to `latencyAtom`. */
 export function useProbe() {
+  const store = useStore();
   const setLatency = useSetAtom(latencyAtom);
-  const probe = async (id: string) => {
-    setLatency((l) => ({ ...l, [id]: "pending" }));
+  const measure = async (id: string, previous: Latency | undefined) => {
     try {
       const { ms } = await probeNode(id);
       setLatency((l) => ({ ...l, [id]: ms }));
-    } catch {
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "busy") {
+        setLatency((l) => {
+          if (l[id] !== "pending") return l;
+          const next = { ...l };
+          if (previous === undefined) delete next[id];
+          else next[id] = previous;
+          return next;
+        });
+        toast.error(errorMessage(error), { id: "proxy-probe-busy" });
+        return;
+      }
       setLatency((l) => ({ ...l, [id]: "fail" }));
     }
   };
+  const probe = async (id: string) => {
+    const previous = store.get(latencyAtom)[id];
+    if (previous === "pending") return;
+    setLatency((l) => ({ ...l, [id]: "pending" }));
+    await measure(id, previous);
+  };
   // a few at a time: the router answers each with a real request through the node
   const probeAll = async (ids: string[]) => {
+    const previous = store.get(latencyAtom);
+    const queue = ids.filter((id) => previous[id] !== "pending");
     setLatency((l) => ({
       ...l,
-      ...Object.fromEntries(ids.map((id) => [id, "pending" as const])),
+      ...Object.fromEntries(queue.map((id) => [id, "pending" as const])),
     }));
-    const queue = [...ids];
     const worker = async () => {
-      for (let id = queue.shift(); id; id = queue.shift()) await probe(id);
+      for (let id = queue.shift(); id; id = queue.shift()) await measure(id, previous[id]);
     };
     await Promise.all(Array.from({ length: 4 }, worker));
   };

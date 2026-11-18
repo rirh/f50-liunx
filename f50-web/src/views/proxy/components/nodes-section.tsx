@@ -77,7 +77,7 @@ export function NodesSection({ profile }: { profile: Profile }) {
   });
 
   const rows = (nodes: ProxyNode[]) => (
-    <div className="divide-y md:grid md:grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] md:gap-2 md:divide-y-0">
+    <div className="divide-y md:grid md:grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] md:gap-2.5 md:divide-y-0">
       {nodes.map((n) => (
         <NodeRow
           key={n.id}
@@ -101,7 +101,7 @@ export function NodesSection({ profile }: { profile: Profile }) {
   return (
     <section
       aria-label={t("proxy.nodes.title")}
-      className="flex flex-col gap-3 md:gap-5"
+      className="flex flex-col gap-3 md:gap-6"
     >
       {profile.subscriptions.map((s) => (
         <NodeGroup

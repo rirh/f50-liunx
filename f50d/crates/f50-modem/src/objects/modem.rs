@@ -2,14 +2,19 @@
 //! ICCID and the own number are private), the own number written to the SIM, the card's radio and the modem
 //! restart (jobs).
 
+use std::io::ErrorKind;
 use std::sync::Arc;
+use std::time::Duration;
 
+use f50_core::fsx;
 use f50_core::rpc::{Access, Field, Object, Params, Rule};
-use f50_core::time::age_ms;
+use f50_core::time::{age_ms, unix_now};
 use f50_core::{Error, Result};
 use serde_json::{Value, json};
 
 use super::radio_job;
+use crate::Slot;
+use crate::collector::ident::{self, Identity};
 use crate::shared::{Inner, lock};
 use crate::sim::{self, Cards};
 use crate::{radio, sim::state};
@@ -17,6 +22,10 @@ use crate::{radio, sim::state};
 const RADIO: &[Field] = &[Field::req("state", Rule::Enum(&["on", "off"]))];
 /// An optional "+" and 3 to 15 digits: what `AT+CNUM` gives back, and safe inside the quoted AT argument.
 const OWN_NUMBER: &[Field] = &[Field::req("number", Rule::Word { re: r"\+?[0-9]{3,15}", max: 16 })];
+const SET_IMEI: &[Field] = &[
+    Field::req("slot", Rule::Int { min: 1, max: 2 }),
+    Field::secret("imei", Rule::Word { re: "[0-9]{15}", max: 15 }, true),
+];
 
 fn status(inner: &Inner) -> Value {
     let s = inner.watched_snapshot();
@@ -45,9 +54,16 @@ fn cells(inner: &Inner) -> Value {
 fn identity(inner: &Inner) -> Value {
     let st = lock(&inner.ident);
     let own = st.own.as_ref();
+    let imeis = [Slot::One, Slot::Two].map(|slot| {
+        let current = st.shown.as_ref().filter(|_| slot == inner.slot).and_then(|id| id.imei.clone());
+        current.or_else(|| ident::load_cache(inner.paths(), slot)?.imei)
+    });
+    let original_imeis = [Slot::One, Slot::Two].map(|slot| ident::load_original_imei(inner.paths(), slot).ok().flatten());
     json!({
         "slot": inner.slot.number(),
         "ident": st.shown,
+        "imeis": imeis,
+        "original_imeis": original_imeis,
         "msisdn": own.map(|o| o.0.clone()),
         "msisdn_src": own.map(|o| o.1),
     })
@@ -77,6 +93,70 @@ fn own_number(inner: &Arc<Inner>, number: String) -> Result<Value> {
     })
 }
 
+fn set_imei(inner: &Arc<Inner>, p: &Params) -> Result<Value> {
+    if p.need_int("slot")? != i64::from(inner.slot.number()) {
+        return Err(Error::forbidden("only the active slot can be edited; select the slot and reboot first"));
+    }
+    let imei = p.need_str("imei")?.to_owned();
+    if !ident::valid_imei(&imei) {
+        return Err(Error::bad_value("imei"));
+    }
+    radio_job(inner, "f50.modem set_imei", move |me, ctx| async move {
+        let _g = radio::acquire(&me, "IMEI write", me.cfg.radio_lock_wait).await?;
+        let _mark = me.restart_mark();
+        let _update = me.ident_update.lock().await;
+        let mut at = me.at.session("IMEI write", Duration::from_secs(10)).await?;
+        if ident::load_original_imei(me.paths(), me.slot)?.is_none() {
+            let before = at.send("AT+CGSN", Duration::from_secs(5)).await?;
+            let original = ident::modem_imei(&before)
+                .ok_or_else(|| Error::failed("could not read the original IMEI before writing"))?;
+            ident::save_original_imei(me.paths(), me.slot, &original)?;
+        }
+        let mut id = lock(&me.ident)
+            .shown
+            .clone()
+            .or_else(|| ident::load_cache(me.paths(), me.slot))
+            .unwrap_or_else(|| Identity { slot: me.slot.number(), ts: unix_now(), ..Identity::default() });
+
+        // Invalidate the old observation before writing, including if the modem reboots or the write times out.
+        let path = ident::cache_path(me.paths(), me.slot);
+        if let Err(e) = std::fs::remove_file(&path) && e.kind() != ErrorKind::NotFound {
+            return Err(Error::io(path.display(), &e));
+        }
+        // Commit the original's directory entry (including a previous rename) and the cache removal before the write.
+        let state_dir = me.paths().state();
+        fsx::sync_dir(&state_dir)?;
+        if let Some(parent) = state_dir.parent() {
+            fsx::sync_dir(parent)?;
+        }
+        if let Some(shown) = lock(&me.ident).shown.as_mut() {
+            shown.imei = None;
+        }
+
+        let command = format!("AT+SPIMEI={},\"{imei}\"", me.slot.index());
+        let written = at.send(&command, Duration::from_secs(8)).await;
+        let read = at.send("AT+CGSN", Duration::from_secs(5)).await;
+        drop(at);
+        id.imei = read.as_ref().ok().and_then(ident::modem_imei);
+        let verified = id.imei.as_deref() == Some(imei.as_str());
+        let mut state = lock(&me.ident);
+        if id.imei.is_some() {
+            ident::save_cache(me.paths(), me.slot, &id);
+        }
+        state.shown = (!id.empty()).then_some(id);
+        state.read_at = None;
+
+        if verified {
+            ctx.log("IMEI read back from the active slot");
+            return Ok(json!({ "slot": me.slot.number(), "verified": true }));
+        }
+        if written.as_ref().is_ok_and(|reply| !reply.is_ok()) {
+            return Err(Error::failed("the modem rejected the IMEI write"));
+        }
+        Err(Error::failed("the new IMEI could not be confirmed by AT+CGSN; check the active slot before retrying"))
+    })
+}
+
 fn restart(inner: &Arc<Inner>) -> Result<Value> {
     if !sim::radio_allowed(inner, inner.slot) {
         return Err(Error::forbidden("the radio of this SIM is switched off in its settings"));
@@ -90,6 +170,7 @@ fn restart(inner: &Arc<Inner>) -> Result<Value> {
 
 pub(super) fn object(inner: &Arc<Inner>) -> Object {
     let (a, b, c, d, e, f) = (inner.clone(), inner.clone(), inner.clone(), inner.clone(), inner.clone(), inner.clone());
+    let imei = inner.clone();
     Object::builder("f50.modem")
         .method(
             "status",
@@ -115,10 +196,20 @@ pub(super) fn object(inner: &Arc<Inner>) -> Object {
             "identity",
             Access::Write,
             &[],
-            "IMEI, IMSI, ICCID, model, firmware and the SIM's own number.",
+            "Identity for the active slot and the original and last-read IMEIs for SIM1 and SIM2.",
             move |_p: Params| {
                 let r = identity(&c);
                 async move { Ok(r) }
+            },
+        )
+        .method(
+            "set_imei",
+            Access::Write,
+            SET_IMEI,
+            "Writes the active slot's IMEI and reads it back (a job).",
+            move |p: Params| {
+                let r = set_imei(&imei, &p);
+                async move { r }
             },
         )
         .method(

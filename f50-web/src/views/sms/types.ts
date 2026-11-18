@@ -89,6 +89,12 @@ export interface ThreadPage extends Paged {
   messages: SmsMessage[];
 }
 
+/** `list_unread`: unread incoming messages across all conversations. */
+export interface UnreadPage extends Pick<Paged, "page" | "pages" | "per_page"> {
+  unread: number;
+  messages: SmsMessage[];
+}
+
 /** The send job's result. */
 export interface SendResult {
   id: number;

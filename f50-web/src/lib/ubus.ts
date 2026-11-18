@@ -88,7 +88,8 @@ const UBUS_STATUS: Record<number, [ApiErrorCode, Key]> = {
 
 let rpcId = 0;
 
-function sessionExpired() {
+function sessionExpired(session: string) {
+  if (readSession()?.id !== session) return;
   writeSession(null);
   if (window.location.pathname === "/login") return;
   // outside React: the router follows a history entry it is told about with popstate
@@ -99,14 +100,19 @@ function sessionExpired() {
 /** A read method every login is granted, in every f50d: answers while the session is alive. */
 const ALIVE_CHECK = ["f50.sms", "unread"] as const;
 
-async function sessionAlive(session: string): Promise<boolean> {
+async function sessionAlive(
+  session: string,
+  signal?: AbortSignal,
+): Promise<boolean> {
   if (session === ANONYMOUS_SESSION) return false;
   try {
     await ubusCall(ALIVE_CHECK[0], ALIVE_CHECK[1], {}, session, {
       probe: true,
+      signal,
     });
     return true;
   } catch (e) {
+    if (signal && e instanceof ApiError && e.code === "transport") throw e;
     // only a refused session is dead; a check that failed some other way (a timeout) says nothing
     return !(e instanceof ApiError && e.code === "unauthorized");
   }
@@ -121,12 +127,13 @@ export async function ubusCall<T = unknown>(
   method: string,
   args: Record<string, unknown> = {},
   session: string = readSession()?.id ?? ANONYMOUS_SESSION,
-  { probe = false }: { probe?: boolean } = {},
+  { probe = false, signal }: { probe?: boolean; signal?: AbortSignal } = {},
 ): Promise<T> {
   let response: RpcResponse;
   try {
     response = await apiRequest<RpcResponse>("", {
       method: "POST",
+      signal,
       body: JSON.stringify({
         jsonrpc: "2.0",
         id: ++rpcId,
@@ -146,13 +153,13 @@ export async function ubusCall<T = unknown>(
       // rpcd says the same for an expired session and for a method this session was never granted (a daemon older
       // than the console, or a session from before an update added the method: rpcd fixes a session's ACL at
       // login). Only an expired session ends the login.
-      if (!probe && (await sessionAlive(session))) {
+      if (!probe && (await sessionAlive(session, signal))) {
         throw new ApiError(
           "forbidden",
           t("app.error.noAccess", { method: `${object}.${method}` }),
         );
       }
-      if (!probe) sessionExpired();
+      if (!probe) sessionExpired(session);
       throw new ApiError("unauthorized", t("app.error.sessionExpired"));
     }
     // -32000 / -32601: uhttpd found no such object or method on the bus: the device answers, f50d (or this method
@@ -171,7 +178,7 @@ export async function ubusCall<T = unknown>(
     const [code, message]: [ApiErrorCode, string] = known
       ? [known[0], t(known[1])]
       : ["failed", t("app.error.ubus.other", { status })];
-    if (code === "unauthorized" && !probe) sessionExpired();
+    if (code === "unauthorized" && !probe) sessionExpired(session);
     throw new ApiError(code, message);
   }
   return data as T;
@@ -190,8 +197,11 @@ export async function f50<T = unknown>(
   object: string,
   method: string,
   args: Record<string, unknown> = {},
+  { session, signal }: { session?: string; signal?: AbortSignal } = {},
 ): Promise<T> {
-  const env = await ubusCall<Envelope<T>>(object, method, args);
+  const env = await ubusCall<Envelope<T>>(object, method, args, session, {
+    signal,
+  });
   if (!env || typeof env !== "object" || !("ok" in env)) {
     throw new ApiError("failed", t("app.error.unreadable"));
   }

@@ -16,3 +16,16 @@ dist/
 
 # make
 make/local.mk
+
+# python bytecode
+__pycache__/
+*.pyc
+
+# cargo artifacts (f50d builds into f50d/target, see make/config.mk)
+f50d/target-clean/
+
+# kernel build outputs: kernel/vendor/build-all.sh copies f50-stock-B09.config to device.config, build-linux.sh writes the rest
+kernel/vendor/device.config
+kernel/vendor/linux.config
+kernel/vendor/merge.log
+kernel/vendor/fragment-rejected.txt

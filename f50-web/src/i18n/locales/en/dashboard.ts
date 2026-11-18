@@ -47,6 +47,7 @@ const m: Messages["dashboard"] = {
   },
   signalBars: "Signal {n} of 5",
   device: {
+    copyFailed: "Copy failed",
     storage: "Storage",
     cores: "{n} cores",
     signal: "Signal",
@@ -115,6 +116,8 @@ const m: Messages["dashboard"] = {
   },
   sms: {
     title: "SMS",
+    unread: "Unread messages",
+    all: "All messages",
   },
   panel: {
     services: "Connections & services",

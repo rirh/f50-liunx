@@ -1,6 +1,7 @@
 #!/bin/sh
 # Build the ZTE F50's OpenWrt rootfs tarball (runs on the host; needs Docker with arm64 support, and Rust for f50d).
 #   systems/openwrt/build-rootfs.sh [OUT.tar.gz]   (default f50-openwrt-<version>-rootfs.tar.gz)
+# An absolute output path writes outside systems/openwrt. F50_REUSE_BUILD=1 reuses an image with matching local inputs.
 # OUT is written into systems/openwrt/ under its base name. One image: OpenWrt's release for the 5.4 vendor kernel,
 # with f50d (the device daemon, f50d/) and the web console (f50-web, /www/f50), installed by f50d/openwrt/install.sh.
 # Inputs (all optional except modules), under F50_INPUTS (default: the checkout):
@@ -8,6 +9,11 @@
 #   device-tools/logdw/logdw  device-tools/bt-init/f50-bt-init  device-tools/keys/f50-keys  device-tools/gpu/cltest  busybox (static, full)
 #   device-tools/adbd/adbd  device-tools/carry/f50-carry (static: an update carries everything of the user's over with it)
 # F50_WEB: the web console's build (default f50-web/dist, `make web`); F50_WEB= builds the image without it.
+# F50_GPU=0: android-gpu-subset/ and device-tools/gpu/cltest are left out even when F50_INPUTS has them (install.sh
+# passes the GPU answer; default 1).
+# f50d and the proxy engine: built here when the script runs on its own (make-release.sh, by hand). F50_PREBUILT=1
+# (make install: `make build` ran just before) builds neither and takes f50d/target/.../f50d and
+# f50-proxy/dist/f50-proxy-linux-arm64 as they are, and stops when one is missing.
 set -eu
 # the other systems and flavours this script once built (openwrt-luci, ImmortalWrt) are gone: refused, not ignored
 [ "${F50_SYSTEM:-openwrt}" = openwrt ] && [ "${F50_FLAVOUR:-openwrt}" = openwrt ] ||
@@ -26,6 +32,8 @@ esac
 KREL=5.4.254-gb50db5b6224c
 OUT=${1:-f50-openwrt-$VER-rootfs.tar.gz}
 TOP=$(cd "$(dirname "$0")/../.." && pwd)
+case $OUT in /*) OUTPUT_DIR=$(dirname "$OUT") ;; *) OUTPUT_DIR=$TOP/systems/openwrt ;; esac
+OUT=$(basename "$OUT")
 # build inputs (out/, firmware/, android-subset/, tools binaries, busybox) may live outside the checkout
 IN=${F50_INPUTS:-$TOP}
 # f50d's side of the image: without its cellular protocol netifd has no wan and the image boots without mobile data
@@ -74,10 +82,15 @@ have=$(shasum -a 256 "systems/openwrt/$TARBALL" 2>/dev/null || sha256sum "system
 docker import --platform linux/arm64 "systems/openwrt/$TARBALL" f50-openwrt-base:$VER >/dev/null
 # OpenWrt ships an unsigned regulatory.db; this kernel requires the signed database (wens key), so take Debian/Ubuntu's
 REGDB=$(mktemp -d)
+BUILD_OUT=
+trap 'rm -rf "$REGDB"; [ -z "$BUILD_OUT" ] || rm -rf "$BUILD_OUT"' EXIT
 docker run --rm --platform linux/arm64 -v "$REGDB":/o ubuntu:26.04 sh -c \
   "apt-get update -qq >/dev/null && apt-get install -y -qq wireless-regdb >/dev/null && cp /usr/lib/firmware/regulatory.db /usr/lib/firmware/regulatory.db.p7s /o/"
 
-opt() { [ -e "$IN/$1" ] && echo "-v $IN/$1:/in/$2:ro" || true; }
+case ${F50_GPU:-1} in
+    0|1) GPU=${F50_GPU:-1} ;;
+    *) echo "F50_GPU is 0 or 1" >&2; exit 1 ;;
+esac
 
 # The required input first, with a readable message: without it docker fails somewhere inside the build.
 ls "$IN/out/modules"/*.ko >/dev/null 2>&1 || {
@@ -88,22 +101,33 @@ ls "$IN/out/modules"/*.ko >/dev/null 2>&1 || {
 # The optional ones decide whether the image can use the modem, Wi-Fi or the GPU at all. Missing ones
 # used to be skipped silently, which produces an image that boots and then does nothing useful.
 for o in firmware android-subset android-gpu-subset device-tools/logdw/logdw device-tools/bt-init/f50-bt-init device-tools/keys/f50-keys device-tools/adbd/adbd device-tools/carry/f50-carry device-tools/gpu/cltest busybox; do
+    case $GPU:$o in 0:android-gpu-subset|0:device-tools/gpu/cltest) echo "  - $o   (F50_GPU=0: the image is built without it)"; continue ;; esac
     [ -e "$IN/$o" ] && echo "  + $o" || echo "  - $o   (missing: the image is built without it)"
 done
-# f50d, the Rust device daemon (f50d/): built here for the device and installed in the image by
-# f50d/openwrt/install.sh, which takes the shell layer of the overlays out of the image.
-command -v cargo >/dev/null || { echo "f50d needs Rust (cargo)" >&2; exit 1; }
-(cd "$TOP/f50d" && cargo build --release --locked --target aarch64-unknown-linux-musl -p f50d) || exit 1
+# f50d, the Rust device daemon (f50d/), installed in the image by f50d/openwrt/install.sh, which takes the shell layer
+# of the overlays out of the image. Built here (the same build as `make f50d`), or with F50_PREBUILT=1 taken as built.
+F50D_BIN=$TOP/f50d/target/aarch64-unknown-linux-musl/release/f50d
+F50_PROXY_BIN=$TOP/f50-proxy/dist/f50-proxy-linux-arm64
+if [ "${F50_PREBUILT:-0}" = 1 ]; then
+    [ -x "$F50D_BIN" ] || { echo "F50_PREBUILT=1 but f50d is not built: $F50D_BIN (make f50d)" >&2; exit 1; }
+else
+    command -v cargo >/dev/null || { echo "f50d needs Rust (cargo)" >&2; exit 1; }
+    (cd "$TOP/f50d" && cargo build --release --locked --target aarch64-unknown-linux-musl -p f50d) || exit 1
+fi
 # the docker mounts of f50d and the web console, as the positional parameters (OUT is read above): each path stays one
 # argument, spaces and all
-set -- -v "$TOP/f50d/target/aarch64-unknown-linux-musl/release/f50d":/in/f50d:ro \
-    -v "$TOP/f50d/openwrt":/in/f50d-openwrt:ro
-# the proxy engine (f50-proxy/: Xray-core and the split-routing rules, Go), built here like f50d and installed by
-# install.sh as /opt/f50/bin/f50-proxy; F50_PROXY=0 builds the image without it (f50.proxy then reports it missing)
+set -- -v "$F50D_BIN":/in/f50d:ro -v "$TOP/f50d/openwrt":/in/f50d-openwrt:ro
+# the proxy engine (f50-proxy/: Xray-core and the split-routing rules, Go), built here like f50d (or taken as built,
+# F50_PREBUILT=1) and installed by install.sh as /opt/f50/bin/f50-proxy; F50_PROXY=0 builds the image without it
+# (f50.proxy then reports it missing)
 if [ "${F50_PROXY:-1}" != 0 ]; then
-    command -v go >/dev/null || { echo "the proxy engine needs Go (F50_PROXY=0 builds without it)" >&2; exit 1; }
-    make -C "$TOP/f50-proxy" device VERSION="${F50_VERSION:-dev}" >/dev/null || exit 1
-    set -- "$@" -v "$TOP/f50-proxy/dist/f50-proxy-linux-arm64":/in/f50-proxy:ro
+    if [ "${F50_PREBUILT:-0}" = 1 ]; then
+        [ -f "$F50_PROXY_BIN" ] || { echo "F50_PREBUILT=1 but the proxy engine is not built: $F50_PROXY_BIN (make proxy; F50_PROXY=0 builds without it)" >&2; exit 1; }
+    else
+        command -v go >/dev/null || { echo "the proxy engine needs Go (F50_PROXY=0 builds without it)" >&2; exit 1; }
+        make -C "$TOP/f50-proxy" device VERSION="${F50_VERSION:-dev}" >/dev/null || exit 1
+    fi
+    set -- "$@" -v "$F50_PROXY_BIN":/in/f50-proxy:ro
 fi
 # the web console (f50-web's build, `make web`), served as /www/f50; F50_WEB= builds the image without it
 F50_WEB=${F50_WEB-$TOP/f50-web/dist}
@@ -111,19 +135,67 @@ if [ -n "$F50_WEB" ]; then
     [ -f "$F50_WEB/index.html" ] || { echo "no web console build in $F50_WEB (make web; F50_WEB= builds without it)" >&2; exit 1; }
     set -- "$@" -v "$F50_WEB":/in/f50-web:ro
 fi
-# shellcheck disable=SC2046
-docker run --rm --platform linux/arm64 \
+set -- "$@" \
   -v "$TOP/systems/base/overlay/opt/f50":/in/opt-f50:ro -v "$TOP/systems/openwrt/overlay":/in/overlay:ro \
   -v "$FW4PATCH":/in/fw4-sipa-offload.patch:ro \
   -v "$FW4FTPATCH":/in/fw4-old-kernel-flowtable.patch:ro \
   -v "$NODFSPATCH":/in/wifi-scripts-no-dfs.patch:ro \
   -v "$WPA2PATCH":/in/wifi-scripts-wpa2-only.patch:ro \
-  -v "$TOP/boot/module-order.txt":/in/module-order.txt:ro -v "$IN/out/modules":/in/modules:ro \
-  $(opt out/modules.builtin modules.builtin) $(opt out/modules.builtin.modinfo modules.builtin.modinfo) \
-  $(opt firmware firmware) $(opt android-subset android-subset) $(opt android-gpu-subset android-gpu-subset) \
-  $(opt device-tools/logdw/logdw logdw) $(opt device-tools/bt-init/f50-bt-init bt-init) $(opt device-tools/keys/f50-keys keys) $(opt device-tools/adbd/adbd adbd) $(opt device-tools/gpu/cltest cltest) \
-  $(opt busybox busybox) $(opt device-tools/carry/f50-carry carry) -v "$TOP/systems/openwrt":/out -v "$REGDB":/in/regdb:ro "$@" \
-  -e KREL=$KREL -e OUT="$(basename "$OUT")" -e F50_VERSION="${F50_VERSION:-dev}" -e F50_DOCKER="$DOCKER" f50-openwrt-base:$VER /bin/sh -eu -c '
+  -v "$TOP/boot/module-order.txt":/in/module-order.txt:ro -v "$IN/out/modules":/in/modules:ro -v "$REGDB":/in/regdb:ro
+for mount in out/modules.builtin:modules.builtin out/modules.builtin.modinfo:modules.builtin.modinfo firmware:firmware \
+    android-subset:android-subset android-gpu-subset:android-gpu-subset device-tools/gpu/cltest:cltest \
+    device-tools/logdw/logdw:logdw device-tools/bt-init/f50-bt-init:bt-init device-tools/keys/f50-keys:keys \
+    device-tools/adbd/adbd:adbd busybox:busybox device-tools/carry/f50-carry:carry; do
+    case $GPU:${mount#*:} in 0:android-gpu-subset|0:cltest) continue ;; esac
+    src=$IN/${mount%%:*}
+    [ ! -e "$src" ] || set -- "$@" -v "$src:/in/${mount#*:}:ro"
+done
+
+KEY_FILE=$OUTPUT_DIR/${OUT%.tar.gz}.key
+KEY=
+archive_hash() {
+    sum=$(shasum -a 256 "$1" 2>/dev/null || sha256sum "$1") || return 1
+    printf '%s\n' "${sum%% *}"
+}
+if [ "${F50_REUSE_BUILD:-0}" = 1 ]; then
+    # Take this from the same mounts Docker consumes, after local compilation. File contents and modes are stable
+    # across rebuilds that only touched timestamps. The signed base-image hash is already known above.
+    KEY=$(python3 - "$TOP/systems/openwrt/build-rootfs.sh" "$want" "${F50_VERSION:-dev}" "$DOCKER" "$@" <<'PY'
+import hashlib
+import json
+import os
+import sys
+from pathlib import Path
+
+recipe, base, version, docker, *mounts = sys.argv[1:]
+key = hashlib.sha256(json.dumps([base, version, docker]).encode())
+key.update(hashlib.sha256(Path(recipe).read_bytes()).digest())
+for mount in mounts[1::2]:
+    source, dest, _ = mount.rsplit(':', 2)
+    root = Path(source).resolve(strict=True)
+    for path in [root, *sorted(root.rglob('*'))]:
+        meta = path.lstat()
+        link = os.readlink(path) if path.is_symlink() else None
+        key.update(json.dumps([dest, str(path.relative_to(root)), meta.st_mode, meta.st_uid, meta.st_gid, link]).encode())
+        if path.is_file() and link is None:
+            digest = hashlib.sha256()
+            with path.open('rb') as data:
+                for chunk in iter(lambda: data.read(1024 * 1024), b''):
+                    digest.update(chunk)
+            key.update(digest.digest())
+print(key.hexdigest())
+PY
+    )
+    if [ -s "$OUTPUT_DIR/$OUT" ] && [ -r "$KEY_FILE" ] && read -r cached_key cached_hash < "$KEY_FILE" &&
+        [ "$cached_key" = "$KEY" ] && [ -n "$cached_hash" ] && [ "$(archive_hash "$OUTPUT_DIR/$OUT")" = "$cached_hash" ]; then
+        echo "reusing $OUTPUT_DIR/$OUT"
+        exit 0
+    fi
+fi
+
+BUILD_OUT=$(mktemp -d "$OUTPUT_DIR/.f50-rootfs.XXXXXX")
+docker run --rm --platform linux/arm64 "$@" -v "$BUILD_OUT:/out" \
+  -e KREL=$KREL -e OUT="$OUT" -e F50_VERSION="${F50_VERSION:-dev}" -e F50_DOCKER="$DOCKER" f50-openwrt-base:$VER /bin/sh -eu -c '
 mkdir -p /var/lock /var/run /tmp
 # The packages come from the feed over the network while the image is built, and one connection cut in the middle of
 # one package failed the whole image, and a release with it. update, upgrade and add are tried three times, ten
@@ -334,4 +406,12 @@ if [ -x $R/opt/f50/bin/f50-carry ]; then
 fi
 cd $R && tar -czf /out/$OUT .
 ls -la /out/$OUT'
-rm -rf "$REGDB"
+if [ -n "$KEY" ]; then
+    hash=$(archive_hash "$BUILD_OUT/$OUT")
+    printf '%s %s\n' "$KEY" "$hash" > "$BUILD_OUT/key"
+fi
+rm -f "$KEY_FILE"
+mv "$BUILD_OUT/$OUT" "$OUTPUT_DIR/$OUT"
+if [ -n "$KEY" ]; then
+    mv "$BUILD_OUT/key" "$KEY_FILE"
+fi

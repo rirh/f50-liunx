@@ -76,7 +76,7 @@ function IdentityList({ d }: { d: ModemIdentity }) {
 /** IMEI, IMSI, ICCID and the own number: private, fetched only when asked for (a write-access method). */
 export function IdentityCard() {
   const reveal = useMutation({
-    mutationFn: getIdentity,
+    mutationFn: () => getIdentity(),
     onError: (e) => toast.error(errorMessage(e)),
   });
   const shown = reveal.isSuccess;

@@ -83,8 +83,18 @@ export const probeNode = (id: string, method?: ProbeMethod) =>
 
 export const groupSelect = (group: string, node: string) =>
   call<GroupStatus[]>("group_select", { group, node });
-export const groupTest = (group: string) =>
-  call<GroupStatus[]>("group_test", { group });
+/**
+ * The groups after testing `group`'s nodes. While the proxy is off, f50d tests a large group as a job (its nodes a
+ * few at a time) and answers `{ job }`; that job is followed to its result, the same list.
+ */
+export async function groupTest(group: string): Promise<GroupStatus[]> {
+  const reply = await call<GroupStatus[] | JobStarted>("group_test", {
+    group,
+  });
+  return isJobStarted(reply)
+    ? runJob<GroupStatus[]>(Promise.resolve(reply))
+    : reply;
+}
 
 export const saveConfig = (args: {
   id?: string;

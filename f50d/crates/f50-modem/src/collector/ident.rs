@@ -1,16 +1,18 @@
 //! The SIM/module identity (IMEI, IMSI, ICCID, model, firmware) and the SIM's own number.
 //!
-//! The identity changes only with the SIM or the firmware, so a complete one is kept on flash per slot and read
-//! again at most every six hours; a partial read (the modem or the SIM not ready) is shown for a minute and asked
-//! again, and never replaces a complete one (FINDINGS 174). Fifteen zeros is no IMEI (FINDINGS 220). The own number
+//! A complete identity is kept on flash per slot (FINDINGS 174). When the SIM is unavailable, the last modem IMEI
+//! can still be kept for that slot. Fifteen zeros is no IMEI (FINDINGS 220). The own number
 //! (FINDINGS 49): `AT+CNUM`, else the IMS public identity, on full rounds until one is found, then kept in RAM for
 //! this boot; never on flash (personal data), never in the fast tier. Only `Write`-access methods return any of it.
 
 use std::path::PathBuf;
+use std::sync::LazyLock;
 use std::time::Instant;
 
+use f50_at::Reply;
+use f50_core::{Error, Result};
+use f50_core::fsx;
 use f50_core::paths::Paths;
-use f50_core::{fsx, time::unix_now};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -53,16 +55,69 @@ pub struct IdentState {
     pub own: Option<(String, &'static str)>,
 }
 
-/// Where a complete identity is kept (on flash, root's only).
+/// Where the last identity observation is kept (on flash, root only).
 pub fn cache_path(paths: &Paths, slot: Slot) -> PathBuf {
     paths.state().join(format!("ident-sim{}.json", slot.number()))
 }
 
-/// The kept complete identity and its age in seconds.
-pub fn load_cache(paths: &Paths, slot: Slot) -> Option<(Identity, u64)> {
+/// The persisted identity observation for this slot, even if the SIM fields were unavailable.
+pub fn load_cache(paths: &Paths, slot: Slot) -> Option<Identity> {
     let s = fsx::read_opt(&cache_path(paths, slot)).ok()??;
     let id: Identity = serde_json::from_str(&s).ok()?;
-    id.complete().then(|| (id.clone(), unix_now().saturating_sub(id.ts)))
+    (id.slot == slot.number()).then_some(id)
+}
+
+fn original_imei_path(paths: &Paths, slot: Slot) -> PathBuf {
+    paths.state().join(format!("original-imei-sim{}", slot.number()))
+}
+
+pub(crate) fn load_original_imei(paths: &Paths, slot: Slot) -> Result<Option<String>> {
+    let saved = fsx::read_opt(&original_imei_path(paths, slot))?;
+    if saved.as_deref().is_some_and(|imei| !valid_imei(imei)) {
+        return Err(Error::failed("the saved original IMEI is invalid"));
+    }
+    Ok(saved)
+}
+
+/// Save the first confirmed IMEI independently of the rolling identity cache. Call under `ident_update`.
+pub(crate) fn save_original_imei(paths: &Paths, slot: Slot, imei: &str) -> Result<()> {
+    if load_original_imei(paths, slot)?.is_some() {
+        return Ok(());
+    }
+    if !valid_imei(imei) {
+        return Err(Error::failed("the original IMEI from the modem is invalid"));
+    }
+    fsx::private_dir(&paths.state())?;
+    fsx::write_atomic(&original_imei_path(paths, slot), imei.as_bytes(), 0o600)
+}
+
+/// An IMEI must contain 15 decimal digits and satisfy Luhn. An all-zero reading means it is missing.
+pub(crate) fn valid_imei(imei: &str) -> bool {
+    if imei.len() != 15 || !imei.bytes().all(|b| b.is_ascii_digit()) {
+        return false;
+    }
+    let sum: u32 = imei
+        .bytes()
+        .enumerate()
+        .map(|(i, b)| {
+            let digit = u32::from(b - b'0');
+            let weighted = if i.is_multiple_of(2) { digit } else { digit * 2 };
+            if weighted > 9 { weighted - 9 } else { weighted }
+        })
+        .sum();
+    sum != 0 && sum.is_multiple_of(10)
+}
+
+/// The IMEI from a successful `AT+CGSN` reply.
+pub(crate) fn modem_imei(reply: &Reply) -> Option<String> {
+    #[allow(clippy::expect_used)]
+    static IMEI_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new("^[0-9]{15,17}$").expect("valid pattern"));
+    if !reply.is_ok() {
+        return None;
+    }
+    ident_token(&reply.lines, &IMEI_RE)
+        .map(|v| v[..15].to_owned())
+        .filter(|v| v != "000000000000000")
 }
 
 pub fn save_cache(paths: &Paths, slot: Slot, id: &Identity) {

@@ -1,17 +1,23 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { prefersReducedMotion } from "@/hooks/use-motion";
 import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
+import { useGSAP } from "@gsap/react";
+import { gsap } from "gsap";
 import { ChevronRightIcon } from "lucide-react";
 
 /**
  * A foldable card of rows (a subscription's nodes, the local nodes, a 策略组): the header is a title and one plain
  * line, its icon actions, then the disclosure chevron; folding leaves the header.
+ *
+ * The body stays mounted and GSAP folds it: the height eases in and out on Apple's curve, and on opening (and on
+ * the first showing) the `[data-tile]` children rise in one after another. Closed, it is inert.
  */
 export function NodeGroup({
   title,
@@ -33,6 +39,58 @@ export function NodeGroup({
   bare?: boolean;
   children: ReactNode;
 }) {
+  const body = useRef<HTMLDivElement>(null);
+  // the last state drawn: a run with the same `open` (the first, or StrictMode's second) sets it without a fold
+  const drawn = useRef<boolean | null>(null);
+  useGSAP(
+    () => {
+      const el = body.current;
+      if (!el) return;
+      const first = drawn.current === null || drawn.current === open;
+      drawn.current = open;
+      const still = prefersReducedMotion();
+      if (!open) {
+        if (first || still) gsap.set(el, { height: 0, autoAlpha: 0 });
+        else
+          gsap.to(el, {
+            height: 0,
+            autoAlpha: 0,
+            duration: 0.42,
+            ease: "appleInOut",
+            overwrite: true,
+          });
+        return;
+      }
+      if (still) {
+        gsap.set(el, { clearProps: "height,opacity,visibility" });
+        return;
+      }
+      if (!first)
+        gsap.fromTo(
+          el,
+          { height: el.offsetHeight },
+          {
+            height: "auto",
+            autoAlpha: 1,
+            duration: 0.5,
+            ease: "appleInOut",
+            overwrite: true,
+            clearProps: "height,opacity,visibility",
+          },
+        );
+      gsap.from(el.querySelectorAll("[data-tile]"), {
+        autoAlpha: 0,
+        y: 8,
+        scale: 0.985,
+        duration: 0.6,
+        ease: "apple",
+        delay: first ? 0 : 0.06,
+        stagger: { amount: 0.24 },
+        clearProps: "opacity,visibility,transform",
+      });
+    },
+    { dependencies: [open], scope: body },
+  );
   return (
     <Collapsible open={open} onOpenChange={onOpenChange} asChild>
       <Card
@@ -82,7 +140,14 @@ export function NodeGroup({
           </CollapsibleTrigger>
         </div>
         <CollapsibleContent
-          className={cn("border-t", bare && "md:border-t-0", contentClassName)}
+          ref={body}
+          forceMount
+          inert={!open}
+          className={cn(
+            "overflow-hidden border-t",
+            bare && "md:border-t-0",
+            contentClassName,
+          )}
         >
           {children}
         </CollapsibleContent>

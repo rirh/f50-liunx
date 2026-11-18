@@ -200,11 +200,17 @@ resume_lookup() {
 resume_validate() {
     mkdir -p "$WORK/gpt"
     rm -f "$WORK/gpt/resume.head" "$WORK/gpt/resume.tail" "$WORK/gpt/resume-marker.bin" "$WORK/gpt/resume-bcb.bin"
-    su_do "dd if=/dev/block/$IDISK bs=512 count=$GPT_HEAD 2>/dev/null > /data/local/tmp/gpt.head" >/dev/null
-    su_do "dd if=/dev/block/$IDISK bs=512 skip=$((disk - GPT_TAIL)) count=$GPT_TAIL 2>/dev/null > /data/local/tmp/gpt.tail" >/dev/null
-    adb pull /data/local/tmp/gpt.head "$WORK/gpt/resume.head" >/dev/null 2>&1 || true
-    adb pull /data/local/tmp/gpt.tail "$WORK/gpt/resume.tail" >/dev/null 2>&1 || true
-    su_do 'rm -f /data/local/tmp/gpt.head /data/local/tmp/gpt.tail' >/dev/null
+    if [ "${1:-}" = soft ]; then
+        read_device_blocks "/dev/block/$IDISK" 512 0 "$GPT_HEAD" "$WORK/gpt/resume.head" &&
+            read_device_blocks "/dev/block/$IDISK" 512 "$((disk - GPT_TAIL))" "$GPT_TAIL" "$WORK/gpt/resume.tail" ||
+            die "$(t 'could not read the partition table')"
+    else
+        su_do "dd if=/dev/block/$IDISK bs=512 count=$GPT_HEAD 2>/dev/null > /data/local/tmp/gpt.head" >/dev/null
+        su_do "dd if=/dev/block/$IDISK bs=512 skip=$((disk - GPT_TAIL)) count=$GPT_TAIL 2>/dev/null > /data/local/tmp/gpt.tail" >/dev/null
+        adb pull /data/local/tmp/gpt.head "$WORK/gpt/resume.head" >/dev/null 2>&1 || true
+        adb pull /data/local/tmp/gpt.tail "$WORK/gpt/resume.tail" >/dev/null 2>&1 || true
+        su_do 'rm -f /data/local/tmp/gpt.head /data/local/tmp/gpt.tail' >/dev/null
+    fi
     _rs=$(python3 "$TOP/installer/lib/resize-last-partition.py" "$WORK/gpt/resume.head,$WORK/gpt/resume.tail" \
             --disk-sectors "$disk" --sector-size "$ILBS" --name userdata --show 2>&1) || _rs=
     [ -n "$_rs" ] || die "$(t 'could not read the partition table')"
@@ -212,11 +218,16 @@ resume_validate() {
     _rr=$(resume_py get "$RESUME_FILE" region_start) || die "$(t 'could not read the transaction {1}' "$RESUME_FILE")"
     _rr=${_rr#region_start=}
     case $_rr in ''|*[!0-9]*) die "$(t 'could not read the transaction {1}' "$RESUME_FILE")" ;; esac
-    su_do "dd if=/dev/block/$IDISK bs=512 skip=$_rr count=8 2>/dev/null > /data/local/tmp/f50-pull.bin" >/dev/null
-    adb pull /data/local/tmp/f50-pull.bin "$WORK/gpt/resume-marker.bin" >/dev/null 2>&1 || true
-    su_do 'dd if=/dev/block/by-name/misc bs=2048 count=1 2>/dev/null > /data/local/tmp/f50-pull.bin' >/dev/null
-    adb pull /data/local/tmp/f50-pull.bin "$WORK/gpt/resume-bcb.bin" >/dev/null 2>&1 || true
-    su_do 'rm -f /data/local/tmp/f50-pull.bin' >/dev/null
+    if [ "${1:-}" = soft ]; then
+        read_device_blocks "/dev/block/$IDISK" 512 "$_rr" 8 "$WORK/gpt/resume-marker.bin" || true
+        read_device_blocks /dev/block/by-name/misc 2048 0 1 "$WORK/gpt/resume-bcb.bin" || true
+    else
+        su_do "dd if=/dev/block/$IDISK bs=512 skip=$_rr count=8 2>/dev/null > /data/local/tmp/f50-pull.bin" >/dev/null
+        adb pull /data/local/tmp/f50-pull.bin "$WORK/gpt/resume-marker.bin" >/dev/null 2>&1 || true
+        su_do 'dd if=/dev/block/by-name/misc bs=2048 count=1 2>/dev/null > /data/local/tmp/f50-pull.bin' >/dev/null
+        adb pull /data/local/tmp/f50-pull.bin "$WORK/gpt/resume-bcb.bin" >/dev/null 2>&1 || true
+        su_do 'rm -f /data/local/tmp/f50-pull.bin' >/dev/null
+    fi
     # the online way, interrupted before "prepared": where the device is decides (online_recover; never with --check,
     # which writes nothing)
     _rm=$(resume_py get "$RESUME_FILE" method state | tr '\n' ' ')
@@ -262,12 +273,14 @@ online_sh() { su_do "sh $ONLINE_T/android-online-shrink.sh $1"; }
 _ov() { printf '%s\n' "$1" | sed -n "s/^$2=//p" | head -n1; }
 
 # online_inspect: can userdata shrink while Android keeps its data? ONLINE=yes|no and ONLINE_REASON; with yes, what
-# the F2FS is: ON_BLOCKS, ON_SECTION (blocks of a section), ON_USED (bytes), ON_UUID. Reads only (the helper and the
-# script go to /data/local/tmp/f50-online).
+# the F2FS is: ON_BLOCKS, ON_SECTION (blocks of a section), ON_USED (bytes), ON_UUID. The helper needs device-side files.
 online_inspect() {
     ONLINE=no; ONLINE_REASON=; ON_BLOCKS=; ON_SECTION=; ON_USED=; ON_UUID=
     if [ ! -s "$ONLINE_BIN" ] || [ ! -s "$ONLINE_SH" ]; then
         ONLINE_REASON=$(t 'this installer has no f50-f2fs-online (device-tools/f2fs-online)'); return 0
+    fi
+    if [ "${CHECK_ONLY:-0}" = 1 ]; then
+        ONLINE=unknown; ONLINE_REASON=$(t 'online shrink: not checked in read-only mode'); return 0
     fi
     su_do "rm -rf $ONLINE_T; mkdir -p $ONLINE_T; chmod 777 $ONLINE_T" >/dev/null
     resume_push "$ONLINE_BIN" "$ONLINE_T/f50-f2fs-online" && resume_push "$ONLINE_SH" "$ONLINE_T/android-online-shrink.sh" ||

@@ -1,13 +1,15 @@
 //! The `f50.sms` object.
 //!
-//! Message text and phone numbers are private: every method that returns them (`list`, `read`) is `Access::Write`,
-//! as is everything that changes the pool or the modem. `unread` returns counts alone and is `Access::Read`.
+//! Message text and phone numbers are private: every method that returns them (`list`, `list_unread`, `read`) is
+//! `Access::Write`, as is everything that changes the pool or the modem. `unread` returns counts alone and is
+//! `Access::Read`.
 //!
 //! - `list {page, per_page, peer}`: without `peer`, the conversations (one per peer, newest first: message and
 //!   unread counts, the newest message's id, direction, status, time and preview), with the pool's totals, the
 //!   modem store's capacity and the network's SMS paths (`transport`: IMS, CS, 5G SMS over NAS, `ready`) as the last
 //!   sync saw them; with `peer`, that conversation's messages whole, newest first.
 //!   Nothing is marked read.
+//! - `list_unread {page, per_page}`: unread incoming messages across all peers, newest first. Nothing is marked read.
 //! - `read {id}`: one message whole; a received one is marked read.
 //! - `send {number, text}`: starts a send job, `{"job": id}`; the job's result is `{"id", "parts", "references"}`.
 //! - `delete {id | "all", sim}`: from the pool (remembered, so the SIM cannot bring it back); with `sim`, the matching
@@ -31,9 +33,12 @@ use crate::{Sms, parse_id};
 
 const ID_RE: &str = "[1-9][0-9]{0,8}";
 
+const PAGE_NUMBER: Field = Field::opt("page", Rule::Int { min: 1, max: 100_000 });
+const PAGE_SIZE: Field = Field::opt("per_page", Rule::Int { min: 1, max: 100 });
+const PAGINATION: &[Field] = &[PAGE_NUMBER, PAGE_SIZE];
 const LIST: &[Field] = &[
-    Field::opt("page", Rule::Int { min: 1, max: 100_000 }),
-    Field::opt("per_page", Rule::Int { min: 1, max: 100 }),
+    PAGE_NUMBER,
+    PAGE_SIZE,
     Field::opt("peer", Rule::Text { max_bytes: 64, max_chars: 32 }),
 ];
 const ID: &[Field] = &[Field::req("id", Rule::WordNum { re: ID_RE, max: 9 })];
@@ -74,9 +79,16 @@ fn push_change(p: &Params) -> PushChange {
     }
 }
 
+fn page(p: &Params) -> Page {
+    Page {
+        page: usize::try_from(p.int("page").unwrap_or(1)).unwrap_or(1),
+        per_page: usize::try_from(p.int("per_page").unwrap_or(20)).unwrap_or(20),
+    }
+}
+
 pub(crate) fn object(sms: Sms) -> Object {
     let (a, b, c, d, e, f) = (sms.clone(), sms.clone(), sms.clone(), sms.clone(), sms.clone(), sms.clone());
-    let (g, h, i) = (sms.clone(), sms.clone(), sms);
+    let (g, h, i, unread) = (sms.clone(), sms.clone(), sms.clone(), sms);
     Object::builder("f50.sms")
         .method(
             "list",
@@ -85,13 +97,17 @@ pub(crate) fn object(sms: Sms) -> Object {
             "Conversations newest first with unread counts, or one conversation's messages (peer).",
             move |p: Params| {
                 let s = a.clone();
-                async move {
-                    let page = Page {
-                        page: usize::try_from(p.int("page").unwrap_or(1)).unwrap_or(1),
-                        per_page: usize::try_from(p.int("per_page").unwrap_or(20)).unwrap_or(20),
-                    };
-                    s.list(page, p.str("peer").map(str::to_owned)).await
-                }
+                async move { s.list(page(&p), p.str("peer").map(str::to_owned)).await }
+            },
+        )
+        .method(
+            "list_unread",
+            Access::Write,
+            PAGINATION,
+            "Unread incoming messages across all conversations, newest first, without marking them read.",
+            move |p: Params| {
+                let s = unread.clone();
+                async move { s.list_unread(page(&p)).await }
             },
         )
         .method("read", Access::Write, ID, "One message whole; a received one is marked read.", move |p: Params| {

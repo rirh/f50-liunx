@@ -137,6 +137,18 @@ const m: Messages["cellular"] = {
       internal: "SIM2 built-in",
       hint: "Only saves the choice; reboot the device yourself to switch.",
     },
+    imei: {
+      description:
+        "The original IMEI is the first modem reading saved for each slot. To edit the other slot, switch slots and reboot first.",
+      unknown: "No reading",
+      lastRead: "Last reading",
+      original: "Original IMEI",
+      originalUnknown: "No saved value",
+      edit: "Edit IMEI for {slot}",
+      confirm: "Confirm writing this IMEI to the selected slot. The modem value will be read back afterward.",
+      write: "Write IMEI",
+      invalid: "Enter a 15-digit IMEI with a valid checksum.",
+    },
     radio: {
       title: "Radio switches",
       description: "Each card's radio setting is saved separately",

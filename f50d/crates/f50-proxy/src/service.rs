@@ -69,6 +69,8 @@ pub(crate) struct Inner {
     pub nft_file: PathBuf,
     pub state: Mutex<State>,
     pub ops: tokio::sync::Mutex<()>,
+    /// Every delay probe goes through here (a shared cap, identical probes merged).
+    pub probes: crate::probes::Probes,
 }
 
 impl Inner {

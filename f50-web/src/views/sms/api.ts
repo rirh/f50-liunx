@@ -8,6 +8,7 @@ import type {
   SmsMessage,
   ThreadPage,
   UnreadCounts,
+  UnreadPage,
 } from "./types";
 
 const OBJ = "f50.sms";
@@ -27,6 +28,10 @@ export const listConversations = (page: number, perPage: number) =>
 /** One conversation's messages, newest first (one page). Nothing is marked read. */
 export const listThread = (peer: string, page: number, perPage: number) =>
   f50<ThreadPage>(OBJ, "list", { peer, page, per_page: perPage });
+
+/** Incoming unread messages across all conversations, newest first. */
+export const listUnread = (page: number, perPage: number, signal?: AbortSignal) =>
+  f50<UnreadPage>(OBJ, "list_unread", { page, per_page: perPage }, { signal });
 
 /** One message whole; a received one is marked read. */
 export const readMessage = (id: number) =>

@@ -84,9 +84,20 @@ source: `crates/f50-api/src/live.rs`
 - **get** (read) — Every live topic now (the events a subscription to f50.live sends, by topic).
 - **:subscribe** (read) — `GET /ubus/subscribe/f50.live` with `Authorization: Bearer <session>`: an event stream
   (`text/event-stream`). Each event's name is a topic, its data the envelope of the read method behind it, sent when it
-  changed or at least every 15 s, and only while somebody is subscribed:
+  changed or at least every 15 s. This stream sends all topics while subscribed:
   `status` (`f50.status get`, 3 s), `system` (`f50.system status`, 2 s), `modem` (`f50.modem status`, 2 s),
-  `cells` (`f50.modem cells`, 5 s), `sms` (`f50.sms unread`, 5 s), `proxy` (`f50.proxy status`, 2 s).
+  `cells` (`f50.modem cells`, 5 s), `sms` (`f50.sms unread`, 5 s), `logs` (`f50.system logs_mark`, 2 s),
+  `proxy` (`f50.proxy status`, 2 s). Each topic is read once per period for every subscriber; `f50.status` reuses
+  the same readings of the modem, the system meters and the unread count.
+
+## `f50.live.topics`
+
+- **want** (read) — Lease the topics a page displays. Renew within `ttl` seconds. An empty topic list releases the
+  lease.
+  - fields: `client` (required, `[A-Za-z0-9_-]{8,64}`, one per tab), `topics` (`a,b,c` or empty)
+  - returns `{topics: [granted], ttl: 120, data: {<topic>: envelope}}` (`data`: recent readings, when available)
+- **:subscribe** (read) — `GET /ubus/subscribe/f50.live.topics` with `Authorization: Bearer <session>`. Uses the
+  same event format as `f50.live` and sends the union of topics from active leases. With no active leases it is idle.
 
 ## `f50.lock`
 
@@ -110,7 +121,9 @@ source: `crates/f50-modem/src/objects/modem.rs`
 
 - **status** (read) — Registration, RAT, operator, signal and bars from the latest reading, with its age.
 - **cells** (read) — Serving cells, neighbours, carrier aggregation and QoS from the latest reading, with its age.
-- **identity** (write) — IMEI, IMSI, ICCID, model, firmware and the SIM's own number.
+- **identity** (write) — Identity for the active slot and `imeis` and `original_imeis` arrays in SIM1, SIM2 order. An inactive slot reports the last saved observation, if available.
+- **set_imei** (write, job) — Writes the active slot's IMEI after making the original backup durable. A successful job returns `{slot, verified: true}` after reading the value back.
+  - fields: `slot` (1 or 2, must be active), `imei` (15 digits with a valid checksum)
 - **radio** (write) — Switches the radio of the card in use on or off, kept across reboots (a job when it changes now).
   - fields: `Field::req("state", Rule::Enum(&["on", "off"]))`
 - **own_number** (write) — Writes the SIM's own number to the card (its own-number phonebook, read by AT+CNUM; a job).
@@ -164,7 +177,7 @@ URLs and pasted text are secret fields. Engine errors come back as `failed` with
   - fields: `Field::req("id", NODE_ID), Field::opt("method", Rule::Enum(&["url", "tcp", "icmp"]))`
 - **group_select** (write) — Points a select group at a node and remembers the pick. Returns `[GroupStatus]`.
   - fields: `Field::req("group", NODE_NAME), Field::req("node", NODE_NAME)`
-- **group_test** (write) — Tests the delay of a group's nodes. Returns `[GroupStatus]`.
+- **group_test** (write) — Tests the delay of a group's nodes. Returns `[GroupStatus]`; while the proxy is off a group of more than 4 members is tested as a *job* (`{job}`, its result `[GroupStatus]`). Probes run at most 3 at a time across all callers, identical ones in flight merged.
   - fields: `Field::req("group", NODE_NAME)`
 - **config_save** (write) — Saves a rule config (no id: a new one) once its rules check. Returns the `Config`; `default` cannot be changed (`forbidden`).
   - fields: `Field::opt("id", CONFIG_ID), Field::req("name", NAME), Field::req("text", Rule::Body { max_chars: 256_000 }), Field::opt("url", Rule::Word { re: r"|https?://[!-~]{1,2040}", max: 2048 }),`
@@ -217,6 +230,9 @@ source: `crates/f50-sms/src/api.rs`
 - **list** (write) — Conversations newest first with unread counts, or one conversation's messages (peer).
   - also returns `sim_storage` and `transport` (`{ims, cs, cs_stat, nas, ready, at}`, each `bool|null`; `ready: false` means the network currently gives the SIM no SMS path at all), as the last sync read them.
   - fields: `Field::opt("page", Rule::Int { min: 1, max: 100_000 }), Field::opt("per_page", Rule::Int { min: 1, max: 100 }), Field::opt("peer", Rule::Text { max_bytes: 64, max_chars: 32 }),`
+- **list_unread** (write) — Unread incoming messages across all conversations, newest first. Leaves read status unchanged.
+  - fields: `page` (1–100,000, default 1), `per_page` (1–100, default 20)
+  - returns `{unread, page, pages, per_page, messages}` with the same message fields as `list {peer}`.
 - **read** (write) — One message whole; a received one is marked read.
   - fields: `Field::req("id", Rule::WordNum { re: ID_RE, max: 9 })`
 - **send** (write) — Sends a message (up to 10 parts) as a job.

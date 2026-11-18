@@ -46,6 +46,7 @@ export default {
   },
   signalBars: "信号 {n} 格",
   device: {
+    copyFailed: "复制失败",
     storage: "存储",
     cores: "{n} 核",
     signal: "信号",
@@ -114,6 +115,8 @@ export default {
   },
   sms: {
     title: "短信",
+    unread: "未读短信",
+    all: "全部短信",
   },
   panel: {
     services: "连接与服务",

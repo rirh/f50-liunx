@@ -297,6 +297,10 @@ def su(st, cmd, argv):
             return '', 'read'
         dev = '/dev/block/' + sd['dev'] + ('p1' if sd.get('partition', True) else '')
         return '%s %d %s' % (dev, sd['sectors'], sd.get('type', 'SD')), 'read'
+    m = re.fullmatch(r'dd if=/dev/block/mmcblk0 bs=512 skip=(\d+) count=(34|33) 2>/dev/null \| od -An -tx1 -v', cmd)
+    if m:
+        head, tail = fakegpt.make(*fakegpt.layout(st['layout']))
+        return (head if m.group(1) == '0' else tail).hex(' '), 'read'
     m = re.fullmatch(r'dd if=(\S+) bs=1 skip=(\d+) count=(\d+) 2>/dev/null( \| od -An -t(x1|u4))?', cmd)
     if m:
         dev, skip, od = m.group(1), int(m.group(2)), m.group(5)
