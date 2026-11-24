@@ -2,12 +2,20 @@
  * The add/edit node form and its share-link round trip (one-node's `web/src/app/pc/node/form.ts`: the link building
  * and parsing are unchanged; labels and hints are read in the current language). Links are what f50d stores and the
  * engine parses, so the form only builds and reads links. VLESS, VMess and Trojan share the transports current Xray
- * keeps (none / TLS / REALITY on top); Hysteria2, Shadowsocks, SOCKS5 and HTTP are an address plus credentials.
+ * keeps (none / TLS / REALITY on top); OnLink is VLESS without a user (this device's key is the credential)
+ * over TCP with REALITY or TLS only; Hysteria2, Shadowsocks, SOCKS5 and HTTP are an address plus credentials.
  */
 import { t } from "@/i18n";
 
 export type Protocol =
-  "vless" | "hysteria2" | "shadowsocks" | "trojan" | "vmess" | "socks" | "http";
+  | "vless"
+  | "onlink"
+  | "hysteria2"
+  | "shadowsocks"
+  | "trojan"
+  | "vmess"
+  | "socks"
+  | "http";
 export type Network = "tcp" | "ws" | "httpupgrade" | "grpc" | "xhttp";
 export type Security = "none" | "tls" | "reality";
 
@@ -57,6 +65,7 @@ export type NodeForm = {
 
 export const PROTOCOLS: { value: Protocol; label: string }[] = [
   { value: "vless", label: "VLESS" },
+  { value: "onlink", label: "OnLink" },
   { value: "hysteria2", label: "Hysteria2" },
   { value: "shadowsocks", label: "Shadowsocks" },
   { value: "trojan", label: "Trojan" },
@@ -67,7 +76,10 @@ export const PROTOCOLS: { value: Protocol; label: string }[] = [
 
 /** The protocols that run over the transport / security choices. */
 export const usesTransport = (p: Protocol) =>
-  p === "vless" || p === "vmess" || p === "trojan";
+  p === "vless" || p === "onlink" || p === "vmess" || p === "trojan";
+
+/** OnLink: no user in the link, the device key (the engine's) is the credential. */
+export const isLink = (p: Protocol) => p === "onlink";
 export type Fragment = { length: string; interval: string; packets: string };
 export const DEFAULT_FRAGMENT: Fragment = {
   length: "40-60",
@@ -76,6 +88,14 @@ export const DEFAULT_FRAGMENT: Fragment = {
 };
 
 type Choice<T extends string> = { value: T; label: string; hint?: string };
+
+/** The transports a protocol may use: OnLink is TCP only. */
+export const networksFor = (p: Protocol) =>
+  NETWORKS().filter((n) => !isLink(p) || n.value === "tcp");
+
+/** The securities a protocol may use: OnLink needs REALITY or TLS. */
+export const securitiesFor = (p: Protocol) =>
+  SECURITIES().filter((s) => !isLink(p) || s.value !== "none");
 
 /** Read in the current language each time. */
 export const NETWORKS = (): Choice<Network>[] => [
@@ -207,7 +227,9 @@ const baseForm = (protocol: Protocol): NodeForm => ({
 
 /** Vision only runs over raw TCP with TLS or REALITY. */
 export const allowsFlow = (f: NodeForm) =>
-  f.protocol === "vless" && f.network === "tcp" && f.security !== "none";
+  (f.protocol === "vless" || isLink(f.protocol)) &&
+  f.network === "tcp" &&
+  f.security !== "none";
 
 /** The flow that will actually be written. */
 export const flowOf = (f: NodeForm) => (allowsFlow(f) ? f.flow : "");
@@ -236,7 +258,10 @@ export function missingFields(f: NodeForm): string[] {
   if (!Number.isInteger(port) || port < 1 || port > 65535)
     miss.push(t("proxy.form.field.port"));
   if (usesTransport(f.protocol)) {
-    if (f.protocol === "trojan" ? !f.password : !f.uuid.trim())
+    if (isLink(f.protocol)) {
+      if (f.network !== "tcp" || f.security === "none")
+        miss.push(t("proxy.form.missing.linkTransport"));
+    } else if (f.protocol === "trojan" ? !f.password : !f.uuid.trim())
       miss.push(
         f.protocol === "trojan" ? t("proxy.form.field.password") : "UUID",
       );
@@ -327,6 +352,22 @@ const FORM_KEYS = {
     "tfo",
     "fragment",
   ],
+  onlink: [
+    "security",
+    "type",
+    "sni",
+    "fp",
+    "flow",
+    "alpn",
+    "pbk",
+    "sid",
+    "spx",
+    "pcs",
+    "ech",
+    "mux",
+    "tfo",
+    "fragment",
+  ],
   hysteria2: ["sni", "peer", "mport"],
 } satisfies Record<Protocol, string[]>;
 
@@ -334,7 +375,7 @@ const FORM_KEYS = {
 function kept(f: NodeForm, base?: string): Record<string, string> {
   const original = base && parseLink(base);
   if (!original || original.protocol !== f.protocol) return {};
-  const q = new URL(base.replace(/^(\w+):\/\//, "onenode://")).searchParams;
+  const q = new URL(base.replace(/^([\w-]+):\/\//, "onenode://")).searchParams;
   const owned = new Set<string>(FORM_KEYS[f.protocol]);
   return Object.fromEntries([...q].filter(([k]) => !owned.has(k)));
 }
@@ -405,6 +446,7 @@ export function buildLink(f: NodeForm, base?: string): string {
       f.fragment.interval,
       f.fragment.packets,
     ].join(",");
+  if (isLink(f.protocol)) return `onlink://${hp}${query(q)}${fragment(f)}`;
   const user = f.protocol === "trojan" ? enc(f.password) : f.uuid.trim();
   return `${f.protocol}://${user}@${hp}${query(q)}${fragment(f)}`;
 }
@@ -414,7 +456,7 @@ export function parseLink(link: string): NodeForm | null {
   try {
     const scheme = link.slice(0, link.indexOf("://")).toLowerCase();
     // A non-special scheme keeps explicit default ports (:80, :443) and the userinfo.
-    const u = new URL(link.replace(/^(\w+):\/\//, "onenode://"));
+    const u = new URL(link.replace(/^([\w-]+):\/\//, "onenode://"));
     const q = u.searchParams;
     const protocol = SCHEMES[scheme];
     if (!protocol) return null;
@@ -443,9 +485,9 @@ export function parseLink(link: string): NodeForm | null {
       return f;
     }
     if (protocol === "trojan") f.password = pass ? `${user}:${pass}` : user;
-    else f.uuid = user;
+    else if (protocol !== "onlink") f.uuid = user;
     if (protocol === "vmess") f.cipher = q.get("encryption") || "auto";
-    else
+    else if (protocol !== "onlink")
       f.encryption =
         q.get("encryption") === "none" ? "" : (q.get("encryption") ?? "");
     const type = q.get("type");
@@ -486,7 +528,8 @@ export function parseLink(link: string): NodeForm | null {
     f.shortId = q.get("sid") ?? "";
     f.spiderX = q.get("spx") ?? "";
     f.flow =
-      protocol === "vless" && q.get("flow") === "xtls-rprx-vision"
+      (protocol === "vless" || protocol === "onlink") &&
+      q.get("flow") === "xtls-rprx-vision"
         ? "xtls-rprx-vision"
         : "";
     return f;
@@ -497,6 +540,7 @@ export function parseLink(link: string): NodeForm | null {
 
 const SCHEMES: Record<string, Protocol> = {
   vless: "vless",
+  onlink: "onlink",
   hysteria2: "hysteria2",
   hy2: "hysteria2",
   ss: "shadowsocks",

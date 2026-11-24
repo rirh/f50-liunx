@@ -41,7 +41,9 @@ const m: Messages["app"] = {
     title: "A new version of this page",
     description:
       "Reload to use it. Save anything you have not submitted first.",
-    action: "Reload",
+    action: "Update",
+    later: "Remind me later",
+    laterHint: "No more update notices today",
     running: "Reloading…",
     close: "Dismiss the update notice",
     failed: "Update failed, please try again.",

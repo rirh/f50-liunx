@@ -71,6 +71,8 @@ pub(crate) struct Inner {
     pub ops: tokio::sync::Mutex<()>,
     /// Every delay probe goes through here (a shared cap, identical probes merged).
     pub probes: crate::probes::Probes,
+    /// The 本地 SOCKS5 set last sent to the engine (`None`: not yet since f50d started).
+    pub socks_sent: tokio::sync::Mutex<Option<Value>>,
 }
 
 impl Inner {

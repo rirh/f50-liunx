@@ -1,4 +1,4 @@
-//! The engine's loopback API (`127.0.0.1:17891`, onecore's `pc/core/control.go`): a small HTTP/1.1 client.
+//! The engine's loopback API (`127.0.0.1:17891`, One Node's client core, `one-node/app/client/internal/api`): a small HTTP/1.1 client.
 //!
 //! One request per connection (`Connection: close`) with a Bearer token and a JSON body with Content-Length; the
 //! engine always answers with Content-Length, which bounds the read. The envelope is `{"ok":true,"data":…}`, or

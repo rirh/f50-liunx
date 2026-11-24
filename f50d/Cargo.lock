@@ -72,6 +72,7 @@ dependencies = [
 name = "f50-api"
 version = "0.1.0"
 dependencies = [
+ "f50-assist",
  "f50-at",
  "f50-core",
  "f50-data",
@@ -81,6 +82,19 @@ dependencies = [
  "f50-proxy",
  "f50-sms",
  "f50-system",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
+name = "f50-assist"
+version = "0.1.0"
+dependencies = [
+ "f50-core",
+ "regex",
  "serde",
  "serde_json",
  "tokio",
@@ -250,6 +264,7 @@ name = "f50d"
 version = "0.1.0"
 dependencies = [
  "f50-api",
+ "f50-assist",
  "f50-at",
  "f50-core",
  "f50-data",

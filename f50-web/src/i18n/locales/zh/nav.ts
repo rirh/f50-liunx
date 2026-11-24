@@ -19,6 +19,7 @@ export default {
     wifi: "Wi-Fi 热点",
     wifiClient: "Wi-Fi 上网",
     lan: "局域网",
+    ddns: "动态域名",
     usb: "USB",
     settings: "系统设置",
     leds: "指示灯",

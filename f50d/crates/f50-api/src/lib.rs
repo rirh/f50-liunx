@@ -40,6 +40,7 @@ pub struct Services {
     pub system: f50_system::System,
     pub hw: f50_hw::Hw,
     pub proxy: f50_proxy::Proxy,
+    pub assist: f50_assist::Assist,
 }
 
 /// The published API: the public objects (in the ACL) and the internal ones (never in it).
@@ -63,6 +64,7 @@ impl Api {
         public.extend(s.system.objects());
         public.extend(s.hw.objects());
         public.extend(s.proxy.objects());
+        public.extend(s.assist.objects());
         public.push(s.jobs.object());
         public.push(f50_at::terminal::object(s.at.clone(), s.jobs.clone(), &s.paths));
         let snapshot = Arc::new(public.clone());

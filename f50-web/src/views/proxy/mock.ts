@@ -34,19 +34,21 @@ function node(
         : scheme === "socks5"
           ? "socks"
           : scheme;
-  const u = new URL(link.replace(/^(\w+):\/\//, "onenode://"));
+  const u = new URL(link.replace(/^([\w-]+):\/\//, "onenode://"));
   const kind =
     protocol === "hysteria2"
       ? "hy2"
-      : protocol === "shadowsocks"
-        ? "ss"
-        : protocol === "socks"
-          ? "socks"
-          : protocol === "http"
-            ? "http"
-            : u.searchParams.get("security") === "reality"
-              ? "reality"
-              : ((u.searchParams.get("type") as ProxyNode["kind"]) ?? "tcp");
+      : protocol === "onlink"
+        ? "link"
+        : protocol === "shadowsocks"
+          ? "ss"
+          : protocol === "socks"
+            ? "socks"
+            : protocol === "http"
+              ? "http"
+              : u.searchParams.get("security") === "reality"
+                ? "reality"
+                : ((u.searchParams.get("type") as ProxyNode["kind"]) ?? "tcp");
   return {
     id,
     name,
@@ -84,6 +86,11 @@ const sub: Subscription = {
     node("s1-2", "香港 02", reality("hk2.example.com", "香港 02")),
     node("s1-3", "日本 Tokyo", reality("jp1.example.com", "日本 Tokyo")),
     node("s1-4", "🇸🇬 Singapore", reality("sg1.example.com", "Singapore")),
+    node(
+      "s1-7",
+      "日本 Tokyo Link",
+      "onlink://jp1.example.com:8443?security=reality&type=tcp&sni=www.apple.com&fp=chrome&flow=xtls-rprx-vision&pbk=Zx3m1Ue0nJ7m5aH2gS8kXq3w9pB0uYvLr6tC4dE5fG&sid=6ba85179#%E6%97%A5%E6%9C%AC%20Tokyo%20Link",
+    ),
     node(
       "s1-5",
       "US-LA Hysteria2",
@@ -184,7 +191,7 @@ let profile: Profile = {
   settings: {
     intercept_router: true,
     bypass_macs: ["aa:bb:cc:dd:ee:ff"],
-    probe_url: "https://www.gstatic.com/generate_204",
+    probe_url: "http://www.gstatic.com/generate_204",
     subscription_refresh_hours: 12,
     rule_sets_url: "https://marseo.eu.org/api/v1/one/rules/",
     auto_failover: true,
@@ -217,6 +224,17 @@ const nodes = () => [
   ...profile.subscriptions.flatMap((s) => s.nodes),
   ...profile.local_nodes,
 ];
+
+/** 本地 SOCKS5 as the engine would run them: every port up, but 1099 (taken). */
+const socksPorts = () =>
+  nodes()
+    .filter((n) => n.local_socks)
+    .map((n) => ({
+      id: n.id,
+      port: n.local_socks!.port,
+      running: n.local_socks!.port !== 1099,
+      ...(n.local_socks!.port === 1099 ? { error: "端口 1099 已被占用" } : {}),
+    }));
 
 function status(): ProxyStatus {
   const running = profile.enabled;
@@ -304,7 +322,7 @@ const LOG_TEXT = [
     "warning",
     "[1236] transport/internet/tcp: dial tcp 1.2.3.4:443: i/o timeout",
   ],
-  ["error", "f50-proxy: probe s1-6: unsupported transport: kcp"],
+  ["error", "one-node-client: probe s1-6: unsupported transport: kcp"],
   [
     "info",
     "[1237] app/router: taking detour [direct] for [tcp:www.baidu.com:443]",
@@ -515,6 +533,39 @@ export async function mockCall<T>(
                 : [...profile.local_nodes, n],
             };
         return n;
+      }
+      case "local_socks":
+        return { ports: socksPorts(), listen: "0.0.0.0" } as T;
+      case "local_socks_set": {
+        const want = a.enabled
+          ? Number(a.port) ||
+            nodes().find((x) => x.id === a.id)?.local_socks?.port ||
+            1080 + nodes().filter((x) => x.local_socks).length
+          : null;
+        const taken = nodes().find(
+          (x) => x.id !== a.id && x.local_socks?.port === want,
+        );
+        if (want && taken)
+          throw new ApiError(
+            "failed",
+            `port ${want} is the node "${taken.name}"'s`,
+          );
+        const patch = (x: ProxyNode) =>
+          x.id === a.id
+            ? { ...x, local_socks: want ? { port: want } : null }
+            : x;
+        profile = {
+          ...profile,
+          local_nodes: profile.local_nodes.map(patch),
+          subscriptions: profile.subscriptions.map((s) => ({
+            ...s,
+            nodes: s.nodes.map(patch),
+          })),
+        };
+        return {
+          node: nodes().find((x) => x.id === a.id),
+          local_socks: { ports: socksPorts(), listen: "0.0.0.0" },
+        } as T;
       }
       case "node_delete":
         profile = {

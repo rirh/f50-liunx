@@ -13,6 +13,17 @@ source: `crates/f50-at/src/terminal.rs`
   - fields: `Field::secret("command", Rule::Text { max_bytes: guard::AT_MAX, max_chars: guard::AT_MAX }, true), Field::opt("confirm", Rule::Bool), Field::opt("timeout", Rule::Int { min: 1, max: 60 }),`
 - **history** (write) — The last 40 AT commands of this boot, PINs and passwords cut off.
 
+## `f50.balance`
+
+source: `crates/f50-assist/src/api.rs` (`balance.rs`)
+
+The SIM's balance (话费余额), asked of the carrier by SMS (China Mobile `CXYE`→10086, Unicom `CXHF`→10010, Telecom `102`→10001 by the IMSI; overridable) and read from its reply ("余额为9.60元"). Also part of `f50.status` (`balance`).
+
+- **get** (read) — `{amount, at, text, asked_at, pending, error, settings: {number, code}}`.
+- **query** (write) — Sends the query SMS; answers at once with `pending: true` (the reply usually comes within a minute).
+- **set** (write) — The query's number and code (empty: from the SIM). Nothing queries on a schedule: each query is a billable SMS.
+  - fields: `Field::opt("number", …), Field::opt("code", …)`
+
 ## `f50.boot`
 
 source: `crates/f50-hw/src/object.rs`
@@ -50,6 +61,18 @@ source: `crates/f50-data/src/objects.rs`
   - fields: `Field::opt("apn", Rule::Text { max_bytes: 100, max_chars: 100 }), Field::opt("auth", Rule::Enum(&["none", "pap", "chap"])), Field::opt("username", Rule::Text { max_bytes: 64, max_chars: 64 }), Field::secret("password", Rule::Text { max_bytes: 64, max_chars: 64 }, false), Field::opt("pdp", Rule::Enum(&["ipv4", "ipv6", "ipv4v6"])), Field::opt("roaming", Rule::Bool),`
 - **power** (write) — Mobile data on or off.
   - fields: `Field::req("state", Rule::Enum(&["on", "off"]))`
+
+## `f50.ddns`
+
+source: `crates/f50-assist/src/api.rs` (`ddns.rs`)
+
+DDNS on Cloudflare. A record points at the router's cellular IPv6 (`target: "router"`; `A` only with a public IPv4, never CGNAT) or at a LAN device's IPv6 suffix on the LAN's current /64. Checked every `interval_minutes`; Cloudflare is asked only when the address changed (or daily). The token is never returned. Publishing opens no port.
+
+- **get** (write) — `{enabled, provider, token_set, token_hint, zone, records: [{name, type, target}], interval_minutes, status: [{name, type, ip, updated_at, checked_at, error}]}`.
+- **set** (write) — Absent fields are kept; `records` is a JSON array (a whole IPv6 address as `target` is kept as its suffix); turning on needs a token and a zone.
+  - fields: `Field::opt("enabled", Rule::Bool), Field::secret("token", …, false), Field::opt("zone", …), Field::opt("records", Rule::Body { max_chars: 8000 }), Field::opt("interval_minutes", Rule::Int { min: 1, max: 1440 })`
+- **neighbors** (write) — The LAN's devices (DHCP leases) with the public IPv6 addresses the router has seen: `{devices: [{mac, host, ip, ipv6: []}]}`.
+- **update** (write) — Every record now (Cloudflare asked even for unchanged addresses); the `get` reply.
 
 ## `f50.job`
 
@@ -173,7 +196,10 @@ URLs and pasted text are secret fields. Engine errors come back as `failed` with
   - fields: `Field::opt("id", NODE_ID), Field::secret("link", LINK, true), Field::opt("name", NAME), Field::opt("via", Rule::Word { re: r"|s[0-9]{1,6}-[0-9]{1,6}|L[0-9]{1,6}", max: 16 }),`
 - **node_delete** (write) — Deletes a local node. Returns the profile.
   - fields: `Field::req("id", Rule::Word { re: r"L[0-9]{1,6}", max: 8 })`
-- **probe** (write) — Times one request through a node (with its front nodes). Returns `{"ms": n}`; `failed` with the reason when it does not answer.
+- **local_socks** (write) — How the nodes' 本地 SOCKS5 ports run: `{ports: [{id, port, running, error}], listen}`.
+- **local_socks_set** (write) — Turns a node's 本地 SOCKS5 port on (the port given, its current one, or the first free from 1080) or off. Returns `{node, local_socks}`.
+  - fields: `Field::req("id", NODE_ID), Field::req("enabled", Rule::Bool), Field::opt("port", Rule::Int { min: 1024, max: 65535 })`
+- **probe** (write) — The delay through a node (with its front nodes): a warm-up request opens the connection, a second one on it is timed. Returns `{"ms": n}`; `failed` with the reason when it does not answer.
   - fields: `Field::req("id", NODE_ID), Field::opt("method", Rule::Enum(&["url", "tcp", "icmp"]))`
 - **group_select** (write) — Points a select group at a node and remembers the pick. Returns `[GroupStatus]`.
   - fields: `Field::req("group", NODE_NAME), Field::req("node", NODE_NAME)`
@@ -194,6 +220,16 @@ URLs and pasted text are secret fields. Engine errors come back as `failed` with
   - fields: `Field::opt("epoch", Rule::Word { re: r"[0-9a-z]{0,32}", max: 32 }), Field::opt("after", Rule::Int { min: 0, max: 9_007_199_254_740_991 }),`
 - `URL` is `Rule::Word { re: r"https?://[!-~]{1,2040}", max: 2048 }`, `NAME` `Rule::Text { max_bytes: 192, max_chars: 64 }`, `NODE_ID` `s<n>-<n>|L<n>`, `SUB_ID` `s<n>`, `CONFIG_ID` `default|c<n>`, `LINK` one line of up to 16384 characters.
 - While on, the supervisor (every 5 s) starts the engine again when it is not running f50d's request, takes the interception down while the engine does not answer, refreshes subscriptions every `subscription_refresh_hours`, and (with `auto_failover`) moves off a node the engine reports down to the fastest other node of the same subscription.
+
+## `f50.remote`
+
+source: `crates/f50-assist/src/api.rs` (`remote.rs`)
+
+SMS remote control: a message from an allowed number that is a command is run and answered by SMS (状态/status, 流量/traffic, 余额/balance, 代理开/代理关, 节点 <名称>, WiFi开/WiFi关, 重启/reboot, 帮助/help). With a secret the message must start with it; without one only exact commands count. Commands pooled more than 10 minutes ago are not run.
+
+- **get** (write) — `{enabled, numbers, secret_set, history: [{at, from, command, ok, reply}], help}`.
+- **set** (write) — Turning it on needs at least one number; `secret` "" clears it, absent keeps it.
+  - fields: `Field::opt("enabled", Rule::Bool), Field::opt("numbers", Rule::Text { max_bytes: 400, max_chars: 200 }), Field::secret("secret", …, false)`
 
 ## `f50.shell`
 

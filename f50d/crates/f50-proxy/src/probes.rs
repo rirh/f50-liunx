@@ -105,13 +105,12 @@ impl Probes {
             entry.callers += 1;
             entry.result.clone()
         };
-        cell
-            .get_or_init(|| async {
-                let _turn = self.slots.acquire().await.map_err(|_| Error::busy("the proxy probe queue is closed"))?;
-                probe().await
-            })
-            .await
-            .clone()
+        cell.get_or_init(|| async {
+            let _turn = self.slots.acquire().await.map_err(|_| Error::busy("the proxy probe queue is closed"))?;
+            probe().await
+        })
+        .await
+        .clone()
     }
 
     fn table(&self) -> std::sync::MutexGuard<'_, HashMap<String, Inflight>> {

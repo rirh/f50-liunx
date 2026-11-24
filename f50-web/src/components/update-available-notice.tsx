@@ -11,6 +11,8 @@ export interface UpdateAvailableNoticeProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate?: () => void | Promise<void>;
+  /** 稍后提醒: shown when given, beside the update button. */
+  onLater?: () => void;
   title?: string;
   description?: string;
   updateLabel?: string;
@@ -23,6 +25,7 @@ export function UpdateAvailableNotice({
   open,
   onOpenChange,
   onUpdate,
+  onLater,
   title,
   description,
   updateLabel,
@@ -65,41 +68,53 @@ export function UpdateAvailableNotice({
         aria-label={title}
         className="animate-in fade-in slide-in-from-bottom-3 bg-card gap-0 rounded-lg border-0 p-3 shadow-sm ring-0 duration-300 motion-reduce:animate-none"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <p className="text-sm leading-5 font-medium">{title}</p>
             <p className="text-muted-foreground mt-1 text-xs leading-4">
               {error ?? description}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            className="text-muted-foreground/60 hover:text-muted-foreground -me-1 -mt-1 shrink-0"
+            onClick={() => onOpenChange(false)}
+            disabled={updating}
+            aria-label={closeLabel}
+          >
+            <X aria-hidden="true" />
+          </Button>
+        </div>
+        <div className="mt-3 flex justify-end gap-2">
+          {onLater && (
             <Button
               type="button"
               size="sm"
-              className="min-w-24"
-              onClick={() => void handleUpdate()}
+              variant="outline"
+              onClick={onLater}
               disabled={updating}
-              aria-busy={updating || undefined}
+              title={t("app.pageUpdate.laterHint")}
             >
-              <SweepShine
-                active={updating}
-                className={updating ? "text-primary-foreground/70" : undefined}
-              >
-                {updating ? updatingLabel : updateLabel}
-              </SweepShine>
+              {t("app.pageUpdate.later")}
             </Button>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              className="text-muted-foreground/60 hover:text-muted-foreground"
-              onClick={() => onOpenChange(false)}
-              disabled={updating}
-              aria-label={closeLabel}
+          )}
+          <Button
+            type="button"
+            size="sm"
+            className="min-w-20"
+            onClick={() => void handleUpdate()}
+            disabled={updating}
+            aria-busy={updating || undefined}
+          >
+            <SweepShine
+              active={updating}
+              className={updating ? "text-primary-foreground/70" : undefined}
             >
-              <X aria-hidden="true" />
-            </Button>
-          </div>
+              {updating ? updatingLabel : updateLabel}
+            </SweepShine>
+          </Button>
         </div>
       </Card>
     </div>

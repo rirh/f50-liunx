@@ -1,6 +1,7 @@
 /**
  * The node form's fields by protocol (one-node's `node-fields.tsx` and the pushed pages of `sub-pages.tsx`, laid
- * out as sections of one page here): credentials, then for VLESS / VMess / Trojan the transport and the security.
+ * out as sections of one page here): credentials, then for VLESS / OnLink / VMess / Trojan the transport and
+ * the security.
  */
 import { FieldSeparator } from "@/components/ui/field";
 import { t } from "@/i18n";
@@ -11,9 +12,10 @@ import {
   DEFAULT_FRAGMENT,
   FINGERPRINTS,
   type Fragment,
-  NETWORKS,
+  isLink,
+  networksFor,
   type NodeForm,
-  SECURITIES,
+  securitiesFor,
   SS_METHODS,
   usesTransport,
   validRange,
@@ -35,6 +37,12 @@ export function CredentialFields({
   form: NodeForm;
   set: Setter;
 }) {
+  if (isLink(form.protocol))
+    return (
+      <p className="text-sm text-muted-foreground">
+        {t("proxy.form.hint.linkKey")}
+      </p>
+    );
   if (usesTransport(form.protocol))
     return (
       <div className={GRID}>
@@ -194,7 +202,7 @@ export function TransportFields({
         <SelectField
           label={t("proxy.form.field.network")}
           value={n}
-          options={NETWORKS()}
+          options={networksFor(form.protocol)}
           onChange={set("network")}
         />
         {n === "xhttp" && (
@@ -295,7 +303,7 @@ export function SecurityFields({ form, set }: { form: NodeForm; set: Setter }) {
         <SelectField
           label={t("proxy.form.field.security")}
           value={s}
-          options={SECURITIES()}
+          options={securitiesFor(form.protocol)}
           onChange={set("security")}
         />
         {s !== "none" && (

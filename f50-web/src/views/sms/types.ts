@@ -144,3 +144,18 @@ export interface PushChange {
   api?: string;
   proxy?: boolean;
 }
+
+/** `f50.remote get` (f50-assist/src/remote.rs): SMS remote control; the secret is never returned. */
+export interface RemoteSettings {
+  enabled: boolean;
+  numbers: string[];
+  secret_set: boolean;
+  history: {
+    at: number;
+    from: string;
+    command: string;
+    ok: boolean;
+    reply: string;
+  }[];
+  help: string;
+}

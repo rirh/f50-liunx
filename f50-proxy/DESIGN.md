@@ -6,58 +6,76 @@ Three pieces, one contract. Each piece is built against this document; change it
 LAN client ─► br-lan ─► nft table inet f50_proxy (prerouting, tproxy) ─┐
 router's own traffic ─► nft output (mark 1) ─► ip rule fwmark 1 → lo ─┤
                                                                       ▼
-                     f50-proxy engine (Go: Xray-core + rulespec)  tproxy inbound :17892
+                     f50-proxy = one-node client core (Go, Xray)  tproxy inbound :17892
                      loopback control API 127.0.0.1:17891 ◄── f50d crate f50-proxy (ubus f50.proxy)
                      every outbound socket: SO_MARK 0xff (never intercepted again)   ▲
                                                                      f50-web /proxy pages (uhttpd /ubus)
 ```
 
-Ported from `one-node` (`/Users/zh/Documents/workspaces/voh/one/one-node`): the engine is `pc/core` (onecore) with
-`backend/pkg/rulespec` vendored; the f50d crate takes the role of the Tauri shell (`pc/src-tauri`: profile, configs,
-groups, failover); the pages are `web/src/app/pc` rebuilt in f50-web's own design system.
+Built from `one-node` (`/Users/zh/Documents/workspaces/voh/one/one-node`): the engine is One Node's client core
+`app/client` itself (with the shared `core/rulespec`), nothing vendored; the f50d crate takes the role of the Tauri
+shell (`app/src-tauri`: profile, configs, groups, failover); the pages are `web/src/app/pc` rebuilt in f50-web's own
+design system.
 
-## 1. Engine: `f50-proxy/` (Go module, vendored onecore)
+## 1. Engine: One Node's client core (`one-node/app/client`), built as `f50-proxy`
 
-- Module `f50/proxy`; `rulespec` (+ `engine`, and `srs` only if used) under `internal/rulespec`. No `replace` to
-  another repository. Only Linux is a target: the darwin/windows files, the elevated helper, the system proxy/DNS,
-  native NetworkExtension and Windows service code are removed; `internal/engine/health.go` keeps what makes sense
-  on a router. Entry point `cmd/f50-proxy`; the engine is split into `internal/` packages (README.md, Layout).
-- Built `CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X f50/proxy/internal/version.Version=<v>" ./cmd/f50-proxy` →
-  `f50-proxy/dist/f50-proxy-linux-arm64`. Installed on the device as `/opt/f50/bin/f50-proxy`.
+- No Go code lives here. The engine is `github.com/voh/one-node/app/client` (One Node PC's core, also the phones'),
+  built for the router by `f50-proxy/Makefile` (`ONE_NODE`, default `/Users/zh/Documents/workspaces/voh/one/one-node`):
+  `CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.appVersion=<v>
+  -X …/internal/app.Product=F50Proxy -X '…/internal/device.Model=ZTE F50'"` → `f50-proxy/dist/f50-proxy-linux-arm64`,
+  installed on the device as `/opt/f50/bin/f50-proxy`. A change to the engine is a change in one-node.
 - Runs always (procd service `/etc/init.d/f50-proxy`, respawn):
-  `f50-proxy serve --listen 127.0.0.1:17891 --token-file /etc/f50d/proxy/token --log /var/log/f50-proxy/core.log --loglevel warning`.
+  `f50-proxy serve --listen 127.0.0.1:17891 --token-file /etc/f50d/proxy/token --log /var/log/f50-proxy/core.log
+  --loglevel warning --info-stdout --cache-dir /etc/f50d/proxy/rulesets --probe-limit 3
+  --link-key /etc/f50d/proxy/link.key --local-socks-listen 0.0.0.0 --local-socks-mark 255` (the OnLink
+  device key; the gateway serves `onlink://` lines to a device that sent its key, and binds the key to the
+  device for good. The 本地 SOCKS5 ports listen on every address, which fw4 keeps to the LAN and USB zones, and
+  their node connections carry the gateway mark).
   The token file is written by f50d (0600, 32 hex chars) before the service starts. It is idle until `/v1/start`.
-- The loopback API is onecore's unchanged (`/v1/status`, `/v1/start`, `/v1/stop`, `/v1/connections`,
+- The loopback API is the client's (`/v1/status`, `/v1/start`, `/v1/stop`, `/v1/connections`,
   `/v1/connections/close`, `/v1/logs`, `/v1/probe`, `/v1/subscription`, `/v1/rules/check`, `/v1/rules/fetch`,
-  `/v1/groups`, `/v1/groups/select`, `/v1/groups/test`, `/v1/shutdown`), Bearer token, envelope
-  `{"ok":true,"data":…}` / HTTP 422 `{"ok":false,"error":"…"}`, every reply with Content-Length.
+  `/v1/groups`, `/v1/groups/select`, `/v1/groups/test`, `/v1/shutdown`; the PC's `/v1/local-socks*` are unused here),
+  Bearer token, envelope `{"ok":true,"data":…}` / HTTP 422 `{"ok":false,"error":"…"}`, every reply with
+  Content-Length. `status.version` is the stamped release.
 
-### Changes from onecore
+### What the client core does for the router
 
-1. **`mode: "gateway"`** (new; `proxy` stays, `tun` goes). Inbounds:
+1. **`mode: "gateway"`** (`xrayconf.ModeGateway`; `proxy` and the PC's `tun` exist too, f50d sends `gateway`). Inbounds:
    - `mixed`: SOCKS5+HTTP on `127.0.0.1:<port>` (default 17890), as before.
    - `tproxy`: `dokodemo-door`, listen `::` (dual stack), port `tproxy_port` (default 17892), `network: "tcp,udp"`,
      `followRedirect: true`, `streamSettings.sockopt.tproxy: "tproxy"`, sniffing `["http","tls","quic"]`
-     (`routeOnly: false`, as onecore's TUN).
-   - DNS: `queryStrategy: "UseIPv4"` (no AAAA answers, as onecore's TUN), `freedom` direct with
+     (`routeOnly: false`, as the TUN).
+   - DNS: `queryStrategy: "UseIPv4"` (no AAAA answers, as the TUN), `freedom` direct with
      `domainStrategy: "ForceIPv4"`.
    - Every outbound (proxy, `node:*`, via/fragment hops, direct, dns-out; block needs none) gets
      `streamSettings.sockopt.mark: <mark>` (`mark`, default 255) so the nftables rules never catch the engine itself.
-   - Node server domains are resolved to IPv4 before the start (onecore's `resolveServers`, used for TUN today):
-     otherwise dialing the node would loop through the interception.
+   - Node server domains are resolved to IPv4 before the start (`resolveServers`, as for the TUN), through the
+     bootstrap DNS `223.5.5.5`/`119.29.29.29` on marked sockets (`internal/netmark`): dialing the node by name would
+     loop through the interception. The core's own sockets (rule-set downloads, `tcp`/`icmp` probes, URL probes'
+     instances) carry the mark and resolve the same way while a gateway runs.
    - `fixedRoute`: inbound `tproxy` with port 53 → `dns-out` (DNS from LAN clients and from dnsmasq's upstream queries
      is answered by Xray's DNS with the split, cn domains by `223.5.5.5` DoH direct, the rest by `1.1.1.1` DoH through
      the node). The TUN-only IPv6 block does not apply to `tproxy`.
-   - New `StartRequest` fields: `tproxy_port` (int), `mark` (int). Mode `gateway` needs no root beyond what the
+   - `StartRequest` fields: `tproxy_port` (int), `mark` (int), `probe_url` (the delay test's target for groups and
+     the node check). Mode `gateway` needs no root beyond what the
      service has (it runs as root under procd; `CAP_NET_ADMIN` for IP_TRANSPARENT/SO_MARK).
 2. **`Conn.source`**: the client address (IP only) of every connection, from the inbound's source.
-3. **Subscription fetch headers**: `User-Agent: v2rayN/7.15 F50Proxy/<ver> <arch>`, `X-Device-OS: OpenWrt`,
-   `X-Ver-OS` (`DISTRIB_RELEASE` of `/etc/openwrt_release`), `X-Device-Model: ZTE F50`, `X-HWID` = hashed `/etc/machine-id`, else the eMMC CID
-   (`/sys/block/mmcblk0/device/cid`; stock OpenWrt has no machine-id). One Node's gateway calls the client
+3. **Subscription fetch headers**: `User-Agent: F50Proxy/<ver> <arch>` (the product token stamped as `app.Product`;
+   also on 配置 and rule-set downloads), `X-Device-OS: OpenWrt`, `X-Ver-OS` (`DISTRIB_RELEASE` of
+   `/etc/openwrt_release`), `X-Device-Model: ZTE F50` (stamped `device.Model`), `X-HWID` = hashed `/etc/machine-id`,
+   else the eMMC CID (`/sys/block/mmcblk0/device/cid`; stock OpenWrt has no machine-id), hashed as on the PC. One Node's gateway calls the client
    `One Node F50` (policy id `one-node-f50`) and refuses it without X-HWID once its client policy is enforced.
-4. Rule sets: embedded ones as in onecore; the remote catalogue base comes from `rule_sets` in the start request
-   (f50d's default: `https://marseo.eu.org/api/v1/one/rules/`); cache under `--cache-dir` (default
-   `/etc/f50d/proxy/rulesets`).
+4. Rule sets: the client's built-in ones; the remote catalogue base comes from `rule_sets` in the start request
+   (f50d's default: `https://marseo.eu.org/api/v1/one/rules/`); kept with their ETag under `--cache-dir`, so a boot
+   without network still has them.
+5. **Delay tests**: `--probe-limit 3` caps the throwaway Xray instances URL probes start; f50d keeps to the same
+   number. ICMP probes fall back to a raw socket as root (OpenWrt's `ping_group_range` admits no group).
+6. **本地 SOCKS5**: a node may have its own SOCKS5 port (`local_socks: {port}` in the profile, from 1080 when none is
+   given); what reaches it leaves through that node and its front nodes, whatever is selected or whether the proxy
+   is on. f50d sends the whole set to `/v1/local-socks` on every change, and again when `GET /v1/local-socks` shows
+   the engine lost it (it restarted). A subscription refresh carries a port over by the node's name.
+7. **Logs**: `--info-stdout` puts trouble (Xray warnings/errors, the core's `Warn` lines) on stderr and the rest on
+   stdout, so procd files them as `daemon.err` / `daemon.info`. The core's own lines read `one-node-client: …`.
 
 ## 2. f50d crate `f50-proxy`, ubus object `f50.proxy`
 
@@ -112,7 +130,7 @@ Owns:
   "settings": {
     "intercept_router": true,           // the router's own traffic goes through the proxy too
     "bypass_macs": ["aa:bb:cc:dd:ee:ff"],
-    "probe_url": "https://www.gstatic.com/generate_204",
+    "probe_url": "http://www.gstatic.com/generate_204", // 测速: warm-up request, then the timed one on the same connection
     "subscription_refresh_hours": 12,   // 0 = never
     "rule_sets_url": "https://marseo.eu.org/api/v1/one/rules/",
     "auto_failover": true,
@@ -148,6 +166,8 @@ Access: `R` = `f50-read`, `W` = admin. Everything that shows links, hosts or cli
 | `node_inspect` | W | `text` (one or more share links, Body ≤ 200000) | `{"nodes":[Node without id/via]}` (each with its `problem`) |
 | `node_save` | W | `id?` (absent = new local node), `link`, `name?`, `via?` (node id or empty) | `Node` |
 | `node_delete` | W | `id` (local nodes only) | `Profile` |
+| `local_socks` | W | — | `{"ports":[{id,port,running,error?}],"listen"}` (the engine's) |
+| `local_socks_set` | W | `id`, `enabled`, `port?` (1024–65535; absent: its current one, else the first free from 1080) | `{"node":Node,"local_socks":…}`; refused when another node or the engine has the port |
 | `probe` | W | `id`, `method?` `url`/`tcp`/`icmp` | `{"ms":n}` (`failed` with the reason when it does not answer) |
 | `group_select` | W | `group`, `node` | `[GroupStatus]` (remembered in `group_selections`) |
 | `group_test` | W | `group` | `[GroupStatus]`, or `{job}` for a group of more than 4 members while the engine is off. When off, one group is tested at a time with up to 2 probes in flight. |
@@ -201,8 +221,7 @@ en), API in `src/views/proxy/api.ts` + `queries.ts` over `f50()` (`f50.proxy`), 
 ## Daemon notes (f50d crate `f50-proxy`)
 
 - Routing table 117 and preference 1170 are unused elsewhere in `f50d/` and `systems/openwrt/overlay` (checked): kept.
-- `Status.engine` is read from the engine's `/v1/status` field `version` (else `engine`); onecore has neither, so
-  it is `null` until the engine adds one.
+- `Status.engine` is the engine's `/v1/status` field `version`, the release `f50-proxy/Makefile` stamps.
 - `log_level`: the engine takes `--loglevel` on its command line, so f50d writes `/etc/f50d/proxy/log_level` and the
   init script passes it (default `warning`); a change restarts the service and the supervisor starts it again.
 - The init script skips the start while `/etc/f50d/proxy/token` is missing; f50d's supervisor runs

@@ -1,6 +1,7 @@
 import type { JobStarted } from "@/lib/jobs";
 import { f50 } from "@/lib/ubus";
 import type {
+  RemoteSettings,
   ConversationPage,
   DeleteResult,
   PushChange,
@@ -34,7 +35,11 @@ export const listThread = (peer: string, page: number, perPage: number) =>
   f50<ThreadPage>(OBJ, "list", { peer, page, per_page: perPage });
 
 /** Incoming unread messages across all conversations, newest first. */
-export const listUnread = (page: number, perPage: number, signal?: AbortSignal) =>
+export const listUnread = (
+  page: number,
+  perPage: number,
+  signal?: AbortSignal,
+) =>
   f50<UnreadPage>(OBJ, "list_unread", { page, per_page: perPage }, { signal });
 
 /** One message whole; a received one is marked read. */
@@ -63,3 +68,12 @@ export const setPush = (change: PushChange) =>
 /** A test message with the saved settings changed by `change` (not saved). */
 export const testPush = (change: PushChange) =>
   f50<{ sent: boolean }>(OBJ, "push_test", { ...change });
+
+/** 短信遥控 (`f50.remote`): its own object, beside the SMS pool's. */
+export const getRemote = () => f50<RemoteSettings>("f50.remote", "get");
+/** `numbers`: comma separated; an absent `secret` keeps it, "" clears it. */
+export const setRemote = (change: {
+  enabled?: boolean;
+  numbers?: string;
+  secret?: string;
+}) => f50<RemoteSettings>("f50.remote", "set", change);

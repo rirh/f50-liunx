@@ -100,12 +100,17 @@ async fn daemon() -> Result<()> {
         shutdown.clone(),
     )?;
 
-    let services = Services { at, jobs, paths, modem, data, sms, net, system, hw, proxy };
+    // the helpers call the published methods: the table is theirs once the API is assembled
+    let table: f50_assist::Table = Arc::new(OnceLock::new());
+    let assist = f50_assist::Assist::start(&paths, table.clone(), &tracker, shutdown.clone())?;
+
+    let services = Services { at, jobs, paths, modem, data, sms, net, system, hw, proxy, assist };
     let acl = Arc::new(OnceLock::new());
     let internal =
         vec![services.data.proto_object(), internal::object(services.net.clone(), services.data.clone(), acl.clone())];
     let api = Api::new(&services, internal);
     let _ = acl.set(api.acl());
+    let _ = table.set(Arc::new(api.all().to_vec()));
     install_acl(&platform, &api).await;
 
     wiring::start(&services, &platform, &cfg, &tracker, &shutdown);

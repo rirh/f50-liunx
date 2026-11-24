@@ -1,9 +1,9 @@
+import { useEffect, useRef } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useAtom } from "jotai";
 import { MessageSquareTextIcon } from "lucide-react";
-import { useEffect, useRef } from "react";
 import { ConversationList } from "./components/conversation-list";
 import { NewMessageDialog } from "./components/new-message-dialog";
 import { SmsActions } from "./components/sms-actions";

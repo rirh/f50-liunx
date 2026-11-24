@@ -530,13 +530,16 @@ check() {
 # network, band and cell locks it saved and replays at boot. The modem keeps a lock by itself; without this directory
 # the panel came up after an update showing none, while the modem was still locked (FINDINGS 64).
 # installer/android/android-install.sh has the same list.
+# etc/f50d: f50d's own state (SMS, the original IMEI, the proxy profile and the OnLink device key, which the
+# subscription gateway binds to this device for good). f50-carry keeps it anyway; this list is what images without
+# f50-carry fall back to.
 # etc/crontabs: the jobs of OpenWrt's System > Scheduled Tasks (LuCI writes /etc/crontabs/root) and of every package
 # or user that installs one. OpenWrt's sysupgrade keeps the directory; an update used to leave it behind in
 # <os>.old, and the image's own /etc/crontabs is empty, so cron's init refused to start at all (FINDINGS 83).
 keep_list() {
     case $(os_kind "$1") in
-        ubuntu) echo "etc/f50 etc/unisoc-modem etc/ssh etc/hostname etc/localtime etc/timezone etc/fstab home root srv usr/local var/lib/bluetooth" ;;
-        openwrt) echo "etc/config etc/f50 etc/unisoc-modem etc/dropbear etc/rc.local etc/crontabs root" ;;
+        ubuntu) echo "etc/f50 etc/f50d etc/unisoc-modem etc/ssh etc/hostname etc/localtime etc/timezone etc/fstab home root srv usr/local var/lib/bluetooth" ;;
+        openwrt) echo "etc/config etc/f50 etc/f50d etc/unisoc-modem etc/dropbear etc/rc.local etc/crontabs root" ;;
     esac
 }
 # vendor files that the published images deliberately do not contain

@@ -21,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftIcon, CheckIcon, CopyIcon, GaugeIcon } from "lucide-react";
 import { toast } from "sonner";
 import { SelectField, TextField } from "./components/fields";
+import { LocalSocksCard } from "./components/local-socks";
 import {
   CredentialFields,
   SecurityFields,
@@ -434,6 +435,7 @@ function NodeEditor({
                 />
               </CardContent>
             </Card>
+            {existing && <LocalSocksCard node={existing} />}
             {existing && (
               <Card>
                 <CardContent className="flex flex-col gap-4">

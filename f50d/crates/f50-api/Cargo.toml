@@ -17,6 +17,7 @@ f50-net.workspace = true
 f50-system.workspace = true
 f50-hw.workspace = true
 f50-proxy.workspace = true
+f50-assist.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

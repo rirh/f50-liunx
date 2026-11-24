@@ -196,6 +196,8 @@ impl Proxy {
                     Some(v) => Some(v.to_owned()),
                     None => p.node(&id).and_then(|n| n.via.clone()),
                 };
+                // its 本地 SOCKS5 port stays with it
+                node.local_socks = p.node(&id).and_then(|n| n.local_socks);
                 if node.via.is_some() {
                     nodes::chain(p, &node).map_err(|e| Error::field(e.code(), "via", e.message()))?;
                 }

@@ -174,6 +174,18 @@ export interface SmsUnread {
   unread: number;
 }
 
+/** `f50.balance get` (f50-assist/src/balance.rs): the SIM's balance from the carrier's last reply. */
+export interface BalanceInfo {
+  /** Yuan. */
+  amount: number | null;
+  at: number | null;
+  text: string | null;
+  asked_at: number | null;
+  pending: boolean;
+  error: string | null;
+  settings: { number: string; code: string };
+}
+
 export interface DashboardStatus {
   modem?: Part<ModemStatus>;
   sim?: Part<SimInfo>;
@@ -184,6 +196,7 @@ export interface DashboardStatus {
   usb?: Part<UsbInfo>;
   system?: Part<SystemStatusInfo>;
   sms?: Part<SmsUnread>;
+  balance?: Part<BalanceInfo>;
 }
 
 export type OnOff = "on" | "off";

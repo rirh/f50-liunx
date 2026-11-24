@@ -15,6 +15,7 @@ export type NodeKind =
   | "httpupgrade"
   | "grpc"
   | "hy2"
+  | "link"
   | "ss"
   | "socks"
   | "http"
@@ -36,10 +37,28 @@ export interface ProxyNode {
   warnings: string[];
   /** The id of the node this one connects through, or null. */
   via: string | null;
+  /** 本地 SOCKS5: the node's own SOCKS5 port on the router's LAN, while on. */
+  local_socks?: { port: number } | null;
+}
+
+/** How one node's 本地 SOCKS5 port runs. */
+export interface LocalSocksPort {
+  id: string;
+  port: number;
+  running: boolean;
+  error?: string;
+}
+
+/** `local_socks`: the engine's ports and the address they listen on. */
+export interface LocalSocksStatus {
+  ports: LocalSocksPort[];
+  listen?: string;
+  /** The engine did not answer (the setting is saved and sent once it does). */
+  error?: string;
 }
 
 /** `node_inspect`: a node the engine read, nothing saved (no id, no via). */
-export type InspectedNode = Omit<ProxyNode, "id" | "via">;
+export type InspectedNode = Omit<ProxyNode, "id" | "via" | "local_socks">;
 
 export interface Usage {
   upload: number;

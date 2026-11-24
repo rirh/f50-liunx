@@ -3,15 +3,16 @@
 //! - Names are unique across every node (`HK`, `HK (2)`) before they reach the engine: rules and groups name nodes.
 //! - 前置代理 (`via`, one-node's `pc/src-tauri/src/chain.rs`): a node may connect through another, which may have its
 //!   own; the engine takes the chain as links, nearest first. A loop, a missing or broken front node is refused.
-//! - A subscription refresh replaces its nodes (ids are positions, `<sub>-<n>`): the selection and every `via`
-//!   follow the node's name; one whose node did not come back goes.
+//! - A subscription refresh replaces its nodes (ids are positions, `<sub>-<n>`): the selection, every `via` and
+//!   the 本地 SOCKS5 ports follow the node's name; one whose node did not come back goes.
+//! - 本地 SOCKS5 (one-node's `localsocks`): the engine runs a SOCKS5 port per node that has one, on the LAN.
 
 use std::collections::{HashMap, HashSet};
 
 use f50_core::{Error, Result};
 use serde_json::{Value, json};
 
-use crate::profile::{Node, Profile};
+use crate::profile::{LocalSocks, Node, Profile};
 
 /// The longest chain of front nodes.
 pub(crate) const MAX_HOPS: usize = 8;
@@ -77,6 +78,19 @@ pub(crate) fn node_names(p: &Profile) -> Vec<String> {
     named_nodes(p).into_iter().filter_map(|n| n["name"].as_str().map(str::to_owned)).collect()
 }
 
+/// The engine's 本地 SOCKS5 set (`/v1/local-socks`): `[{id, name, link, via, port}]` of every usable node with a
+/// port; a broken chain leaves its node out.
+pub(crate) fn socks_entries(p: &Profile) -> Vec<Value> {
+    p.nodes()
+        .filter(|n| n.usable())
+        .filter_map(|n| {
+            let port = n.local_socks?.port;
+            let via = via_links(p, n).ok()?;
+            Some(json!({ "id": n.id, "name": n.name, "link": n.link, "via": via, "port": port }))
+        })
+        .collect()
+}
+
 /// Drops every `via` that pointed at `id`.
 pub(crate) fn forget_via(p: &mut Profile, id: &str) {
     for n in p.nodes_mut() {
@@ -93,12 +107,15 @@ pub(crate) fn replace_subscription_nodes(p: &mut Profile, idx: usize, fresh: Vec
     let old = std::mem::take(&mut p.subscriptions[idx].nodes);
     let old_name: HashMap<String, String> = old.iter().map(|n| (n.id.clone(), n.name.clone())).collect();
     let old_via: HashMap<String, String> = old.iter().filter_map(|n| Some((n.name.clone(), n.via.clone()?))).collect();
+    let old_socks: HashMap<String, LocalSocks> =
+        old.iter().filter_map(|n| Some((n.name.clone(), n.local_socks?))).collect();
     let mut new: Vec<Node> = fresh
         .into_iter()
         .enumerate()
         .map(|(i, mut n)| {
             n.id = format!("{sub_id}-{}", i + 1);
             n.via = None;
+            n.local_socks = None;
             n
         })
         .collect();
@@ -116,7 +133,12 @@ pub(crate) fn replace_subscription_nodes(p: &mut Profile, idx: usize, fresh: Vec
             others.contains(via).then(|| via.to_owned())
         }
     };
+    let mut socks_kept: HashSet<String> = HashSet::new();
     for n in &mut new {
+        // a name twice in the list: the port goes to the first only
+        if socks_kept.insert(n.name.clone()) {
+            n.local_socks = old_socks.get(&n.name).copied();
+        }
         if let Some(v) = old_via.get(&n.name).and_then(|v| remap(v))
             && v != n.id
         {
@@ -254,6 +276,32 @@ mod tests {
         p.selected = Some("s1-3".into());
         replace_subscription_nodes(&mut p, 0, vec![node("0", "US")]);
         assert_eq!(p.selected.as_deref(), Some("s1-1"));
+    }
+
+    #[test]
+    fn socks_ports_follow_the_name_and_skip_broken_nodes() {
+        let mut p = profile();
+        p.subscriptions[0].nodes[0].local_socks = Some(LocalSocks { port: 1080 }); // HK
+        p.subscriptions[0].nodes[2].local_socks = Some(LocalSocks { port: 1081 }); // JP, goes away
+        p.local_nodes[0].local_socks = Some(LocalSocks { port: 1082 });
+        p.local_nodes[0].via = Some("s1-1".into());
+        let entries = socks_entries(&p);
+        assert_eq!(entries.len(), 3);
+        assert_eq!(
+            entries[2],
+            json!({"id": "L1", "name": "home", "link": "vless://L1", "via": ["vless://s1-1"], "port": 1082})
+        );
+
+        replace_subscription_nodes(&mut p, 0, vec![node("0", "US"), node("1", "HK"), node("2", "HK")]);
+        let ports: Vec<_> = p.nodes().map(|n| (n.id.as_str(), n.local_socks.map(|s| s.port))).collect();
+        assert_eq!(
+            ports,
+            [("s1-1", None), ("s1-2", Some(1080)), ("s1-3", None), ("L1", Some(1082)), ("L2", None)],
+            "HK keeps 1080 (the first HK only), JP's port goes with it"
+        );
+
+        p.local_nodes[0].problem = Some("x".into());
+        assert!(socks_entries(&p).iter().all(|e| e["id"] != "L1"), "an unusable node gets no port");
     }
 
     #[test]

@@ -60,7 +60,7 @@ make install    # 构建 f50d 和网页，开启 ADB，刷入 OpenWrt
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | [`f50d/`](f50d/README.md)           | 设备守护进程（Rust），以 ubus 对象 `f50.*` 提供全部功能，接口见 [`f50d/docs/API.md`](f50d/docs/API.md)                                     |
 | `f50-web/`                          | 网页控制台（React + Vite），经 uhttpd 的 `/ubus` 调用 `f50d`                                                                               |
-| [`f50-proxy/`](f50-proxy/README.md) | 代理引擎（Go：Xray-core + 分流规则，移植自 one-node 的 onecore），由 `f50d` 的 `f50.proxy` 管理，设计见 [`DESIGN.md`](f50-proxy/DESIGN.md) |
+| [`f50-proxy/`](f50-proxy/README.md) | 代理引擎：直接用 one-node 的客户端内核（`one-node/app/client`，Xray-core + 分流规则）构建，由 `f50d` 的 `f50.proxy` 管理，设计见 [`DESIGN.md`](f50-proxy/DESIGN.md) |
 | `install.sh`、`installer/`、`boot/` | 从原厂 Android 首次安装：启动镜像、Linux 槽位、根文件系统                                                                                  |
 | `uninstall.sh`                      | 卸载 Linux，恢复原厂 Android                                                                                                               |
 | `android/magisk/`                   | Android 里切回 Linux 用的 Magisk 模块                                                                                                      |

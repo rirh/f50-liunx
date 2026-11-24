@@ -31,6 +31,7 @@ const V22 = lazy(() => import("@/views/proxy/rules"));
 const V23 = lazy(() => import("@/views/proxy/data"));
 const V24 = lazy(() => import("@/views/proxy/settings"));
 const V25 = lazy(() => import("@/views/tools/shell"));
+const V26 = lazy(() => import("@/views/network/ddns"));
 
 export function App() {
   return (
@@ -48,6 +49,7 @@ export function App() {
         <Route path="network/wifi-client" element={<V8 />} />
         <Route path="network/lan" element={<V9 />} />
         <Route path="network/usb" element={<V10 />} />
+        <Route path="network/ddns" element={<V26 />} />
         <Route path="system/overview" element={<V11 />} />
         <Route path="system/settings" element={<V12 />} />
         <Route path="system/cpu" element={<V13 />} />

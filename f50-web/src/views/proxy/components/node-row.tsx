@@ -134,7 +134,12 @@ export const NodeRow = memo(function NodeRow({
             title={node.summary}
             className="flex min-w-0 flex-1 gap-1 overflow-hidden"
           >
-            {[...nodeTags(node), via && t("proxy.node.viaTag", { name: via })]
+            {[
+              ...nodeTags(node),
+              via && t("proxy.node.viaTag", { name: via }),
+              node.local_socks &&
+                t("proxy.socks.tag", { port: node.local_socks.port }),
+            ]
               .filter((tag): tag is string => Boolean(tag))
               .map((tag) => (
                 <span

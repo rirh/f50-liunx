@@ -830,7 +830,7 @@ for os in $OSES; do
         if [ $carried = 0 ]; then
             # the new image's version and package lists, and the names of its own etc/config files (upk_record)
             image_own_save "$M/$os.new"
-            keep="etc/config etc/f50 etc/unisoc-modem etc/dropbear etc/rc.local etc/crontabs root"
+            keep="etc/config etc/f50 etc/f50d etc/unisoc-modem etc/dropbear etc/rc.local etc/crontabs root"
             kept=
             for k in $keep; do
                 ks=$k

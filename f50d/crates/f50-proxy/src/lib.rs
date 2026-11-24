@@ -10,6 +10,7 @@
 //! - `firewall`: the nft table `inet f50_proxy` (tproxy) and the policy routing, only while running;
 //! - `service`: the shared state and the on/off transitions; `status`: the `status` reply;
 //! - `probes`: delay probes through the engine, a few at a time and identical ones shared;
+//! - `socks`: 本地 SOCKS5, a node's own SOCKS5 port on the LAN;
 //! - `ops`, `subs`, `groups`: the methods; `supervisor`: the 5 s loop (restart, refresh, failover);
 //! - `api`: the `f50.proxy` object.
 //!
@@ -26,6 +27,7 @@ mod probes;
 mod profile;
 mod request;
 mod service;
+mod socks;
 mod status;
 mod subs;
 mod supervisor;
@@ -133,6 +135,7 @@ impl Proxy {
             }),
             ops: tokio::sync::Mutex::new(()),
             probes: probes::Probes::default(),
+            socks_sent: tokio::sync::Mutex::new(None),
         });
         let proxy = Proxy { inner };
         tracker.spawn(supervisor::run(proxy.clone(), shutdown));

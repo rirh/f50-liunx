@@ -8,19 +8,22 @@ import {
   ListFilterIcon,
   PenSquareIcon,
   RefreshCwIcon,
+  TerminalSquareIcon,
 } from "lucide-react";
 import { PushDialog } from "./push-dialog";
+import { RemoteDialog } from "./remote-dialog";
 import { useSyncSms } from "../queries";
 import { composeOpenAtom, filterAtom } from "../store/sms";
 
 /**
- * The list column's header actions, icons only (their names in the tooltip): unread only, sync, Telegram push, new
- * message. There is no "delete all": messages are deleted one at a time or a conversation at once (its header).
+ * The list column's header actions, icons only (their names in the tooltip): unread only, sync, Telegram push, SMS remote control,
+ * new message. There is no "delete all": messages are deleted one at a time or a conversation at once (its header).
  */
 export function SmsActions() {
   const sync = useSyncSms();
   const setCompose = useSetAtom(composeOpenAtom);
   const [pushOpen, setPushOpen] = useState(false);
+  const [remoteOpen, setRemoteOpen] = useState(false);
   const [filter, setFilter] = useAtom(filterAtom);
   const unreadOnly = filter === "unread";
 
@@ -64,6 +67,17 @@ export function SmsActions() {
         <BellRingIcon />
       </Button>
       <PushDialog open={pushOpen} onOpenChange={setPushOpen} />
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="rounded-full"
+        title={t("sms.remote.title")}
+        aria-label={t("sms.remote.title")}
+        onClick={() => setRemoteOpen(true)}
+      >
+        <TerminalSquareIcon />
+      </Button>
+      <RemoteDialog open={remoteOpen} onOpenChange={setRemoteOpen} />
       <Button
         variant="ghost"
         size="icon-sm"

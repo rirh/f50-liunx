@@ -16,7 +16,7 @@ help:
 	  '构建' \
 	  '  make build           f50d（aarch64 静态）、代理引擎和网页' \
 	  '  make f50d            只构建 f50d' \
-	  '  make proxy           只构建代理引擎 f50-proxy（Go，linux/arm64）' \
+	  '  make proxy           只构建代理引擎 f50-proxy（one-node 客户端内核，linux/arm64）' \
 	  '  make web             只构建网页（f50-web/dist）' \
 	  '  make kernel          用 docker 构建 5.4 内核和模块到 out/（install 需要）' \
 	  '  make clean           清理 f50d、代理引擎和网页的构建产物' \

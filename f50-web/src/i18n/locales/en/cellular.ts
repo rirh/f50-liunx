@@ -145,7 +145,8 @@ const m: Messages["cellular"] = {
       original: "Original IMEI",
       originalUnknown: "No saved value",
       edit: "Edit IMEI for {slot}",
-      confirm: "Confirm writing this IMEI to the selected slot. The modem value will be read back afterward.",
+      confirm:
+        "Confirm writing this IMEI to the selected slot. The modem value will be read back afterward.",
       write: "Write IMEI",
       invalid: "Enter a 15-digit IMEI with a valid checksum.",
     },

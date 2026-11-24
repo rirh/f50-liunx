@@ -117,7 +117,7 @@ fi
 # the docker mounts of f50d and the web console, as the positional parameters (OUT is read above): each path stays one
 # argument, spaces and all
 set -- -v "$F50D_BIN":/in/f50d:ro -v "$TOP/f50d/openwrt":/in/f50d-openwrt:ro
-# the proxy engine (f50-proxy/: Xray-core and the split-routing rules, Go), built here like f50d (or taken as built,
+# the proxy engine (One Node's client core, one-node/app/client, built by f50-proxy/Makefile), built here like f50d (or taken as built,
 # F50_PREBUILT=1) and installed by install.sh as /opt/f50/bin/f50-proxy; F50_PROXY=0 builds the image without it
 # (f50.proxy then reports it missing)
 if [ "${F50_PROXY:-1}" != 0 ]; then

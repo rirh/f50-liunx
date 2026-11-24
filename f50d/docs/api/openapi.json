@@ -219,6 +219,235 @@
         }
       }
     },
+    "/f50.balance/get": {
+      "post": {
+        "description": "The SIM's balance as the carrier's last reply stated it.\n\n**Access:** read (rpcd ACL group `f50-read`). **ubus:** `f50.balance` `get`.",
+        "operationId": "balance.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "properties": {
+                            "amount": {
+                              "type": "number"
+                            },
+                            "asked_at": {
+                              "type": "integer"
+                            },
+                            "at": {
+                              "type": "integer"
+                            },
+                            "error": {
+                              "description": "Only seen as null."
+                            },
+                            "pending": {
+                              "type": "boolean"
+                            },
+                            "settings": {
+                              "properties": {
+                                "code": {
+                                  "type": "string"
+                                },
+                                "interval_hours": {
+                                  "type": "integer"
+                                },
+                                "number": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "code",
+                                "interval_hours",
+                                "number"
+                              ],
+                              "type": "object"
+                            },
+                            "text": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "asked_at",
+                            "at",
+                            "error",
+                            "pending",
+                            "settings",
+                            "text"
+                          ],
+                          "type": "object"
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "The SIM's balance as the carrier's last reply stated it",
+        "tags": [
+          "f50.balance"
+        ],
+        "x-ubus": {
+          "access": "read",
+          "job": false,
+          "method": "get",
+          "object": "f50.balance"
+        }
+      }
+    },
+    "/f50.balance/query": {
+      "post": {
+        "description": "Sends the carrier's balance query by SMS.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.balance` `query`.",
+        "operationId": "balance.query",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Sends the carrier's balance query by SMS",
+        "tags": [
+          "f50.balance"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "query",
+          "object": "f50.balance"
+        }
+      }
+    },
+    "/f50.balance/set": {
+      "post": {
+        "description": "The query's number, code and schedule.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.balance` `set`.",
+        "operationId": "balance.set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "description": "One line of UTF-8 text, no control characters.",
+                    "maxLength": 20,
+                    "type": "string",
+                    "x-max-bytes": 40
+                  },
+                  "interval_hours": {
+                    "oneOf": [
+                      {
+                        "maximum": 720,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "number": {
+                    "maxLength": 15,
+                    "pattern": "^(?:|[0-9]{3,15})$",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "The query's number, code and schedule",
+        "tags": [
+          "f50.balance"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "set",
+          "object": "f50.balance"
+        }
+      }
+    },
     "/f50.boot/android": {
       "post": {
         "description": "Makes the next boot Android's (the initramfs' Android block, written and read back) and reboots in two seconds. The device stays in Android until Linux is started from there.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.boot` `android`.",
@@ -1036,6 +1265,255 @@
         }
       }
     },
+    "/f50.ddns/get": {
+      "post": {
+        "description": "DDNS (Cloudflare): the records and how each stands.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.ddns` `get`.",
+        "operationId": "ddns.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "DDNS (Cloudflare): the records and how each stands",
+        "tags": [
+          "f50.ddns"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "get",
+          "object": "f50.ddns"
+        }
+      }
+    },
+    "/f50.ddns/neighbors": {
+      "post": {
+        "description": "The LAN's devices with the public IPv6 addresses the router has seen, to take a suffix from.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.ddns` `neighbors`.",
+        "operationId": "ddns.neighbors",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "The LAN's devices with the public IPv6 addresses the router has seen, to take a suffix from",
+        "tags": [
+          "f50.ddns"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "neighbors",
+          "object": "f50.ddns"
+        }
+      }
+    },
+    "/f50.ddns/set": {
+      "post": {
+        "description": "Changes DDNS; absent fields are kept.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.ddns` `set`.",
+        "operationId": "ddns.set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "enabled": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "enum": [
+                          0,
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  "interval_minutes": {
+                    "oneOf": [
+                      {
+                        "maximum": 1440,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "records": {
+                    "description": "Text; newlines and tabs allowed.",
+                    "maxLength": 8000,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "token": {
+                    "maxLength": 200,
+                    "pattern": "^(?:|[A-Za-z0-9_-]{20,200})$",
+                    "type": "string",
+                    "writeOnly": true,
+                    "x-secret": true
+                  },
+                  "zone": {
+                    "maxLength": 253,
+                    "pattern": "^(?:|[A-Za-z0-9.-]{3,253})$",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Changes DDNS; absent fields are kept",
+        "tags": [
+          "f50.ddns"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "set",
+          "object": "f50.ddns"
+        }
+      }
+    },
+    "/f50.ddns/update": {
+      "post": {
+        "description": "Updates every record now.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.ddns` `update`.",
+        "operationId": "ddns.update",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Updates every record now",
+        "tags": [
+          "f50.ddns"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "update",
+          "object": "f50.ddns"
+        }
+      }
+    },
     "/f50.job/cancel": {
       "post": {
         "description": "Stops a running job that may be stopped.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.job` `cancel`.",
@@ -1124,6 +1602,21 @@
                               "cancellable": {
                                 "type": "boolean"
                               },
+                              "error": {
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "type": "object"
+                              },
                               "finished": {
                                 "type": "integer"
                               },
@@ -1141,115 +1634,17 @@
                               },
                               "result": {
                                 "properties": {
-                                  "id": {
+                                  "failed": {
                                     "type": "integer"
                                   },
-                                  "kind": {
-                                    "type": "string"
+                                  "id": {
+                                    "type": [
+                                      "string",
+                                      "integer"
+                                    ]
                                   },
-                                  "lock": {
-                                    "properties": {
-                                      "caps": {
-                                        "properties": {
-                                          "lte": {
-                                            "items": {
-                                              "type": "integer"
-                                            },
-                                            "type": "array"
-                                          },
-                                          "nr": {
-                                            "items": {
-                                              "type": "integer"
-                                            },
-                                            "type": "array"
-                                          }
-                                        },
-                                        "required": [
-                                          "lte",
-                                          "nr"
-                                        ],
-                                        "type": "object"
-                                      },
-                                      "cells": {
-                                        "items": {},
-                                        "type": "array"
-                                      },
-                                      "endc": {
-                                        "type": "boolean"
-                                      },
-                                      "lte": {
-                                        "properties": {
-                                          "locked": {
-                                            "items": {},
-                                            "type": "array"
-                                          },
-                                          "raw": {
-                                            "type": "string"
-                                          }
-                                        },
-                                        "required": [
-                                          "locked",
-                                          "raw"
-                                        ],
-                                        "type": "object"
-                                      },
-                                      "mode": {
-                                        "properties": {
-                                          "gran": {
-                                            "type": "integer"
-                                          },
-                                          "label": {
-                                            "type": "string"
-                                          },
-                                          "m1": {
-                                            "type": "integer"
-                                          },
-                                          "prim": {
-                                            "type": "integer"
-                                          },
-                                          "work": {
-                                            "type": "integer"
-                                          }
-                                        },
-                                        "required": [
-                                          "gran",
-                                          "label",
-                                          "m1",
-                                          "prim",
-                                          "work"
-                                        ],
-                                        "type": "object"
-                                      },
-                                      "nr": {
-                                        "properties": {
-                                          "locked": {
-                                            "items": {},
-                                            "type": "array"
-                                          },
-                                          "raw": {
-                                            "type": "string"
-                                          }
-                                        },
-                                        "required": [
-                                          "locked",
-                                          "raw"
-                                        ],
-                                        "type": "object"
-                                      },
-                                      "ts": {
-                                        "type": "integer"
-                                      }
-                                    },
-                                    "required": [
-                                      "caps",
-                                      "cells",
-                                      "endc",
-                                      "lte",
-                                      "mode",
-                                      "nr",
-                                      "ts"
-                                    ],
-                                    "type": "object"
+                                  "nodes": {
+                                    "type": "integer"
                                   },
                                   "parts": {
                                     "type": "integer"
@@ -1260,14 +1655,15 @@
                                     },
                                     "type": "array"
                                   },
-                                  "restarted": {
-                                    "type": "boolean"
+                                  "reply_lines": {
+                                    "items": {},
+                                    "type": "array"
                                   },
-                                  "synced": {
-                                    "type": "boolean"
-                                  },
-                                  "value": {
+                                  "status": {
                                     "type": "string"
+                                  },
+                                  "updated": {
+                                    "type": "integer"
                                   }
                                 },
                                 "type": "object"
@@ -1286,7 +1682,6 @@
                               "kind",
                               "log",
                               "method",
-                              "result",
                               "started",
                               "state"
                             ],
@@ -1811,6 +2206,80 @@
         }
       }
     },
+    "/f50.live.topics/want": {
+      "post": {
+        "description": "The topics a page shows (comma-separated; empty releases them), held for `ttl` seconds: renew within it. Replies with the topics granted and their latest readings.\n\n**Access:** read (rpcd ACL group `f50-read`). **ubus:** `f50.live.topics` `want`.",
+        "operationId": "live.topics.want",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "client": {
+                    "maxLength": 64,
+                    "pattern": "^(?:[A-Za-z0-9_-]{8,64})$",
+                    "type": "string"
+                  },
+                  "topics": {
+                    "maxLength": 256,
+                    "pattern": "^(?:(?:[a-z]+(?:,[a-z]+)*)?)$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "client"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "The topics a page shows (comma-separated; empty releases them), held for `ttl` seconds: renew within it",
+        "tags": [
+          "f50.live.topics"
+        ],
+        "x-ubus": {
+          "access": "read",
+          "job": false,
+          "method": "want",
+          "object": "f50.live.topics"
+        }
+      }
+    },
     "/f50.live/get": {
       "post": {
         "description": "Every live topic now (the events a subscription to f50.live sends, by topic).\n\n**Access:** read (rpcd ACL group `f50-read`). **ubus:** `f50.live` `get`.",
@@ -1909,38 +2378,7 @@
                                           "type": "object"
                                         },
                                         "neigh": {
-                                          "items": {
-                                            "properties": {
-                                              "arfcn": {
-                                                "type": "integer"
-                                              },
-                                              "band": {
-                                                "type": "integer"
-                                              },
-                                              "pci": {
-                                                "type": "integer"
-                                              },
-                                              "rat": {
-                                                "type": "string"
-                                              },
-                                              "rsrp": {
-                                                "type": "number"
-                                              },
-                                              "rsrq": {
-                                                "type": "number"
-                                              }
-                                            },
-                                            "required": [
-                                              "arfcn",
-                                              "band",
-                                              "pci",
-                                              "rat",
-                                              "rsrp",
-                                              "rsrq"
-                                            ],
-                                            "type": "object"
-                                          },
-                                          "type": "array"
+                                          "description": "Only seen as null."
                                         },
                                         "nr": {
                                           "description": "Only seen as null."
@@ -2254,6 +2692,118 @@
                               ],
                               "type": "object"
                             },
+                            "proxy": {
+                              "properties": {
+                                "data": {
+                                  "properties": {
+                                    "config": {
+                                      "type": "string"
+                                    },
+                                    "down": {
+                                      "type": "integer"
+                                    },
+                                    "enabled": {
+                                      "type": "boolean"
+                                    },
+                                    "engine": {
+                                      "type": "string"
+                                    },
+                                    "error": {
+                                      "description": "Only seen as null."
+                                    },
+                                    "groups": {
+                                      "items": {},
+                                      "type": "array"
+                                    },
+                                    "health": {
+                                      "properties": {
+                                        "delay_ms": {
+                                          "type": "integer"
+                                        },
+                                        "node_ok": {
+                                          "type": "boolean"
+                                        },
+                                        "online": {
+                                          "type": "boolean"
+                                        },
+                                        "since": {
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": [
+                                        "delay_ms",
+                                        "node_ok",
+                                        "online",
+                                        "since"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "intercept_router": {
+                                      "type": "boolean"
+                                    },
+                                    "mem": {
+                                      "type": "integer"
+                                    },
+                                    "node": {
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "name": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "name"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "routing": {
+                                      "type": "string"
+                                    },
+                                    "since": {
+                                      "type": "integer"
+                                    },
+                                    "state": {
+                                      "type": "string"
+                                    },
+                                    "up": {
+                                      "type": "integer"
+                                    },
+                                    "xray": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "config",
+                                    "down",
+                                    "enabled",
+                                    "engine",
+                                    "error",
+                                    "groups",
+                                    "health",
+                                    "intercept_router",
+                                    "mem",
+                                    "node",
+                                    "routing",
+                                    "since",
+                                    "state",
+                                    "up",
+                                    "xray"
+                                  ],
+                                  "type": "object"
+                                },
+                                "ok": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "data",
+                                "ok"
+                              ],
+                              "type": "object"
+                            },
                             "sms": {
                               "properties": {
                                 "data": {
@@ -2285,6 +2835,69 @@
                               "properties": {
                                 "data": {
                                   "properties": {
+                                    "balance": {
+                                      "properties": {
+                                        "data": {
+                                          "properties": {
+                                            "amount": {
+                                              "type": "number"
+                                            },
+                                            "asked_at": {
+                                              "type": "integer"
+                                            },
+                                            "at": {
+                                              "type": "integer"
+                                            },
+                                            "error": {
+                                              "description": "Only seen as null."
+                                            },
+                                            "pending": {
+                                              "type": "boolean"
+                                            },
+                                            "settings": {
+                                              "properties": {
+                                                "code": {
+                                                  "type": "string"
+                                                },
+                                                "interval_hours": {
+                                                  "type": "integer"
+                                                },
+                                                "number": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "code",
+                                                "interval_hours",
+                                                "number"
+                                              ],
+                                              "type": "object"
+                                            },
+                                            "text": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "amount",
+                                            "asked_at",
+                                            "at",
+                                            "error",
+                                            "pending",
+                                            "settings",
+                                            "text"
+                                          ],
+                                          "type": "object"
+                                        },
+                                        "ok": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "data",
+                                        "ok"
+                                      ],
+                                      "type": "object"
+                                    },
                                     "data": {
                                       "properties": {
                                         "data": {
@@ -3263,6 +3876,7 @@
                                     }
                                   },
                                   "required": [
+                                    "balance",
                                     "data",
                                     "modem",
                                     "sim",
@@ -3471,6 +4085,7 @@
                             "cells",
                             "logs",
                             "modem",
+                            "proxy",
                             "sms",
                             "status",
                             "system"
@@ -4335,7 +4950,7 @@
     },
     "/f50.modem/identity": {
       "post": {
-        "description": "IMEI, IMSI, ICCID, model, firmware and the SIM's own number.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.modem` `identity`.",
+        "description": "Identity for the active slot and the original and last-read IMEIs for SIM1 and SIM2.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.modem` `identity`.",
         "operationId": "modem.identity",
         "responses": {
           "200": {
@@ -4369,7 +4984,7 @@
             "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
           }
         },
-        "summary": "IMEI, IMSI, ICCID, model, firmware and the SIM's own number",
+        "summary": "Identity for the active slot and the original and last-read IMEIs for SIM1 and SIM2",
         "tags": [
           "f50.modem"
         ],
@@ -4587,6 +5202,97 @@
         }
       }
     },
+    "/f50.modem/set_imei": {
+      "post": {
+        "description": "Writes the active slot's IMEI and reads it back (a job).\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.modem` `set_imei`. Long work: answers `{job}`; poll `f50.job status`.",
+        "operationId": "modem.set_imei",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "imei": {
+                    "maxLength": 15,
+                    "pattern": "^(?:[0-9]{15})$",
+                    "type": "string",
+                    "writeOnly": true,
+                    "x-secret": true
+                  },
+                  "slot": {
+                    "oneOf": [
+                      {
+                        "maximum": 2,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "slot",
+                  "imei"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/JobStarted"
+                            },
+                            {}
+                          ],
+                          "description": "The result, or `{job}` when the work runs as a job."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Writes the active slot's IMEI and reads it back (a job)",
+        "tags": [
+          "f50.modem"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": true,
+          "method": "set_imei",
+          "object": "f50.modem"
+        }
+      }
+    },
     "/f50.modem/status": {
       "post": {
         "description": "Registration, RAT, operator, signal and bars from the latest reading, with its age.\n\n**Access:** read (rpcd ACL group `f50-read`). **ubus:** `f50.modem` `status`.",
@@ -4712,6 +5418,2429 @@
           "job": false,
           "method": "status",
           "object": "f50.modem"
+        }
+      }
+    },
+    "/f50.proxy/config_delete": {
+      "post": {
+        "description": "Deletes a rule config; the active one falls back to the default.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `config_delete`.",
+        "operationId": "proxy.config_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maxLength": 8,
+                    "pattern": "^(?:default|c[0-9]{1,6})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Deletes a rule config; the active one falls back to the default",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "config_delete",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/config_fetch": {
+      "post": {
+        "description": "Downloads a rule config's text from its link.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `config_fetch`.",
+        "operationId": "proxy.config_fetch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "url": {
+                    "maxLength": 2048,
+                    "pattern": "^(?:https?://[!-~]{1,2040})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Downloads a rule config's text from its link",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "config_fetch",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/config_save": {
+      "post": {
+        "description": "Saves a rule config (no id: a new one) once its rules check.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `config_save`.",
+        "operationId": "proxy.config_save",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maxLength": 8,
+                    "pattern": "^(?:default|c[0-9]{1,6})$",
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "One line of UTF-8 text, no control characters.",
+                    "maxLength": 64,
+                    "type": "string",
+                    "x-max-bytes": 192
+                  },
+                  "text": {
+                    "description": "Text; newlines and tabs allowed.",
+                    "maxLength": 256000,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "url": {
+                    "maxLength": 2048,
+                    "pattern": "^(?:|https?://[!-~]{1,2040})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "text"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Saves a rule config (no id: a new one) once its rules check",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "config_save",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/connections": {
+      "post": {
+        "description": "The engine's open and recently closed connections.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `connections`.",
+        "operationId": "proxy.connections",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "The engine's open and recently closed connections",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "connections",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/connections_close": {
+      "post": {
+        "description": "Closes one connection, or all (id 0).\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `connections_close`.",
+        "operationId": "proxy.connections_close",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "oneOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Closes one connection, or all (id 0)",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "connections_close",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/group_select": {
+      "post": {
+        "description": "Points a select group at a node and remembers the pick.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `group_select`.",
+        "operationId": "proxy.group_select",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "group": {
+                    "description": "One line of UTF-8 text, no control characters.",
+                    "maxLength": 256,
+                    "type": "string",
+                    "x-max-bytes": 768
+                  },
+                  "node": {
+                    "description": "One line of UTF-8 text, no control characters.",
+                    "maxLength": 256,
+                    "type": "string",
+                    "x-max-bytes": 768
+                  }
+                },
+                "required": [
+                  "group",
+                  "node"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Points a select group at a node and remembers the pick",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "group_select",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/group_test": {
+      "post": {
+        "description": "Tests the delay of a group's nodes: the groups, or `{job}` for a large group while the proxy is off.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `group_test`.",
+        "operationId": "proxy.group_test",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "group": {
+                    "description": "One line of UTF-8 text, no control characters.",
+                    "maxLength": 256,
+                    "type": "string",
+                    "x-max-bytes": 768
+                  }
+                },
+                "required": [
+                  "group"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Tests the delay of a group's nodes: the groups, or `{job}` for a large group while the proxy is off",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "group_test",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/local_socks": {
+      "post": {
+        "description": "How the nodes' 本地 SOCKS5 ports run: `{ports: [{id, port, running, error}], listen}`.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `local_socks`.",
+        "operationId": "proxy.local_socks",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "How the nodes' 本地 SOCKS5 ports run: `{ports: [{id, port, running, error}], listen}`",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "local_socks",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/local_socks_set": {
+      "post": {
+        "description": "Turns a node's 本地 SOCKS5 port on (the port given, its current one, or the first free from 1080) or off.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `local_socks_set`.",
+        "operationId": "proxy.local_socks_set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "enabled": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "enum": [
+                          0,
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  "id": {
+                    "maxLength": 16,
+                    "pattern": "^(?:s[0-9]{1,6}-[0-9]{1,6}|L[0-9]{1,6})$",
+                    "type": "string"
+                  },
+                  "port": {
+                    "oneOf": [
+                      {
+                        "maximum": 65535,
+                        "minimum": 1024,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "enabled"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Turns a node's 本地 SOCKS5 port on (the port given, its current one, or the first free from 1080) or off",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "local_socks_set",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/logs": {
+      "post": {
+        "description": "The engine's log lines after a sequence number.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `logs`.",
+        "operationId": "proxy.logs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "after": {
+                    "oneOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "epoch": {
+                    "maxLength": 32,
+                    "pattern": "^(?:[0-9a-z]{0,32})$",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "The engine's log lines after a sequence number",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "logs",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/node_delete": {
+      "post": {
+        "description": "Deletes a local node.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `node_delete`.",
+        "operationId": "proxy.node_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maxLength": 8,
+                    "pattern": "^(?:L[0-9]{1,6})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Deletes a local node",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "node_delete",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/node_inspect": {
+      "post": {
+        "description": "Reads share links without saving them: each node with its problem.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `node_inspect`.",
+        "operationId": "proxy.node_inspect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "text": {
+                    "description": "Text; newlines and tabs allowed.",
+                    "maxLength": 200000,
+                    "minLength": 1,
+                    "type": "string",
+                    "writeOnly": true,
+                    "x-secret": true
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Reads share links without saving them: each node with its problem",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "node_inspect",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/node_save": {
+      "post": {
+        "description": "Adds a local node (no id) or replaces a node from its share link.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `node_save`.",
+        "operationId": "proxy.node_save",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maxLength": 16,
+                    "pattern": "^(?:s[0-9]{1,6}-[0-9]{1,6}|L[0-9]{1,6})$",
+                    "type": "string"
+                  },
+                  "link": {
+                    "description": "One line of UTF-8 text, no control characters.",
+                    "maxLength": 16384,
+                    "type": "string",
+                    "writeOnly": true,
+                    "x-max-bytes": 16384,
+                    "x-secret": true
+                  },
+                  "name": {
+                    "description": "One line of UTF-8 text, no control characters.",
+                    "maxLength": 64,
+                    "type": "string",
+                    "x-max-bytes": 192
+                  },
+                  "via": {
+                    "maxLength": 16,
+                    "pattern": "^(?:|s[0-9]{1,6}-[0-9]{1,6}|L[0-9]{1,6})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "link"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Adds a local node (no id) or replaces a node from its share link",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "node_save",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/probe": {
+      "post": {
+        "description": "The delay through a node (with its front nodes): a warm-up request opens the connection, a second one on it is timed.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `probe`.",
+        "operationId": "proxy.probe",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maxLength": 16,
+                    "pattern": "^(?:s[0-9]{1,6}-[0-9]{1,6}|L[0-9]{1,6})$",
+                    "type": "string"
+                  },
+                  "method": {
+                    "enum": [
+                      "url",
+                      "tcp",
+                      "icmp"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "The delay through a node (with its front nodes): a warm-up request opens the connection, a second one on it is timed",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "probe",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/profile": {
+      "post": {
+        "description": "The whole profile: subscriptions, nodes, configs and settings.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `profile`.",
+        "operationId": "proxy.profile",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "The whole profile: subscriptions, nodes, configs and settings",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "profile",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/rules_check": {
+      "post": {
+        "description": "Checks a route document: counts, groups and warnings, or the first error.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `rules_check`.",
+        "operationId": "proxy.rules_check",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "text": {
+                    "description": "Text; newlines and tabs allowed.",
+                    "maxLength": 256000,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Checks a route document: counts, groups and warnings, or the first error",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "rules_check",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/set": {
+      "post": {
+        "description": "Turns the proxy on or off, or changes its routing, node or config; applies at once.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `set`.",
+        "operationId": "proxy.set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "active_config": {
+                    "maxLength": 8,
+                    "pattern": "^(?:default|c[0-9]{1,6})$",
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "enum": [
+                          0,
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  "routing": {
+                    "enum": [
+                      "rule",
+                      "global",
+                      "direct"
+                    ],
+                    "type": "string"
+                  },
+                  "selected": {
+                    "maxLength": 16,
+                    "pattern": "^(?:s[0-9]{1,6}-[0-9]{1,6}|L[0-9]{1,6})$",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Turns the proxy on or off, or changes its routing, node or config; applies at once",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "set",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/settings_set": {
+      "post": {
+        "description": "Changes the proxy's settings; absent fields are kept.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `settings_set`.",
+        "operationId": "proxy.settings_set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "auto_failover": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "enum": [
+                          0,
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  "bypass_macs": {
+                    "maxLength": 1600,
+                    "pattern": "^(?:[0-9A-Fa-f:, -]{0,1600})$",
+                    "type": "string"
+                  },
+                  "intercept_router": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "enum": [
+                          0,
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  "log_level": {
+                    "enum": [
+                      "error",
+                      "warning",
+                      "info",
+                      "debug"
+                    ],
+                    "type": "string"
+                  },
+                  "probe_url": {
+                    "maxLength": 2048,
+                    "pattern": "^(?:https?://[!-~]{1,2040})$",
+                    "type": "string"
+                  },
+                  "rule_sets_url": {
+                    "maxLength": 2048,
+                    "pattern": "^(?:https?://[!-~]{1,2040})$",
+                    "type": "string"
+                  },
+                  "subscription_refresh_hours": {
+                    "oneOf": [
+                      {
+                        "maximum": 168,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Changes the proxy's settings; absent fields are kept",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "settings_set",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/status": {
+      "post": {
+        "description": "The proxy's state, node, traffic counters and groups.\n\n**Access:** read (rpcd ACL group `f50-read`). **ubus:** `f50.proxy` `status`.",
+        "operationId": "proxy.status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "properties": {
+                            "config": {
+                              "type": "string"
+                            },
+                            "down": {
+                              "type": "integer"
+                            },
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "engine": {
+                              "type": "string"
+                            },
+                            "error": {
+                              "description": "Only seen as null."
+                            },
+                            "groups": {
+                              "items": {},
+                              "type": "array"
+                            },
+                            "health": {
+                              "properties": {
+                                "delay_ms": {
+                                  "type": "integer"
+                                },
+                                "node_ok": {
+                                  "type": "boolean"
+                                },
+                                "online": {
+                                  "type": "boolean"
+                                },
+                                "since": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "delay_ms",
+                                "node_ok",
+                                "online",
+                                "since"
+                              ],
+                              "type": "object"
+                            },
+                            "intercept_router": {
+                              "type": "boolean"
+                            },
+                            "mem": {
+                              "type": "integer"
+                            },
+                            "node": {
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ],
+                              "type": "object"
+                            },
+                            "routing": {
+                              "type": "string"
+                            },
+                            "since": {
+                              "type": "integer"
+                            },
+                            "state": {
+                              "type": "string"
+                            },
+                            "up": {
+                              "type": "integer"
+                            },
+                            "xray": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "config",
+                            "down",
+                            "enabled",
+                            "engine",
+                            "error",
+                            "groups",
+                            "health",
+                            "intercept_router",
+                            "mem",
+                            "node",
+                            "routing",
+                            "since",
+                            "state",
+                            "up",
+                            "xray"
+                          ],
+                          "type": "object"
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "The proxy's state, node, traffic counters and groups",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "read",
+          "job": false,
+          "method": "status",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/subscription_add": {
+      "post": {
+        "description": "Adds a subscription and fetches its nodes as a job.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `subscription_add`. Long work: answers `{job}`; poll `f50.job status`.",
+        "operationId": "proxy.subscription_add",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "description": "One line of UTF-8 text, no control characters.",
+                    "maxLength": 64,
+                    "type": "string",
+                    "x-max-bytes": 192
+                  },
+                  "url": {
+                    "maxLength": 2048,
+                    "pattern": "^(?:https?://[!-~]{1,2040})$",
+                    "type": "string",
+                    "writeOnly": true,
+                    "x-secret": true
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/JobStarted"
+                            },
+                            {}
+                          ],
+                          "description": "The result, or `{job}` when the work runs as a job."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Adds a subscription and fetches its nodes as a job",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": true,
+          "method": "subscription_add",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/subscription_remove": {
+      "post": {
+        "description": "Removes a subscription and its nodes.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `subscription_remove`.",
+        "operationId": "proxy.subscription_remove",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maxLength": 8,
+                    "pattern": "^(?:s[0-9]{1,6})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Removes a subscription and its nodes",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "subscription_remove",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/subscription_set": {
+      "post": {
+        "description": "Renames a subscription or changes its address.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `subscription_set`.",
+        "operationId": "proxy.subscription_set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maxLength": 8,
+                    "pattern": "^(?:s[0-9]{1,6})$",
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "One line of UTF-8 text, no control characters.",
+                    "maxLength": 64,
+                    "type": "string",
+                    "x-max-bytes": 192
+                  },
+                  "url": {
+                    "maxLength": 2048,
+                    "pattern": "^(?:https?://[!-~]{1,2040})$",
+                    "type": "string",
+                    "writeOnly": true,
+                    "x-secret": true
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Renames a subscription or changes its address",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "subscription_set",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.proxy/subscription_update": {
+      "post": {
+        "description": "Fetches one subscription or all again as a job.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.proxy` `subscription_update`. Long work: answers `{job}`; poll `f50.job status`.",
+        "operationId": "proxy.subscription_update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maxLength": 8,
+                    "pattern": "^(?:all|s[0-9]{1,6})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/components/schemas/JobStarted"
+                            },
+                            {}
+                          ],
+                          "description": "The result, or `{job}` when the work runs as a job."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Fetches one subscription or all again as a job",
+        "tags": [
+          "f50.proxy"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": true,
+          "method": "subscription_update",
+          "object": "f50.proxy"
+        }
+      }
+    },
+    "/f50.remote/get": {
+      "post": {
+        "description": "SMS remote control: the allowed numbers and the recent commands.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.remote` `get`.",
+        "operationId": "remote.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "SMS remote control: the allowed numbers and the recent commands",
+        "tags": [
+          "f50.remote"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "get",
+          "object": "f50.remote"
+        }
+      }
+    },
+    "/f50.remote/set": {
+      "post": {
+        "description": "Turns SMS remote control on or off, its numbers and secret.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.remote` `set`.",
+        "operationId": "remote.set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "enabled": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "enum": [
+                          0,
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  "numbers": {
+                    "description": "One line of UTF-8 text, no control characters.",
+                    "maxLength": 200,
+                    "type": "string",
+                    "x-max-bytes": 400
+                  },
+                  "secret": {
+                    "description": "One line of UTF-8 text, no control characters.",
+                    "maxLength": 32,
+                    "type": "string",
+                    "writeOnly": true,
+                    "x-max-bytes": 64,
+                    "x-secret": true
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Turns SMS remote control on or off, its numbers and secret",
+        "tags": [
+          "f50.remote"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "set",
+          "object": "f50.remote"
+        }
+      }
+    },
+    "/f50.shell/close": {
+      "post": {
+        "description": "Hangs a shell up.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.shell` `close`.",
+        "operationId": "shell.close",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maxLength": 16,
+                    "pattern": "^(?:[0-9a-f]{16})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Hangs a shell up",
+        "tags": [
+          "f50.shell"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "close",
+          "object": "f50.shell"
+        }
+      }
+    },
+    "/f50.shell/list": {
+      "post": {
+        "description": "The open shells.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.shell` `list`.",
+        "operationId": "shell.list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "The open shells",
+        "tags": [
+          "f50.shell"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "list",
+          "object": "f50.shell"
+        }
+      }
+    },
+    "/f50.shell/open": {
+      "post": {
+        "description": "Starts a root login shell on a new terminal.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.shell` `open`.",
+        "operationId": "shell.open",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "cols": {
+                    "oneOf": [
+                      {
+                        "maximum": 1000,
+                        "minimum": 2,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "rows": {
+                    "oneOf": [
+                      {
+                        "maximum": 500,
+                        "minimum": 2,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Starts a root login shell on a new terminal",
+        "tags": [
+          "f50.shell"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "open",
+          "object": "f50.shell"
+        }
+      }
+    },
+    "/f50.shell/read": {
+      "post": {
+        "description": "A shell's output from an offset on (base64), waiting up to `wait` ms for some.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.shell` `read`.",
+        "operationId": "shell.read",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maxLength": 16,
+                    "pattern": "^(?:[0-9a-f]{16})$",
+                    "type": "string"
+                  },
+                  "offset": {
+                    "oneOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "wait": {
+                    "oneOf": [
+                      {
+                        "maximum": 20000,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "A shell's output from an offset on (base64), waiting up to `wait` ms for some",
+        "tags": [
+          "f50.shell"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "read",
+          "object": "f50.shell"
+        }
+      }
+    },
+    "/f50.shell/resize": {
+      "post": {
+        "description": "Sets a shell's terminal size.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.shell` `resize`.",
+        "operationId": "shell.resize",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "cols": {
+                    "oneOf": [
+                      {
+                        "maximum": 1000,
+                        "minimum": 2,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "id": {
+                    "maxLength": 16,
+                    "pattern": "^(?:[0-9a-f]{16})$",
+                    "type": "string"
+                  },
+                  "rows": {
+                    "oneOf": [
+                      {
+                        "maximum": 500,
+                        "minimum": 2,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "cols",
+                  "rows"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Sets a shell's terminal size",
+        "tags": [
+          "f50.shell"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "resize",
+          "object": "f50.shell"
+        }
+      }
+    },
+    "/f50.shell/write": {
+      "post": {
+        "description": "Types input (base64) into a shell.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.shell` `write`.",
+        "operationId": "shell.write",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "maxLength": 65536,
+                    "pattern": "^(?:[A-Za-z0-9+/]*={0,2})$",
+                    "type": "string",
+                    "writeOnly": true,
+                    "x-secret": true
+                  },
+                  "id": {
+                    "maxLength": 16,
+                    "pattern": "^(?:[0-9a-f]{16})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "data"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Types input (base64) into a shell",
+        "tags": [
+          "f50.shell"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "write",
+          "object": "f50.shell"
         }
       }
     },
@@ -5159,6 +8288,340 @@
         }
       }
     },
+    "/f50.sms/list_unread": {
+      "post": {
+        "description": "Unread incoming messages across all conversations, newest first, without marking them read.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.sms` `list_unread`.",
+        "operationId": "sms.list_unread",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "page": {
+                    "oneOf": [
+                      {
+                        "maximum": 100000,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "per_page": {
+                    "oneOf": [
+                      {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      {
+                        "pattern": "^-?[0-9]+$",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Unread incoming messages across all conversations, newest first, without marking them read",
+        "tags": [
+          "f50.sms"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "list_unread",
+          "object": "f50.sms"
+        }
+      }
+    },
+    "/f50.sms/push": {
+      "post": {
+        "description": "The Telegram push settings (never the token), the queue and the last outcome.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.sms` `push`.",
+        "operationId": "sms.push",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "The Telegram push settings (never the token), the queue and the last outcome",
+        "tags": [
+          "f50.sms"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "push",
+          "object": "f50.sms"
+        }
+      }
+    },
+    "/f50.sms/push_set": {
+      "post": {
+        "description": "Changes the Telegram push settings; absent fields are kept.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.sms` `push_set`.",
+        "operationId": "sms.push_set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "api": {
+                    "maxLength": 480,
+                    "pattern": "^(?:|https?://[A-Za-z0-9.-]{1,253}(:[0-9]{1,5})?(/[A-Za-z0-9._~%/-]{0,200})?)$",
+                    "type": "string"
+                  },
+                  "chat_id": {
+                    "maxLength": 33,
+                    "pattern": "^(?:|-?[0-9]{1,20}|@[A-Za-z][A-Za-z0-9_]{3,31})$",
+                    "type": "string",
+                    "writeOnly": true,
+                    "x-secret": true
+                  },
+                  "enabled": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "enum": [
+                          0,
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  "proxy": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "enum": [
+                          0,
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  "token": {
+                    "maxLength": 121,
+                    "pattern": "^(?:|[0-9]{1,20}:[A-Za-z0-9_-]{20,100})$",
+                    "type": "string",
+                    "writeOnly": true,
+                    "x-secret": true
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Changes the Telegram push settings; absent fields are kept",
+        "tags": [
+          "f50.sms"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "push_set",
+          "object": "f50.sms"
+        }
+      }
+    },
+    "/f50.sms/push_test": {
+      "post": {
+        "description": "Sends a Telegram test message with the saved settings changed by the given fields (not saved).\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.sms` `push_test`.",
+        "operationId": "sms.push_test",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "api": {
+                    "maxLength": 480,
+                    "pattern": "^(?:|https?://[A-Za-z0-9.-]{1,253}(:[0-9]{1,5})?(/[A-Za-z0-9._~%/-]{0,200})?)$",
+                    "type": "string"
+                  },
+                  "chat_id": {
+                    "maxLength": 33,
+                    "pattern": "^(?:|-?[0-9]{1,20}|@[A-Za-z][A-Za-z0-9_]{3,31})$",
+                    "type": "string",
+                    "writeOnly": true,
+                    "x-secret": true
+                  },
+                  "proxy": {
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "enum": [
+                          0,
+                          1
+                        ]
+                      }
+                    ]
+                  },
+                  "token": {
+                    "maxLength": 121,
+                    "pattern": "^(?:|[0-9]{1,20}:[A-Za-z0-9_-]{20,100})$",
+                    "type": "string",
+                    "writeOnly": true,
+                    "x-secret": true
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Sends a Telegram test message with the saved settings changed by the given fields (not saved)",
+        "tags": [
+          "f50.sms"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "push_test",
+          "object": "f50.sms"
+        }
+      }
+    },
     "/f50.sms/read": {
       "post": {
         "description": "One message whole; a received one is marked read.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.sms` `read`.",
@@ -5231,6 +8694,54 @@
           "access": "write",
           "job": false,
           "method": "read",
+          "object": "f50.sms"
+        }
+      }
+    },
+    "/f50.sms/recipients": {
+      "post": {
+        "description": "Up to 100 distinct numbers from outgoing messages, most recently sent first, as {recipients}.\n\n**Access:** write (rpcd ACL group `f50-admin`). **ubus:** `f50.sms` `recipients`.",
+        "operationId": "sms.recipients",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data": {
+                          "description": "Not sampled: see the method's description."
+                        },
+                        "ok": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "data"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Failure"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "f50d's envelope: `ok` with `data`, or `ok: false` with a code (always HTTP 200; ubus itself only fails for a session or a missing object, as JSON-RPC errors)."
+          }
+        },
+        "summary": "Up to 100 distinct numbers from outgoing messages, most recently sent first, as {recipients}",
+        "tags": [
+          "f50.sms"
+        ],
+        "x-ubus": {
+          "access": "write",
+          "job": false,
+          "method": "recipients",
           "object": "f50.sms"
         }
       }
@@ -5448,6 +8959,69 @@
                       "properties": {
                         "data": {
                           "properties": {
+                            "balance": {
+                              "properties": {
+                                "data": {
+                                  "properties": {
+                                    "amount": {
+                                      "type": "number"
+                                    },
+                                    "asked_at": {
+                                      "type": "integer"
+                                    },
+                                    "at": {
+                                      "type": "integer"
+                                    },
+                                    "error": {
+                                      "description": "Only seen as null."
+                                    },
+                                    "pending": {
+                                      "type": "boolean"
+                                    },
+                                    "settings": {
+                                      "properties": {
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "interval_hours": {
+                                          "type": "integer"
+                                        },
+                                        "number": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "code",
+                                        "interval_hours",
+                                        "number"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "text": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "amount",
+                                    "asked_at",
+                                    "at",
+                                    "error",
+                                    "pending",
+                                    "settings",
+                                    "text"
+                                  ],
+                                  "type": "object"
+                                },
+                                "ok": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "data",
+                                "ok"
+                              ],
+                              "type": "object"
+                            },
                             "data": {
                               "properties": {
                                 "data": {
@@ -6426,6 +10000,7 @@
                             }
                           },
                           "required": [
+                            "balance",
                             "data",
                             "modem",
                             "sim",
@@ -9062,7 +12637,7 @@
     },
     "/ubus/subscribe/f50.live": {
       "get": {
-        "description": "A real uhttpd path (not a virtual one): `text/event-stream` of `f50.live` notifications while subscribed. Each event's name is a topic (`status`, `system`, `modem`, `cells`, `sms`) and its data the envelope of the read method behind it. Needs `:subscribe` on `f50.live` (in `f50-read`). The session goes in `Authorization: Bearer <session>`.",
+        "description": "Publishes every topic while subscribed. Each event's name is its topic, with the read method's response envelope as data. Send `Authorization: Bearer <session>` with the `:subscribe` grant on `f50.live` (in `f50-read`).",
         "operationId": "live.subscribe",
         "responses": {
           "200": {
@@ -9080,6 +12655,30 @@
         "summary": "The live event stream",
         "tags": [
           "f50.live"
+        ],
+        "x-real-path": true
+      }
+    },
+    "/ubus/subscribe/f50.live.topics": {
+      "get": {
+        "description": "Publishes topics named by current `f50.live.topics want` leases. Each event's name is its topic, with the read method's response envelope as data. Send `Authorization: Bearer <session>` with the `:subscribe` grant on `f50.live.topics` (in `f50-read`).",
+        "operationId": "live.topics.subscribe",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "example": "event: modem\ndata: {\"ok\":true,\"data\":{...}}\n\n",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The event stream."
+          }
+        },
+        "summary": "The live event stream",
+        "tags": [
+          "f50.live.topics"
         ],
         "x-real-path": true
       }
@@ -9137,7 +12736,22 @@
       "name": "f50.led"
     },
     {
+      "name": "f50.shell"
+    },
+    {
       "name": "f50.boot"
+    },
+    {
+      "name": "f50.proxy"
+    },
+    {
+      "name": "f50.balance"
+    },
+    {
+      "name": "f50.remote"
+    },
+    {
+      "name": "f50.ddns"
     },
     {
       "name": "f50.job"
@@ -9150,6 +12764,9 @@
     },
     {
       "name": "f50.live"
+    },
+    {
+      "name": "f50.live.topics"
     },
     {
       "name": "f50.meta"

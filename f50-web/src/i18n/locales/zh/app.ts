@@ -38,7 +38,9 @@ export default {
   pageUpdate: {
     title: "网页有更新",
     description: "刷新即可加载新版界面，请先保存未提交的内容。",
-    action: "刷新页面",
+    action: "更新",
+    later: "稍后提醒",
+    laterHint: "今天不再提示网页更新",
     running: "正在刷新…",
     close: "关闭更新提示",
     failed: "更新失败，请重试。",

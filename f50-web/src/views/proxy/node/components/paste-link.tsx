@@ -8,7 +8,7 @@ import { inspectNodes } from "../../api";
 import type { InspectedNode } from "../../types";
 
 /**
- * Paste share links (vless, hysteria2, ss, trojan, vmess, socks5, http; One Node, v2rayN or Shadowrocket form): the
+ * Paste share links (vless, onlink, hysteria2, ss, trojan, vmess, socks5, http; One Node, v2rayN or Shadowrocket form): the
  * engine reads them (`node_inspect`) and hands them on. One good link is saved at once; one with a problem fills the
  * form to fix by hand; several are all added as local nodes.
  */

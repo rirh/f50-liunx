@@ -117,6 +117,31 @@ const m: Messages["sms"] = {
     recipientHistoryFailed: "Could not load previous recipients",
     text: "Message",
   },
+  remote: {
+    title: "SMS remote control",
+    description:
+      "Text commands to the F50 from an allowed number; it answers by SMS.",
+    loadFailed: "Could not read the remote control settings",
+    enabled: "Turn on SMS remote control",
+    enabledHint:
+      "Only the numbers below are heard; commands older than 10 minutes are not run.",
+    numbers: "Allowed numbers",
+    numbersHint: "Separate numbers with commas; +86 may be left out.",
+    secret: "Passphrase",
+    secretKeep: "Set (leave empty to keep it)",
+    secretNone: "Optional",
+    secretHint:
+      'With one set, a message must start with it ("word status"), and unknown commands get the help. Without one, only exact commands count, so ordinary messages are left alone.',
+    commands: "Commands",
+    commandList:
+      "status, traffic, balance, proxy on, proxy off, node <name>, wifi on, wifi off, reboot, help (Chinese also works)",
+    example:
+      'E.g. send "status": the F50 replies with signal, IP, proxy, data used and balance.',
+    exampleSecret:
+      'E.g. send "<passphrase> status": the F50 replies with signal, IP, proxy, data used and balance.',
+    history: "Recent commands",
+    saved: "SMS remote control saved",
+  },
   push: {
     loadFailed: "Could not read the push settings",
     title: "Telegram push",

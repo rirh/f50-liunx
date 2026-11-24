@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 import { UpdateAvailableNotice } from "@/components/update-available-notice";
-import { updateAvailableAtom } from "@/store/app-update";
+import {
+  snoozeUpdateForToday,
+  updateAvailableAtom,
+  updateSnoozed,
+} from "@/store/app-update";
 import { useAtom } from "jotai";
 
 type WorkerMessage = {
@@ -40,7 +44,7 @@ export function AppUpdateChecker() {
       });
     };
     const onMessage = ({ data }: MessageEvent<WorkerMessage>) => {
-      if (data?.type === "changed") setAvailable(true);
+      if (data?.type === "changed" && !updateSnoozed()) setAvailable(true);
       if (data?.type === "error")
         console.debug("App update check failed.", data.message);
     };
@@ -67,6 +71,10 @@ export function AppUpdateChecker() {
     <UpdateAvailableNotice
       open={available}
       onOpenChange={setAvailable}
+      onLater={() => {
+        snoozeUpdateForToday();
+        setAvailable(false);
+      }}
       onUpdate={() => {
         const url = new URL(window.location.href);
         url.searchParams.set("t", Date.now().toString());

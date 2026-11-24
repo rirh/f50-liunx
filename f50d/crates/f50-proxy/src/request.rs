@@ -31,8 +31,8 @@ pub(crate) fn selected(p: &Profile) -> Result<&Node> {
     }
 }
 
-/// `POST /v1/start`: the selected node with its front nodes, every node the rules may name, the config in use
-/// and its saved select-group picks.
+/// `POST /v1/start`: the selected node with its front nodes, every node the rules may name, the config in use,
+/// its saved select-group picks and the 测速 address (the engine's group tests and node check use it too).
 pub(crate) fn start(p: &Profile, ports: Ports) -> Result<Value> {
     let node = selected(p)?;
     let via = nodes::via_links(p, node)?;
@@ -50,6 +50,7 @@ pub(crate) fn start(p: &Profile, ports: Ports) -> Result<Value> {
         "nodes": nodes::named_nodes(p),
         "selections": p.selections(),
         "app_hosts": [],
+        "probe_url": p.settings.probe_url,
     }))
 }
 

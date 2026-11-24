@@ -19,6 +19,7 @@ import { type RatePoint, useSeries } from "@/lib/series";
 import { cn } from "@/lib/utils";
 import { ArrowDownIcon, ArrowUpIcon, EllipsisIcon } from "lucide-react";
 import { Area, AreaChart, YAxis } from "recharts";
+import { BalanceTile } from "./balance-tile";
 import { CarrierLogo } from "./carrier-logo";
 import { SignalGrid } from "./device-meters";
 import { SignalBars } from "./signal-bars";
@@ -145,6 +146,7 @@ export function DeviceCard({ s }: { s: DashboardStatus }) {
   const modem = ok(s.modem);
   const data = ok(s.data);
   const traffic = ok(s.traffic);
+  const balance = ok(s.balance);
 
   const rates = useSeries("rate");
   const rate = rates.at(-1);
@@ -299,65 +301,68 @@ export function DeviceCard({ s }: { s: DashboardStatus }) {
         </div>
       </section>
 
-      {/* 3 · data used this cycle: one tile, today under the total, a thin bar for how far the cycle has gone */}
-      {traffic && (
-        <section className="border-t px-4 py-2.5">
-          <Link
-            to="/cellular/traffic"
-            className="relative block overflow-hidden rounded-xl bg-muted/80 px-3 py-2 transition-colors hover:bg-muted"
-          >
-            {fill != null && fill > 0 && (
-              <span
-                aria-hidden
-                className={cn(
-                  "absolute inset-y-0 left-0 transition-[width] duration-500",
-                  fillTone,
-                )}
-                style={{ width: `${fill}%` }}
-              />
-            )}
-            <span className="relative flex items-baseline justify-between gap-3">
-              <span className="flex min-w-0 items-baseline gap-2 truncate">
-                <span className="shrink-0 text-xs font-medium text-muted-foreground">
-                  {t("dashboard.hero.usage")}
-                </span>
-                <AnimatedNumber
-                  value={traffic.cycle.used}
-                  format={(v) => split(formatBytes(v))[0]}
-                  className="tabular-nums text-base leading-tight font-semibold"
-                />
-                <span className="-ms-1 text-xs font-medium text-muted-foreground">
-                  {split(formatBytes(traffic.cycle.used))[1]}
-                </span>
-                <span className="truncate text-xs text-muted-foreground">
-                  /{" "}
-                  {capped ? (
-                    <span className="tabular-nums">
-                      {formatBytes(traffic.cap.bytes)} · {Math.round(used ?? 0)}
-                      %
-                    </span>
-                  ) : (
-                    t("dashboard.device.unlimited")
+      {/* 3 · data used this cycle (today beside the total, filled to how far it has gone) and the SIM's balance */}
+      {(traffic || balance) && (
+        <section className="flex gap-2 border-t px-4 py-2.5">
+          {traffic && (
+            <Link
+              to="/cellular/traffic"
+              className="relative flex min-w-0 flex-1 flex-col justify-center overflow-hidden rounded-xl bg-muted/80 px-3 py-2 transition-colors hover:bg-muted"
+            >
+              {fill != null && fill > 0 && (
+                <span
+                  aria-hidden
+                  className={cn(
+                    "absolute inset-y-0 left-0 transition-[width] duration-500",
+                    fillTone,
                   )}
-                </span>
-              </span>
-              <span className="flex shrink-0 items-baseline gap-2 text-xs text-muted-foreground">
-                <span>
-                  {t("dashboard.hero.today")}{" "}
+                  style={{ width: `${fill}%` }}
+                />
+              )}
+              <span className="relative flex items-baseline justify-between gap-3">
+                <span className="flex min-w-0 items-baseline gap-2 truncate">
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                    {t("dashboard.hero.usage")}
+                  </span>
                   <AnimatedNumber
-                    value={traffic.today.rx + traffic.today.tx}
-                    format={(v) => formatBytes(v)}
-                    className="tabular-nums font-semibold text-foreground"
+                    value={traffic.cycle.used}
+                    format={(v) => split(formatBytes(v))[0]}
+                    className="tabular-nums text-base leading-tight font-semibold"
                   />
+                  <span className="-ms-1 text-xs font-medium text-muted-foreground">
+                    {split(formatBytes(traffic.cycle.used))[1]}
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    /{" "}
+                    {capped ? (
+                      <span className="tabular-nums">
+                        {formatBytes(traffic.cap.bytes)} ·{" "}
+                        {Math.round(used ?? 0)}%
+                      </span>
+                    ) : (
+                      t("dashboard.device.unlimited")
+                    )}
+                  </span>
                 </span>
-                <span className="tabular-nums">
-                  {t("dashboard.hero.daysLeft", {
-                    n: traffic.cycle.days_left,
-                  })}
+                <span className="flex shrink-0 items-baseline gap-2 text-xs text-muted-foreground">
+                  <span>
+                    {t("dashboard.hero.today")}{" "}
+                    <AnimatedNumber
+                      value={traffic.today.rx + traffic.today.tx}
+                      format={(v) => formatBytes(v)}
+                      className="tabular-nums font-semibold text-foreground"
+                    />
+                  </span>
+                  <span className="tabular-nums">
+                    {t("dashboard.hero.daysLeft", {
+                      n: traffic.cycle.days_left,
+                    })}
+                  </span>
                 </span>
               </span>
-            </span>
-          </Link>
+            </Link>
+          )}
+          {balance && <BalanceTile b={balance} />}
         </section>
       )}
 

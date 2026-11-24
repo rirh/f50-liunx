@@ -27,6 +27,7 @@ pub const PARTS: &[(&str, &str, &str)] = &[
     ("usb", "f50.usb", "get"),
     ("system", "f50.system", "status"),
     ("sms", "f50.sms", "unread"),
+    ("balance", "f50.balance", "get"),
 ];
 
 pub(crate) fn object(objects: Arc<Vec<Object>>, samples: Samples) -> Object {

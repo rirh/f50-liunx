@@ -80,6 +80,7 @@ const query = (n: Pick<ProxyNode, "link">) => {
 
 const PROTOCOL_LABEL: Record<string, string> = {
   vless: "VLESS",
+  onlink: "OnLink",
   vmess: "VMess",
   trojan: "Trojan",
   hysteria2: "Hysteria2",

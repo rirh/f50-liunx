@@ -1,5 +1,5 @@
 import { f50 } from "@/lib/ubus";
-import type { DashboardStatus, OnOff } from "./types";
+import type { BalanceInfo, DashboardStatus, OnOff } from "./types";
 
 export const STATUS_KEY = ["f50.status"] as const;
 
@@ -21,3 +21,12 @@ export const reboot = () => f50<Record<string, never>>("f50.system", "reboot");
 /** The next boot is Android's, then a reboot in two seconds (`f50.boot android`). */
 export const switchToAndroid = () =>
   f50<{ slot: "a" | "b"; reboot_in_s: number }>("f50.boot", "android");
+
+/** Sends the carrier's balance query by SMS; the reply lands within a minute or two (`pending` until then). */
+export const queryBalance = () => f50<BalanceInfo>("f50.balance", "query");
+
+/** Empty number/code: from the SIM (China Mobile CXYE → 10086…). */
+export const setBalance = (args: {
+  number?: string;
+  code?: string;
+}) => f50<BalanceInfo>("f50.balance", "set", args);

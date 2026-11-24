@@ -116,6 +116,24 @@ const m: Messages["proxy"] = {
     deleteBody:
       "“{name}” is removed from the local nodes; rules and groups that name it stop matching it.",
   },
+  socks: {
+    title: "Local SOCKS5",
+    description:
+      "A SOCKS5 port on the router just for this node: devices on the LAN that use it as their proxy always go through this node (with its upstream proxy), whatever node is selected and whether the proxy is on.",
+    label: "Turn on local SOCKS5",
+    hintOff:
+      "A port is picked automatically (from 1080); only devices on the LAN or USB can reach it.",
+    hintOn:
+      "Put the address below into a computer's, phone's or browser's SOCKS5 proxy setting.",
+    down: "Not running: {error}",
+    port: "Port",
+    usePort: "Use {port}",
+    copy: "Copy address",
+    copied: "SOCKS5 address copied",
+    tag: "SOCKS5 :{port}",
+    failed: "Local SOCKS5 was not changed",
+    notStarted: "Local SOCKS5 did not start",
+  },
   sub: {
     count: "{count} nodes",
     count_one: "{count} node",
@@ -197,6 +215,7 @@ const m: Messages["proxy"] = {
     missing: {
       realityTransport:
         "Transport (REALITY does not run on WebSocket / HTTPUpgrade)",
+      linkTransport: "Transport (OnLink runs on TCP + REALITY / TLS only)",
       mux: "Multiplexing concurrency",
       fragment: "Fragment settings",
     },
@@ -210,6 +229,8 @@ const m: Messages["proxy"] = {
       reality: "No certificate needed, looks like another site",
       tls: "The server needs a certificate",
       securityNone: "No encryption; only inside another encrypted layer",
+      linkKey:
+        "No UUID: this device's key is the credential. The provider binds this device at its first download; to move to another device, ask them to remove the old one",
       recommended: "Recommended",
       fpRandom: "A random browser at every start",
       fpRandomized: "Generated at random, like no browser",
@@ -231,7 +252,8 @@ const m: Messages["proxy"] = {
       fragment: "Sends the handshake in small pieces, past SNI-based blocking",
       fragmentPackets:
         "tlshello splits only the handshake; 1-3 splits the first packets",
-      grpcFields: "Service Name must match the server; Multi mode must be on there too",
+      grpcFields:
+        "Service Name must match the server; Multi mode must be on there too",
     },
   },
   apps: {

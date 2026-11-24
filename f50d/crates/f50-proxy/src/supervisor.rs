@@ -6,6 +6,7 @@
 //! - Desired off and anything still up: the firewall removed, `/v1/stop`.
 //! - The engine not answering: the interception is taken down at once (it would black-hole the LAN), and after a
 //!   few ticks its procd service is started (it skips its start until f50d has written the token).
+//! - The 本地 SOCKS5 ports sent again when they changed or the engine lost them (`socks`).
 //! - Subscriptions older than `subscription_refresh_hours` are fetched again (a failed one not more than every
 //!   30 minutes).
 //! - Auto failover (one-node's `failover.rs`): the engine's health says the network is up and the selected node
@@ -67,6 +68,11 @@ pub(crate) async fn run(proxy: Proxy, shutdown: CancellationToken) {
         }
         let step = async {
             once(&proxy, &mut w).await;
+            if w.unreachable == 0
+                && let Err(e) = proxy.inner.sync_socks(false).await
+            {
+                tracing::debug!(error = %e, "local SOCKS5 ports not synced");
+            }
             refresh_due(&proxy, &mut w).await;
         };
         tokio::select! {

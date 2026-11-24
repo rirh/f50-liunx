@@ -47,7 +47,7 @@ const LEVEL_TONE: Record<LogLevel, string> = {
 const runClock = (ms: number) =>
   String(Math.max(0, Math.floor(ms / 1000))).padStart(4, "0");
 
-/** Xray lines read "[session] module: message"; the engine's own "f50-proxy: message". */
+/** Xray lines read "[session] module: message"; the engine's own "one-node-client: message". */
 function parse(text: string) {
   const m = /^(?:\[(\d+)\] )?([\w./-]+): ([\s\S]*)$/.exec(text);
   return m ? { session: m[1], module: m[2], message: m[3] } : { message: text };

@@ -111,6 +111,23 @@ export default {
     deleteTitle: "删除节点？",
     deleteBody: "「{name}」会从本地节点里删除，引用它的规则和策略组会失效。",
   },
+  socks: {
+    title: "本地 SOCKS5",
+    description:
+      "在路由器上为这个节点开一个 SOCKS5 端口：局域网里的设备把代理设成它，流量就固定走这个节点（含前置代理），与当前选中的节点、代理开关都无关。",
+    label: "开启本地 SOCKS5",
+    hintOff:
+      "开启后自动分配端口（从 1080 起）；只有局域网和 USB 连接的设备能访问。",
+    hintOn: "把下面的地址填到电脑、手机或浏览器的 SOCKS5 代理设置里即可。",
+    down: "未运行：{error}",
+    port: "端口",
+    usePort: "改用 {port}",
+    copy: "复制地址",
+    copied: "SOCKS5 地址已复制",
+    tag: "SOCKS5 :{port}",
+    failed: "本地 SOCKS5 设置失败",
+    notStarted: "本地 SOCKS5 未能启动",
+  },
   sub: {
     count: "{count} 个节点",
     count_one: "{count} 个节点",
@@ -191,6 +208,7 @@ export default {
     },
     missing: {
       realityTransport: "传输（REALITY 不支持 WebSocket / HTTPUpgrade）",
+      linkTransport: "传输（OnLink 只支持 TCP + REALITY / TLS）",
       mux: "多路复用并发数",
       fragment: "分片设置",
     },
@@ -204,6 +222,8 @@ export default {
       reality: "无需证书，伪装成别的网站",
       tls: "需要服务器有证书",
       securityNone: "不加密，只在套了其他加密时用",
+      linkKey:
+        "不需要 UUID：本机的设备密钥就是凭据。订阅提供方第一次下发时绑定这台设备，换设备要请对方在后台移除旧设备",
       recommended: "推荐",
       fpRandom: "每次启动随机选一个浏览器",
       fpRandomized: "随机生成，不像任何浏览器",

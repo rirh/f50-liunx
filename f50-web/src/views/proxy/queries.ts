@@ -14,6 +14,7 @@ import {
   deleteNode,
   editSubscription,
   getConnections,
+  getLocalSocks,
   getLogs,
   getProfile,
   getStatus,
@@ -25,6 +26,7 @@ import {
   runJob,
   saveConfig,
   saveNode,
+  setLocalSocks,
   setProxy,
   setSettings,
   updateSubscription,
@@ -148,7 +150,8 @@ export function useProbe() {
       ...Object.fromEntries(queue.map((id) => [id, "pending" as const])),
     }));
     const worker = async () => {
-      for (let id = queue.shift(); id; id = queue.shift()) await measure(id, previous[id]);
+      for (let id = queue.shift(); id; id = queue.shift())
+        await measure(id, previous[id]);
     };
     await Promise.all(Array.from({ length: 4 }, worker));
   };
@@ -263,6 +266,30 @@ export function useDeleteNode() {
       toast.success(t("proxy.toast.deleted"));
     },
     onError: failed(t("proxy.toast.deleteFailed")),
+  });
+}
+
+/** 本地 SOCKS5: how the ports run, while `enabled` (a node has one). */
+export function useLocalSocks(enabled: boolean) {
+  return useQuery({
+    queryKey: proxyKeys.localSocks,
+    queryFn: getLocalSocks,
+    enabled,
+    refetchInterval: 10_000,
+  });
+}
+
+/** Applied at once, apart from the node form's save. */
+export function useSetLocalSocks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (a: { id: string; enabled: boolean; port?: number }) =>
+      setLocalSocks(a.id, a.enabled, a.port),
+    onSuccess: (r) => {
+      qc.setQueryData(proxyKeys.localSocks, r.local_socks);
+      return qc.invalidateQueries({ queryKey: proxyKeys.profile });
+    },
+    onError: failed(t("proxy.socks.failed")),
   });
 }
 

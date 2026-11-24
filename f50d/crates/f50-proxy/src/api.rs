@@ -51,6 +51,11 @@ const NODE_SAVE: &[Field] = &[
     Field::opt("name", NAME),
     Field::opt("via", Rule::Word { re: r"|s[0-9]{1,6}-[0-9]{1,6}|L[0-9]{1,6}", max: 16 }),
 ];
+const LOCAL_SOCKS_SET: &[Field] = &[
+    Field::req("id", NODE_ID),
+    Field::req("enabled", Rule::Bool),
+    Field::opt("port", Rule::Int { min: 1024, max: 65535 }),
+];
 const NODE_DELETE: &[Field] = &[Field::req("id", Rule::Word { re: r"L[0-9]{1,6}", max: 8 })];
 const PROBE: &[Field] = &[Field::req("id", NODE_ID), Field::opt("method", Rule::Enum(&["url", "tcp", "icmp"]))];
 const GROUP_SELECT: &[Field] = &[Field::req("group", NODE_NAME), Field::req("node", NODE_NAME)];
@@ -212,10 +217,31 @@ pub(crate) fn object(proxy: &Proxy) -> Object {
     let b = m(
         b,
         proxy,
+        "local_socks",
+        Write,
+        &[],
+        "How the nodes' 本地 SOCKS5 ports run: `{ports: [{id, port, running, error}], listen}`.",
+        |x, _| async move { x.local_socks().await },
+    );
+    let b = m(
+        b,
+        proxy,
+        "local_socks_set",
+        Write,
+        LOCAL_SOCKS_SET,
+        "Turns a node's 本地 SOCKS5 port on (the port given, its current one, or the first free from 1080) or off.",
+        |x, p| async move {
+            let port = p.int("port").and_then(|v| u16::try_from(v).ok());
+            x.local_socks_set(p.need_str("id")?, p.bool("enabled").unwrap_or(false), port).await
+        },
+    );
+    let b = m(
+        b,
+        proxy,
         "probe",
         Write,
         PROBE,
-        "Times one request through a node (with its front nodes).",
+        "The delay through a node (with its front nodes): a warm-up request opens the connection, a second one on it is timed.",
         |x, p| async move { x.probe(p.need_str("id")?, p.str("method").unwrap_or("url")).await },
     );
     let b = m(
@@ -322,6 +348,9 @@ mod tests {
         assert!(validate(NODE_SAVE, &json!({"link": "vless://u@h:443?x=1#香港", "via": ""})).is_ok());
         assert!(validate(NODE_SAVE, &json!({"link": "a\nb"})).is_err());
         assert!(validate(NODE_DELETE, &json!({"id": "s1-1"})).is_err());
+        assert!(validate(LOCAL_SOCKS_SET, &json!({"id": "s1-2", "enabled": true, "port": 1080})).is_ok());
+        assert!(validate(LOCAL_SOCKS_SET, &json!({"id": "L1", "enabled": false})).is_ok());
+        assert!(validate(LOCAL_SOCKS_SET, &json!({"id": "L1", "enabled": true, "port": 80})).is_err());
         assert!(validate(NODE_INSPECT, &json!({"text": "ss://a\nvmess://b"})).is_ok());
         assert!(validate(CONFIG_SAVE, &json!({"name": "mine", "text": "{\n}", "url": ""})).is_ok());
         assert!(validate(CONN_CLOSE, &json!({"id": 0})).is_ok());

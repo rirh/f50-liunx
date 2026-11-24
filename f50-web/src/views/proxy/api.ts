@@ -17,6 +17,7 @@ import type {
   Connections,
   GroupStatus,
   InspectedNode,
+  LocalSocksStatus,
   LogPage,
   ProbeMethod,
   Profile,
@@ -45,6 +46,7 @@ export const proxyKeys = {
   profile: ["f50.proxy", "profile"] as const,
   connections: ["f50.proxy", "connections"] as const,
   logs: ["f50.proxy", "logs"] as const,
+  localSocks: ["f50.proxy", "local-socks"] as const,
 };
 
 export const getStatus = () => call<ProxyStatus>("status");
@@ -78,6 +80,14 @@ export const saveNode = (args: {
   via?: string;
 }) => call<ProxyNode>("node_save", { ...args });
 export const deleteNode = (id: string) => call<Profile>("node_delete", { id });
+export const getLocalSocks = () => call<LocalSocksStatus>("local_socks");
+/** On: `port`, else the node's current one, else the first free from 1080. Off: the port goes. */
+export const setLocalSocks = (id: string, enabled: boolean, port?: number) =>
+  call<{ node: ProxyNode; local_socks: LocalSocksStatus }>("local_socks_set", {
+    id,
+    enabled,
+    ...(port ? { port } : {}),
+  });
 export const probeNode = (id: string, method?: ProbeMethod) =>
   call<{ ms: number }>("probe", { id, ...(method ? { method } : {}) });
 

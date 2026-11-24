@@ -281,6 +281,8 @@ class Update(UpdateBase):
             # the jobs of System > Scheduled Tasks: the image ships /etc/crontabs empty, so without this an update
             # dropped them and cron's own init refused to start (FINDINGS 83)
             self.assertIn('etc/crontabs', self.up(shell, 'keep_list openwrt-luci').stdout.split())
+            # f50d's state, the OnLink device key among it: a new key would be refused by the gateway for good
+            self.assertIn('etc/f50d', self.up(shell, 'keep_list openwrt').stdout.split())
             # the installer on Android carries the same things over (its own copy of the lists)
             ai = (TOP / 'installer/android/android-install.sh').read_text()
             for kind, pattern in (('openwrt', r'\n +keep="([^"]*)"'),):

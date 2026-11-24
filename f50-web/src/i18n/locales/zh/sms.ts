@@ -112,6 +112,28 @@ export default {
     recipientHistoryFailed: "无法读取发送历史",
     text: "内容",
   },
+  remote: {
+    title: "短信遥控",
+    description: "用允许的手机号发短信给 F50，执行命令并以短信回复结果。",
+    loadFailed: "读取短信遥控设置失败",
+    enabled: "开启短信遥控",
+    enabledHint: "只响应下面这些号码；10 分钟前收到的命令不会执行。",
+    numbers: "允许的号码",
+    numbersHint: "多个号码用逗号分隔，+86 可省略。",
+    secret: "口令",
+    secretKeep: "已设置（留空保持不变）",
+    secretNone: "可选，不设置也行",
+    secretHint:
+      "设置后短信必须以口令开头，例如「口令 状态」；未知命令会回复帮助。不设置时只认完全匹配的命令，普通短信不受影响。",
+    commands: "可用命令",
+    commandList:
+      "状态、流量、余额、代理开、代理关、节点 名称、WiFi开、WiFi关、重启、帮助",
+    example: "例：发送「状态」，F50 回复信号、IP、代理、流量和余额。",
+    exampleSecret:
+      "例：发送「口令 状态」，F50 回复信号、IP、代理、流量和余额。",
+    history: "最近的命令",
+    saved: "短信遥控已保存",
+  },
   push: {
     loadFailed: "读取推送设置失败",
     title: "Telegram 推送",

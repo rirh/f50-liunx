@@ -26,7 +26,11 @@ pub(crate) const BUILTIN_TEXT: &str = r#"{
 }
 "#;
 
-pub(crate) const DEFAULT_PROBE_URL: &str = "https://www.gstatic.com/generate_204";
+/// Plain HTTP: with the warm-up request of every delay test (f50-proxy `probe.HTTPDelay`) the timed request is one
+/// round trip either way, and this matches what Shadowrocket-style clients show.
+pub(crate) const DEFAULT_PROBE_URL: &str = "http://www.gstatic.com/generate_204";
+/// The default before it, moved to the current one when a saved profile still holds it.
+const OLD_DEFAULT_PROBE_URL: &str = "https://www.gstatic.com/generate_204";
 pub(crate) const DEFAULT_RULE_SETS: &str = "https://marseo.eu.org/api/v1/one/rules/";
 
 /// 智能分流 | 全局代理 | 全部直连.
@@ -75,6 +79,14 @@ pub(crate) struct Node {
     pub problem: Option<String>,
     pub warnings: Vec<String>,
     pub via: Option<String>,
+    /// 本地 SOCKS5 (one-node's `local_socks`): the node's own SOCKS5 port on the router's LAN, while set.
+    pub local_socks: Option<LocalSocks>,
+}
+
+/// A node's SOCKS5 port: what reaches it always leaves through that node (with its front nodes).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub(crate) struct LocalSocks {
+    pub port: u16,
 }
 
 impl Node {
@@ -83,6 +95,7 @@ impl Node {
         let mut n: Node = serde_json::from_value(v.clone()).ok()?;
         n.problem = n.problem.filter(|p| !p.is_empty());
         n.via = None;
+        n.local_socks = None;
         (!n.link.is_empty()).then_some(n)
     }
 
@@ -229,6 +242,9 @@ impl Profile {
         if !LOG_LEVELS.contains(&self.settings.log_level.as_str()) {
             self.settings.log_level = "warning".into();
         }
+        if self.settings.probe_url == OLD_DEFAULT_PROBE_URL {
+            self.settings.probe_url = DEFAULT_PROBE_URL.into();
+        }
         crate::nodes::unique_names(self);
     }
 
@@ -304,6 +320,15 @@ pub(crate) fn load(path: &Path) -> Profile {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn old_default_probe_url_moves_to_the_current_one() {
+        let old =
+            Profile::parse(r#"{"settings":{"probe_url":"https://www.gstatic.com/generate_204"}}"#).expect("parse");
+        assert_eq!(old.settings.probe_url, DEFAULT_PROBE_URL);
+        let own = Profile::parse(r#"{"settings":{"probe_url":"https://cp.cloudflare.com/"}}"#).expect("parse");
+        assert_eq!(own.settings.probe_url, "https://cp.cloudflare.com/", "a URL the user chose stays");
+    }
 
     #[test]
     fn defaults_and_round_trip() {

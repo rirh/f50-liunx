@@ -6,6 +6,7 @@ import {
   ChartNoAxesColumnIcon,
   CpuIcon,
   GaugeIcon,
+  GlobeIcon,
   GlobeLockIcon,
   InfoIcon,
   LayoutDashboardIcon,
@@ -84,6 +85,7 @@ export const NAV: NavGroup[] = [
       },
       { title: "nav.page.lan", path: "/network/lan", icon: NetworkIcon },
       { title: "nav.page.usb", path: "/network/usb", icon: UsbIcon },
+      { title: "nav.page.ddns", path: "/network/ddns", icon: GlobeIcon },
     ],
   },
   {

@@ -7,7 +7,7 @@ build: f50d proxy web
 f50d:
 	cd f50d && $(CARGO) device
 
-# the proxy engine (f50-proxy/: Xray-core + the split-routing rules, Go), a static linux/arm64 binary
+# the proxy engine: One Node's client core (one-node/app/client, see f50-proxy/README.md), a static linux/arm64 binary
 proxy:
 	$(MAKE) -C f50-proxy device
 

@@ -231,7 +231,8 @@ export function callingRegions(locale: "zh" | "en"): CallingRegion[] {
           region,
           code,
           name: locale === "zh" ? chineseName : englishName,
-          search: `${chineseName} ${englishName} ${region} ${code}`.toLowerCase(),
+          search:
+            `${chineseName} ${englishName} ${region} ${code}`.toLowerCase(),
         };
       });
     })

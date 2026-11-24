@@ -20,6 +20,7 @@ const m: Messages["nav"] = {
     wifi: "Wi-Fi hotspot",
     wifiClient: "Wi-Fi uplink",
     lan: "LAN",
+    ddns: "Dynamic DNS",
     usb: "USB",
     settings: "Settings",
     leds: "LEDs",
