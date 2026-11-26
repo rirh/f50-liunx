@@ -48,6 +48,7 @@ const m: Messages["dashboard"] = {
   signalBars: "Signal {n} of 5",
   device: {
     copyFailed: "Copy failed",
+    number: "Number",
     storage: "Storage",
     cores: "{n} cores",
     signal: "Signal",

@@ -40,21 +40,21 @@ const celsius = (n: number | null | undefined) =>
   n == null ? "—" : `${n.toFixed(1)} °C`;
 
 /**
- * The modem's IMEI (f50d keeps it read; a write-access method, which the signed-in root has), set quietly after the
- * uptime as a tag: the tag is the copy button, its small icon a tick once copied.
+ * A private figure shown masked in the middle (138****5678): the tag is the copy button and copies the whole value,
+ * its small icon a tick once copied.
  */
-function Imei() {
-  const q = useQuery({
-    queryKey: ["modem", "identity"],
-    queryFn: ({ signal }) => getIdentity(signal),
-    staleTime: 5 * 60_000,
-    retry: false,
-  });
+function CopyTag({
+  label,
+  value,
+  shown,
+}: {
+  label: string;
+  value: string;
+  shown: string;
+}) {
   const [copied, setCopied] = useState(false);
-  const imei = q.data?.ident?.imei;
-  if (!imei) return null;
   const copy = () =>
-    copyText(imei).then(
+    copyText(value).then(
       () => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
@@ -65,31 +65,72 @@ function Imei() {
   return (
     <button
       type="button"
-      className="group/imei inline-flex h-5 min-w-0 cursor-pointer items-center gap-1 overflow-hidden rounded-[5px] bg-foreground/[0.06] ps-1.5 pe-1 text-2xs leading-none tabular-nums transition-colors outline-none hover:bg-foreground/[0.1] focus-visible:ring-2 focus-visible:ring-ring/50"
+      className="group/tag inline-flex h-5 min-w-0 cursor-pointer items-center gap-1 overflow-hidden rounded-[5px] bg-foreground/[0.06] ps-1.5 pe-1 text-2xs leading-none tabular-nums transition-colors outline-none hover:bg-foreground/[0.1] focus-visible:ring-2 focus-visible:ring-ring/50"
       title={copied ? t("common.action.copied") : t("common.action.copy")}
-      aria-label={`IMEI ${imei}, ${t("common.action.copy")}`}
+      aria-label={`${label} ${shown}, ${t("common.action.copy")}`}
       onClick={() => void copy()}
     >
       <span className="shrink-0 font-semibold text-muted-foreground/80">
-        IMEI
+        {label}
       </span>
-      <span className="truncate font-medium text-foreground/80">{imei}</span>
+      <span className="truncate font-medium text-foreground/80">{shown}</span>
       <Icon
         aria-hidden
         className={cn(
           "size-3 shrink-0",
           copied
             ? "text-[#248A3D] dark:text-[#30D158]"
-            : "text-muted-foreground/70 group-hover/imei:text-foreground",
+            : "text-muted-foreground/70 group-hover/tag:text-foreground",
         )}
       />
     </button>
   );
 }
 
+/** Keeps `head` and `tail` characters and stars the rest: 867306062456515 -> 8673*******6515. */
+const maskMiddle = (v: string, head: number, tail: number) =>
+  v.length <= head + tail
+    ? v
+    : v.slice(0, head) + "*".repeat(v.length - head - tail) + v.slice(-tail);
+
+/** The own number as 138****5678; a +86 number keeps its country code apart (+86 138****5678). */
+const maskNumber = (n: string) => {
+  const local = /^\+86(\d{11})$/.exec(n);
+  return local ? `+86 ${maskMiddle(local[1], 3, 4)}` : maskMiddle(n, 3, 4);
+};
+
+/**
+ * The modem's IMEI and the SIM's own number (f50d keeps both read; a write-access method, which the signed-in root
+ * has), set quietly after the uptime as tags, masked in the middle; a click copies the whole value.
+ */
+function IdentityTags() {
+  const q = useQuery({
+    queryKey: ["modem", "identity"],
+    queryFn: ({ signal }) => getIdentity(signal),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const imei = q.data?.ident?.imei;
+  const number = q.data?.msisdn;
+  return (
+    <>
+      {imei && (
+        <CopyTag label="IMEI" value={imei} shown={maskMiddle(imei, 4, 4)} />
+      )}
+      {number && (
+        <CopyTag
+          label={t("dashboard.device.number")}
+          value={number}
+          shown={maskNumber(number)}
+        />
+      )}
+    </>
+  );
+}
+
 /**
  * The device itself, beside the network card: its name, model and uptime, then CPU, memory, storage and the hottest
- * zone as background-filled figures; the IMEI is a tag after the uptime (the same tiles as the system page).
+ * zone as background-filled figures; the IMEI and own number are tags after the uptime (the same tiles as the system page).
  */
 export function SystemCard({ s }: { s: DashboardStatus }) {
   const info = useQuery({
@@ -144,7 +185,7 @@ export function SystemCard({ s }: { s: DashboardStatus }) {
                 · {t("dashboard.hero.hot")}
               </span>
             )}
-            <Imei />
+            <IdentityTags />
           </span>
         </div>
         <Link

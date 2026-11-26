@@ -47,6 +47,7 @@ export default {
   signalBars: "信号 {n} 格",
   device: {
     copyFailed: "复制失败",
+    number: "号码",
     storage: "存储",
     cores: "{n} 核",
     signal: "信号",
