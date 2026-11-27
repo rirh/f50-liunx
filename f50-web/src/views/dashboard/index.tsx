@@ -12,6 +12,7 @@ import { useStaggerIn } from "@/hooks/use-motion";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ClientsCard } from "@/views/system/overview/components/clients-card";
 import { useQuery } from "@tanstack/react-query";
 import {
   CheckCircle2Icon,
@@ -74,7 +75,7 @@ function Health({ s }: { s: DashboardStatus }) {
  * The device on one screen, each fact said once, with no page title (the breadcrumb names it). Left, the wider column:
  * the network card (carrier, speed, usage, signal), what the page is opened to see, and under it the device's own
  * resources. Right: the newest unread messages (only while there are any), the service list (data, hotspot, uplink, USB, messages, version: one row each, switches in place),
- * with the health and, while polling, a refresh button in its heading; then the shortcuts.
+ * with the health and, while polling, a refresh button in its heading; then connected devices and shortcuts.
  */
 export default function DashboardPage() {
   const query = useQuery({
@@ -136,6 +137,12 @@ export default function DashboardPage() {
             )}
             <div data-reveal>
               <ServiceList s={s} aside={aside} />
+            </div>
+            <div data-reveal>
+              <ClientsCard
+                compact
+                wifiClients={s.wifi?.ok ? s.wifi.data.clients : undefined}
+              />
             </div>
             <div data-reveal>
               <Shortcuts />

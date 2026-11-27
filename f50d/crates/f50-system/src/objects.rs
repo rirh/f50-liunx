@@ -14,6 +14,12 @@ const HOSTNAME: &[Field] = &[Field::req("name", Rule::Word { re: HOSTNAME_RE, ma
 const ZONE: &[Field] = &[Field::req("zone", Rule::Word { re: ZONE_RE, max: 64 })];
 const PASSWORD: &[Field] = &[Field::secret("password", Rule::Text { max_bytes: 128, max_chars: 128 }, true)];
 const LOGS: &[Field] = &[Field::opt("lines", Rule::Int { min: 10, max: 2000 })];
+const CLIENT_LIMIT: &[Field] = &[
+    Field::req("mac", Rule::Word { re: "(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}", max: 17 }),
+    Field::req("cap_bytes", Rule::Int { min: 0, max: crate::client_limits::MAX_CAP }),
+    Field::req("upload_kbps", Rule::Int { min: 0, max: crate::client_limits::MAX_KBPS }),
+    Field::req("download_kbps", Rule::Int { min: 0, max: crate::client_limits::MAX_KBPS }),
+];
 const PROFILE: &[Field] = &[Field::req("name", Rule::Enum(crate::cpu::PROFILES))];
 const SHELL_ID: Field = Field::req("id", Rule::Word { re: "[0-9a-f]{16}", max: 16 });
 const SHELL_OPEN: &[Field] =
@@ -68,8 +74,21 @@ pub(crate) fn objects(s: &System) -> Vec<Object> {
             "clients",
             Access::Write,
             NONE,
-            "The hotspot's clients and the DHCP leases.",
+            "Connected devices, DHCP leases and per-device traffic limits.",
             h(s, |s, _| async move { s.clients().await }),
+        )
+        .method(
+            "set_client_limit",
+            Access::Write,
+            CLIENT_LIMIT,
+            "Sets a client's total traffic cap and upload/download rate limits. Zero means unlimited.",
+            h(s, |s, p| async move {
+                // Finish applying or rolling back even if the ubus request times out.
+                tokio::spawn(async move { s.inner.client_limits.set(&p).await })
+                    .await
+                    .map_err(|e| f50_core::Error::failed(e.to_string()))??;
+                Ok(serde_json::json!({}))
+            }),
         )
         .method(
             "set_hostname",

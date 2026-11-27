@@ -103,6 +103,17 @@ export interface Station {
   conn_min: number | null;
 }
 
+export interface ConnectedClient extends Station {
+  connection: "wifi" | "usb" | "ethernet";
+}
+
+export interface ClientLimit {
+  cap_bytes: number;
+  upload_kbps: number;
+  download_kbps: number;
+  used_bytes: number;
+}
+
 /** dash::Lease. */
 export interface Lease {
   host: string | null;
@@ -114,8 +125,11 @@ export interface Lease {
 
 /** `f50.system clients`. */
 export interface Clients {
+  connected?: ConnectedClient[];
   wifi: Station[];
   leases: Lease[];
+  limits?: Record<string, ClientLimit> | null;
+  limits_active?: boolean;
 }
 
 /** One poll of the live figures, derived for the charts. */

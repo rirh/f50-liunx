@@ -1,6 +1,17 @@
 --- a/usr/share/ucode/fw4.uc
 +++ b/usr/share/ucode/fw4.uc
-@@ -551,6 +551,11 @@
+@@ -538,7 +538,10 @@
+ 	},
+ 
+ 	resolve_offload_devices: function() {
+-		if (!this.default_option("flow_offloading"))
++		/* The LAN's per-client limits use bridge hooks, which offloaded flows bypass. */
++		if (!this.default_option("flow_offloading") ||
++		    fs.access('/etc/f50d/client-limits.json'))
+ 			return [];
+ 
+ 		let devices = this.resolve_hw_offload_devices();
+@@ -551,6 +554,11 @@
  					if (fs.access(`/sys/class/net/${device}`))
  						push(devices, device);
  

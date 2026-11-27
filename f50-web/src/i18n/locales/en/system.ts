@@ -7,9 +7,9 @@ const m: Messages["system"] = {
     refresh: "Refresh info",
     zone: { modem: "Modem", board: "Board" },
     clients: {
-      title: "Clients",
+      title: "Connected devices",
       description:
-        "Clients on the Wi-Fi hotspot and DHCP leases (refreshed every 15 s)",
+        "Wi-Fi, USB and wired devices and their traffic limits (refreshed every 15 s)",
       col: {
         name: "Name",
         ip: "IP address",
@@ -20,12 +20,24 @@ const m: Messages["system"] = {
         left: "Time left",
       },
       expired: "Expired",
-      wifiTab: "Wi-Fi clients ({n})",
+      connectedTab: "Connected ({n})",
       leasesTab: "DHCP leases ({n})",
       filterPlaceholder: "Filter by name, IP, MAC",
       filterLabel: "Filter clients",
-      emptyWifi: "No Wi-Fi clients connected",
+      emptyConnected: "No connected devices detected",
       emptyLeases: "No DHCP leases",
+      connection: { wifi: "Wi-Fi", usb: "USB", ethernet: "Ethernet" },
+      limits: {
+        title: "Traffic limits",
+        cap: "Total",
+        capField: "Total traffic cap (MB)",
+        uploadField: "Upload rate limit (Mbps)",
+        downloadField: "Download rate limit (Mbps)",
+        unlimited: "Unlimited",
+        reached: "Cap reached",
+        hint: "{device}. Leave a field blank or enter 0 for unlimited. The cap counts uploads and downloads together and pauses internet access when reached. Clearing the cap resets usage.",
+        unavailable: "The saved device traffic limits could not be applied.",
+      },
     },
     chart: { mem: "Memory", temp: "Hottest" },
     live: {

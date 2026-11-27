@@ -7,6 +7,7 @@ use std::time::Duration;
 use f50_core::exec::Cmd;
 use f50_platform::Platform;
 use serde::Serialize;
+use serde_json::Value;
 
 /// At most this many Wi-Fi clients and leases are listed.
 pub(crate) const CLIENTS_MAX: usize = 64;
@@ -28,7 +29,7 @@ pub(crate) struct Station {
     pub conn_min: Option<u64>,
 }
 
-fn is_mac(s: &str) -> bool {
+pub(crate) fn is_mac(s: &str) -> bool {
     let p: Vec<&str> = s.split(':').collect();
     p.len() == 6 && p.iter().all(|x| x.len() == 2 && x.bytes().all(|b| b.is_ascii_hexdigit()))
 }
@@ -138,6 +139,50 @@ pub(crate) fn join(stations: &mut [Station], leases: &[Lease]) {
             s.ip = Some(l.ip.clone());
         }
     }
+}
+
+pub(crate) const LAN_BRIDGE: &str = "br-lan";
+
+#[derive(Debug, Serialize)]
+pub(crate) struct ConnectedClient {
+    pub connection: &'static str,
+    #[serde(flatten)]
+    pub station: Station,
+}
+
+/// The bridge's learned entries supplement the AP association list for USB and wired clients.
+pub(crate) async fn wired_clients(platform: &Platform, wifi_device: &str) -> Vec<ConnectedClient> {
+    let Ok(out) = Cmd::new("bridge")
+        .args(["-j", "fdb", "show", "br", LAN_BRIDGE, "dynamic"])
+        .timeout(Duration::from_secs(3))
+        .ok()
+        .await
+    else {
+        return Vec::new();
+    };
+    let entries: Vec<Value> = serde_json::from_str(&out).unwrap_or_default();
+    let sys = platform.sysfs();
+    let mut clients = Vec::<ConnectedClient>::new();
+    for entry in entries {
+        let (Some(dev), Some(mac)) = (entry["ifname"].as_str(), entry["mac"].as_str()) else { continue };
+        let mac = mac.to_ascii_lowercase();
+        if entry["master"].as_str() != Some(LAN_BRIDGE)
+            || !iface_ok(dev)
+            || dev == wifi_device
+            || sys.path(format!("/sys/class/net/{dev}/phy80211")).exists()
+            || sys.read_num::<u8>(format!("/sys/class/net/{dev}/carrier")) != Some(1)
+            || !is_mac(&mac)
+            || clients.iter().any(|c| c.station.mac == mac)
+        {
+            continue;
+        }
+        let connection = if matches!(dev, "usb0" | "rndis0") { "usb" } else { "ethernet" };
+        clients.push(ConnectedClient { connection, station: Station { mac, ..Station::default() } });
+        if clients.len() == CLIENTS_MAX {
+            break;
+        }
+    }
+    clients
 }
 
 /// Tracked connections: the kernel's counter, else the table's lines; unknown (never a made-up 0) without either.

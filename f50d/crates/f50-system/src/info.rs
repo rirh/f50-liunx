@@ -59,13 +59,35 @@ impl System {
         }))
     }
 
-    /// `f50.system clients`: the hotspot's stations (with names and addresses from the leases) and the leases.
+    /// `f50.system clients`: connected stations, DHCP leases and per-client limits.
     pub async fn clients(&self) -> f50_core::Result<Value> {
         let p = &self.inner.platform;
         let cfg = &self.inner.cfg;
-        let mut stations = dash::stations(&cfg.wifi_device, true).await;
+        let (mut stations, mut connected, limits) = tokio::join!(
+            dash::stations(&cfg.wifi_device, true),
+            dash::wired_clients(p, &cfg.wifi_device),
+            self.inner.client_limits.view(),
+        );
         let leases = dash::leases(&p.paths().sys(&cfg.leases_file));
+        for client in &mut connected {
+            dash::join(std::slice::from_mut(&mut client.station), &leases);
+        }
         dash::join(&mut stations, &leases);
-        Ok(json!({ "wifi": stations, "leases": leases }))
+        connected.retain(|client| !stations.iter().any(|s| s.mac == client.station.mac));
+        connected.extend(stations.iter().cloned().map(|station| dash::ConnectedClient { connection: "wifi", station }));
+        let (limits, limits_active) = match limits {
+            Ok(view) => view,
+            Err(e) => {
+                tracing::warn!(error = %e, "read client limits");
+                (Value::Null, false)
+            }
+        };
+        Ok(json!({
+            "connected": connected,
+            "wifi": stations,
+            "leases": leases,
+            "limits": limits,
+            "limits_active": limits_active,
+        }))
     }
 }

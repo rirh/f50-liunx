@@ -16,6 +16,7 @@
 
 mod admin;
 mod buttons;
+mod client_limits;
 mod config;
 mod cpu;
 mod dash;
@@ -58,6 +59,7 @@ struct Inner {
     alarm: watch::Sender<bool>,
     buttons: broadcast::Sender<ButtonAction>,
     shell: shell::Shell,
+    client_limits: client_limits::ClientLimits,
 }
 
 impl System {
@@ -77,12 +79,16 @@ impl System {
                 alarm: watch::Sender::new(false),
                 buttons: broadcast::Sender::new(8),
                 shell: shell::Shell::start(tracker, shutdown.clone()),
+                client_limits: client_limits::ClientLimits::new(&platform),
                 cpu,
                 platform,
                 cfg,
             }),
         };
         let i = &sys.inner;
+        let limits = sys.clone();
+        let stop = shutdown.clone();
+        tracker.spawn(async move { limits.inner.client_limits.run(stop).await });
         if i.cfg.cpu_profile_at_start {
             i.cpu.apply_at_start();
         }

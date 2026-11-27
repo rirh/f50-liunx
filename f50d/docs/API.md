@@ -302,7 +302,9 @@ source: `crates/f50-system/src/objects.rs`
 
 - **info** (read) — The device's facts and live figures.
 - **status** (read) — The home page's non-modem figures.
-- **clients** (write) — The hotspot's clients and the DHCP leases.
+- **clients** (write) — Connected devices with their link type, DHCP leases and per-MAC limits. The existing `wifi` list is also returned.
+- **set_client_limit** (write) — Sets the combined upload and download quota and each direction's speed limit for one client. A value of 0 removes that limit.
+  - fields: `mac`, `cap_bytes`, `upload_kbps`, `download_kbps`
 - **set_hostname** (write) — Sets the hostname.
   - fields: `Field::req("name", Rule::Word { re: HOSTNAME_RE, max: 63 })`
 - **set_timezone** (write) — Sets the time zone.

@@ -225,7 +225,7 @@ apk upgrade >/dev/null
 # pin, for links that ask for allowInsecure; jq: the VPN module reads vmess links and raw Xray/sing-box configs with
 # it, and rewrites those configs at every start; curl: a fetch tool that tells "cannot be reached" from "answered"
 # by its exit codes, which the wget family does not distinguish
-apk add wpad-basic-mbedtls wifi-scripts iwinfo wireless-regdb iw bash flock ip-full coreutils-stty openssl-util \
+apk add wpad-basic-mbedtls wifi-scripts iwinfo wireless-regdb iw bash flock ip-full ip-bridge coreutils-stty openssl-util \
     jq curl >/dev/null
 # the router protocols LuCI offers, with their tools: WireGuard, PPTP/L2TP (PPPoE is in the base), 6in4/6rd/DS-Lite,
 # GRE and VXLAN, ipset, and SQM (cake). Their kmod-* dependencies install the 6.12 modules of the feed, removed below like
